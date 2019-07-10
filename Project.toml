@@ -1,0 +1,13 @@
+name = "JSServe"
+uuid = "824d6782-a2ef-11e9-3a09-e5662e0c26f9"
+authors = ["SimonDanisch <sdanisch@gmail.com>"]
+version = "0.1.0"
+
+[compat]
+julia = "1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
