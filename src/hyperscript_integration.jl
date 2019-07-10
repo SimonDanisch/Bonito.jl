@@ -20,14 +20,14 @@ attribute_render(session, parent, attribute, x) = string(x)
 function attribute_render(session, parent, attribute, obs::Observable)
     onjs(session, obs, js"""
     function (value){
-        var node = $(parent)
+        var node = $(parent);
         if(node){
             if(node[$attribute] != value){
-                node[$attribute] = value
+                node[$attribute] = value;
             }
-            return true
+            return true;
         }else{
-            return false //deregister
+            return false; //deregister
         }
     }
     """)

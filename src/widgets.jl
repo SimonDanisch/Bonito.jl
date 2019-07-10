@@ -21,7 +21,7 @@ function jsrender(button::Button)
     return input(
         type = "button",
         value = button.content,
-        onclick = js"update_obs($(button.value), true)";
+        onclick = js"update_obs($(button.value), true);";
         button.attributes...
     )
 end
@@ -39,7 +39,7 @@ function jsrender(tf::TextField)
     return input(
         type = "textfield",
         value = tf.value,
-        onchange = js"update_obs($(tf.value),  this.value)";
+        onchange = js"update_obs($(tf.value),  this.value);";
         tf.attributes...
     )
 end
@@ -122,12 +122,11 @@ function jsrender(session::Session, slider::RangeSlider)
                 // Put '0' at the bottom of the slider
                 direction: 'ltr',
                 orientation: $(string(slider.orientation[])),
-            })
+            });
 
             range.noUiSlider.on('update', function (values, handle, unencoded, tap, positions){
-                console.log(values)
-                update_obs($(slider.value), [parseInt(values[0]), parseInt(values[1])])
-            })
+                update_obs($(slider.value), [parseInt(values[0]), parseInt(values[1])]);
+            });
         }
     """)
     return rangediv

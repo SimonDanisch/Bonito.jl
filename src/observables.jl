@@ -60,13 +60,13 @@ function jsrender(session::Session, obs::Observable)
     dom = div(html[])
     onjs(session, html, js"""
         function (html){
-            var dom = $(dom)
+            var dom = $(dom);
             if(dom){
-                dom.innerHTML = html
-                return true
+                dom.innerHTML = html;
+                return true;
             }else{
                 //deregister the callback if the observable dom is gone
-                return false
+                return false;
             }
         }
     """)

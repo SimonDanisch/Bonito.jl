@@ -32,11 +32,11 @@ function get_session_id(){
 function websocket_url(){
     // something like http://127.0.0.1:8081/
     var http_url = "http://127.0.0.1:8081/"
-    // if(window.websocket_proxy_url){
-    //     http_url = window.websocket_proxy_url
-    // }else{
-    //     http_url = window.location.href
-    // }
+    if(window.websocket_proxy_url){
+        http_url = window.websocket_proxy_url
+    }else{
+        http_url = window.location.href
+    }
     var ws_url = http_url.replace("http", "ws");
     // now should be like: ws://127.0.0.1:8081/
     if(!ws_url.endsWith("/")){

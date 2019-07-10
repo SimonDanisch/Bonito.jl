@@ -41,7 +41,6 @@ function JSServe.jsrender(session::Session, ::ThreeScene)
     return dom
 end
 
-
 using JSServe, Observables
 using JSServe: Dependency, div, @js_str, font, onjs, Button, TextField, Slider, JSString, with_session, linkjs
 
@@ -85,8 +84,3 @@ using HTTP
 open("index.html", "w") do io
     JSServe.dom2html(io, d.session, "bla", d.dom)
 end
-
-
-req = HTTP.Request("bla", JSServe.url(JSServe.JSCallLib))
-
-JSServe.http_handler(JSServe.global_application[], req)
