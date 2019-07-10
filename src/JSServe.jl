@@ -37,11 +37,7 @@ function atom_dom_handler(request::Request)
     end
 end
 
-const WebMimes = (
-    MIME"text/html",
-    MIME"application/prs.juno.plotpane+html",
-    MIME"application/vnd.webio.application+html"
-)
+
 
 struct DisplayInline
     dom
@@ -63,17 +59,27 @@ function with_session(f)
     DisplayInline(f(session), session)
 end
 
+const WebMimes = (
+    MIME"text/html",
+    MIME"application/prs.juno.plotpane+html",
+    # MIME"application/vnd.webio.application+html"
+)
+
+function get_global_app()
+    if !isassigned(global_application)
+        global_application[] = Application(
+            atom_dom_handler,
+            get(ENV, "WEBIO_SERVER_HOST_URL", "127.0.0.1"),
+            parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081")),
+            verbose = get(ENV, "JSCALL_VERBOSITY_LEVEL", "false") == "true"
+        )
+    end
+    global_application[]
+end
+
 for M in WebMimes
     @eval function Base.show(io::IO, m::$M, dom::DisplayInline)
-        if !isassigned(global_application)
-            global_application[] = Application(
-                atom_dom_handler,
-                get(ENV, "WEBIO_SERVER_HOST_URL", "127.0.0.1"),
-                parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081")),
-                verbose = get(ENV, "JSCALL_VERBOSITY_LEVEL", "false") == "true"
-            )
-        end
-        application = global_application[]
+        application = get_global_app()
         sessionid = dom.sessionid
         session = dom.session
         application.sessions[sessionid] = session
@@ -82,5 +88,12 @@ for M in WebMimes
         println(io, "</iframe>")
     end
 end
+
+function Base.show(io::IO, m::MIME"application/vnd.webio.application+html", dom::DisplayInline)
+    application = get_global_app()
+    application.sessions[dom.sessionid] = dom.session
+    dom2html(io, dom.session, sessionid, dom.dom)
+end
+
 
 end # module
