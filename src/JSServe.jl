@@ -24,13 +24,16 @@ include("hyperscript_integration.jl")
 const global_application = Ref{Application}()
 
 const plotpane_pages = Dict{String, Any}()
-
-function atom_dom_handler(session::Session, request::Request)
-    target = request.target[2:end]
-    if haskey(plotpane_pages, target)
-        return plotpane_pages[target]
+function atom_dom_handler(request::Request)
+    sessionid = request.target[2:end]
+    if haskey(plotpane_pages, sessionid)
+        if haskey(plotpane_pages, sessionid)
+            return sessionid, plotpane_pages[sessionid]
+        else
+            @error "Cannot find session! Target: $(sessionid). Request: $(request)"
+        end
     else
-        return  "Can't find page"
+        return sessionid, "Cannot find session! Target: $(sessionid). Request: $(request)"
     end
 end
 
@@ -47,7 +50,6 @@ struct DisplayInline
 end
 DisplayInline(dom) = DisplayInline(dom, Session(Ref{WebSocket}()), string(uuid4()))
 DisplayInline(dom, session::Session) = DisplayInline(dom, session, string(uuid4()))
-
 
 
 """
@@ -76,7 +78,8 @@ for M in WebMimes
         session = dom.session
         application.sessions[sessionid] = session
         plotpane_pages[sessionid] = dom.dom
-        dom2html(io, session, sessionid, dom.dom)
+        println(io, "<iframe src=$(repr(server_proxy_url[] * "/" * sessionid)) frameborder=\"0\" width = '100%' height = '100%'>")
+        println(io, "</iframe>")
     end
 end
 

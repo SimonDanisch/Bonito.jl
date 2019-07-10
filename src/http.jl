@@ -108,14 +108,21 @@ function http_handler(application::Application, request::Request)
                 return HTTP.Response(404)
             end
         else
-            sessionid = string(uuid4())
-            session = Session(Ref{WebSocket}())
-            application.sessions[sessionid] = session
-            dom = Base.invokelatest(application.dom, session, request)
+            body = if applicable(application.dom, request)
+                sessionid, dom = Base.invokelatest(application.dom, request)
+                session = application.sessions[sessionid]
+                dom2html(session, sessionid, dom)
+            else
+                sessionid = string(uuid4())
+                session = Session(Ref{WebSocket}())
+                application.sessions[sessionid] = session
+                dom = Base.invokelatest(application.dom, session, request)
+                dom2html(session, sessionid, dom)
+            end
             return HTTP.Response(
                 200,
                 ["Content-Type" => "text/html"],
-                body = dom2html(session, sessionid, dom)
+                body = body
             )
         end
     catch e

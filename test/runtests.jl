@@ -65,8 +65,6 @@ app = JSServe.Application(
     parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081")),
     verbose = false
 )
-JSServe.server_proxy_url[]
-
 
 d = with_session() do session
     s1 = Slider(1:100)
@@ -80,6 +78,13 @@ d = with_session() do session
     end
     return JSServe.div(s1, s2, b, t)
 end
+
+using HTTP
+rq = HTTP.Request("bla", "/" *  d.sessionid)
+
+JSServe.global_application[].sessions[d.sessionid]
+JSServe.plotpane_pages[d.sessionid]
+
 using HTTP
 open("index.html", "w") do io
     JSServe.dom2html(io, d.session, "bla", d.dom)

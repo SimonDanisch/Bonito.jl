@@ -56,6 +56,8 @@ function get_observable(id){
 }
 
 function send_error(message, exception){
+    console.error(message)
+    console.error(exception)
     websocket_send({
         type: JavascriptError,
         message: message,
@@ -65,6 +67,8 @@ function send_error(message, exception){
 
 
 function send_warning(message){
+    console.warn(message)
+
     websocket_send({
         type: JavascriptWarning,
         message: message
@@ -192,11 +196,15 @@ function setup_connection(){
             }
         }
         websocket.onclose = function (evt) {
+            console.error("Cant connect to websocket: " + url + " with event " + evt)
             if (evt.code === 1005) {
                 // TODO handle this!?
                 //tryconnect(url)
             }
         }
+        websocket.onerror = function(event) {
+          console.error("WebSocket error observed:", event);
+        };
     }
     tryconnect(websocket_url())
 }
