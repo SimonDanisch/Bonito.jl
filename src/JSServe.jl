@@ -92,7 +92,7 @@ end
 function Base.show(io::IO, m::MIME"application/vnd.webio.application+html", dom::DisplayInline)
     application = get_global_app()
     application.sessions[dom.sessionid] = dom.session
-    dom2html(io, dom.session, sessionid, dom.dom)
+    dom2html(io, dom.session, dom.sessionid, dom.dom)
 end
 
 
