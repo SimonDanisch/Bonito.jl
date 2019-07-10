@@ -39,10 +39,8 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
     register_resource!(session, js_dom)
 
     print(io, """
-        <!doctype html>
         <html>
         <head>
-        <meta charset="UTF-8">
         """
     )
     # Insert all script/css dependencies into the header
@@ -50,11 +48,11 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
     # insert the javascript for JSCall
     print(io, """
         <script>
-            window.js_call_session_id = $(repr(sessionid))
+            window.js_call_session_id = '$(sessionid)';
         """)
-    if !isempty(url_proxy[])
+    if !isempty(server_proxy_url[])
         print(io, """
-            window.websocket_proxy_url = $(repr(url_proxy[]))
+            window.websocket_proxy_url = '$(server_proxy_url[])';
         """)
     end
     println(io, """
@@ -64,15 +62,13 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
     # on_document_load javascript
     tojsstring(io, session.on_document_load)
     print(io, """
-            }
+            };
         </script>
         """
     )
     tojsstring(io, JSCallLib)
     queued_as_script(io, session)
     print(io, """
-
-        <meta name="viewport" content="width=device-width, initial-scale=1">
         </head>
         <body"""
     )

@@ -60,13 +60,14 @@ function dom_handler(session, request)
     return JSServe.div(s1, s2, b, t)
 end
 # id, session = last(active_sessions(app))
-
 app = JSServe.Application(
     dom_handler,
     get(ENV, "WEBIO_SERVER_HOST_URL", "127.0.0.1"),
     parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081")),
     verbose = false
 )
+JSServe.server_proxy_url[]
+
 
 d = with_session() do session
     s1 = Slider(1:100)
@@ -80,3 +81,12 @@ d = with_session() do session
     end
     return JSServe.div(s1, s2, b, t)
 end
+using HTTP
+open("index.html", "w") do io
+    JSServe.dom2html(io, d.session, "bla", d.dom)
+end
+
+
+req = HTTP.Request("bla", JSServe.url(JSServe.JSCallLib))
+
+JSServe.http_handler(JSServe.global_application[], req)

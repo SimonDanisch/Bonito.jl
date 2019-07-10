@@ -2,21 +2,26 @@ dependency_path(paths...) = joinpath(@__DIR__, "..", "js_dependencies", paths...
 
 mediatype(asset::Asset) = asset.media_type
 
-const url_proxy = Ref{String}()
+const server_proxy_url = Ref{String}()
+
 
 function __init__()
-    url = get(ENV, "JULIA_WEBIO_BASEURL", "")
+    url = get(ENV, "JULIA_WEBIO_BASEURL") do
+        base = get(ENV, "WEBIO_SERVER_HOST_URL", "127.0.0.1")
+        port = get(ENV, "WEBIO_HTTP_PORT", "8081")
+        return "http://" * base * ":" * port
+    end
     if endswith(url, "/")
         url = url[1:end-1]
     end
-    url_proxy[] = url
+    server_proxy_url[] = url
 end
 
 function url(asset::Asset)
     if !isempty(asset.online_path)
         return asset.online_path
     else
-        return url_proxy[] * AssetRegistry.register(asset.local_path)
+        return server_proxy_url[] * AssetRegistry.register(asset.local_path)
     end
 end
 
@@ -84,7 +89,7 @@ function tojsstring(io::IO, asset::Asset)
     if mediatype(asset) == :js
         println(
             io,
-            "<script src=$(repr(url(asset)))></script>"
+            "<script src='$(url(asset))'></script>"
         )
     elseif mediatype(asset) == :css
         println(

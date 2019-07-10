@@ -71,12 +71,22 @@ function queued_as_script(io::IO, session::Session)
             # Make sure we update the Javascript values!
             on(updater, observable)
             session.observables[id] = (true, observable)
-            tojsstring(io, js"    registered_observables[$(observable)] = $(observable[])")
+            tojsstring(io, js"    registered_observables[$(observable)] = $(observable[]);")
             println(io)
         end
     end
     for message in session.message_queue
-        tojsstring(io, js"    process_message($message)")
+        # if message[:type] == OnjsCallback
+        #     id = message[:id]
+        #     callback = join(split(message[:payload], '\n'), ";\n")
+        #     println(io, """
+        #         var callbacks = observable_callbacks['$(id)'] || [];
+        #         callbacks.push($(callback));
+        #         observable_callbacks['$(id)'] = callbacks;
+        #     """)
+        # else
+            tojsstring(io, js"    process_message($(message));")
+        # end
         println(io)
     end
     println(io, "</script>")
