@@ -71,7 +71,7 @@ function queued_as_script(io::IO, session::Session)
             # Make sure we update the Javascript values!
             on(updater, observable)
             session.observables[id] = (true, observable)
-            tojsstring(io, js"    registered_observables[$(observable)] = $(observable[]);")
+            serialize_string(io, js"    registered_observables[$(observable)] = $(observable[]);")
             println(io)
         end
     end
@@ -85,7 +85,7 @@ function queued_as_script(io::IO, session::Session)
         #         observable_callbacks['$(id)'] = callbacks;
         #     """)
         # else
-            tojsstring(io, js"    process_message($(message));")
+            serialize_string(io, js"    process_message($(message));")
         # end
         println(io)
     end
@@ -107,7 +107,7 @@ function Sockets.send(session::Session, message::Dict{Symbol, Any})
         # send all queued messages
         # send_queued(session)
         # sent the actual message
-        write(session.connection[], JSON3.write(message))
+        serialize_websocket(session.connection[], message)
     else
         push!(session.message_queue, message)
     end
@@ -133,7 +133,7 @@ function onjs(session::Session, obs::Observable, func::JSCode)
         type = OnjsCallback,
         id = obs.id,
         # eval requires functions to be wrapped in ()
-        payload = "(" * tojsstring(func) * ")"
+        payload = "(" * serialize_string(func) * ")"
     )
 end
 
@@ -189,7 +189,7 @@ Evaluate a javascript script in `session`.
 """
 function evaljs(session::Session, jss::JSCode)
     register_resource!(session, jss)
-    send(session, type = EvalJavascript, payload = tojsstring(jss))
+    send(session, type = EvalJavascript, payload = jss)
 end
 
 """
@@ -259,9 +259,9 @@ function update_dom!(session::Session, dom)
         var s = document.createElement("script");
         s.type = "text/javascript";
         s.async = false
-        s.text = $(tojsstring(new_jss));
+        s.text = $(serialize_string(new_jss));
         document.head.appendChild(s);
     """
-    println(tojsstring(update_script))
+    println(serialize_string(update_script))
     evaljs(session, update_script)
 end

@@ -1,6 +1,8 @@
 const registered_observables = {}
 const observable_callbacks = {}
-websocket = null
+const javascript_object_heap = {}
+
+const session_websocket = []
 
 // Save some bytes by using ints for switch variable
 const UpdateObservable = '0'
@@ -8,6 +10,11 @@ const OnjsCallback = '1'
 const EvalJavascript = '2'
 const JavascriptError = '3'
 const JavascriptWarning = '4'
+
+const JSCall = '5'
+const JSGetIndex = '6'
+const JSSetIndex = '7'
+
 
 function get_session_id(){
     return window.js_call_session_id
@@ -130,9 +137,16 @@ function update_obs(id, value){
 }
 
 function websocket_send(data){
-    websocket.send(JSON.stringify(data))
+    session_websocket[0].send(JSON.stringify(data))
 }
 
+function is_list(value){
+    return args && typeof args === 'object' && args.constructor === Array;
+}
+
+function apply_function(f, args){
+    if(
+}
 
 function process_message(data){
     switch(data.type) {
@@ -179,6 +193,39 @@ function process_message(data){
                 )
             }
             break;
+        case JSCall:
+            try{
+                var func = get_heap_object(data.func);
+                var result;
+                if(data.needs_new){
+                    // if argument list we need to use apply
+                    if (is_list(data.arguments)){
+                        result = new func.apply(null, data.arguments);
+                    }else{
+                        // for dictionaries we use a normal call
+                        result = new func(data.arguments);
+                    }
+                }else{
+                    // TODO remove code duplication here. I don't think new would propagate
+                    // correctly if we'd use something like apply_func
+                    if (is_list(data.arguments)){
+                        result = func.apply(null, data.arguments);
+                    }else{
+                        // for dictionaries we use a normal call
+                        result = func(data.arguments);
+                    }
+                }
+                // finally put result on the heap, so the julia object works correctly
+                put_on_heap!(data.result, result)
+
+            }catch(exception){
+                send_error(
+                    "Error while calling JS function from Julia. Source:\n" +
+                    func.toSource(),
+                    exception
+                )
+            }
+            break;
         default:
             send_error(
                 "Unrecognized message type: " + data.id + ".",
@@ -190,13 +237,17 @@ function process_message(data){
 function setup_connection(){
     function tryconnect(url) {
         websocket = new WebSocket(url);
+        if(session_websocket.length != 0){
+            throw "Inconsistent state. Already opened a websocket!"
+        }
+        session_websocket.push(websocket)
         websocket.onopen = function () {
             websocket.onmessage = function (evt) {
                 process_message(JSON.parse(evt.data))
             }
         }
         websocket.onclose = function (evt) {
-            console.error("Cant connect to websocket: " + url + " with event " + evt)
+            session_websocket.length = 0;
             if (evt.code === 1005) {
                 // TODO handle this!?
                 //tryconnect(url)

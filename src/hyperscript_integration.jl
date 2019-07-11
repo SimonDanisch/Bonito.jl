@@ -35,7 +35,7 @@ function attribute_render(session, parent, attribute, obs::Observable)
 end
 
 function attribute_render(session, parent, attribute, jss::JSCode)
-    return tojsstring(jss)
+    return serialize_string(jss)
 end
 
 render_node(session::Session, x) = x
@@ -81,7 +81,7 @@ function uuid(node::Node)
 end
 
 # Handle interpolating into Javascript
-function tojsstring(io::IO, node::Node)
+function serialize_string(io::IO, node::Node)
     # This relies on jsrender to give each node a unique id under the
     # attribute data-jscall-id. This is a bit brittle
     # improving this would be nice

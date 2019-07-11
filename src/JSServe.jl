@@ -11,6 +11,7 @@ using WebSockets
 using Base64
 
 include("types.jl")
+include("serialization.jl")
 include("js_source.jl")
 include("session.jl")
 include("observables.jl")

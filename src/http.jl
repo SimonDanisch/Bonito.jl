@@ -44,7 +44,7 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
         """
     )
     # Insert all script/css dependencies into the header
-    tojsstring(io, session.dependencies)
+    serialize_string(io, session.dependencies)
     # insert the javascript for JSCall
     print(io, """
         <script>
@@ -60,13 +60,13 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
     """)
     # create a function we call in body onload =, which loads all
     # on_document_load javascript
-    tojsstring(io, session.on_document_load)
+    serialize_string(io, session.on_document_load)
     print(io, """
             };
         </script>
         """
     )
-    tojsstring(io, JSCallLib)
+    serialize_string(io, JSCallLib)
     queued_as_script(io, session)
     print(io, """
         </head>

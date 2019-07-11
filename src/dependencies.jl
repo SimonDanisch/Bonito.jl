@@ -78,14 +78,14 @@ function Dependency(name::Symbol, urls::AbstractVector)
     )
 end
 
-function tojsstring(io::IO, assets::Set{Asset})
+function serialize_string(io::IO, assets::Set{Asset})
     for asset in assets
-        tojsstring(io, asset)
+        serialize_string(io, asset)
         println(io)
     end
 end
 
-function tojsstring(io::IO, asset::Asset)
+function serialize_string(io::IO, asset::Asset)
     if mediatype(asset) == :js
         println(
             io,
@@ -102,7 +102,7 @@ function tojsstring(io::IO, asset::Asset)
 end
 
 
-function tojsstring(io::IO, dependency::Dependency)
+function serialize_string(io::IO, dependency::Dependency)
     print(io, dependency.name)
 end
 
