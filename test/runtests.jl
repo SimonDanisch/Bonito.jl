@@ -103,3 +103,11 @@ using HTTP
 open("index.html", "w") do io
     JSServe.dom2html(io, d.session, "bla", d.dom)
 end
+
+
+@tags button
+disable = Observable(true)
+d = with_session() do session
+    dom = button("help", disabled = disable)
+end
+disable[] = false

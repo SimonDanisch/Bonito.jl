@@ -16,7 +16,9 @@ end
 for func in (:write, :print, :println)
     @eval Base.$(func)(io::JavascriptSerializer, args...) = $(func)(io_object(io), args...)
 end
+Base.print(io::JavascriptSerializer, arg::Union{SubString{String}, String}) = print(io_object(io), arg)
 
+Base.write(io::JSServe.JavascriptSerializer, arg::UInt8) = Base.write(io_object(io), arg)
 function serialize_websocket(io::IO, message)
     # right now, we simply use
     write(io, serialize_string(message))
