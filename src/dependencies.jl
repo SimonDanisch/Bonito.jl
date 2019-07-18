@@ -1,21 +1,14 @@
+# TODO, make sure that names are unique
+"""
+    dependency_path(paths...)
+
+Path to serve downloaded dependencies
+"""
 dependency_path(paths...) = joinpath(@__DIR__, "..", "js_dependencies", paths...)
 
 mediatype(asset::Asset) = asset.media_type
 
 const server_proxy_url = Ref{String}()
-
-
-function __init__()
-    url = get(ENV, "JULIA_WEBIO_BASEURL") do
-        base = get(ENV, "WEBIO_SERVER_HOST_URL", "127.0.0.1")
-        port = get(ENV, "WEBIO_HTTP_PORT", "8081")
-        return "http://" * base * ":" * port
-    end
-    if endswith(url, "/")
-        url = url[1:end-1]
-    end
-    server_proxy_url[] = url
-end
 
 function url(asset::Asset)
     if !isempty(asset.online_path)
@@ -100,7 +93,6 @@ function serialize_string(io::IO, asset::Asset)
         error("Unrecognized asset media type: $(mediatype(asset))")
     end
 end
-
 
 function serialize_string(io::IO, dependency::Dependency)
     print(io, dependency.name)

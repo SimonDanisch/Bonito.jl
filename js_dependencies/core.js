@@ -108,8 +108,6 @@ function run_js_callbacks(id, value){
     }
 }
 
-
-
 function update_obs(id, value){
     if(id in registered_observables){
         try{

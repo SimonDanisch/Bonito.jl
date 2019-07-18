@@ -1,3 +1,5 @@
+abstract type AbstractJSObject end
+
 
 """
 References objects stored in Javascript.
@@ -38,6 +40,18 @@ mutable struct JSObject <: AbstractJSObject
     end
 end
 
+struct JSGlobal <: AbstractJSObject
+    name::Symbol
+end
+
+macro jsglobal(name)
+    JSGlobal(Symbol(name))
+end
+
+function serialize_string(io::IO, g::JSGlobal)
+    print(io, g.name)
+end
+
 """
     JSObject(jso::JSObject, typ::Symbol)
 
@@ -46,7 +60,7 @@ Copy constructor with a new `typ`
 function JSObject(jso::JSObject, typ::Symbol)
     jsonew = JSObject(name(jso), scope(jso), typ)
     # point new object to old one on the javascript side:
-    evaljs(jso, js"$jsonew = $jso; undefined;")
+    evaljs(session(jso), js"$jsonew = $jso; undefined;")
     return jsonew
 end
 
@@ -87,7 +101,7 @@ Will translates to the following Julia code:
 obj = Module.new.Constructor()
 ```
 """
-function Base.getproperty(jso::JSObject, field::Symbol)
+function Base.getproperty(jso::AbstractJSObject, field::Symbol)
     if field === :new
         # Create a new instance of jso, with the `new` modifier
         return JSObject(jso, :new)
@@ -104,9 +118,7 @@ function Base.getproperty(jso::JSObject, field::Symbol)
     end
 end
 
-
-
-function Base.setproperty!(jso::JSObject, field::Symbol, value)
+function Base.setproperty!(jso::AbstractJSObject, field::Symbol, value)
     send(
         session(jso),
         type = JSSetIndex,
@@ -116,7 +128,6 @@ function Base.setproperty!(jso::JSObject, field::Symbol, value)
     )
     return val
 end
-
 
 """
     construct_arguments(args, keyword_arguments)
@@ -144,7 +155,7 @@ end
 Call overload for JSObjects.
 Only supports keyword arguments OR positional arguments.
 """
-function (jso::JSObject)(args...; kw_args...)
+function js_call(jso::AbstractJSObject, args, kw_args)
     result = JSObject(:result, session(jso), :call)
     send(
         session(jso),
@@ -156,3 +167,6 @@ function (jso::JSObject)(args...; kw_args...)
     )
     return result
 end
+
+(jso::JSObject)(args...; kw_args...) = jscall(jso, args, kw_args)
+(jso::JSGlobal)(args...; kw_args...) = jscall(jso, args, kw_args)
