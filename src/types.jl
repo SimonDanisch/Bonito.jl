@@ -91,8 +91,28 @@ function Application(
         url, port, Dict{String, Session}(),
         Ref{Task}(), dom,
     )
-    application.server_task[] = @async HTTP.listen(url, port, verbose = verbose) do stream::Stream
-        Base.invokelatest(stream_handler, application, stream)
+    task = @async begin
+        HTTP.listen(url, port, verbose = verbose) do stream::Stream
+            Base.invokelatest(stream_handler, application, stream)
+        end
+    end
+    application.server_task[] = task
+    bundle_url = JSServe.url(JSCallLib)
+    wait_time = 5.0; start = time() # wait for max 5 s
+    try
+        yield()
+        while time() - start < wait_time
+            # Block as long as our server doesn't actually serve the bundle
+            if Base.istaskdone(task)
+                error("Webserver doesn't serve! Error: $(fetch(task))")
+                break
+            end
+            resp = WebSockets.HTTP.get(bundle_url)
+            resp.status == 200 && break
+            sleep(0.1)
+        end
+    catch e
+        @error "Error while waiting for webserver to start up." exeption=e
     end
     return application
 end

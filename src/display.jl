@@ -44,7 +44,7 @@ const WebMimes = (
 )
 
 function get_global_app()
-    if !isassigned(global_application)
+    if !isassigned(global_application) || istaskdone(global_application[].server_task[])
         global_application[] = Application(
             atom_dom_handler,
             get(ENV, "WEBIO_SERVER_HOST_URL", "127.0.0.1"),

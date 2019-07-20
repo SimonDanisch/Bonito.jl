@@ -121,7 +121,7 @@ function http_handler(application::Application, request::Request)
                     dom = Base.invokelatest(application.dom, session, request)
                     dom2html(session, sessionid, dom)
                 else
-                    ""
+                    "No route for request: $(request.target)"
                 end
             end
             return HTTP.Response(
