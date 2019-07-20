@@ -62,7 +62,6 @@ Returns all queued messages as a script that can be included into a html
 """
 function queued_as_script(io::IO, session::Session)
     # send all queued messages
-    println(io, "<script>")
     # first register observables
     for (id, (registered, observable)) in session.observables
         if !registered
@@ -76,20 +75,12 @@ function queued_as_script(io::IO, session::Session)
         end
     end
     for message in session.message_queue
-        # if message[:type] == OnjsCallback
-        #     id = message[:id]
-        #     callback = join(split(message[:payload], '\n'), ";\n")
-        #     println(io, """
-        #         var callbacks = observable_callbacks['$(id)'] || [];
-        #         callbacks.push($(callback));
-        #         observable_callbacks['$(id)'] = callbacks;
-        #     """)
-        # else
-            serialize_string(io, js"    process_message($(message));")
-        # end
+        serialize_string(
+            io,
+            js"    process_message(deserialize_js($(AsJSON(message))));"
+        )
         println(io)
     end
-    println(io, "</script>")
     empty!(session.message_queue)
 end
 queued_as_script(session::Session) = sprint(io-> queued_as_script(io, session))
@@ -128,12 +119,13 @@ entirely in javascript, without any communication with the Julia `session`.
 function onjs(session::Session, obs::Observable, func::JSCode)
     # register the callback with the JS session
     register_resource!(session, (obs, func))
+
     send(
         session,
         type = OnjsCallback,
         id = obs.id,
         # eval requires functions to be wrapped in ()
-        payload = "(" * serialize_string(func) * ")"
+        payload = js"($func)"
     )
 end
 

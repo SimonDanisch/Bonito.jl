@@ -2,6 +2,13 @@ const registered_observables = {}
 const observable_callbacks = {}
 const javascript_object_heap = {}
 
+function put_on_heap(id, value){
+    javascript_object_heap[id] = value;
+}
+function get_heap_object(id){
+    return javascript_object_heap[id];
+}
+
 const session_websocket = []
 
 // Save some bytes by using ints for switch variable
@@ -15,6 +22,12 @@ const JSCall = '5'
 const JSGetIndex = '6'
 const JSSetIndex = '7'
 
+function is_list(value){
+    return value && typeof value === 'object' && value.constructor === Array;
+}
+function is_dict(value){
+    return value && typeof value === 'object';
+}
 
 function get_session_id(){
     return window.js_call_session_id
@@ -34,6 +47,37 @@ function get_session_id(){
     // } else {
     //   return default_id
     // }
+}
+const serializer_functions = {
+    JSObject: get_heap_object,
+}
+
+function deserialize_js(data){
+    if(is_list(data)){
+        return data.map(deserialize_js)
+    }else if(is_dict(data)){
+        if('__javascript_type__' in data){
+            if(data.__javascript_type__ == 'JSObject'){
+                return get_heap_object(data.payload);
+            }else{
+                send_error(
+                    "Can't deserialize custom type: " + data.__javascript_type__,
+                    ""
+                );
+                return undefined;
+            }
+        }else{
+            var result = {};
+            for (var k in data) {
+                if (data.hasOwnProperty(k)) {
+                    result[k] = deserialize_js(data[k]);
+                }
+            }
+            return result;
+        }
+    }else{
+        return data;
+    }
 }
 
 function websocket_url(){
@@ -138,13 +182,7 @@ function websocket_send(data){
     session_websocket[0].send(JSON.stringify(data))
 }
 
-function is_list(value){
-    return args && typeof args === 'object' && args.constructor === Array;
-}
 
-function apply_function(f, args){
-    if(
-}
 
 function process_message(data){
     switch(data.type) {
@@ -168,9 +206,9 @@ function process_message(data){
                 // when observable updates
                 var id = data.id
                 var f = eval(data.payload);
-                var callbacks = observable_callbacks[id] || []
-                callbacks.push(f)
-                observable_callbacks[id] = callbacks
+                var callbacks = observable_callbacks[id] || [];
+                callbacks.push(f);
+                observable_callbacks[id] = callbacks;
             }catch(exception){
                 send_error(
                     "Error while registering an onjs callback.\n" +
@@ -193,33 +231,60 @@ function process_message(data){
             break;
         case JSCall:
             try{
-                var func = get_heap_object(data.func);
+                var func = data.func;
                 var result;
+                var arguments = data.arguments;
                 if(data.needs_new){
                     // if argument list we need to use apply
-                    if (is_list(data.arguments)){
-                        result = new func.apply(null, data.arguments);
+                    if (is_list(arguments)){
+                        result = new func(...arguments);
                     }else{
                         // for dictionaries we use a normal call
-                        result = new func(data.arguments);
+                        result = new func(arguments);
                     }
                 }else{
                     // TODO remove code duplication here. I don't think new would propagate
                     // correctly if we'd use something like apply_func
-                    if (is_list(data.arguments)){
-                        result = func.apply(null, data.arguments);
+                    if (is_list(arguments)){
+                        result = func(...arguments);
                     }else{
                         // for dictionaries we use a normal call
-                        result = func(data.arguments);
+                        result = func(arguments);
                     }
                 }
                 // finally put result on the heap, so the julia object works correctly
-                put_on_heap!(data.result, result)
-
+                put_on_heap(data.result, result);
             }catch(exception){
                 send_error(
-                    "Error while calling JS function from Julia. Source:\n" +
-                    func.toSource(),
+                    "Error while calling JS function from Julia. Function:\n" +
+                    String(func),
+                    exception
+                )
+            }
+            break;
+        case JSGetIndex:
+            try{
+                var result = data.object[data.field];
+                // if result is a class method, we need to bind it to the parent object
+                if(result.bind != undefined){
+                    result = result.bind(data.object);
+                }
+                put_on_heap(data.result, result);
+            }catch(exception){
+                send_error(
+                    "Error while executing getting field " + data.field +
+                    " from:\n" + String(data.object),
+                    exception
+                )
+            }
+            break;
+        case JSSetIndex:
+            try{
+                data.object[data.field] = data.value;
+            }catch(exception){
+                send_error(
+                    "Error while executing setting field " + data.field +
+                    " from:\n" + String(data.object) + " with value " + data.value,
                     exception
                 )
             }
@@ -241,7 +306,9 @@ function setup_connection(){
         session_websocket.push(websocket)
         websocket.onopen = function () {
             websocket.onmessage = function (evt) {
-                process_message(JSON.parse(evt.data))
+                var msg = JSON.parse(evt.data);
+                var dmsg = deserialize_js(msg);
+                process_message(dmsg);
             }
         }
         websocket.onclose = function (evt) {

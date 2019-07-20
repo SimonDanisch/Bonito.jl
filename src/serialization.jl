@@ -17,11 +17,16 @@ for func in (:write, :print, :println)
     @eval Base.$(func)(io::JavascriptSerializer, args...) = $(func)(io_object(io), args...)
 end
 Base.print(io::JavascriptSerializer, arg::Union{SubString{String}, String}) = print(io_object(io), arg)
+Base.print(io::JavascriptSerializer, arg::Char) = print(io_object(io), arg)
 
 Base.write(io::JSServe.JavascriptSerializer, arg::UInt8) = Base.write(io_object(io), arg)
+
 function serialize_websocket(io::IO, message)
     # right now, we simply use
-    write(io, serialize_string(message))
+    str = sprint() do io2
+        serialize_string(JSONSerializer(io2), message)
+    end
+    write(io, str)
 end
 
 
@@ -37,19 +42,22 @@ When sent to the frontend, the final javascript string will be constructed as:
 "console.log(" * serialize_string(var) * ")"
 ```
 """
-serialize_string(@nospecialize(object)) = sprint(io-> serialize_string(JSONSerializer(io), object))
+serialize_string(@nospecialize(object)) = sprint(io-> serialize_string(io, object))
 serialize_string(io::IO, @nospecialize(object)) = JSON3.write(io, object)
 serialize_string(io::IO, x::Observable) = print(io, "'", x.id, "'")
 
 # Handle interpolation into javascript
-serialize_string(io::IO, x::JSString) = print(io, x.source)
+function serialize_string(jsio::JSONSerializer, jss::JSCode)
+    # serialize as string
+    serialize_string(jsio, serialize_string(jss))
+end
 
+serialize_string(io::IO, x::JSString) = print(io, x.source)
 function serialize_string(io::IO, jss::JSCode)
     for elem in jss.source
         serialize_string(io, elem)
     end
 end
-
 function serialize_string(io::IO, jsss::AbstractVector{JSCode})
     for jss in jsss
         serialize_string(io, jss)
@@ -57,9 +65,19 @@ function serialize_string(io::IO, jsss::AbstractVector{JSCode})
     end
 end
 
+struct AsJSON{T}
+    x::T
+end
+
+serialize_string(io::JSONSerializer, js::AsJSON) = serialize_string(io, js.x)
+
+function serialize_string(io::IO, js::AsJSON)
+    serialize_string(JSONSerializer(io), js.x)
+end
+
 # Since there is no easy way to mess with JSON3 printer, we print
 # Vectors & Dictionaries ourselves, so that we cann apply serialize_string recursively
-function serialize_string(io::IO, vector::AbstractVector)
+function serialize_string(io::IO, vector::Union{AbstractVector, Tuple})
     print(io, '[')
     for (i, element) in enumerate(vector)
         serialize_string(io, element)
@@ -77,3 +95,8 @@ function serialize_string(io::IO, dict::Union{NamedTuple, AbstractDict})
     end
     print(io, '}')
 end
+
+# function deserialize_js(::JSObject)
+#     # deserialize with the function get_heap_object
+#     return js"get_heap_object"
+# end

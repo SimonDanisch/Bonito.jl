@@ -29,13 +29,13 @@ mutable struct JSObject <: AbstractJSObject
     function JSObject(name::Symbol, scope::Session, typ::Symbol)
         obj = new(name, scope, typ)
         setfield!(obj, :uuid, objectid(obj))
-        finalizer(remove_js_reference, obj)
+        # finalizer(remove_js_reference, obj)
         return obj
     end
 
     function JSObject(name::Symbol, scope::Session, typ::Symbol, uuid::UInt64)
         obj = new(name, scope, typ, uuid)
-        finalizer(remove_js_reference, obj)
+        # finalizer(remove_js_reference, obj)
         return obj
     end
 end
@@ -52,18 +52,30 @@ function serialize_string(io::IO, g::JSGlobal)
     print(io, g.name)
 end
 
+function serialize_string(io::JSONSerializer, jso::JSObject)
+    serialize_string(io, Dict(
+        :__javascript_type__ => :JSObject,
+        :payload => uuidstr(jso)
+    ))
+end
+function serialize_string(io::IO, jso::JSObject)
+    serialize_string(io, js"get_heap_object($(uuidstr(jso)))")
+end
+
 """
     JSObject(jso::JSObject, typ::Symbol)
 
 Copy constructor with a new `typ`
 """
 function JSObject(jso::JSObject, typ::Symbol)
-    jsonew = JSObject(name(jso), scope(jso), typ)
+    jsonew = JSObject(name(jso), session(jso), typ)
     # point new object to old one on the javascript side:
-    evaljs(session(jso), js"$jsonew = $jso; undefined;")
+    evaljs(session(jso), js"put_on_heap($(uuidstr(jsonew)), $jso); undefined;")
     return jsonew
 end
-
+function JSObject(session::Session, name::Symbol)
+    return JSObject(name, session, :variable)
+end
 
 # define accessors
 for name in (:name, :session, :typ, :uuid)
@@ -111,8 +123,8 @@ function Base.getproperty(jso::AbstractJSObject, field::Symbol)
             session(jso),
             type = JSGetIndex,
             object = jso,
-            result = result,
-            field = field
+            field = field,
+            result = uuidstr(result),
         )
         return result
     end
@@ -126,7 +138,7 @@ function Base.setproperty!(jso::AbstractJSObject, field::Symbol, value)
         value = value,
         field = field
     )
-    return val
+    return value
 end
 
 """
@@ -155,7 +167,7 @@ end
 Call overload for JSObjects.
 Only supports keyword arguments OR positional arguments.
 """
-function js_call(jso::AbstractJSObject, args, kw_args)
+function jscall(jso::AbstractJSObject, args, kw_args)
     result = JSObject(:result, session(jso), :call)
     send(
         session(jso),
@@ -163,10 +175,36 @@ function js_call(jso::AbstractJSObject, args, kw_args)
         func = jso,
         needs_new = getfield(jso, :typ) === :new,
         arguments = construct_arguments(args, kw_args),
-        result = result
+        result = uuidstr(result)
     )
     return result
 end
 
 (jso::JSObject)(args...; kw_args...) = jscall(jso, args, kw_args)
 (jso::JSGlobal)(args...; kw_args...) = jscall(jso, args, kw_args)
+
+
+
+struct JSModule <: AbstractJSObject
+    session::Session
+    mod::JSObject
+    document::JSObject
+    window::JSObject
+    this::JSObject
+    display_func # A function that gets called on show with the modules Scope
+end
+session(x::JSModule) = getfield(x, :session)
+
+function make_renderable!(jsm::JSModule)
+    jss = js"""
+        function (mod){
+            $(object_pool_identifier) = {}
+            $(object_pool_identifier)[$(uuidstr(jsm.mod))] = mod
+            $(object_pool_identifier)[$(uuidstr(jsm.document))] = document
+            $(object_pool_identifier)[$(uuidstr(jsm.window))] = window
+            $(object_pool_identifier)[$(uuidstr(jsm.this))] = this
+        }
+    """
+    onimport(jsm.scope, jss)
+    return jsm.display_func(jsm.scope)
+end

@@ -5,6 +5,10 @@ const EvalJavascript = "2"
 const JavascriptError = "3"
 const JavascriptWarning = "4"
 
+const JSCall = "5"
+const JSGetIndex = "6"
+const JSSetIndex = "7"
+
 function stream_handler(application::Application, stream::Stream)
     try
         if WebSockets.is_upgrade(stream)
@@ -61,22 +65,19 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
     # create a function we call in body onload =, which loads all
     # on_document_load javascript
     serialize_string(io, session.on_document_load)
+    queued_as_script(io, session)
     print(io, """
-            };
+        };
         </script>
         """
     )
     serialize_string(io, JSCallLib)
-    queued_as_script(io, session)
     print(io, """
         </head>
         <body"""
     )
-
-    if !isempty(session.on_document_load)
-        # insert on document load javascript if we have any
-        print(io, " onload = '__on_document_load__()'")
-    end
+    # insert on document load
+    print(io, " onload = '__on_document_load__()'")
     print(io, """>
         <div id='application-dom'>
         """
@@ -113,11 +114,15 @@ function http_handler(application::Application, request::Request)
                 session = application.sessions[sessionid]
                 dom2html(session, sessionid, dom)
             else
-                sessionid = string(uuid4())
-                session = Session(Ref{WebSocket}())
-                application.sessions[sessionid] = session
-                dom = Base.invokelatest(application.dom, session, request)
-                dom2html(session, sessionid, dom)
+                if request.target == "/"
+                    sessionid = string(uuid4())
+                    session = Session(Ref{WebSocket}())
+                    application.sessions[sessionid] = session
+                    dom = Base.invokelatest(application.dom, session, request)
+                    dom2html(session, sessionid, dom)
+                else
+                    ""
+                end
             end
             return HTTP.Response(
                 200,
