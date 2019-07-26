@@ -3,6 +3,8 @@ using JSServe, Observables
 using JSServe: Application, Session, evaljs, linkjs, update_dom!, div, active_sessions
 using JSServe: @js_str, font, onjs, Button, TextField, Slider, JSString, Dependency, with_session
 
+# Javascript & CSS dependencies can be declared locally and
+# freely interpolated in the DOM / js string, and will make sure it loads
 const THREE = JSServe.Dependency(
     :THREE,
     ["https://cdn.jsdelivr.net/gh/mrdoob/three.js/build/three.min.js"]
