@@ -4,7 +4,6 @@ abstract type AbstractWidget{T} <: Observables.AbstractObservable{T} end
 
 Observables.observe(x::AbstractWidget) = x.value
 
-
 struct Button{T} <: AbstractWidget{Bool}
     content::Observable{T}
     value::Observable{Bool}
@@ -51,10 +50,13 @@ struct Slider{T <: AbstractRange, ET} <: AbstractWidget{T}
     attributes::Dict{Symbol, Any}
 end
 
+to_node(x) = Observable(x)
+to_node(x::Observable) = x
+
 function Slider(range::T, value = first(range); kw...) where T <: AbstractRange
     Slider{T, eltype(range)}(
-        Observable(range),
-        Observable(value),
+        to_node(range),
+        to_node(value),
         Dict{Symbol, Any}(kw)
     )
 end
@@ -66,7 +68,7 @@ function jsrender(slider::Slider)
         max = map(last, slider.range),
         value = slider.value,
         step = map(step, slider.range),
-        oninput = js"update_obs($(slider.value), parseInt(value))";
+        oninput = js"update_obs($(slider.value), parseFloat(value))";
         slider.attributes...
     )
 end
@@ -125,7 +127,7 @@ function jsrender(session::Session, slider::RangeSlider)
             });
 
             range.noUiSlider.on('update', function (values, handle, unencoded, tap, positions){
-                update_obs($(slider.value), [parseInt(values[0]), parseInt(values[1])]);
+                update_obs($(slider.value), [parseFloat(values[0]), parseFloat(values[1])]);
             });
         }
     """)

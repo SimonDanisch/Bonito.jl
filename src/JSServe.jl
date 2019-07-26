@@ -23,8 +23,6 @@ include("hyperscript_integration.jl")
 include("display.jl")
 include("jscall.jl")
 
-
-
 function __init__()
     url = get(ENV, "JULIA_WEBIO_BASEURL") do
         base = get(ENV, "WEBIO_SERVER_HOST_URL", "127.0.0.1")
