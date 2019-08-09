@@ -17,7 +17,7 @@ function Button(content; kw...)
 end
 
 function jsrender(button::Button)
-    return input(
+    return DOM.input(
         type = "button",
         value = button.content,
         onclick = js"update_obs($(button.value), true);";
@@ -35,7 +35,7 @@ function TextField(value::String; kw...)
 end
 
 function jsrender(tf::TextField)
-    return input(
+    return DOM.input(
         type = "textfield",
         value = tf.value,
         onchange = js"update_obs($(tf.value),  this.value);";
@@ -62,7 +62,7 @@ function Slider(range::T, value = first(range); kw...) where T <: AbstractRange
 end
 
 function jsrender(slider::Slider)
-    return input(
+    return DOM.input(
         type = "range",
         min = map(first, slider.range),
         max = map(last, slider.range),
@@ -103,7 +103,7 @@ const noUiSlider = Dependency(
 )
 
 function jsrender(session::Session, slider::RangeSlider)
-    rangediv = div()
+    rangediv = DOM.div()
     onload(session, rangediv, js"""
         function create_slider(range){
             $(noUiSlider).create(range, {
