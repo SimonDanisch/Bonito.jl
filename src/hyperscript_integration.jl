@@ -1,4 +1,9 @@
 
+
+module DOM
+
+using Hyperscript
+
 const global_unique_dom_id_counter = Ref(0)
 
 """
@@ -12,8 +17,23 @@ function get_unique_dom_id()
     return string(global_unique_dom_id_counter[])
 end
 
-@tags div input font
-@tags_noescape style script
+"""
+Dome node with unique ID, to make it easier to interpolate it.
+"""
+function um(tag, args...; kw...)
+    m(tag, args..., dataJscallId = get_unique_dom_id(); kw...)
+end
+
+div(args...; kw...) = um("div", args...; kw...)
+input(args...; kw...) = um("input", args...; kw...)
+font(args...; kw...) = um("font", args...; kw...)
+
+style(args...; kw...) = m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, "style", args...; kw...)
+script(args...; kw...) = m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, "script", args...; kw...)
+
+end
+
+using .DOM
 
 # default turn attributes into strings
 attribute_render(session, parent, attribute, x) = string(x)
@@ -40,12 +60,12 @@ end
 
 render_node(session::Session, x) = x
 
+function render_node(session::Session, node::Node{Hyperscript.CSS})
+# do nothing
+    return node
+end
 function render_node(session::Session, node::Node)
     # give each node a unique id inside the dom
-    node_id = get_unique_dom_id()
-    # pretty hacky, but this is the only way I can think of right now
-    # to make sure that we always have a unique id for a node
-    get!(Hyperscript.attrs(node), "data-jscall-id", node_id)
     new_attributes = Dict{String, Any}()
     newchildren = map(children(node)) do elem
         childnode = jsrender(session, elem)
@@ -76,7 +96,7 @@ end
 
 function uuid(node::Node)
     get(Hyperscript.attrs(node), "data-jscall-id") do
-        error("Node $(node) doesn't have a unique id. Call jsrender(session, node) first!")
+        error("Node $(node) doesn't have a unique id. Make sure to use DOM.$(Hyperscript.tag(node))")
     end
 end
 
