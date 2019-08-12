@@ -92,13 +92,15 @@ Send values to the frontend via JSON for now
 """
 Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
-
+function MsgPack.pack(io::IO, x::Symbol)
+    MsgPack.pack(io, string(x))
+end
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
     if isopen(session)
         # send all queued messages
         # send_queued(session)
         # sent the actual message
-        serialize_websocket(session.connection[], message)
+        write(session.connection[], MsgPack.pack(message))
     else
         push!(session.message_queue, message)
     end

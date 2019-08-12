@@ -36,6 +36,9 @@ function dom2html(session::Session, sessionid::String, dom)
     end
 end
 
+const NotePack = Asset("https://unpkg.com/notepack.io@2.2.0/dist/notepack.min.js")
+
+
 function dom2html(io::IO, session::Session, sessionid::String, dom)
     js_dom = jsrender(session, dom)
     html = repr(MIME"text/html"(), js_dom)
@@ -71,6 +74,7 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
         </script>
         """
     )
+    tojsstring(io, NotePack)
     serialize_string(io, JSCallLib)
     print(io, """
         </head>
@@ -143,7 +147,7 @@ Handles the incoming websocket messages from the frontend
 """
 function handle_ws_message(session::Session, message)
     isempty(message) && return
-    data = JSON3.read(String(message))
+    data = MsgPack.unpack(message)
     typ = data["type"]
     if typ == UpdateObservable
         registered, obs = session.observables[data["id"]]

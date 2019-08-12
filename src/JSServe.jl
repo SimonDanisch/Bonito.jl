@@ -8,6 +8,7 @@ using HTTP
 using HTTP: Response, Request
 using HTTP.Streams: Stream
 using WebSockets
+using MsgPack
 using Base64
 
 include("types.jl")

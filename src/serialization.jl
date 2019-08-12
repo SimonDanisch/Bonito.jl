@@ -22,11 +22,7 @@ Base.print(io::JavascriptSerializer, arg::Char) = print(io_object(io), arg)
 Base.write(io::JSServe.JavascriptSerializer, arg::UInt8) = Base.write(io_object(io), arg)
 
 function serialize_websocket(io::IO, message)
-    # right now, we simply use
-    str = sprint() do io2
-        serialize_string(JSONSerializer(io2), message)
-    end
-    write(io, str)
+    write(io, MsgPack.encode(message))
 end
 
 

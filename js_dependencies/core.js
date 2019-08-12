@@ -179,7 +179,7 @@ function update_obs(id, value){
 }
 
 function websocket_send(data){
-    session_websocket[0].send(JSON.stringify(data))
+    session_websocket[0].send(notepack.encode(data));
 }
 
 
@@ -300,13 +300,14 @@ function process_message(data){
 function setup_connection(){
     function tryconnect(url) {
         websocket = new WebSocket(url);
+        websocket.binaryType = 'arraybuffer';
         if(session_websocket.length != 0){
             throw "Inconsistent state. Already opened a websocket!"
         }
         session_websocket.push(websocket)
         websocket.onopen = function () {
             websocket.onmessage = function (evt) {
-                var msg = JSON.parse(evt.data);
+                var msg = notepack.decode(evt.data);
                 var dmsg = deserialize_js(msg);
                 process_message(dmsg);
             }
