@@ -90,7 +90,7 @@ function websocket_url(){
     }
     var ws_url = http_url.replace("http", "ws");
     // secure connections doesn't seem to work?!
-    var ws_url = http_url.replace("wss://", "ws://");
+    ws_url = http_url.replace("wss://", "ws://");
     // now should be like: ws://127.0.0.1:8081/
     if(!ws_url.endsWith("/")){
         ws_url = ws_url + "/"
