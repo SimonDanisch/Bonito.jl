@@ -105,4 +105,4 @@ function jsrender(session::Session, x::Dependency)
     div(display = "none", visibility = "hidden")
 end
 
-const JSCallLib = Asset(dependency_path("core.js"))
+const JSCallLib = Asset("https://simondanisch.github.io/JSServe.jl/js_dependencies/core.js")
