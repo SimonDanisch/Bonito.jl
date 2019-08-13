@@ -33,6 +33,8 @@ function stream_handler(application::Application, stream::Stream)
         end
     catch err
         @error "error in upgrade" exception = err
+        Base.show_backtrace(stderr, Base.catch_backtrace())
+        return
     end
     try
         f = HTTP.RequestHandlerFunction() do request
@@ -42,6 +44,7 @@ function stream_handler(application::Application, stream::Stream)
     catch err
         Base.show_backtrace(stderr, Base.catch_backtrace())
         @error "error in handle http" exception = err
+        return
     end
 end
 
