@@ -82,22 +82,20 @@ function deserialize_js(data){
 
 function websocket_url(){
     // something like http://127.0.0.1:8081/
-    var http_url = "http://127.0.0.1:8081/"
+    var http_url = "http://127.0.0.1:8081/";
     if(window.websocket_proxy_url){
-        http_url = window.websocket_proxy_url
+        http_url = window.websocket_proxy_url;
     }else{
-        http_url = window.location.href
+        http_url = window.location.href;
     }
     var ws_url = http_url.replace("http", "ws");
-    // secure connections doesn't seem to work?!
-    ws_url = ws_url.replace("wss://", "ws://");
     // now should be like: ws://127.0.0.1:8081/
     if(!ws_url.endsWith("/")){
-        ws_url = ws_url + "/"
+        ws_url = ws_url + "/";
     }
-    ws_url = ws_url + get_session_id() + "/"
-    console.log(ws_url)
-    return ws_url
+    ws_url = ws_url + get_session_id() + "/";
+    console.log("Websocket: " + ws_url);
+    return ws_url;
 }
 
 function get_observable(id){
