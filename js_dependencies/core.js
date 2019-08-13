@@ -298,6 +298,7 @@ function process_message(data){
 }
 
 function setup_connection(){
+    var tries = 0
     function tryconnect(url) {
         websocket = new WebSocket(url);
         if(session_websocket.length != 0){
@@ -319,7 +320,11 @@ function setup_connection(){
             }
         }
         websocket.onerror = function(event) {
-          console.error("WebSocket error observed:", event);
+            console.error("WebSocket error observed:", event);
+            if(tries <= 5){
+                tries = tries + 1;
+                tryconnect(websocket_url());
+            }
         };
     }
     tryconnect(websocket_url())
