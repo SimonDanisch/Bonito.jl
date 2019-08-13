@@ -89,6 +89,8 @@ function websocket_url(){
         http_url = window.location.href
     }
     var ws_url = http_url.replace("http", "ws");
+    // secure connections doesn't seem to work?!
+    var ws_url = http_url.replace("wss://", "ws://");
     // now should be like: ws://127.0.0.1:8081/
     if(!ws_url.endsWith("/")){
         ws_url = ws_url + "/"
@@ -322,6 +324,7 @@ function setup_connection(){
         websocket.onerror = function(event) {
             console.error("WebSocket error observed:", event);
             if(tries <= 5){
+                session_websocket.length = 0;
                 tries = tries + 1;
                 tryconnect(websocket_url());
             }
