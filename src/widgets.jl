@@ -27,7 +27,7 @@ end
 
 struct TextField <: AbstractWidget{String}
     value::Observable{String}
-    attributes::Dict{String, Any}
+    attributes::Dict{Symbol, Any}
 end
 
 function TextField(value::String; kw...)
