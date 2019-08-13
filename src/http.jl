@@ -9,6 +9,20 @@ const JSCall = "5"
 const JSGetIndex = "6"
 const JSSetIndex = "7"
 
+function request_to_sessionid(request; throw = true)
+    if length(request.target) >= 36 # for /id/
+        sessionid = split(request.target, "/", keepempty = false)[end] # remove the '/' id '/'
+        if length(sessionid) == 36
+            return string(sessionid)
+        end
+    end
+    if throw
+        error("Invalid sessionid: $(request.target)")
+    else
+        return nothing
+    end
+end
+
 function stream_handler(application::Application, stream::Stream)
     try
         if WebSockets.is_upgrade(stream)
@@ -26,6 +40,7 @@ function stream_handler(application::Application, stream::Stream)
         end
         HTTP.handle(f, stream)
     catch err
+        Base.show_backtrace(stderr, Base.catch_backtrace())
         @error "error in handle http" exception = err
     end
 end
@@ -110,9 +125,16 @@ function http_handler(application::Application, request::Request)
             end
         else
             body = if applicable(application.dom, request)
-                sessionid, dom = Base.invokelatest(application.dom, request)
-                session = application.sessions[sessionid]
-                dom2html(session, sessionid, dom)
+                # Inline display handling
+                sessionid_dom = Base.invokelatest(application.dom, request)
+                if sessionid_dom === nothing
+                    "No route for request: $(request.target)" # request for e.g. favicon etc
+                else
+                    # request that corresponds to getting a session
+                    sessionid, dom = sessionid_dom
+                    session = application.sessions[sessionid]
+                    dom2html(session, sessionid, dom)
+                end
             else
                 if request.target == "/"
                     sessionid = string(uuid4())
@@ -178,34 +200,31 @@ end
 function websocket_handler(
         application::Application, request::Request, websocket::WebSocket
     )
-    if length(request.target) > 2 # for /id/
-        sessionid = split(request.target, "/", keepempty = false)[end] # remove the '/' id '/'
-        # Look up the connection in our sessions
-        if haskey(application.sessions, sessionid)
-            session = application.sessions[sessionid]
-            # Close already open connections
-            # TODO, actually, if the connection is open, we should
-            # just not allow a new connection!? Need to figure out if that would
-            # be less reliable...Definitely sounds more secure to not allow a new conenction
-            if isopen(session)
-                close(session.connection[])
-            end
-            session.connection[] = websocket
-            wait_timeout(()-> isopen(websocket), "Websocket not open after waiting 5.0")
-            while isopen(websocket)
-                try
-                    handle_ws_message(session, read(websocket))
-                catch e
-                    if !(e isa WebSockets.WebSocketClosedError)
-                        @warn "handle ws error" exception=e
-                    end
+    sessionid = request_to_sessionid(request)
+    # Look up the connection in our sessions
+    if haskey(application.sessions, sessionid)
+        session = application.sessions[sessionid]
+        # Close already open connections
+        # TODO, actually, if the connection is open, we should
+        # just not allow a new connection!? Need to figure out if that would
+        # be less reliable...Definitely sounds more secure to not allow a new conenction
+        if isopen(session)
+            close(session.connection[])
+        end
+        session.connection[] = websocket
+        wait_timeout(()-> isopen(websocket), "Websocket not open after waiting 5.0")
+        while isopen(websocket)
+            try
+                handle_ws_message(session, read(websocket))
+            catch e
+                if !(e isa WebSockets.WebSocketClosedError)
+                    @warn "handle ws error" exception=e
                 end
             end
-            close(session)
-        else
-            @warn "Unrecognized session id: $sessionid"
         end
+        close(session)
     else
-        @warn "Unrecognized Websocket route: $(request.target)"
+        error("Unregistered session id: $sessionid")
     end
+
 end

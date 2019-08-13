@@ -2,19 +2,16 @@
 const global_application = Ref{Application}()
 
 const plotpane_pages = Dict{String, Any}()
+
 function atom_dom_handler(request::Request)
-    sessionid = request.target[2:end]
+    sessionid = request_to_sessionid(request, throw = false)
+    sessionid === nothing && return nothing
     if haskey(plotpane_pages, sessionid)
-        if haskey(plotpane_pages, sessionid)
-            return sessionid, plotpane_pages[sessionid]
-        else
-            @error "Cannot find session! Target: $(sessionid). Request: $(request)"
-        end
+        return sessionid, plotpane_pages[sessionid]
     else
-        return sessionid, "Cannot find session! Target: $(sessionid). Request: $(request)"
+        @warn "Cannot find session! Target: $(sessionid). Request: $(request)"
     end
 end
-
 
 
 struct DisplayInline
@@ -22,6 +19,7 @@ struct DisplayInline
     session::Session
     sessionid::String
 end
+
 DisplayInline(dom) = DisplayInline(dom, Session(Ref{WebSocket}()), string(uuid4()))
 DisplayInline(dom, session::Session) = DisplayInline(dom, session, string(uuid4()))
 

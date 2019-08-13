@@ -1,7 +1,7 @@
 using Hyperscript
 using JSServe, Observables
 using JSServe: Application, Session, evaljs, linkjs, update_dom!, div, active_sessions
-using JSServe: @js_str, font, onjs, Button, TextField, Slider, JSString, Dependency, with_session
+using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, with_session
 
 d = with_session() do session
     s1 = Slider(1:100)
@@ -13,5 +13,5 @@ d = with_session() do session
     on(t) do text
         println(text)
     end
-    return JSServe.div(s1, s2, b, t)
+    return JSServe.DOM.div(s1, s2, b, t)
 end
