@@ -91,10 +91,12 @@ function Application(
         url, port, Dict{String, Session}(),
         Ref{Task}(), dom,
     )
+    serverWS = WebSockets.ServerWS(
+        (request) -> Base.invokelatest(http_handler, application, request),
+        (request, websocket) -> websocket_handler(application, request, websocket)
+    )
     task = @async begin
-        HTTP.listen(url, port, verbose = verbose) do stream::Stream
-            Base.invokelatest(stream_handler, application, stream)
-        end
+        WebSockets.serve(serverWS, url, port, verbose)
     end
     application.server_task[] = task
     bundle_url = JSServe.url(JSCallLib)

@@ -23,31 +23,6 @@ function request_to_sessionid(request; throw = true)
     end
 end
 
-function stream_handler(application::Application, stream::Stream)
-    try
-        if WebSockets.is_upgrade(stream)
-            WebSockets.upgrade(stream) do request, websocket
-                websocket_handler(application, request, websocket)
-            end
-            return
-        end
-    catch err
-        @error "error in upgrade" exception = err
-        Base.show_backtrace(stderr, Base.catch_backtrace())
-        return
-    end
-    try
-        f = HTTP.RequestHandlerFunction() do request
-            http_handler(application, request)
-        end
-        HTTP.handle(f, stream)
-    catch err
-        Base.show_backtrace(stderr, Base.catch_backtrace())
-        @error "error in handle http" exception = err
-        return
-    end
-end
-
 function dom2html(session::Session, sessionid::String, dom)
     return sprint() do io
         dom2html(io, session, sessionid, dom)
@@ -229,5 +204,4 @@ function websocket_handler(
     else
         error("Unregistered session id: $sessionid")
     end
-
 end
