@@ -83,6 +83,8 @@ struct Application
 end
 
 
+WebSockets.getrawstream(io::IO) = io
+
 function warmup(application)
     headers = [
         "Host" => "127.0.0.1",
@@ -112,7 +114,7 @@ function warmup(application)
     try
         stream_handler(application, stream)
     catch e
-        @show e
+        @warn e
     end
     bundle_url = JSServe.url(JSCallLib)
     task = application.server_task[]
@@ -135,24 +137,16 @@ function warmup(application)
 end
 
 function stream_handler(application::Application, stream::Stream)
-    try
-        if WebSockets.is_upgrade(stream)
-            WebSockets.upgrade(stream) do request, websocket
-                websocket_handler(application, request, websocket)
-            end
-            return
+    if WebSockets.is_upgrade(stream)
+        WebSockets.upgrade(stream) do request, websocket
+            websocket_handler(application, request, websocket)
         end
-    catch err
-        @error "error in upgrade" exception = err
+        return
     end
-    try
-        f = HTTP.RequestHandlerFunction() do request
-            http_handler(application, request)
-        end
-        HTTP.handle(f, stream)
-    catch err
-        @error "error in handle http" exception = err
+    f = HTTP.RequestHandlerFunction() do request
+        http_handler(application, request)
     end
+    HTTP.handle(f, stream)
 end
 
 function Application(
