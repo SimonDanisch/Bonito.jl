@@ -114,7 +114,7 @@ function warmup(application)
     try
         stream_handler(application, stream)
     catch e
-        @warn e
+        # THis will error, since its not a propper websocket request
     end
     bundle_url = JSServe.url(JSCallLib)
     task = application.server_task[]
