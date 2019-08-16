@@ -324,7 +324,8 @@ function setup_connection(){
             if(tries <= 5){
                 session_websocket.length = 0;
                 tries = tries + 1;
-                tryconnect(websocket_url());
+                console.log("Retrying to connect the " + tries + " time!")
+                setTimeout(()=> tryconnect(websocket_url()), 1000);
             }
         };
     }
