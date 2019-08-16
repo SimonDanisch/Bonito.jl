@@ -83,23 +83,39 @@ struct Application
 end
 
 
-function Application(
-        dom, url::String, port::Int;
-        verbose = false
+function warmup(application)
+    headers = [
+        "Host" => "127.0.0.1",
+        "User-Agent" => "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0",
+        "Accept" => "*/*",
+        "Accept-Encoding" => "gzip, deflate, br",
+        "Accept-Language" => "de,en-US;q=0.7,en;q=0.3",
+        "Cache-Control" => "no-cache",
+        "Connection" => "keep-alive, Upgrade",
+        "Dnt" => "1",
+        "Origin" => "https://localhost",
+        "Pragma" => "no-cache",
+        "Sec-Websocket-Extensions" => "permessage-deflate",
+        "Sec-Websocket-Key" => "BL3d8I8KC5faPjubRM0riA==",
+        "Sec-Websocket-Version" => "13",
+        "Upgrade" => "websocket",
+    ]
+    msg = HTTP.Request(
+        "GET",
+        "/",
+        headers,
+        UInt8[],
+        parent = nothing,
+        version = v"1.1.0"
     )
-    application = Application(
-        url, port, Dict{String, Session}(),
-        Ref{Task}(), dom,
-    )
-    serverWS = WebSockets.ServerWS(
-        (request) -> Base.invokelatest(http_handler, application, request),
-        (request, websocket) -> websocket_handler(application, request, websocket)
-    )
-    task = @async begin
-        WebSockets.serve(serverWS, url, port, verbose)
+    stream = Stream(msg, IOBuffer())
+    try
+        stream_handler(application, stream)
+    catch e
+        @show e
     end
-    application.server_task[] = task
     bundle_url = JSServe.url(JSCallLib)
+    task = application.server_task[]
     wait_time = 5.0; start = time() # wait for max 5 s
     try
         yield()
@@ -116,5 +132,40 @@ function Application(
     catch e
         @error "Error while waiting for webserver to start up." exeption=e
     end
+end
+
+function stream_handler(application::Application, stream::Stream)
+    try
+        if WebSockets.is_upgrade(stream)
+            WebSockets.upgrade(stream) do request, websocket
+                websocket_handler(application, request, websocket)
+            end
+            return
+        end
+    catch err
+        @error "error in upgrade" exception = err
+    end
+    try
+        f = HTTP.RequestHandlerFunction() do request
+            http_handler(application, request)
+        end
+        HTTP.handle(f, stream)
+    catch err
+        @error "error in handle http" exception = err
+    end
+end
+
+function Application(
+        dom, url::String, port::Int;
+        verbose = false
+    )
+    application = Application(
+        url, port, Dict{String, Session}(),
+        Ref{Task}(), dom,
+    )
+    application.server_task[] = @async HTTP.listen(url, port, verbose = verbose) do stream::Stream
+        Base.invokelatest(stream_handler, application, stream)
+    end
+    warmup(application)
     return application
 end
