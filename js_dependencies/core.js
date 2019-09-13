@@ -327,7 +327,7 @@ function setup_connection(){
                 console.log("Retrying to connect the " + tries + " time!")
                 setTimeout(()=> tryconnect(websocket_url()), 1000);
             }
-        };
+        }
     }
     tryconnect(websocket_url())
 }

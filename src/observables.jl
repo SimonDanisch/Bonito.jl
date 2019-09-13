@@ -15,14 +15,20 @@ function (x::JSUpdateObservable)(value)
     send(x.session, payload = value, id = x.id, type = UpdateObservable)
 end
 
+
+do_notify(session::Session, @nospecialize(callback)) = true
+function do_notify(session::Session, f::JSUpdateObservable)
+    return session != f.session
+end
+
 """
 Update the value of an observable, without sending changes to the JS frontend.
 This will be used to update updates from the forntend.
 """
-function update_nocycle!(obs::Observable, value)
+function update_nocycle!(session::Session, obs::Observable, value)
     setindex!(
         obs, value,
-        notify = (f-> !(f isa JSUpdateObservable))
+        notify = (f-> do_notify(session, f))
     )
 end
 

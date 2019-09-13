@@ -85,7 +85,7 @@ end
 
 include("mimetypes.jl")
 
-function http_handler(application::Application, request::Request)
+function http_route()
     try
         if haskey(AssetRegistry.registry, request.target)
             filepath = AssetRegistry.registry[request.target]
@@ -136,6 +136,7 @@ function http_handler(application::Application, request::Request)
     end
 end
 
+
 """
     handle_ws_message(session::Session, message)
 
@@ -150,7 +151,7 @@ function handle_ws_message(session::Session, message)
         @assert registered # must have been registered to come from frontend
         # update observable without running into cycles (e.g. js updating obs
         # julia updating js, ...)
-        Base.invokelatest(update_nocycle!, obs, data["payload"])
+        Base.invokelatest(update_nocycle!, session, obs, data["payload"])
     elseif typ == JavascriptError
         @error "Error in Javascript: $(data["message"])\n with exception:\n$(data["exception"])"
     elseif typ == JavascriptWarning
@@ -175,9 +176,7 @@ end
 """
     handles a new websocket connection to a session
 """
-function websocket_handler(
-        application::Application, request::Request, websocket::WebSocket
-    )
+function websocket_session_connection(application, request, websocket, match)
     sessionid = request_to_sessionid(request)
     # Look up the connection in our sessions
     if haskey(application.sessions, sessionid)
@@ -203,5 +202,35 @@ function websocket_handler(
         close(session)
     else
         error("Unregistered session id: $sessionid")
+    end
+end
+
+struct Matcher{T, F}
+    ismatch::T
+    router::F
+end
+
+function matchfirst(routes, request)
+    for route in routes
+        result = route.matcher(request.target)
+        result !== nothing && return result, route
+    end
+    return nothing
+end
+
+function websocket_handler(
+        application::Application, request::Request, websocket::WebSocket
+    )
+    match, route = matchfirst(application.websocket_routes, request)
+    if match !== nothing
+        route(application, request, websocket, match)
+    end
+end
+
+
+function http_handler(application::Application, request::Request)
+    match, route = matchfirst(application.http_routes, request)
+    if match !== nothing
+        route(application, request, match)
     end
 end

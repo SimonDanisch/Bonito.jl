@@ -1,11 +1,11 @@
-
 function Session(connection = Ref{WebSocket}())
     Session(
         connection,
         Dict{String, Tuple{Bool, Observable}}(),
         Dict{Symbol, Any}[],
         Set{Asset}(),
-        JSCode[]
+        JSCode[],
+        Dict{Symbol, Any}()
     )
 end
 
@@ -15,6 +15,7 @@ function Base.close(session::Session)
     empty!(session.on_document_load)
     empty!(session.message_queue)
     empty!(session.dependencies)
+    empty!(session.state)
 end
 
 function Base.push!(session::Session, x::Observable)
@@ -223,7 +224,6 @@ function register_resource!(session::Session, node::Node)
         register_resource!(session, x)
     end
 end
-
 
 function update_dom!(session::Session, dom)
     # empty!(session.on_document_load)

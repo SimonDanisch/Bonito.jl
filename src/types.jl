@@ -68,18 +68,25 @@ struct Session
     message_queue::Vector{Dict{Symbol, Any}}
     dependencies::Set{Asset}
     on_document_load::Vector{JSCode}
+    state::Dict{Symbol, Any}
 end
+
 
 
 """
 The application one serves
 """
-struct Application
+struct Application{HTTPRoutes, WSRoutes}
     url::String
     port::Int
+
     sessions::Dict{String, Session}
     server_task::Ref{Task}
-    dom::Function
+
+    # Make these type parameters, so that we can decide if
+    # everything should be static & fast, or more dynamic
+    websocket_routes::HTTPRoutes
+    http_routes::WSRoutes
 end
 
 
