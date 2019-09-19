@@ -55,9 +55,9 @@ end
 
 function jsrender(session::Session, obs::Observable)
     html = map(obs) do value
-        repr_richest(session, value)
+        repr_richest(value)
     end
-    dom = div(html[])
+    dom = DOM.div(html[])
     onjs(session, html, js"""
         function (html){
             var dom = $(dom);
@@ -70,5 +70,5 @@ function jsrender(session::Session, obs::Observable)
             }
         }
     """)
-    return
+    return dom
 end
