@@ -19,6 +19,7 @@ end
 Base.print(io::JavascriptSerializer, arg::Union{SubString{String}, String}) = print(io_object(io), arg)
 Base.print(io::JavascriptSerializer, arg::Char) = print(io_object(io), arg)
 
+Base.write(io::JSServe.JavascriptSerializer, x::Array) = write(JSServe.io_object(io), x)
 Base.write(io::JSServe.JavascriptSerializer, arg::UInt8) = Base.write(io_object(io), arg)
 
 function serialize_websocket(io::IO, message)
