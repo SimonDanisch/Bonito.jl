@@ -14,7 +14,7 @@ function jsrender(session::Session, code::Markdown.Code)
 end
 
 function jsrender(session::Session, md::Markdown.Paragraph)
-    return htmlinline(session, md.content)
+    return DOM.p(htmlinline(session, md.content))
 end
 
 function jsrender(session::Session, md::Markdown.BlockQuote)
@@ -53,7 +53,7 @@ end
 
 
 function htmlinline(session::Session, content::Vector)
-    DOM.um("span", htmlinline.((session,), content)...)
+    DOM.um("div", htmlinline.((session,), content)...)
 end
 
 function htmlinline(session::Session, code::Markdown.Code)
