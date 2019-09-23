@@ -57,7 +57,7 @@ function jsrender(session::Session, obs::Observable)
     html = map(obs) do value
         repr_richest(value)
     end
-    dom = DOM.div(html[])
+    dom = DOM.m_unesc("span", html[])
     onjs(session, html, js"""
         function (html){
             var dom = $(dom);

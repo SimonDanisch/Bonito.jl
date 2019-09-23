@@ -4,7 +4,7 @@ import AssetRegistry, Sockets
 using UUIDs, Hyperscript, Hyperscript, JSON3, Observables
 import Sockets: send
 using Hyperscript: Node, children, tag
-using HTTP
+using HTTP, Markdown
 using HTTP: Response, Request
 using HTTP.Streams: Stream
 using WebSockets
@@ -22,6 +22,7 @@ include("widgets.jl")
 include("hyperscript_integration.jl")
 include("display.jl")
 include("jscall.jl")
+include("markdown_integration.jl")
 
 function __init__()
     url = get(ENV, "JULIA_WEBIO_BASEURL") do

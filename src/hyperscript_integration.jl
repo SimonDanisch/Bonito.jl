@@ -24,7 +24,13 @@ function um(tag, args...; kw...)
     m(tag, args..., dataJscallId = get_unique_dom_id(); kw...)
 end
 
+function m_unesc(tag, args...; kw...)
+    m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, tag, args..., dataJscallId = get_unique_dom_id(); kw...)
+end
+
+p(args...; kw...) = um("p", args...; kw...)
 div(args...; kw...) = um("div", args...; kw...)
+div_unesc(args...; kw...) = m_unesc("div", args...; kw...)
 input(args...; kw...) = um("input", args...; kw...)
 font(args...; kw...) = um("font", args...; kw...)
 
@@ -119,6 +125,7 @@ You can also overload it to take a session as first argument, to register
 messages with the current web session (e.g. via onjs).
 """
 jsrender(::Session, x::Any) = jsrender(x)
+jsrender(::Session, x::Union{Symbol, String}) = DOM.p(string(x))
 
 jsrender(::Session, x::String) = x
 jsrender(::Session, x::Hyperscript.Styled) = x
