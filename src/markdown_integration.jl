@@ -53,7 +53,7 @@ end
 
 
 function htmlinline(session::Session, content::Vector)
-    DOM.p(htmlinline.((session,), content)...)
+    DOM.um("span", htmlinline.((session,), content)...)
 end
 
 function htmlinline(session::Session, code::Markdown.Code)
@@ -61,7 +61,7 @@ function htmlinline(session::Session, code::Markdown.Code)
 end
 
 function htmlinline(session::Session, md::Union{Symbol, AbstractString})
-    DOM.um("font", md)
+    return md
 end
 
 function htmlinline(session::Session, md::Markdown.Bold)
