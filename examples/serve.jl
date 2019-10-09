@@ -17,6 +17,8 @@ function dom_handler(session, request)
     end
     return DOM.div(s1, s2, b, t)
 end;
+using Sockets
+Sockets.IPAddr
 
 app = JSServe.Application(
     dom_handler,

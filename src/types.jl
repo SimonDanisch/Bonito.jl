@@ -79,13 +79,14 @@ struct Application
     port::Int
     sessions::Dict{String, Session}
     server_task::Ref{Task}
+    server_connection::Ref{TCPServer}
     dom::Function
 end
 
 
 WebSockets.getrawstream(io::IO) = io
 
-function warmup(application)
+function websocket_request()
     headers = [
         "Host" => "127.0.0.1",
         "User-Agent" => "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0",
@@ -110,29 +111,48 @@ function warmup(application)
         parent = nothing,
         version = v"1.1.0"
     )
-    stream = Stream(msg, IOBuffer())
+    return Stream(msg, IOBuffer())
+end
+
+function warmup(application)
+    yield() # yield to server task to give it a chance to get started
+    task = application.server_task[]
+    if Base.istaskdone(task)
+        error("Webserver doesn't serve! Error: $(fetch(task))")
+    end
+    # Make a websocket request
+    stream = websocket_request()
     try
         stream_handler(application, stream)
     catch e
-        # THis will error, since its not a propper websocket request
+        # TODO make it not error so we can test this properly
+        # This will error, since its not a propper websocket request
+        @debug "Error in stream_handler" exception=e
     end
-    bundle_url = JSServe.url(JSCallLib)
-    task = application.server_task[]
-    wait_time = 5.0; start = time() # wait for max 5 s
-    try
-        yield()
-        while time() - start < wait_time
-            # Block as long as our server doesn't actually serve the bundle
-            if Base.istaskdone(task)
-                error("Webserver doesn't serve! Error: $(fetch(task))")
-                break
-            end
-            resp = WebSockets.HTTP.get(bundle_url)
-            resp.status == 200 && break
-            sleep(0.1)
+
+    bundle_url = url(JSCallLibLocal)
+
+    request = Request("GET", AssetRegistry.register(JSCallLibLocal.local_path))
+    http_handler(application, request)
+
+    wait_time = 10.0; start = time() # wait for max 10 s
+    success = false
+    while time() - start < wait_time
+        # Block as long as our server doesn't actually serve the bundle
+        if Base.istaskdone(task)
+            error("Webserver doesn't serve! Error: $(fetch(task))")
+            break
         end
-    catch e
-        @error "Error while waiting for webserver to start up." exeption=e
+        # async + fetch allows the server to do work while the request gets sent!
+        resp = fetch(@async WebSockets.HTTP.get(bundle_url))
+        if resp.status == 200
+            success = true
+            break
+        end
+        sleep(0.1)
+    end
+    if !success
+        error("Waited $(wait_time)s for webserver to start up, and didn't receive any response")
     end
 end
 
@@ -149,17 +169,63 @@ function stream_handler(application::Application, stream::Stream)
     HTTP.handle(f, stream)
 end
 
+
+"""
+Application(
+        dom, url::String, port::Int;
+        verbose = false
+    )
+
+Creates an application that manages the global server state!
+"""
 function Application(
         dom, url::String, port::Int;
         verbose = false
     )
+
     application = Application(
         url, port, Dict{String, Session}(),
-        Ref{Task}(), dom,
+        Ref{Task}(), Ref{TCPServer}(), dom
     )
-    application.server_task[] = @async HTTP.listen(url, port, verbose = verbose) do stream::Stream
+    start(application)
+    # warmup server!
+    warmup(application)
+
+    return application
+end
+
+function isrunning(application::Application)
+    return (isassigned(application.server_task) &&
+        isassigned(application.server_connection) &&
+        !istaskdone(application.server_task[]) &&
+        isopen(application.server_connection[]))
+end
+
+function Base.close(application::Application)
+    # Closing the io connection should shut down the HTTP listen loop
+    close(application.server_connection[])
+    # For good measures, wait until the task finishes!
+    try
+        wait(application.server_task[])
+    catch e
+        # the wait will throw with the below exception
+        if !(e isa TaskFailedException && e.task.exception.code == -4079)
+            rethrow(e)
+        end
+    end
+end
+function start(application::Application)
+    isrunning(application) && return
+    address = Sockets.InetAddr(
+        parse(Sockets.IPAddr, application.url), application.port
+    )
+    ioserver = Sockets.listen(address)
+    application.server_connection[] = ioserver
+    # pass tcp connection to listen, so that we can close the server
+    application.server_task[] = @async HTTP.listen(
+            application.url, application.port, server = ioserver
+        ) do stream::Stream
         Base.invokelatest(stream_handler, application, stream)
     end
-    warmup(application)
-    return application
+    return
 end

@@ -106,3 +106,4 @@ function jsrender(session::Session, x::Dependency)
 end
 
 const JSCallLib = Asset("https://simondanisch.github.io/JSServe.jl/js_dependencies/core.js")
+const JSCallLibLocal = Asset(dependency_path("core.js"))

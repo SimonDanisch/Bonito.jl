@@ -2,7 +2,7 @@ module JSServe
 
 import AssetRegistry, Sockets
 using UUIDs, Hyperscript, Hyperscript, JSON3, Observables
-import Sockets: send
+import Sockets: send, TCPServer
 using Hyperscript: Node, children, tag
 using HTTP, Markdown
 using HTTP: Response, Request
