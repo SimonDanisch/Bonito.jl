@@ -59,8 +59,13 @@ for M in WebMimes
         sessionid = dom.sessionid
         session = dom.session
         application.sessions[sessionid] = session
-        plotpane_pages[sessionid] = dom.dom
-        println(io, "<iframe src=$(repr(server_proxy_url[] * "/" * sessionid)) frameborder=\"0\" width = '100%' height = '100%'>")
+        session_url = "/" * sessionid
+        route!(application, url) do match, request, application
+            # Serve the actual content
+            return html(dom2html(session, sessionid, dom.dom))
+        end
+        # Display the route we just added in an iframe inline:
+        println(io, "<iframe src=$(repr(url(session_url))) frameborder=\"0\" width = '100%' height = '100%'>")
         println(io, "</iframe>")
     end
 end

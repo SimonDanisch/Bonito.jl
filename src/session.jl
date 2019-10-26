@@ -1,7 +1,7 @@
 
-function Session(connection = Ref{WebSocket}())
+function Session(connections = WebSocket[])
     Session(
-        connection,
+        connections,
         Dict{String, Tuple{Bool, Observable}}(),
         Dict{Symbol, Any}[],
         Set{Asset}(),
@@ -10,11 +10,23 @@ function Session(connection = Ref{WebSocket}())
 end
 
 function Base.close(session::Session)
-    isopen(session) && close(session.connection[])
+    foreach(close, session.connections)
+    empty!(session.connections)
     empty!(session.observables)
     empty!(session.on_document_load)
     empty!(session.message_queue)
     empty!(session.dependencies)
+end
+
+function Base.copy(session::Session)
+    obs = Dict((k => (true, map(identity, obs)) for (k, (regs, obs)) in session.observables))
+    return Session(
+        WebSocket[],
+        session.observables,
+        Dict{Symbol, Any}[],
+        copy(session.dependencies),
+        JSCode[]
+    )
 end
 
 function Base.push!(session::Session, x::Observable)
@@ -34,6 +46,12 @@ function Base.push!(session::Session, asset::Asset)
         on_document_load(session, asset.onload)
     end
     return asset
+end
+
+function Base.push!(session::Session, websocket::WebSocket)
+    push!(session.connections, websocket)
+    filter!(isopen, session.connections)
+    return session
 end
 
 """
@@ -98,14 +116,16 @@ function Sockets.send(session::Session, message::Dict{Symbol, Any})
         # send all queued messages
         # send_queued(session)
         # sent the actual message
-        serialize_websocket(session.connection[], message)
+        for connection in session.connections
+            serialize_websocket(connection, message)
+        end
     else
         push!(session.message_queue, message)
     end
 end
 
 function Base.isopen(session::Session)
-    return isassigned(session.connection) && isopen(session.connection[])
+    return !isempty(session.connections) && isopen(session.connections[1])
 end
 
 

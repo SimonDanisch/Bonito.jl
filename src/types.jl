@@ -63,11 +63,65 @@ end
 A web session with a user
 """
 struct Session
-    connection::Ref{WebSocket}
+    connections::Vector{WebSocket}
     observables::Dict{String, Tuple{Bool, Observable}} # Bool -> if already registered with Frontend
     message_queue::Vector{Dict{Symbol, Any}}
     dependencies::Set{Asset}
     on_document_load::Vector{JSCode}
+end
+
+
+struct Routes
+    table::Vector{Pair{Any, Any}}
+end
+
+function Routes(pairs::Pair...)
+    return Routes([pairs...])
+end
+
+function Base.setindex!(routes::Routes, f, pattern)
+    push!(routes, pattern => f)
+end
+
+function apply_handler(f, args...)
+    f(args...)
+end
+
+function apply_handler(chain::Tuple, context, args...)
+    f = first(chain)
+    result = f(args...)
+    apply_handler(Base.tail(chain), context, result...)
+end
+
+function delegate(routes::Routes, application, request::Request, args...)
+    for (pattern, f) in routes.table
+        match = match_request(pattern, request)
+        if match !== nothing
+            context = (
+                routes = routes,
+                application = application,
+                request = request,
+                match = match
+            )
+            return apply_handler(f, context, args...)
+        end
+    end
+    error("""
+    No route found for request:
+    $(request)
+    """)
+end
+
+function match_request(pattern::String, request)
+    return request.target == pattern ? pattern : nothing
+end
+
+function match_request(pattern::Regex, request)
+    return match(pattern, request.target)
+end
+
+function match_request(pattern::Tuple, request)
+    return Matcha.matchat(pattern, request.target)
 end
 
 
@@ -77,10 +131,11 @@ The application one serves
 struct Application
     url::String
     port::Int
-    sessions::Dict{String, Session}
+    sessions::Dict{String, Dict{String, Session}}
     server_task::Ref{Task}
     server_connection::Ref{TCPServer}
-    dom::Function
+    routes::Routes
+    websocket_routes::Routes
 end
 
 
@@ -114,7 +169,13 @@ function websocket_request()
     return Stream(msg, IOBuffer())
 end
 
-function warmup(application)
+
+"""
+warmup(application::Application)
+
+Warms up the application, by sending a couple of request.
+"""
+function warmup(application::Application)
     yield() # yield to server task to give it a chance to get started
     task = application.server_task[]
     if Base.istaskdone(task)
@@ -130,10 +191,11 @@ function warmup(application)
         @debug "Error in stream_handler" exception=e
     end
 
-    bundle_url = url(JSCallLibLocal)
-
+    bundle_url = url(JSCallLibLocal) # online URL
+    target = AssetRegistry.register(JSCallLibLocal.local_path) # http target part
     request = Request("GET", AssetRegistry.register(JSCallLibLocal.local_path))
-    http_handler(application, request)
+
+    delegate(application.routes, application, request)
 
     wait_time = 10.0; start = time() # wait for max 10 s
     success = false
@@ -159,16 +221,27 @@ end
 function stream_handler(application::Application, stream::Stream)
     if WebSockets.is_upgrade(stream)
         WebSockets.upgrade(stream) do request, websocket
-            websocket_handler(application, request, websocket)
+            delegate(
+                application.websocket_routes, application, request, websocket
+            )
         end
         return
     end
     f = HTTP.RequestHandlerFunction() do request
-        http_handler(application, request)
+        delegate(
+            application.routes, application, request,
+        )
     end
     HTTP.handle(f, stream)
 end
 
+const MATCH_HEX = r"[\da-f]"
+const MATCH_UUID4 = MATCH_HEX^8 * r"-" * (MATCH_HEX^4 * r"-")^3 * MATCH_HEX^12
+const MATCH_SESSION_ID = MATCH_UUID4 * r"/" * MATCH_HEX^4
+
+function serve_dom(context, dom)
+
+end
 
 """
 Application(
@@ -180,12 +253,28 @@ Creates an application that manages the global server state!
 """
 function Application(
         dom, url::String, port::Int;
-        verbose = false
+        verbose = false,
+        routes = Routes(
+            "/" => function (context)
+                application = context.application
+                session_id = string(uuid4())
+                session = Session()
+                application.sessions[session_id] = Dict("base" => session)
+                return html(dom2html(session, session_id, dom(session, context.request)))
+            end,
+            r"/assetserver/" * MATCH_HEX^40 * r"-.*" => file_server,
+            r".*" => (context)-> response_404()
+        ),
+        websocket_routes = Routes(
+            r"/" * MATCH_SESSION_ID => websocket_handler
+        )
     )
 
     application = Application(
-        url, port, Dict{String, Session}(),
-        Ref{Task}(), Ref{TCPServer}(), dom
+        url, port, Dict{String, Dict{String, Session}}(),
+        Ref{Task}(), Ref{TCPServer}(),
+        routes,
+        websocket_routes
     )
     start(application)
     # warmup server!
@@ -203,6 +292,12 @@ end
 
 function Base.close(application::Application)
     # Closing the io connection should shut down the HTTP listen loop
+    for (id, clients) in application.sessions
+        for (id, session) in clients
+            close(session)
+        end
+    end
+
     close(application.server_connection[])
     # For good measures, wait until the task finishes!
     try
@@ -214,6 +309,7 @@ function Base.close(application::Application)
         end
     end
 end
+
 function start(application::Application)
     isrunning(application) && return
     address = Sockets.InetAddr(
@@ -228,4 +324,13 @@ function start(application::Application)
         Base.invokelatest(stream_handler, application, stream)
     end
     return
+end
+
+
+function route!(application::Application, pattern_f::Pair)
+    application.routes[pattern_f[1]] = pattern_f[2]
+end
+
+function websocket_route!(application::Application, pattern_f::Pair)
+    application.webscoket_routes[pattern_f[1]] = pattern_f[2]
 end

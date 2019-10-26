@@ -17,8 +17,6 @@ function dom_handler(session, request)
     end
     return DOM.div(s1, s2, b, t)
 end;
-using Sockets
-Sockets.IPAddr
 
 app = JSServe.Application(
     dom_handler,
@@ -26,3 +24,8 @@ app = JSServe.Application(
     parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081")),
     verbose = false
 )
+close(app)
+using AssetRegistry
+AssetRegistry.register("Manifest.toml")
+#close(app)
+#JSServe.start(app)
