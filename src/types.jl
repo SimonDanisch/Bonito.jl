@@ -80,7 +80,7 @@ function Routes(pairs::Pair...)
 end
 
 function Base.setindex!(routes::Routes, f, pattern)
-    push!(routes, pattern => f)
+    push!(routes.table, pattern => f)
 end
 
 function apply_handler(f, args...)
@@ -106,6 +106,7 @@ function delegate(routes::Routes, application, request::Request, args...)
             return apply_handler(f, context, args...)
         end
     end
+    return ""
     error("""
     No route found for request:
     $(request)
@@ -240,7 +241,11 @@ const MATCH_UUID4 = MATCH_HEX^8 * r"-" * (MATCH_HEX^4 * r"-")^3 * MATCH_HEX^12
 const MATCH_SESSION_ID = MATCH_UUID4 * r"/" * MATCH_HEX^4
 
 function serve_dom(context, dom)
-
+    application = context.application
+    session_id = string(uuid4())
+    session = Session()
+    application.sessions[session_id] = Dict("base" => session)
+    return html(dom2html(session, session_id, dom(session, context.request)))
 end
 
 """
@@ -255,15 +260,9 @@ function Application(
         dom, url::String, port::Int;
         verbose = false,
         routes = Routes(
-            "/" => function (context)
-                application = context.application
-                session_id = string(uuid4())
-                session = Session()
-                application.sessions[session_id] = Dict("base" => session)
-                return html(dom2html(session, session_id, dom(session, context.request)))
-            end,
+            "/" => ctx-> serve_dom(ctx, dom),
             r"/assetserver/" * MATCH_HEX^40 * r"-.*" => file_server,
-            r".*" => (context)-> response_404()
+            # r".*" => (context)-> response_404()
         ),
         websocket_routes = Routes(
             r"/" * MATCH_SESSION_ID => websocket_handler
@@ -329,6 +328,10 @@ end
 
 function route!(application::Application, pattern_f::Pair)
     application.routes[pattern_f[1]] = pattern_f[2]
+end
+
+function route!(f, application::Application, pattern)
+    route!(application, pattern => f)
 end
 
 function websocket_route!(application::Application, pattern_f::Pair)

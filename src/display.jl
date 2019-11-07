@@ -1,18 +1,6 @@
 
 const global_application = Ref{Application}()
 
-const plotpane_pages = Dict{String, Any}()
-
-function atom_dom_handler(request::Request)
-    sessionid = request_to_sessionid(request, throw = false)
-    sessionid === nothing && return nothing
-    if haskey(plotpane_pages, sessionid)
-        return sessionid, plotpane_pages[sessionid]
-    else
-        @warn "Cannot find session! Target: $(sessionid). Request: $(request)"
-    end
-end
-
 
 struct DisplayInline
     dom
@@ -31,7 +19,7 @@ calls f with the session, that will become active when displaying the result
 of with_session. f is expected to return a valid DOM.
 """
 function with_session(f)
-    session = Session(Ref{WebSocket}())
+    session = Session()
     DisplayInline(f(session), session)
 end
 
@@ -58,9 +46,9 @@ for M in WebMimes
         application = get_global_app()
         sessionid = dom.sessionid
         session = dom.session
-        application.sessions[sessionid] = session
+        application.sessions[sessionid] = Dict("base" => session)
         session_url = "/" * sessionid
-        route!(application, url) do match, request, application
+        route!(application, session_url) do context
             # Serve the actual content
             return html(dom2html(session, sessionid, dom.dom))
         end
