@@ -10,6 +10,7 @@ using HTTP.Streams: Stream
 using WebSockets
 using Base64
 
+include("compat.jl")
 include("types.jl")
 include("serialization.jl")
 include("js_source.jl")
