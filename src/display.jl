@@ -32,7 +32,7 @@ const WebMimes = (
 function get_global_app()
     if !isassigned(global_application) || istaskdone(global_application[].server_task[])
         global_application[] = Application(
-            atom_dom_handler,
+            (args...)-> "No App",
             get(ENV, "WEBIO_SERVER_HOST_URL", "127.0.0.1"),
             parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081")),
             verbose = get(ENV, "JSCALL_VERBOSITY_LEVEL", "false") == "true"
