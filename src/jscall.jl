@@ -208,3 +208,6 @@ function make_renderable!(jsm::JSModule)
     onimport(jsm.scope, jss)
     return jsm.display_func(jsm.scope)
 end
+
+
+fuse(f, jso::JSObject) = fuse(f, session(jso))

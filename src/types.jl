@@ -63,6 +63,9 @@ end
 A web session with a user
 """
 struct Session
+    # indicates, whether session is in fuse mode, so it won't
+    # send any messages, until fuse ends and send them all at once
+    fusing::Base.RefValue{Bool}
     connections::Vector{WebSocket}
     observables::Dict{String, Tuple{Bool, Observable}} # Bool -> if already registered with Frontend
     message_queue::Vector{Dict{Symbol, Any}}

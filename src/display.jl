@@ -31,8 +31,8 @@ calls f with the session, that will become active when displaying the result
 of with_session. f is expected to return a valid DOM.
 """
 function with_session(f)
-    session = Session(Ref{WebSocket}())
-    DisplayInline(f(session), session)
+    session = Session()
+    return DisplayInline(f(session), session)
 end
 
 const WebMimes = (
@@ -58,7 +58,7 @@ for M in WebMimes
         application = get_global_app()
         sessionid = dom.sessionid
         session = dom.session
-        application.sessions[sessionid] = session
+        application.sessions[sessionid] = Dict("base" => session)
         session_url = "/" * sessionid
         route!(application, url) do match, request, application
             # Serve the actual content
