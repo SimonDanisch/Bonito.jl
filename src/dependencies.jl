@@ -10,11 +10,15 @@ mediatype(asset::Asset) = asset.media_type
 
 const server_proxy_url = Ref{String}()
 
+
+function url(str::String)
+    return server_proxy_url[] * str
+end
 function url(asset::Asset)
     if !isempty(asset.online_path)
         return asset.online_path
     else
-        return server_proxy_url[] * AssetRegistry.register(asset.local_path)
+        return url(AssetRegistry.register(asset.local_path))
     end
 end
 

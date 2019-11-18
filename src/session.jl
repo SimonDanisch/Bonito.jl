@@ -1,7 +1,8 @@
 
-function Session(connection = Ref{WebSocket}())
+function Session(connections = WebSocket[])
     Session(
-        connection,
+        Ref(false),
+        connections,
         Dict{String, Tuple{Bool, Observable}}(),
         Dict{Symbol, Any}[],
         Set{Asset}(),
@@ -10,11 +11,23 @@ function Session(connection = Ref{WebSocket}())
 end
 
 function Base.close(session::Session)
-    isopen(session) && close(session.connection[])
+    foreach(close, session.connections)
+    empty!(session.connections)
     empty!(session.observables)
     empty!(session.on_document_load)
     empty!(session.message_queue)
     empty!(session.dependencies)
+end
+
+function Base.copy(session::Session)
+    obs = Dict((k => (true, map(identity, obs)) for (k, (regs, obs)) in session.observables))
+    return Session(
+        WebSocket[],
+        session.observables,
+        Dict{Symbol, Any}[],
+        copy(session.dependencies),
+        JSCode[]
+    )
 end
 
 function Base.push!(session::Session, x::Observable)
@@ -34,6 +47,12 @@ function Base.push!(session::Session, asset::Asset)
         on_document_load(session, asset.onload)
     end
     return asset
+end
+
+function Base.push!(session::Session, websocket::WebSocket)
+    push!(session.connections, websocket)
+    filter!(isopen, session.connections)
+    return session
 end
 
 """
@@ -58,7 +77,7 @@ end
 """
     queued_as_script(session::Session)
 
-Returns all queued messages as a script that can be included into a html
+Returns all queued messages as a script that can be included into html
 """
 function queued_as_script(io::IO, session::Session)
     # send all queued messages
@@ -94,18 +113,28 @@ Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
 
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
-    if isopen(session)
+    if isopen(session) && !session.fusing[]
         # send all queued messages
         # send_queued(session)
         # sent the actual message
-        serialize_websocket(session.connection[], message)
+        for connection in session.connections
+            serialize_websocket(connection, message)
+        end
     else
         push!(session.message_queue, message)
     end
 end
 
+function fuse(f, session::Session)
+    session.fusing[] = true
+    f()
+    session.fusing[] = false
+    evaljs(session, JSCode([JSString(queued_as_script(session))]))
+end
+
+
 function Base.isopen(session::Session)
-    return isassigned(session.connection) && isopen(session.connection[])
+    return !isempty(session.connections) && isopen(session.connections[1])
 end
 
 
@@ -191,7 +220,7 @@ Returns all active sessions of an Application
 """
 function active_sessions(app::Application)
     collect(filter(app.sessions) do (k, v)
-        isopen(v) # leave not yet started connections
+        any(x-> isopen(x[2]), v) # leave not yet started connections
     end)
 end
 

@@ -9,11 +9,22 @@ const JSCall = "5"
 const JSGetIndex = "6"
 const JSSetIndex = "7"
 
+"""
+    request_to_sessionid(request; throw = true)
+
+Returns the session and browser id from request.
+With throw = false, it can be used to check if a request
+contains a valid session/browser id for a websocket connection.
+Will return nothing if request is invalid!
+"""
 function request_to_sessionid(request; throw = true)
-    if length(request.target) >= 36 # for /id/
-        sessionid = split(request.target, "/", keepempty = false)[end] # remove the '/' id '/'
-        if length(sessionid) == 36
-            return string(sessionid)
+    if length(request.target) >= 1 + 36 + 1 + 3 + 1 # for /36session_id/4browser_id/
+        session_browser = split(request.target, "/", keepempty = false)
+        if length(session_browser) == 2
+            sessionid, browserid = string.(session_browser)
+            if length(sessionid) == 36 && length(browserid) == 4
+                return sessionid, browserid
+            end
         end
     end
     if throw
@@ -64,7 +75,7 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
         </script>
         """
     )
-    serialize_string(io, JSCallLib)
+    serialize_string(io, JSCallLibLocal)
     print(io, """
         </head>
         <body"""
@@ -85,55 +96,52 @@ end
 
 include("mimetypes.jl")
 
-function http_handler(application::Application, request::Request)
-    try
-        if haskey(AssetRegistry.registry, request.target)
-            filepath = AssetRegistry.registry[request.target]
-            if isfile(filepath)
-                return HTTP.Response(
-                    200,
-                    [
-                        "Access-Control-Allow-Origin" => "*",
-                        "Content-Type" => file_mimetype(filepath)
-                    ],
-                    body = read(filepath)
-                )
-            else
-                return HTTP.Response(404)
-            end
-        else
-            body = if applicable(application.dom, request)
-                # Inline display handling
-                sessionid_dom = Base.invokelatest(application.dom, request)
-                if sessionid_dom === nothing
-                    "No route for request: $(request.target)" # request for e.g. favicon etc
-                else
-                    # request that corresponds to getting a session
-                    sessionid, dom = sessionid_dom
-                    session = application.sessions[sessionid]
-                    dom2html(session, sessionid, dom)
-                end
-            else
-                if request.target == "/"
-                    sessionid = string(uuid4())
-                    session = Session(Ref{WebSocket}())
-                    application.sessions[sessionid] = session
-                    dom = Base.invokelatest(application.dom, session, request)
-                    dom2html(session, sessionid, dom)
-                else
-                    "No route for request: $(request.target)"
-                end
-            end
+function file_server(context)
+    path = context.request.target
+    if haskey(AssetRegistry.registry, path)
+        filepath = AssetRegistry.registry[path]
+        if isfile(filepath)
             return HTTP.Response(
                 200,
-                ["Content-Type" => "text/html"],
-                body = body
+                [
+                    "Access-Control-Allow-Origin" => "*",
+                    "Content-Type" => file_mimetype(filepath)
+                ],
+                body = read(filepath)
             )
         end
-    catch e
-        @warn "error in handler" exception=e
-        return "error :(\n$e"
     end
+    return HTTP.Response(404)
+end
+
+function getsession(application, request)
+    sessionid, browserid = request_to_sessionid(request)
+    if haskey(application.sessions, sessionid)
+        browser_sessions = application.sessions[sessionid]
+        if haskey(browser_sessions, browserid)
+            return browser_sessions[browserid], browserid
+        else
+            error("Browser id not found: $(browserid)")
+        end
+    else
+        error("Session id not found: $(sessionid)")
+    end
+end
+
+function html(body)
+    HTTP.Response(
+        200,
+        ["Content-Type" => "text/html"],
+        body = body
+    )
+end
+
+function response_404(body = "Not Found")
+    HTTP.Response(
+        404,
+        ["Content-Type" => "text/html"],
+        body = body
+    )
 end
 
 """
@@ -168,7 +176,23 @@ function wait_timeout(condition, error_msg, timeout = 5.0)
             error(error_msg)
         end
     end
-    return true
+    return
+end
+
+function handle_ws_connection(session::Session, websocket::WebSocket)
+    # TODO, do we actually need to wait here?!
+    wait_timeout(()-> isopen(websocket), "Websocket not open after waiting 5s")
+    while isopen(websocket)
+        try
+            handle_ws_message(session, read(websocket))
+        catch e
+            # IOErrors
+            if !(e isa WebSockets.WebSocketClosedError || e isa Base.IOError)
+                @warn "handle ws error" exception=e
+            end
+        end
+    end
+    close(session)
 end
 
 
@@ -176,31 +200,25 @@ end
     handles a new websocket connection to a session
 """
 function websocket_handler(
-        application::Application, request::Request, websocket::WebSocket
+        context, websocket::WebSocket
     )
-    sessionid = request_to_sessionid(request)
+    request = context.request; application = context.application
+    sessionid_browserid = request_to_sessionid(request)
+    if sessionid_browserid === nothing
+        error("Not a valid websocket request")
+    end
+    sessionid, browserid = sessionid_browserid
     # Look up the connection in our sessions
     if haskey(application.sessions, sessionid)
-        session = application.sessions[sessionid]
-        # Close already open connections
-        # TODO, actually, if the connection is open, we should
-        # just not allow a new connection!? Need to figure out if that would
-        # be less reliable...Definitely sounds more secure to not allow a new conenction
-        if isopen(session)
-            close(session.connection[])
+        browser_sessions = application.sessions[sessionid]
+        session = get!(browser_sessions, browserid) do
+            # If we don't have a session for this browser/client yet
+            # we make a new one!
+            return browser_sessions["base"]
         end
-        session.connection[] = websocket
-        wait_timeout(()-> isopen(websocket), "Websocket not open after waiting 5.0")
-        while isopen(websocket)
-            try
-                handle_ws_message(session, read(websocket))
-            catch e
-                if !(e isa WebSockets.WebSocketClosedError)
-                    @warn "handle ws error" exception=e
-                end
-            end
-        end
-        close(session)
+        # We can have multiple sessions for a client
+        push!(session, websocket)
+        handle_ws_connection(session, websocket)
     else
         error("Unregistered session id: $sessionid")
     end

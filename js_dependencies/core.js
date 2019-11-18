@@ -29,25 +29,47 @@ function is_dict(value){
     return value && typeof value === 'object';
 }
 
-function get_session_id(){
-    return window.js_call_session_id
-    // TODO, well this was a fun idea, but how do I initialize the http
-    // session correctly? I'd need to know the stored session id in the http request already
-    // From all I know, this is only possible with cookies?
-    // check for browser support
-    // if (typeof(Storage) !== "undefined") {
-    //   // get the session id from local storage
-    //   var saved_id = sessionStorage.getItem("julia-jscall-session-id");
-    //   if(saved_id){
-    //       return saved_id
-    //   }else{
-    //       sessionStorage.setItem("julia-jscall-session-id", default_id)
-    //       return default_id
-    //   }
-    // } else {
-    //   return default_id
-    // }
+function randhex(){
+    return (Math.random() * 16 | 0).toString(16);
 }
+
+// TODO use a secure library for this shit
+function rand4hex(){
+    return randhex() + randhex() + randhex() + randhex();
+}
+
+function get_session_id(){
+    // We have one session id, which handles the connection
+    // for one APP state
+    var session_id = window.js_call_session_id
+
+    var browser_id = rand4hex();
+    // if we have local storage, we use it,
+    // otherwise we leave the random browser id
+    if (typeof(Storage) !== "undefined") {// check for browser support
+        // get the browser local id
+        // var b_id;
+        // try{
+        //     b_id = sessionStorage.getItem("julia-jscall-browser-id");
+        // }catch(e){
+        //     send_warning(String(e))
+        // }
+        // if(b_id){
+        //     browser_id = b_id;
+        // }else{
+        //     // this is the first session in this browser, we use our randomly
+        //     // generated id and store it for next session in this browser
+        //     sessionStorage.setItem("julia-jscall-browser-id", browser_id)
+        // }
+    }
+    // Now, we also need an id for having multiple tabs open in the same browser
+    // or for a refresh. this will always be random one...
+    // We will create a new websocket connection for any new tab,
+    // which will share the same state with the other tabs/refresh
+    // var tab_id = rand4hex();
+    return session_id + "/" + browser_id //* "/" * tab_id;
+}
+
 const serializer_functions = {
     JSObject: get_heap_object,
 }
@@ -79,6 +101,7 @@ function deserialize_js(data){
         return data;
     }
 }
+
 
 function websocket_url(){
     // something like http://127.0.0.1:8081/

@@ -1,27 +1,10 @@
 
 const global_application = Ref{Application}()
 
-const plotpane_pages = Dict{String, Any}()
-
-function atom_dom_handler(request::Request)
-    sessionid = request_to_sessionid(request, throw = false)
-    sessionid === nothing && return nothing
-    if haskey(plotpane_pages, sessionid)
-        return sessionid, plotpane_pages[sessionid]
-    else
-        @warn "Cannot find session! Target: $(sessionid). Request: $(request)"
-    end
-end
-
 
 struct DisplayInline
-    dom
-    session::Session
-    sessionid::String
+    dom_function
 end
-
-DisplayInline(dom) = DisplayInline(dom, Session(Ref{WebSocket}()), string(uuid4()))
-DisplayInline(dom, session::Session) = DisplayInline(dom, session, string(uuid4()))
 
 
 """
@@ -31,8 +14,7 @@ calls f with the session, that will become active when displaying the result
 of with_session. f is expected to return a valid DOM.
 """
 function with_session(f)
-    session = Session(Ref{WebSocket}())
-    DisplayInline(f(session), session)
+    return DisplayInline(f)
 end
 
 const WebMimes = (
@@ -44,7 +26,7 @@ const WebMimes = (
 function get_global_app()
     if !isassigned(global_application) || istaskdone(global_application[].server_task[])
         global_application[] = Application(
-            atom_dom_handler,
+            (ctx, request)-> "Nothing to see",
             get(ENV, "WEBIO_SERVER_HOST_URL", "127.0.0.1"),
             parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081")),
             verbose = get(ENV, "JSCALL_VERBOSITY_LEVEL", "false") == "true"
@@ -56,11 +38,13 @@ end
 for M in WebMimes
     @eval function Base.show(io::IO, m::$M, dom::DisplayInline)
         application = get_global_app()
-        sessionid = dom.sessionid
-        session = dom.session
-        application.sessions[sessionid] = session
-        plotpane_pages[sessionid] = dom.dom
-        println(io, "<iframe src=$(repr(server_proxy_url[] * "/" * sessionid)) frameborder=\"0\" width = '100%' height = '100%'>")
+        session_url = "/show"
+        route!(application, session_url) do context
+            # Serve the actual content
+            return serve_dom(context, dom.dom_function)
+        end
+        # Display the route we just added in an iframe inline:
+        println(io, "<iframe src=$(repr(url(session_url))) frameborder=\"0\" width = '100%' height = '100%'>")
         println(io, "</iframe>")
     end
 end
@@ -78,6 +62,8 @@ end
 # end
 function Base.show(io::IO, m::MIME"application/vnd.webio.application+html", dom::DisplayInline)
     application = get_global_app()
-    application.sessions[dom.sessionid] = dom.session
-    dom2html(io, dom.session, dom.sessionid, dom.dom)
+    session = Session()
+    sessionid = string(uuid4())
+    application.sessions[sessionid] = Dict("base" => session)
+    dom2html(io, session, sessionid, dom.dom_function(session, (target = "/show",)))
 end
