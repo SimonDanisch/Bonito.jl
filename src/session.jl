@@ -220,7 +220,7 @@ Returns all active sessions of an Application
 """
 function active_sessions(app::Application)
     collect(filter(app.sessions) do (k, v)
-        isopen(v) # leave not yet started connections
+        any(x-> isopen(x[2]), v) # leave not yet started connections
     end)
 end
 

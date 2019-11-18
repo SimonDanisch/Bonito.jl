@@ -128,7 +128,6 @@ function getsession(application, request)
     end
 end
 
-
 function html(body)
     HTTP.Response(
         200,
@@ -136,6 +135,7 @@ function html(body)
         body = body
     )
 end
+
 function response_404(body = "Not Found")
     HTTP.Response(
         404,
@@ -186,7 +186,8 @@ function handle_ws_connection(session::Session, websocket::WebSocket)
         try
             handle_ws_message(session, read(websocket))
         catch e
-            if !(e isa WebSockets.WebSocketClosedError)
+            # IOErrors
+            if !(e isa WebSockets.WebSocketClosedError || e isa Base.IOError)
                 @warn "handle ws error" exception=e
             end
         end
@@ -213,8 +214,7 @@ function websocket_handler(
         session = get!(browser_sessions, browserid) do
             # If we don't have a session for this browser/client yet
             # we make a new one!
-            println("Requesting a new Session!")
-            return copy(browser_sessions["base"])
+            return browser_sessions["base"]
         end
         # We can have multiple sessions for a client
         push!(session, websocket)

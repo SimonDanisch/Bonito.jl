@@ -82,8 +82,21 @@ function Routes(pairs::Pair...)
     return Routes([pairs...])
 end
 
+pattern_priority(x::Pair) = pattern_priority(x[1])
+pattern_priority(x::String) = 1
+pattern_priority(x::Tuple) = 2
+pattern_priority(x::Regex) = 3
+
 function Base.setindex!(routes::Routes, f, pattern)
-    push!(routes, pattern => f)
+    idx = findfirst(isequal(pattern), routes.table)
+    if idx !== nothing
+        routes.table[idx] = pattern => f
+    else
+        push!(routes.table, pattern => f)
+    end
+    # Sort for priority so that exact string matches come first
+    sort!(routes.table, by = pattern_priority)
+    return
 end
 
 function apply_handler(f, args...)
@@ -109,10 +122,9 @@ function delegate(routes::Routes, application, request::Request, args...)
             return apply_handler(f, context, args...)
         end
     end
-    error("""
-    No route found for request:
-    $(request)
-    """)
+    # If no route is found we have a classic case of 404!
+    # What a classic this response!
+    return response_404("Didn't find route for $(request.target)")
 end
 
 function match_request(pattern::String, request)
@@ -243,7 +255,11 @@ const MATCH_UUID4 = MATCH_HEX^8 * r"-" * (MATCH_HEX^4 * r"-")^3 * MATCH_HEX^12
 const MATCH_SESSION_ID = MATCH_UUID4 * r"/" * MATCH_HEX^4
 
 function serve_dom(context, dom)
-
+    application = context.application
+    session_id = string(uuid4())
+    session = Session()
+    application.sessions[session_id] = Dict("base" => session)
+    return html(dom2html(session, session_id, dom(session, context.request)))
 end
 
 """
@@ -258,13 +274,7 @@ function Application(
         dom, url::String, port::Int;
         verbose = false,
         routes = Routes(
-            "/" => function (context)
-                application = context.application
-                session_id = string(uuid4())
-                session = Session()
-                application.sessions[session_id] = Dict("base" => session)
-                return html(dom2html(session, session_id, dom(session, context.request)))
-            end,
+            "/" => ctx-> serve_dom(ctx, dom),
             r"/assetserver/" * MATCH_HEX^40 * r"-.*" => file_server,
             r".*" => (context)-> response_404()
         ),
@@ -332,6 +342,10 @@ end
 
 function route!(application::Application, pattern_f::Pair)
     application.routes[pattern_f[1]] = pattern_f[2]
+end
+
+function route!(f, application::Application, pattern)
+    route!(application, pattern => f)
 end
 
 function websocket_route!(application::Application, pattern_f::Pair)
