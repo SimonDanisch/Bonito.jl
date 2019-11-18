@@ -88,7 +88,7 @@ pattern_priority(x::Tuple) = 2
 pattern_priority(x::Regex) = 3
 
 function Base.setindex!(routes::Routes, f, pattern)
-    idx = findfirst(isequal(pattern), routes.table)
+    idx = findfirst(pair-> pair[1] == pattern, routes.table)
     if idx !== nothing
         routes.table[idx] = pattern => f
     else
