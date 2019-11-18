@@ -65,5 +65,5 @@ function Base.show(io::IO, m::MIME"application/vnd.webio.application+html", dom:
     session = Session()
     sessionid = string(uuid4())
     application.sessions[sessionid] = Dict("base" => session)
-    dom2html(io, session, sessionid, dom.dom_function())
+    dom2html(io, session, sessionid, dom.dom_function(session, (target = "/show",)))
 end
