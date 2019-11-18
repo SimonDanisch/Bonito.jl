@@ -1,5 +1,4 @@
-
-if VERSION < v"1.3"
+if VERSION < v"1.3-"
     using Base.PCRE
     Base.:(^)(r::Regex, i::Integer) = Regex(string("(?:", r.pattern, "){$i}"), r.compile_options, r.match_options)
     function Base.:(*)(r1::Union{Regex,AbstractString,AbstractChar}, rs::Union{Regex,AbstractString,AbstractChar}...)

@@ -1,6 +1,7 @@
 
 function Session(connections = WebSocket[])
     Session(
+        Ref(false),
         connections,
         Dict{String, Tuple{Bool, Observable}}(),
         Dict{Symbol, Any}[],
@@ -76,7 +77,7 @@ end
 """
     queued_as_script(session::Session)
 
-Returns all queued messages as a script that can be included into a html
+Returns all queued messages as a script that can be included into html
 """
 function queued_as_script(io::IO, session::Session)
     # send all queued messages
@@ -112,7 +113,7 @@ Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
 
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
-    if isopen(session)
+    if isopen(session) && !session.fusing[]
         # send all queued messages
         # send_queued(session)
         # sent the actual message
@@ -123,6 +124,14 @@ function Sockets.send(session::Session, message::Dict{Symbol, Any})
         push!(session.message_queue, message)
     end
 end
+
+function fuse(f, session::Session)
+    session.fusing[] = true
+    f()
+    session.fusing[] = false
+    evaljs(session, JSCode([JSString(queued_as_script(session))]))
+end
+
 
 function Base.isopen(session::Session)
     return !isempty(session.connections) && isopen(session.connections[1])
@@ -211,7 +220,7 @@ Returns all active sessions of an Application
 """
 function active_sessions(app::Application)
     collect(filter(app.sessions) do (k, v)
-        isopen(v) # leave not yet started connections
+        any(x-> isopen(x[2]), v) # leave not yet started connections
     end)
 end
 

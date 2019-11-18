@@ -47,15 +47,20 @@ function get_session_id(){
     // if we have local storage, we use it,
     // otherwise we leave the random browser id
     if (typeof(Storage) !== "undefined") {// check for browser support
-      // get the browser local id
-      var b_id = sessionStorage.getItem("julia-jscall-browser-id");
-      if(b_id){
-          browser_id = b_id;
-      }else{
-          // this is the first session in this browser, we use our randomly
-          // generated id and store it for next session in this browser
-          sessionStorage.setItem("julia-jscall-browser-id", browser_id)
-      }
+        // get the browser local id
+        // var b_id;
+        // try{
+        //     b_id = sessionStorage.getItem("julia-jscall-browser-id");
+        // }catch(e){
+        //     send_warning(String(e))
+        // }
+        // if(b_id){
+        //     browser_id = b_id;
+        // }else{
+        //     // this is the first session in this browser, we use our randomly
+        //     // generated id and store it for next session in this browser
+        //     sessionStorage.setItem("julia-jscall-browser-id", browser_id)
+        // }
     }
     // Now, we also need an id for having multiple tabs open in the same browser
     // or for a refresh. this will always be random one...
