@@ -189,7 +189,7 @@ function handle_ws_connection(session::Session, websocket::WebSocket)
         catch e
             # IOErrors
             if !(e isa WebSockets.WebSocketClosedError || e isa Base.IOError)
-                @warn "handle ws error" exception=e
+                rethrow(e)
             end
         end
     end

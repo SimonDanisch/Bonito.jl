@@ -53,8 +53,7 @@ end
 
 
 function serialize_string(io::IO, @nospecialize(x))
-    str = Base64.base64encode(MsgPack.pack(serialize_js(x)))
-    println(io, "(decode_base64_msgpack(\"$(str)\"))")
+    JSON3.write(io, serialize_js(x))
 end
 
 serialize_string(io::IO, x::Observable) = print(io, "'", x.id, "'")

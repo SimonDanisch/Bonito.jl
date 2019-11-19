@@ -3,6 +3,7 @@ using JSServe, Observables
 using JSServe: Application, Session, evaljs, linkjs, update_dom!, div, active_sessions
 using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, with_session
 using JSServe.DOM
+using WGLMakie, AbstractPlotting
 
 d = with_session() do session, req
     s1 = Slider(1:100)
@@ -14,10 +15,10 @@ d = with_session() do session, req
     on(t) do text
         println(text)
     end
-    # scene = scatter(
-    #     1:100, rand(100) .* 100,
-    #     markersize = s1, axis = (names = (title = t,),)
-    # )
+    scene = scatter(
+        1:100, rand(100) .* 100,
+        markersize = s1, axis = (names = (title = t,),)
+    )
     return md = md"""
     # IS THIS REAL?
 
@@ -32,18 +33,11 @@ d = with_session() do session, req
     Type something for the list: $(t)
 
     some list $(t.value)
+
+    $(scene)
     """
 end
-s = Session()
-x = d.dom_function(s, nothing);
-JSServe.jsrender(s, x)
-s.message_queue
-(id, (reg, observable)) = first(s.observables)
-observable
-JSServe.serialize_string(js"    registered_observables[$(observable)] = $(observable[]);")
-using MsgPack, Base64
-str = MsgPack.pack(observable[]) |> Base64.base64encode
-Base64.base64decode(str) |> MsgPack.unpack
-MsgPack.unpack("")
-registered_observables['ob_895'] = (decode_base64_msgpack("AQ=="))
-;
+
+using MsgPack
+MsgPack.msgpack_type(::Type{Float16}) = MsgPack.FloatType()
+MsgPack.to_msgpack(::MsgPack.FloatType, uuid::UUID) = string(uuid)
