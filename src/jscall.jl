@@ -48,19 +48,7 @@ macro jsglobal(name)
     JSGlobal(Symbol(name))
 end
 
-function serialize_string(io::IO, g::JSGlobal)
-    print(io, g.name)
-end
 
-function serialize_string(io::JSONSerializer, jso::JSObject)
-    serialize_string(io, Dict(
-        :__javascript_type__ => :JSObject,
-        :payload => uuidstr(jso)
-    ))
-end
-function serialize_string(io::IO, jso::JSObject)
-    serialize_string(io, js"get_heap_object($(uuidstr(jso)))")
-end
 
 """
     JSObject(jso::JSObject, typ::Symbol)

@@ -106,13 +106,7 @@ function uuid(node::Node)
     end
 end
 
-# Handle interpolating into Javascript
-function serialize_string(io::IO, node::Node)
-    # This relies on jsrender to give each node a unique id under the
-    # attribute data-jscall-id. This is a bit brittle
-    # improving this would be nice
-    print(io, "(document.querySelector('[data-jscall-id=$(repr(uuid(node)))]'))")
-end
+
 
 
 

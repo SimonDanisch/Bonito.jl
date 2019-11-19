@@ -4,7 +4,7 @@ using JSServe: Application, Session, evaljs, linkjs, update_dom!, div, active_se
 using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, with_session
 using JSServe.DOM
 
-with_session() do session, req
+d = with_session() do session, req
     s1 = Slider(1:100)
     s2 = Slider(1:100)
     b = Button("hi")
@@ -34,3 +34,16 @@ with_session() do session, req
     some list $(t.value)
     """
 end
+s = Session()
+x = d.dom_function(s, nothing);
+JSServe.jsrender(s, x)
+s.message_queue
+(id, (reg, observable)) = first(s.observables)
+observable
+JSServe.serialize_string(js"    registered_observables[$(observable)] = $(observable[]);")
+using MsgPack, Base64
+str = MsgPack.pack(observable[]) |> Base64.base64encode
+Base64.base64decode(str) |> MsgPack.unpack
+MsgPack.unpack("")
+registered_observables['ob_895'] = (decode_base64_msgpack("AQ=="))
+;

@@ -96,7 +96,7 @@ function queued_as_script(io::IO, session::Session)
     for message in session.message_queue
         serialize_string(
             io,
-            js"    process_message(deserialize_js($(AsJSON(message))));"
+            js"    process_message(deserialize_js($(message)));"
         )
         println(io)
     end

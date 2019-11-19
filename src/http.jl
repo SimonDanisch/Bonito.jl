@@ -76,6 +76,7 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
         """
     )
     serialize_string(io, JSCallLibLocal)
+    serialize_string(io, MsgPackLib)
     print(io, """
         </head>
         <body"""
@@ -151,7 +152,7 @@ Handles the incoming websocket messages from the frontend
 """
 function handle_ws_message(session::Session, message)
     isempty(message) && return
-    data = JSON3.read(String(message))
+    data = MsgPack.unpack(message)
     typ = data["type"]
     if typ == UpdateObservable
         registered, obs = session.observables[data["id"]]

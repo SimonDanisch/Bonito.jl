@@ -1,103 +1,94 @@
-
-abstract type JavascriptSerializer <: IO end
-
-"""
-    io_object(io::JavascriptSerializer)
-gets the IO object of a JavascriptSerializer
-"""
-io_object(io::JavascriptSerializer) = io.io
-
-
-struct JSONSerializer{T <: IO} <: JavascriptSerializer
-    io::T
-end
-
-# Overload base functions for any object inheriting from JavascriptSerializer
-for func in (:write, :print, :println)
-    @eval Base.$(func)(io::JavascriptSerializer, args...) = $(func)(io_object(io), args...)
-end
-Base.print(io::JavascriptSerializer, arg::Union{SubString{String}, String}) = print(io_object(io), arg)
-Base.print(io::JavascriptSerializer, arg::Char) = print(io_object(io), arg)
-
-Base.write(io::JSServe.JavascriptSerializer, x::Array) = write(JSServe.io_object(io), x)
-Base.write(io::JSServe.JavascriptSerializer, arg::UInt8) = Base.write(io_object(io), arg)
-
 function serialize_websocket(io::IO, message)
-    # right now, we simply use
-    str = sprint() do io2
-        serialize_string(JSONSerializer(io2), message)
+    serialize_msgpack(io, message)
+end
+
+function serialize_msgpack(io, @nospecialize(obj))
+    data = serialize_js(obj) # apply custom, overloadable transformation
+    write(io, MsgPack.pack(data))
+end
+
+function js_type(type::Symbol, @nospecialize(x))
+    return Dict(
+        :__javascript_type__ => type,
+        :payload => x
+    )
+end
+
+serialize_js(@nospecialize(x)) = x
+
+function serialize_js(x::Vector{T}) where {T<:Number}
+    return js_type(:typed_vector, x)
+end
+
+function serialize_js(jso::JSObject)
+    return js_type(:JSObject, uuidstr(jso))
+end
+
+function serialize_js(x::Union{AbstractArray, Tuple})
+    return map(serialize_js, x)
+end
+
+function serialize_js(dict::AbstractDict)
+    result = Dict()
+    for (k, v) in dict
+        result[k] = serialize_js(v)
     end
-    write(io, str)
+    return result
 end
 
+serialize_js(jss::JSString) = jss.source
 
-"""
-Function used to serialize objects interpolated into a JS string, e.g.
-via:
-```julia
-var = "hi"
-js"console.log(\$var)"
-```
-When sent to the frontend, the final javascript string will be constructed as:
-```julia
-"console.log(" * serialize_string(var) * ")"
-```
-"""
-serialize_string(@nospecialize(object)) = sprint(io-> serialize_string(io, object))
-serialize_string(io::IO, @nospecialize(object)) = JSON3.write(io, object)
-serialize_string(io::IO, x::Observable) = print(io, "'", x.id, "'")
-
-# Handle interpolation into javascript
-function serialize_string(jsio::JSONSerializer, jss::JSCode)
-    # serialize as string
-    serialize_string(jsio, serialize_string(jss))
+function serialize_js(jsc::Union{JSCode, JSString})
+    return js_type(:js_code, serialize_string(jsc))
 end
 
-serialize_string(io::IO, x::JSString) = print(io, x.source)
-function serialize_string(io::IO, jss::JSCode)
-    for elem in jss.source
+serialize_string(@nospecialize(x)) = sprint(io-> serialize_string(io, x))
+serialize_string(io::IO, jss::JSString) = print(io, jss.source)
+
+function serialize_string(io::IO, jsc::JSCode)
+    for elem in jsc.source
         serialize_string(io, elem)
     end
 end
-function serialize_string(io::IO, jsss::AbstractVector{JSCode})
-    for jss in jsss
-        serialize_string(io, jss)
+
+
+function serialize_string(io::IO, @nospecialize(x))
+    str = Base64.base64encode(MsgPack.pack(serialize_js(x)))
+    println(io, "(decode_base64_msgpack(\"$(str)\"))")
+end
+
+serialize_string(io::IO, x::Observable) = print(io, "'", x.id, "'")
+
+function serialize_string(io::IO, node::Node)
+    # This relies on jsrender to give each node a unique id under the
+    # attribute data-jscall-id. This is a bit brittle
+    # improving this would be nice
+    print(io, "(document.querySelector('[data-jscall-id=$(repr(uuid(node)))]'))")
+end
+
+function serialize_string(io::IO, assets::Set{Asset})
+    for asset in assets
+        serialize_string(io, asset)
         println(io)
     end
 end
 
-struct AsJSON{T}
-    x::T
-end
-
-serialize_string(io::JSONSerializer, js::AsJSON) = serialize_string(io, js.x)
-
-function serialize_string(io::IO, js::AsJSON)
-    serialize_string(JSONSerializer(io), js.x)
-end
-
-# Since there is no easy way to mess with JSON3 printer, we print
-# Vectors & Dictionaries ourselves, so that we cann apply serialize_string recursively
-function serialize_string(io::IO, vector::Union{AbstractVector, Tuple})
-    print(io, '[')
-    for (i, element) in enumerate(vector)
-        serialize_string(io, element)
-        (i == length(vector)) || print(io, ',') # dont print for last item
+function serialize_string(io::IO, asset::Asset)
+    if mediatype(asset) == :js
+        println(
+            io,
+            "<script src='$(url(asset))'></script>"
+        )
+    elseif mediatype(asset) == :css
+        println(
+            io,
+            "<link href = $(repr(url(asset))) rel = \"stylesheet\",  type=\"text/css\">"
+        )
+    else
+        error("Unrecognized asset media type: $(mediatype(asset))")
     end
-    print(io, ']')
 end
 
-function serialize_string(io::IO, dict::Union{NamedTuple, AbstractDict})
-    print(io, '{')
-    for (i, (key, value)) in enumerate(pairs(dict))
-        serialize_string(io, key); print(io, ':')
-        serialize_string(io, value)
-        (i == length(dict)) || print(io, ',') # dont print for last item
-    end
-    print(io, '}')
+function serialize_string(io::IO, dependency::Dependency)
+    print(io, dependency.name)
 end
-
-# function deserialize_js(::JSObject)
-#     # deserialize with the function get_heap_object
-#     return js"get_heap_object"
-# end
