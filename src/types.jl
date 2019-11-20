@@ -259,7 +259,8 @@ function serve_dom(context, dom)
     session_id = string(uuid4())
     session = Session()
     application.sessions[session_id] = Dict("base" => session)
-    return html(dom2html(session, session_id, dom(session, context.request)))
+    html_dom = Base.invokelatest(dom, session, context.request)
+    return html(dom2html(session, session_id, html_dom))
 end
 
 """
