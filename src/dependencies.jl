@@ -75,33 +75,6 @@ function Dependency(name::Symbol, urls::AbstractVector)
     )
 end
 
-function serialize_string(io::IO, assets::Set{Asset})
-    for asset in assets
-        serialize_string(io, asset)
-        println(io)
-    end
-end
-
-function serialize_string(io::IO, asset::Asset)
-    if mediatype(asset) == :js
-        println(
-            io,
-            "<script src='$(url(asset))'></script>"
-        )
-    elseif mediatype(asset) == :css
-        println(
-            io,
-            "<link href = $(repr(url(asset))) rel = \"stylesheet\",  type=\"text/css\">"
-        )
-    else
-        error("Unrecognized asset media type: $(mediatype(asset))")
-    end
-end
-
-function serialize_string(io::IO, dependency::Dependency)
-    print(io, dependency.name)
-end
-
 # With this, one can just put a dependency anywhere in the dom to get loaded
 function jsrender(session::Session, x::Dependency)
     push!(session, x)
@@ -110,4 +83,7 @@ function jsrender(session::Session, x::Dependency)
 end
 
 const JSCallLib = Asset("https://simondanisch.github.io/JSServe.jl/js_dependencies/core.js")
+
 const JSCallLibLocal = Asset(dependency_path("core.js"))
+
+const MsgPackLib = Asset("https://cdn.jsdelivr.net/gh/kawanet/msgpack-lite/dist/msgpack.min.js")

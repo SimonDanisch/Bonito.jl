@@ -3,8 +3,9 @@ using JSServe, Observables
 using JSServe: Application, Session, evaljs, linkjs, update_dom!, div, active_sessions
 using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, with_session
 using JSServe.DOM
+using WGLMakie, AbstractPlotting
 
-with_session() do session, req
+d = with_session() do session, req
     s1 = Slider(1:100)
     s2 = Slider(1:100)
     b = Button("hi")
@@ -14,10 +15,10 @@ with_session() do session, req
     on(t) do text
         println(text)
     end
-    # scene = scatter(
-    #     1:100, rand(100) .* 100,
-    #     markersize = s1, axis = (names = (title = t,),)
-    # )
+    scene = scatter(
+        1:100, rand(100) .* 100,
+        markersize = s1, axis = (names = (title = t,),)
+    )
     return md = md"""
     # IS THIS REAL?
 
@@ -32,5 +33,11 @@ with_session() do session, req
     Type something for the list: $(t)
 
     some list $(t.value)
+
+    $(scene)
     """
 end
+
+using MsgPack
+MsgPack.msgpack_type(::Type{Float16}) = MsgPack.FloatType()
+MsgPack.to_msgpack(::MsgPack.FloatType, uuid::UUID) = string(uuid)

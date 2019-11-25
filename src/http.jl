@@ -77,6 +77,7 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
         """
     )
     serialize_string(io, JSCallLibLocal)
+    serialize_string(io, MsgPackLib)
     print(io, """
         </head>
         <body"""
@@ -152,7 +153,7 @@ Handles the incoming websocket messages from the frontend
 """
 function handle_ws_message(session::Session, message)
     isempty(message) && return
-    data = JSON3.read(String(message))
+    data = MsgPack.unpack(message)
     typ = data["type"]
     if typ == UpdateObservable
         registered, obs = session.observables[data["id"]]
@@ -189,7 +190,7 @@ function handle_ws_connection(session::Session, websocket::WebSocket)
         catch e
             # IOErrors
             if !(e isa WebSockets.WebSocketClosedError || e isa Base.IOError)
-                @warn "handle ws error" exception=e
+                rethrow(e)
             end
         end
     end

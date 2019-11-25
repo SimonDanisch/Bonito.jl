@@ -9,10 +9,10 @@ using HTTP: Response, Request
 using HTTP.Streams: Stream
 using WebSockets
 using Base64
+using MsgPack
 
 include("compat.jl")
 include("types.jl")
-include("serialization.jl")
 include("js_source.jl")
 include("session.jl")
 include("observables.jl")
@@ -24,6 +24,7 @@ include("hyperscript_integration.jl")
 include("display.jl")
 include("jscall.jl")
 include("markdown_integration.jl")
+include("serialization.jl")
 
 function __init__()
     url = get(ENV, "JULIA_WEBIO_BASEURL") do

@@ -89,15 +89,20 @@ function queued_as_script(io::IO, session::Session)
             # Make sure we update the Javascript values!
             on(updater, observable)
             session.observables[id] = (true, observable)
-            serialize_string(io, js"    registered_observables[$(observable)] = $(observable[]);")
+            serialize_string(io, "    registered_observables[$(observable.id)] = $(JSON3.write(observable[]));")
             println(io)
         end
     end
     for message in session.message_queue
-        serialize_string(
-            io,
-            js"    process_message(deserialize_js($(AsJSON(message))));"
-        )
+        if message[:type] == EvalJavascript
+            @show typeof(message[:payload])
+            serialize_string(io, message[:payload])
+        else
+            # serialize_string(
+            #     io,
+            #     js"    process_message(deserialize_js($(message)));"
+            # )
+        end
         println(io)
     end
     empty!(session.message_queue)

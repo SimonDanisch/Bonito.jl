@@ -19,6 +19,7 @@ Update the value of an observable, without sending changes to the JS frontend.
 This will be used to update updates from the forntend.
 """
 function update_nocycle!(obs::Observable, value)
+    @show typeof(obs[]) typeof(value) value
     setindex!(
         obs, value,
         notify = (f-> !(f isa JSUpdateObservable))
