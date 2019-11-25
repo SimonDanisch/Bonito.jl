@@ -125,11 +125,13 @@ function Sockets.send(session::Session, message::Dict{Symbol, Any})
     end
 end
 
+fuse(f, has_session) = fuse(f, session(has_session))
 function fuse(f, session::Session)
     session.fusing[] = true
-    f()
+    result = f()
     session.fusing[] = false
     evaljs(session, JSCode([JSString(queued_as_script(session))]))
+    return result
 end
 
 
@@ -158,6 +160,9 @@ function onjs(session::Session, obs::Observable, func::JSCode)
     )
 end
 
+function onjs(has_session, obs::Observable, func::JSCode)
+    onjs(session(has_session), obs, func)
+end
 
 """
     onload(session::Session, node::Node, func::JSCode)
@@ -203,6 +208,10 @@ function linkjs(session::Session, a::Observable, b::Observable)
     )
 end
 
+function linkjs(has_session, a::Observable, b::Observable)
+    linkjs(session(has_session), a, b)
+end
+
 """
     evaljs(session::Session, jss::JSCode)
 
@@ -211,6 +220,10 @@ Evaluate a javascript script in `session`.
 function evaljs(session::Session, jss::JSCode)
     register_resource!(session, jss)
     send(session, type = EvalJavascript, payload = jss)
+end
+
+function evaljs(has_session, jss::JSCode)
+    evaljs(session(has_session), jss)
 end
 
 """

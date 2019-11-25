@@ -25,6 +25,7 @@ const JSSetIndex = '7'
 function is_list(value){
     return value && typeof value === 'object' && value.constructor === Array;
 }
+
 function is_dict(value){
     return value && typeof value === 'object';
 }

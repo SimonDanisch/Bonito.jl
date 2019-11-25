@@ -1,4 +1,3 @@
-
 """
 Functor to update JS part when an observable changes.
 We make this a Functor, so we can clearly identify it and don't sent
@@ -26,8 +25,6 @@ function update_nocycle!(obs::Observable, value)
     )
 end
 
-
-
 """
 Register all Observables of a session with the connected Javascript frontend.
 It updates all the values on the JS side accordingly,
@@ -52,11 +49,8 @@ function register_obs!(session::Session)
     return
 end
 
-
 function jsrender(session::Session, obs::Observable)
-    html = map(obs) do value
-        repr_richest(value)
-    end
+    html = map(repr_richest, obs)
     dom = DOM.m_unesc("span", html[])
     onjs(session, html, js"""
         function (html){
