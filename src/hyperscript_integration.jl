@@ -28,14 +28,15 @@ function m_unesc(tag, args...; kw...)
     m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, tag, args..., dataJscallId = get_unique_dom_id(); kw...)
 end
 
-p(args...; kw...) = um("p", args...; kw...)
-div(args...; kw...) = um("div", args...; kw...)
-div_unesc(args...; kw...) = m_unesc("div", args...; kw...)
-input(args...; kw...) = um("input", args...; kw...)
-font(args...; kw...) = um("font", args...; kw...)
+for node in (:p, :div, :input, :font, :nav, :ul, :li, :img)
+    node_name = string(node)
+    unesc = Symbol(node_name * "_unesc")
+    @eval $(node)(args...; kw...) = um($(node_name), args...; kw...)
+    @eval $(unesc)(args...; kw...) = m_unesc($(node_name), args...; kw...)
+end
 
-style(args...; kw...) = m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, "style", args...; kw...)
-script(args...; kw...) = m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, "script", args...; kw...)
+style(args...; kw...) = m_unesc("style", args...; kw...)
+script(args...; kw...) = m_unesc("script", args...; kw...)
 
 end
 
