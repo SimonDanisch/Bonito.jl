@@ -194,7 +194,6 @@ function handle_ws_connection(session::Session, websocket::WebSocket)
             end
         end
     end
-    println("ummmmmm: ", isopen(websocket))
     close(session)
 end
 
