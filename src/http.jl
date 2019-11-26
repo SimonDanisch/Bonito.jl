@@ -53,7 +53,7 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
         """
     )
     # Insert all script/css dependencies into the header
-    serialize_string(io, session.dependencies)
+    serialize_readable(io, session.dependencies)
     # insert the javascript for JSCall
     print(io, """
         <script>
@@ -69,15 +69,15 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
     """)
     # create a function we call in body onload =, which loads all
     # on_document_load javascript
-    serialize_string(io, session.on_document_load)
+    serialize_readable(io, session.on_document_load)
     queued_as_script(io, session)
     print(io, """
         };
         </script>
         """
     )
-    serialize_string(io, JSCallLibLocal)
-    serialize_string(io, MsgPackLib)
+    serialize_readable(io, JSCallLibLocal)
+    serialize_readable(io, MsgPackLib)
     print(io, """
         </head>
         <body"""
@@ -194,6 +194,7 @@ function handle_ws_connection(session::Session, websocket::WebSocket)
             end
         end
     end
+    println("ummmmmm: ", isopen(websocket))
     close(session)
 end
 

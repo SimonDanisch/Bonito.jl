@@ -62,7 +62,7 @@ function attribute_render(session, parent, attribute, obs::Observable)
 end
 
 function attribute_render(session, parent, attribute, jss::JSCode)
-    return serialize_string(jss)
+    return serialize_readable(jss)
 end
 
 render_node(session::Session, x) = x

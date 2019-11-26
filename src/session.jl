@@ -73,15 +73,16 @@ function send_queued(session::Session)
 end
 
 
-
+global msg_queue = nothing
 """
     queued_as_script(session::Session)
 
 Returns all queued messages as a script that can be included into html
 """
 function queued_as_script(io::IO, session::Session)
+    global msg_queue
     # send all queued messages
-    # first register observables
+    # # first register observables
     for (id, (registered, observable)) in session.observables
         if !registered
             # Register on the JS side by sending the current value
@@ -89,24 +90,34 @@ function queued_as_script(io::IO, session::Session)
             # Make sure we update the Javascript values!
             on(updater, observable)
             session.observables[id] = (true, observable)
-            serialize_string(io, "    registered_observables[$(observable.id)] = $(JSON3.write(observable[]));")
+            val = serialize_readable(observable[])
+            println(io, "    registered_observables[$(repr(observable.id))] = $(val);")
             println(io)
         end
     end
+    msg_queue = copy(session.message_queue)
+    println(io, "    var js_serialized_message;")
     for message in session.message_queue
+
+    #     # println(io)
         if message[:type] == EvalJavascript
-            @show typeof(message[:payload])
-            serialize_string(io, message[:payload])
+            serialize_readable(io, message[:payload])
         else
-            # serialize_string(
-            #     io,
-            #     js"    process_message(deserialize_js($(message)));"
-            # )
+            print(io, "    js_serialized_message = ")
+            serialize_readable(
+                io,
+                message#js"    process_message(deserialize_js($(message)));"
+            )
+            println(io, ";")
+            println(io, "    process_message(deserialize_js(js_serialized_message));")
         end
         println(io)
+    #     println(io)
+    #     # flush(io)
     end
-    empty!(session.message_queue)
+    # empty!(session.message_queue)
 end
+
 queued_as_script(session::Session) = sprint(io-> queued_as_script(io, session))
 
 """
@@ -298,9 +309,9 @@ function update_dom!(session::Session, dom)
         var s = document.createElement("script");
         s.type = "text/javascript";
         s.async = false
-        s.text = $(serialize_string(new_jss));
+        s.text = $(serialize_readable(new_jss));
         document.head.appendChild(s);
     """
-    println(serialize_string(update_script))
+    println(serialize_readable(update_script))
     evaljs(session, update_script)
 end
