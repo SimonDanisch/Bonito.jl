@@ -73,14 +73,12 @@ function send_queued(session::Session)
 end
 
 
-global msg_queue = nothing
 """
     queued_as_script(session::Session)
 
 Returns all queued messages as a script that can be included into html
 """
 function queued_as_script(io::IO, session::Session)
-    global msg_queue
     # send all queued messages
     # # first register observables
     for (id, (registered, observable)) in session.observables
@@ -95,11 +93,8 @@ function queued_as_script(io::IO, session::Session)
             println(io)
         end
     end
-    msg_queue = copy(session.message_queue)
     println(io, "    var js_serialized_message;")
     for message in session.message_queue
-
-    #     # println(io)
         if message[:type] == EvalJavascript
             serialize_readable(io, message[:payload])
         else
@@ -112,8 +107,6 @@ function queued_as_script(io::IO, session::Session)
             println(io, "    process_message(deserialize_js(js_serialized_message));")
         end
         println(io)
-    #     println(io)
-    #     # flush(io)
     end
     # empty!(session.message_queue)
 end
