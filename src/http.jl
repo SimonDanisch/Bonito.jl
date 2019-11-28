@@ -42,9 +42,9 @@ end
 
 function dom2html(io::IO, session::Session, sessionid::String, dom)
     js_dom = jsrender(session, dom)
-    html = repr(MIME"text/html"(), js_dom)
+    html = repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
 
-    register_resource!(session, dom)
+    # register_resource!(session, dom)
     register_resource!(session, js_dom)
 
     print(io, """
@@ -76,8 +76,8 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
         </script>
         """
     )
-    serialize_readable(io, JSCallLibLocal)
     serialize_readable(io, MsgPackLib)
+    serialize_readable(io, JSCallLibLocal)
     print(io, """
         </head>
         <body"""

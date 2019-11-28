@@ -69,17 +69,18 @@ a remote resource that is hosted on, for example, a CDN).
 is_online(path) = any(startswith.(path, ("//", "https://", "http://", "ftp://")))
 
 function Dependency(name::Symbol, urls::AbstractVector)
-    Dependency(
-        name,
-        Asset.(urls),
-    )
+    return Dependency(name, Asset.(urls))
 end
 
 # With this, one can just put a dependency anywhere in the dom to get loaded
 function jsrender(session::Session, x::Dependency)
     push!(session, x)
-    # TODO implement returning nothing to just not be in the dom directly
-    div(display = "none", visibility = "hidden")
+    return nothing
+end
+
+function jsrender(session::Session, asset::Asset)
+    register_resource!(session, asset)
+    return nothing
 end
 
 const JSCallLib = Asset("https://simondanisch.github.io/JSServe.jl/js_dependencies/core.js")

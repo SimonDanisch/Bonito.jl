@@ -50,7 +50,9 @@ function register_obs!(session::Session)
 end
 
 function jsrender(session::Session, obs::Observable)
-    html = map(repr_richest, obs)
+    html = map(obs) do data
+        repr_richest(jsrender(session, data))
+    end
     dom = DOM.m_unesc("span", html[])
     onjs(session, html, js"""
         function (html){

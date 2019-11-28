@@ -48,8 +48,6 @@ macro jsglobal(name)
     JSGlobal(Symbol(name))
 end
 
-
-
 """
     JSObject(jso::JSObject, typ::Symbol)
 
