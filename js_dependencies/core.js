@@ -214,7 +214,29 @@ function update_obs(id, value){
 }
 
 function websocket_send(data){
-    session_websocket[0].send(msgpack.encode(data));
+    if(session_websocket.length == 0){
+        var popup = document.getElementById('WEBSOCKET_CONNECTION_WARNING');
+        if(!popup){
+            var doc_root = document.getElementById('application-dom');
+            var popup = document.createElement('div');
+            popup.id = "WEBSOCKET_CONNECTION_WARNING";
+            popup.style.position = "absolute";
+            popup.style.top = "2%";
+            popup.style.left = "50%";
+            popup.style.backgroundColor = "#ED4337";
+            popup.style.color = "#fff";
+            popup.style.textAlign = "center";
+            popup.style.borderRadius = "6px";
+            popup.style.padding = "8px";
+            popup.style.zIndex = "1002";
+            popup.style.overflow = "auto";
+            popup.style.boxShadow = "5px 5px 4px #888888";
+            popup.innerText = "Lost connection to server!";
+            doc_root.appendChild(popup);
+        }
+    }else{
+        session_websocket[0].send(msgpack.encode(data));
+    }
 }
 
 function process_message(data){
