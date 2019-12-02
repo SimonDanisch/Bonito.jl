@@ -90,7 +90,7 @@ function deserialize_js(data){
             }else if (data.__javascript_type__ == 'typed_vector'){
                 return data.payload;
             }else if (data.__javascript_type__ == 'js_code'){
-                return eval(data.payload);
+                return data.payload;
             }else{
                 send_error(
                     "Can't deserialize custom type: " + data.__javascript_type__,
@@ -98,7 +98,7 @@ function deserialize_js(data){
                 );
                 return undefined;
             }
-        }else if (data.type && (data.type == "1" || data.type == "2"|| data.type == "3"|| data.type == "4"|| data.type == "5"|| data.type == "6"|| data.type == "7")){
+        }else{
             var result = {};
             for (var k in data) {
                 if (data.hasOwnProperty(k)) {
@@ -106,8 +106,6 @@ function deserialize_js(data){
                 }
             }
             return result;
-        }else{
-            return data;
         }
     }else{
         return data;
@@ -145,18 +143,17 @@ function send_error(message, exception){
     console.error(message)
     console.error(exception)
     websocket_send({
-        type: JavascriptError,
+        msg_type: JavascriptError,
         message: message,
         exception: String(exception)
     })
 }
 
-
 function send_warning(message){
     console.warn(message)
 
     websocket_send({
-        type: JavascriptWarning,
+        msg_type: JavascriptWarning,
         message: message
     })
 }
@@ -195,7 +192,7 @@ function update_obs(id, value){
             run_js_callbacks(id, value)
             // update Julia side!
             websocket_send({
-                type: UpdateObservable,
+                msg_type: UpdateObservable,
                 id: id,
                 payload: value
             })
@@ -240,7 +237,7 @@ function websocket_send(data){
 }
 
 function process_message(data){
-    switch(data.type) {
+    switch(data.msg_type) {
         case UpdateObservable:
             try{
                 var value = data.payload
@@ -260,7 +257,7 @@ function process_message(data){
                 // register a callback that will executed on js side
                 // when observable updates
                 var id = data.id
-                var f = eval(data.payload);
+                var f = eval(deserialize_js(data.payload));
                 var callbacks = observable_callbacks[id] || [];
                 callbacks.push(f);
                 observable_callbacks[id] = callbacks;
@@ -274,21 +271,22 @@ function process_message(data){
             }
             break;
         case EvalJavascript:
+            var code = deserialize_js(data.payload);
             try{
-                eval(data.payload);
+                eval(code);
             }catch(exception){
                 send_error(
                     "Error while evaling JS from Julia. Source:\n" +
-                    data.payload,
+                    code,
                     exception
                 )
             }
             break;
         case JSCall:
             try{
-                var func = data.func;
+                var func = eval(deserialize_js(data.func));
                 var result;
-                var arguments = data.arguments;
+                var arguments = deserialize_js(data.arguments);
                 if(data.needs_new){
                     // if argument list we need to use apply
                     if (is_list(arguments)){
@@ -319,35 +317,38 @@ function process_message(data){
             break;
         case JSGetIndex:
             try{
-                var result = data.object[data.field];
+                var obj = deserialize_js(data.object);
+                var result = obj[data.field];
                 // if result is a class method, we need to bind it to the parent object
                 if(result.bind != undefined){
-                    result = result.bind(data.object);
+                    result = result.bind(obj);
                 }
                 put_on_heap(data.result, result);
             }catch(exception){
                 console.log(data);
                 send_error(
                     "Error while executing getting field " + data.field +
-                    " from:\n" + String(data.object),
+                    " from:\n" + obj,
                     exception
                 )
             }
             break;
         case JSSetIndex:
             try{
-                data.object[data.field] = data.value;
+                var obj = deserialize_js(data.object);
+                var val = deserialize_js(data.value);
+                obj[data.field] = val;
             }catch(exception){
                 send_error(
                     "Error while executing setting field " + data.field +
-                    " from:\n" + String(data.object) + " with value " + data.value,
+                    " from:\n" + String(obj) + " with value " + String(val),
                     exception
                 )
             }
             break;
         default:
             send_error(
-                "Unrecognized message type: " + data.id + ".",
+                "Unrecognized message type: " + data.msg_type + ".",
                 ""
             )
     }
@@ -366,7 +367,7 @@ function setup_connection(){
             websocket.onmessage = function (evt) {
                 var binary = new Uint8Array(evt.data);
                 var data = msgpack.decode(binary);
-                process_message(deserialize_js(data));
+                process_message(data);
             }
         }
         websocket.onclose = function (evt) {

@@ -154,7 +154,7 @@ Handles the incoming websocket messages from the frontend
 function handle_ws_message(session::Session, message)
     isempty(message) && return
     data = MsgPack.unpack(message)
-    typ = data["type"]
+    typ = data["msg_type"]
     if typ == UpdateObservable
         registered, obs = session.observables[data["id"]]
         @assert registered # must have been registered to come from frontend

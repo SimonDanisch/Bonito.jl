@@ -59,6 +59,7 @@ function JSObject(jso::JSObject, typ::Symbol)
     evaljs(session(jso), js"put_on_heap($(uuidstr(jsonew)), $jso); undefined;")
     return jsonew
 end
+
 function JSObject(session::Session, name::Symbol)
     return JSObject(name, session, :variable)
 end
@@ -107,7 +108,7 @@ function Base.getproperty(jso::AbstractJSObject, field::Symbol)
         result = JSObject(field, session(jso), typ(jso))
         send(
             session(jso),
-            type = JSGetIndex,
+            msg_type = JSGetIndex,
             object = jso,
             field = field,
             result = uuidstr(result),
@@ -119,7 +120,7 @@ end
 function Base.setproperty!(jso::AbstractJSObject, field::Symbol, value)
     send(
         session(jso),
-        type = JSSetIndex,
+        msg_type = JSSetIndex,
         object = jso,
         value = value,
         field = field
@@ -157,7 +158,7 @@ function jscall(jso::AbstractJSObject, args, kw_args)
     result = JSObject(:result, session(jso), :call)
     send(
         session(jso),
-        type = JSCall,
+        msg_type = JSCall,
         func = jso,
         needs_new = getfield(jso, :typ) === :new,
         arguments = construct_arguments(args, kw_args),

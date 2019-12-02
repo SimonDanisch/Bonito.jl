@@ -26,6 +26,7 @@ include("jscall.jl")
 include("markdown_integration.jl")
 include("serialization.jl")
 
+
 function __init__()
     url = get(ENV, "JULIA_WEBIO_BASEURL") do
         base = get(ENV, "WEBIO_SERVER_HOST_URL", "127.0.0.1")
@@ -36,6 +37,12 @@ function __init__()
         url = url[1:end-1]
     end
     server_proxy_url[] = url
+    atexit() do
+        # remove session folder, in which we store data dependencies temporary
+        # TODO remove whenever a session is closed to not accumulate waste until julia
+        # gets closed
+        rm(dependency_path("session_temp_data"), recursive=true, force=true)
+    end
 end
 
 

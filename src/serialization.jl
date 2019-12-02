@@ -61,6 +61,14 @@ end
 
 # Since there is no easy way to mess with JSON3 printer, we print
 # Vectors & Dictionaries ourselves, so that we cann apply serialize_readable recursively
+function serialize_readable(io::IO, vector::AbstractArray{T}) where {T<:Number}
+    JSON3.write(io, vector)
+end
+
+function serialize_readable(io::IO, vector::AbstractVector{T}) where {T<:Number}
+    JSON3.write(io, vector)
+end
+
 function serialize_readable(io::IO, vector::Union{AbstractVector, Tuple})
     print(io, '[')
     for (i, element) in enumerate(vector)
@@ -119,4 +127,13 @@ function serialize_readable(io::IO, node::Node)
     # attribute data-jscall-id. This is a bit brittle
     # improving this would be nice
     print(io, "(document.querySelector('[data-jscall-id=$(repr(uuid(node)))]'))")
+end
+
+# TODO move to msgpack
+MsgPack.msgpack_type(::Type{Float16}) = MsgPack.FloatType()
+MsgPack.to_msgpack(::MsgPack.FloatType, x::Float16) = Float32(x)
+
+
+function Base.show(io::IO, jsc::JSCode)
+    serialize_readable(io, jsc)
 end

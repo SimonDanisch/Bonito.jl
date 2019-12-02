@@ -6,7 +6,8 @@ function Session(connections = WebSocket[])
         Dict{String, Tuple{Bool, Observable}}(),
         Dict{Symbol, Any}[],
         Set{Asset}(),
-        JSCode[]
+        JSCode[],
+        string(uuid4())
     )
 end
 
@@ -81,6 +82,8 @@ Returns all queued messages as a script that can be included into html
 function queued_as_script(io::IO, session::Session)
     # send all queued messages
     # # first register observables
+    observables = Dict{String, Any}()
+
     for (id, (registered, observable)) in session.observables
         if !registered
             # Register on the JS side by sending the current value
@@ -88,27 +91,47 @@ function queued_as_script(io::IO, session::Session)
             # Make sure we update the Javascript values!
             on(updater, observable)
             session.observables[id] = (true, observable)
-            val = serialize_readable(observable[])
-            println(io, "    registered_observables[$(repr(observable.id))] = $(val);")
-            println(io)
+            observables[observable.id] = observable[]
         end
     end
-    println(io, "    var js_serialized_message;")
-    for message in session.message_queue
-        if message[:type] == EvalJavascript
-            serialize_readable(io, message[:payload])
-        else
-            print(io, "    js_serialized_message = ")
-            serialize_readable(
-                io,
-                message#js"    process_message(deserialize_js($(message)));"
-            )
-            println(io, ";")
-            println(io, "    process_message(deserialize_js(js_serialized_message));")
-        end
-        println(io)
+    data = Dict("observables" => observables, "messages" => session.message_queue)
+
+    isdir(dependency_path("session_temp_data")) || mkdir(dependency_path("session_temp_data"))
+
+    deps_path = dependency_path("session_temp_data", session.id * ".msgpack")
+    open(deps_path, "w") do io
+        MsgPack.pack(io, serialize_js(data))
     end
-    # empty!(session.message_queue)
+    url = AssetRegistry.register(deps_path)
+    println(io, js"""
+    var url = $(url);
+
+    var oReq = new XMLHttpRequest();
+    oReq.open("GET", url, true);
+    oReq.responseType = "arraybuffer";
+    var t0 = performance.now();
+    oReq.onload = function (oEvent) {
+        var t1 = performance.now();
+        console.log("download done! " + (t1 - t0) + " milliseconds.");
+      var arrayBuffer = oReq.response; // Note: not oReq.responseText
+      if (arrayBuffer) {
+        var byteArray = new Uint8Array(arrayBuffer);
+        var data = msgpack.decode(byteArray);
+        window.all_data = data;
+        for (let obs_id in data.observables) {
+          registered_observables[obs_id] = data.observables[obs_id];
+        }
+        for (let message in data.messages) {
+            var msg = data.messages[message];
+            process_message(msg);
+        }
+        t1 = performance.now();
+        console.log("msg process done! " + (t1 - t0) + " milliseconds.");
+      }
+    };
+    oReq.send(null);
+    """)
+    empty!(session.message_queue)
 end
 
 queued_as_script(session::Session) = sprint(io-> queued_as_script(io, session))
@@ -136,10 +159,10 @@ end
 
 fuse(f, has_session) = fuse(f, session(has_session))
 function fuse(f, session::Session)
-    session.fusing[] = true
+    # session.fusing[] = true
     result = f()
-    session.fusing[] = false
-    evaljs(session, JSCode([JSString(queued_as_script(session))]))
+    # session.fusing[] = false
+    # evaljs(session, JSCode([JSString(queued_as_script(session))]))
     return result
 end
 
@@ -162,7 +185,7 @@ function onjs(session::Session, obs::Observable, func::JSCode)
 
     send(
         session,
-        type = OnjsCallback,
+        msg_type = OnjsCallback,
         id = obs.id,
         # eval requires functions to be wrapped in ()
         payload = js"($func)"
@@ -228,7 +251,7 @@ Evaluate a javascript script in `session`.
 """
 function evaljs(session::Session, jss::JSCode)
     register_resource!(session, jss)
-    send(session, type = EvalJavascript, payload = jss)
+    send(session, msg_type = EvalJavascript, payload = jss)
 end
 
 function evaljs(has_session, jss::JSCode)
