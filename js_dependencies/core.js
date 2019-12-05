@@ -80,6 +80,33 @@ const serializer_functions = {
     JSObject: get_heap_object,
 }
 
+function materialize(data){
+    // if is a node attribute
+    if(is_list(data)){
+        return data.map(materialize);
+    }else if(data.tag){
+        var node = document.createElement(data.tag);
+        for(var key in data){
+            if(key == 'class'){
+                node.className = data[key];
+            }else if(key != 'children' && key != 'tag'){
+                node.setAttribute(key, data[key]);
+            }
+        }
+        for(var idx in data.children){
+            var child = data.children[idx];
+            if(is_dict(child)){
+                node.appendChild(materialize(child));
+            }else{
+                node.innerText = child;
+            }
+        }
+        return node;
+    }else{ // anything else is used as is!
+        return data;
+    }
+}
+
 function deserialize_js(data){
     if(is_list(data)){
         return data.map(deserialize_js);

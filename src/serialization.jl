@@ -132,7 +132,20 @@ end
 # TODO move to msgpack
 MsgPack.msgpack_type(::Type{Float16}) = MsgPack.FloatType()
 MsgPack.to_msgpack(::MsgPack.FloatType, x::Float16) = Float32(x)
+JSON3.StructType(::Type{Hyperscript.Node{Hyperscript.HTMLSVG}}) = JSON3.ObjectType()
+MsgPack.msgpack_type(::Type{Hyperscript.Node{Hyperscript.HTMLSVG}}) = MsgPack.MapType()
 
+function MsgPack.to_msgpack(::MsgPack.MapType, node::Hyperscript.Node{Hyperscript.HTMLSVG})
+    return JSON3.keyvaluepairs(node)
+end
+
+function JSON3.keyvaluepairs(node::Hyperscript.Node{Hyperscript.HTMLSVG})
+    return [
+        :tag => getfield(node, :tag),
+        :children => getfield(node, :children),
+        getfield(node, :attrs)...
+    ]
+end
 
 function Base.show(io::IO, jsc::JSCode)
     serialize_readable(io, jsc)

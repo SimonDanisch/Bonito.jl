@@ -19,10 +19,7 @@ Update the value of an observable, without sending changes to the JS frontend.
 This will be used to update updates from the forntend.
 """
 function update_nocycle!(obs::Observable, value)
-    setindex!(
-        obs, value,
-        notify = (f-> !(f isa JSUpdateObservable))
-    )
+    setindex!(obs, value, notify = (f-> !(f isa JSUpdateObservable)))
 end
 
 """
@@ -34,9 +31,7 @@ function register_obs!(session::Session)
     for (id, (registered, observable)) in session.observables
         if !registered
             # Register on the JS side by sending the current value
-            send(
-                session,
-                type = UpdateObservable,
+            send(session, type=UpdateObservable,
                 id = id,
                 payload = observable[]
             )

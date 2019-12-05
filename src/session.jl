@@ -31,8 +31,14 @@ function Base.copy(session::Session)
     )
 end
 
-function Base.push!(session::Session, x::Observable)
-    session.observables[x.id] = (false, x)
+function Base.push!(session::Session, observable::Observable)
+    if !haskey(session.observables, observable.id)
+        session.observables[observable.id] = (true, observable)
+        # Register on the JS side by sending the current value
+        updater = JSUpdateObservable(session, observable.id)
+        # Make sure we update the Javascript values!
+        on(updater, observable)
+    end
 end
 
 function Base.push!(session::Session, dependency::Dependency)
@@ -56,23 +62,6 @@ function Base.push!(session::Session, websocket::WebSocket)
     return session
 end
 
-"""
-    send_queued(session::Session)
-
-Sends all queued operations to the frontend
-"""
-function send_queued(session::Session)
-    if isopen(session)
-        # send all queued messages
-        for message in session.message_queue
-            send(session, message)
-        end
-        empty!(session.message_queue)
-    else
-        error("To send queued messages make sure that session is open.")
-    end
-end
-
 
 """
     queued_as_script(session::Session)
@@ -85,20 +74,14 @@ function queued_as_script(io::IO, session::Session)
     observables = Dict{String, Any}()
 
     for (id, (registered, observable)) in session.observables
-        if !registered
-            # Register on the JS side by sending the current value
-            updater = JSUpdateObservable(session, id)
-            # Make sure we update the Javascript values!
-            on(updater, observable)
-            session.observables[id] = (true, observable)
-            observables[observable.id] = observable[]
-        end
+        observables[observable.id] = observable[]
     end
+
     data = Dict("observables" => observables, "messages" => session.message_queue)
 
     isdir(dependency_path("session_temp_data")) || mkdir(dependency_path("session_temp_data"))
 
-    deps_path = dependency_path("session_temp_data", session.id * ".msgpack")
+    deps_path = dependency_path("session_temp_data", "2" * session.id * ".msgpack")
     open(deps_path, "w") do io
         MsgPack.pack(io, serialize_js(data))
     end
@@ -119,7 +102,7 @@ function queued_as_script(io::IO, session::Session)
         var data = msgpack.decode(byteArray);
         window.all_data = data;
         for (let obs_id in data.observables) {
-          registered_observables[obs_id] = data.observables[obs_id];
+            registered_observables[obs_id] = data.observables[obs_id];
         }
         for (let message in data.messages) {
             var msg = data.messages[message];
@@ -146,9 +129,6 @@ Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
     if isopen(session) && !session.fusing[]
-        # send all queued messages
-        # send_queued(session)
-        # sent the actual message
         for connection in session.connections
             serialize_websocket(connection, message)
         end
@@ -168,7 +148,7 @@ end
 
 
 function Base.isopen(session::Session)
-    return !isempty(session.connections) && isopen(session.connections[1])
+    return !isempty(session.connections) && any(isopen, session.connections)
 end
 
 

@@ -42,6 +42,9 @@ end
 
 function dom2html(io::IO, session::Session, sessionid::String, dom)
     js_dom = jsrender(session, dom)
+
+    yield() # yield, so that messages from jsrender can process!
+
     html = repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
 
     # register_resource!(session, dom)
