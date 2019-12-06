@@ -81,38 +81,36 @@ function queued_as_script(io::IO, session::Session)
 
     isdir(dependency_path("session_temp_data")) || mkdir(dependency_path("session_temp_data"))
 
-    deps_path = dependency_path("session_temp_data", "2" * session.id * ".msgpack")
-    open(deps_path, "w") do io
-        MsgPack.pack(io, serialize_js(data))
-    end
+    deps_path = dependency_path("session_temp_data", session.id * ".msgpack")
+    open(io -> MsgPack.pack(io, serialize_js(data)), deps_path, "w")
     url = AssetRegistry.register(deps_path)
     println(io, js"""
     var url = $(url);
 
-    var oReq = new XMLHttpRequest();
-    oReq.open("GET", url, true);
-    oReq.responseType = "arraybuffer";
+    var http_request = new XMLHttpRequest();
+    http_request.open("GET", url, true);
+    http_request.responseType = "arraybuffer";
     var t0 = performance.now();
-    oReq.onload = function (oEvent) {
+    http_request.onload = function (event) {
         var t1 = performance.now();
         console.log("download done! " + (t1 - t0) + " milliseconds.");
-      var arrayBuffer = oReq.response; // Note: not oReq.responseText
-      if (arrayBuffer) {
-        var byteArray = new Uint8Array(arrayBuffer);
-        var data = msgpack.decode(byteArray);
-        window.all_data = data;
-        for (let obs_id in data.observables) {
-            registered_observables[obs_id] = data.observables[obs_id];
+        var arraybuffer = http_request.response; // Note: not oReq.responseText
+        if (arraybuffer) {
+            var bytes = new Uint8Array(arraybuffer);
+            var data = msgpack.decode(bytes);
+            for (let obs_id in data.observables) {
+                registered_observables[obs_id] = data.observables[obs_id];
+            }
+            for (let message in data.messages) {
+                process_message(data.messages[message]);
+            }
+            t1 = performance.now();
+            console.log("msg process done! " + (t1 - t0) + " milliseconds.");
+        }else{
+            send_warning("Didn't receive any setup data from server.")
         }
-        for (let message in data.messages) {
-            var msg = data.messages[message];
-            process_message(msg);
-        }
-        t1 = performance.now();
-        console.log("msg process done! " + (t1 - t0) + " milliseconds.");
-      }
     };
-    oReq.send(null);
+    http_request.send(null);
     """)
     empty!(session.message_queue)
 end

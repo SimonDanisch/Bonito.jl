@@ -43,12 +43,12 @@ end
 function dom2html(io::IO, session::Session, sessionid::String, dom)
     js_dom = jsrender(session, dom)
 
+    # register resources (observables, assets)
+    register_resource!(session, js_dom)
+
     yield() # yield, so that messages from jsrender can process!
 
     html = repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
-
-    # register_resource!(session, dom)
-    register_resource!(session, js_dom)
 
     print(io, """
         <html>
@@ -106,14 +106,9 @@ function file_server(context)
     if haskey(AssetRegistry.registry, path)
         filepath = AssetRegistry.registry[path]
         if isfile(filepath)
-            return HTTP.Response(
-                200,
-                [
-                    "Access-Control-Allow-Origin" => "*",
-                    "Content-Type" => file_mimetype(filepath)
-                ],
-                body = read(filepath)
-            )
+            header = ["Access-Control-Allow-Origin" => "*",
+                      "Content-Type" => file_mimetype(filepath)]
+            return HTTP.Response(200, header, body = read(filepath))
         end
     end
     return HTTP.Response(404)
@@ -134,19 +129,11 @@ function getsession(application, request)
 end
 
 function html(body)
-    HTTP.Response(
-        200,
-        ["Content-Type" => "text/html"],
-        body = body
-    )
+    return HTTP.Response(200, ["Content-Type" => "text/html"], body = body)
 end
 
 function response_404(body = "Not Found")
-    HTTP.Response(
-        404,
-        ["Content-Type" => "text/html"],
-        body = body
-    )
+    return HTTP.Response(404, ["Content-Type" => "text/html"], body = body)
 end
 
 """
@@ -204,9 +191,7 @@ end
 """
     handles a new websocket connection to a session
 """
-function websocket_handler(
-        context, websocket::WebSocket
-    )
+function websocket_handler(context, websocket::WebSocket)
     request = context.request; application = context.application
     sessionid_browserid = request_to_sessionid(request)
     if sessionid_browserid === nothing
