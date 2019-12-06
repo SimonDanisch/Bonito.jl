@@ -11,7 +11,7 @@ end
 
 function (x::JSUpdateObservable)(value)
     # Sent an update event
-    send(x.session, payload = value, id = x.id, type = UpdateObservable)
+    send(x.session, payload = value, id = x.id, msg_type = UpdateObservable)
 end
 
 """
@@ -19,10 +19,7 @@ Update the value of an observable, without sending changes to the JS frontend.
 This will be used to update updates from the forntend.
 """
 function update_nocycle!(obs::Observable, value)
-    setindex!(
-        obs, value,
-        notify = (f-> !(f isa JSUpdateObservable))
-    )
+    setindex!(obs, value, notify = (f-> !(f isa JSUpdateObservable)))
 end
 
 """
@@ -34,9 +31,7 @@ function register_obs!(session::Session)
     for (id, (registered, observable)) in session.observables
         if !registered
             # Register on the JS side by sending the current value
-            send(
-                session,
-                type = UpdateObservable,
+            send(session, type=UpdateObservable,
                 id = id,
                 payload = observable[]
             )
@@ -50,7 +45,9 @@ function register_obs!(session::Session)
 end
 
 function jsrender(session::Session, obs::Observable)
-    html = map(repr_richest, obs)
+    html = map(obs) do data
+        repr_richest(jsrender(session, data))
+    end
     dom = DOM.m_unesc("span", html[])
     onjs(session, html, js"""
         function (html){

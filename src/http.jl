@@ -42,10 +42,13 @@ end
 
 function dom2html(io::IO, session::Session, sessionid::String, dom)
     js_dom = jsrender(session, dom)
-    html = repr(MIME"text/html"(), js_dom)
 
-    register_resource!(session, dom)
+    # register resources (observables, assets)
     register_resource!(session, js_dom)
+
+    yield() # yield, so that messages from jsrender can process!
+
+    html = repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
 
     print(io, """
         <html>
@@ -53,7 +56,7 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
         """
     )
     # Insert all script/css dependencies into the header
-    serialize_string(io, session.dependencies)
+    serialize_readable(io, session.dependencies)
     # insert the javascript for JSCall
     print(io, """
         <script>
@@ -69,14 +72,15 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
     """)
     # create a function we call in body onload =, which loads all
     # on_document_load javascript
-    serialize_string(io, session.on_document_load)
+    serialize_readable(io, session.on_document_load)
     queued_as_script(io, session)
     print(io, """
         };
         </script>
         """
     )
-    serialize_string(io, JSCallLibLocal)
+    serialize_readable(io, MsgPackLib)
+    serialize_readable(io, JSCallLibLocal)
     print(io, """
         </head>
         <body"""
@@ -102,14 +106,9 @@ function file_server(context)
     if haskey(AssetRegistry.registry, path)
         filepath = AssetRegistry.registry[path]
         if isfile(filepath)
-            return HTTP.Response(
-                200,
-                [
-                    "Access-Control-Allow-Origin" => "*",
-                    "Content-Type" => file_mimetype(filepath)
-                ],
-                body = read(filepath)
-            )
+            header = ["Access-Control-Allow-Origin" => "*",
+                      "Content-Type" => file_mimetype(filepath)]
+            return HTTP.Response(200, header, body = read(filepath))
         end
     end
     return HTTP.Response(404)
@@ -130,19 +129,11 @@ function getsession(application, request)
 end
 
 function html(body)
-    HTTP.Response(
-        200,
-        ["Content-Type" => "text/html"],
-        body = body
-    )
+    return HTTP.Response(200, ["Content-Type" => "text/html"], body = body)
 end
 
 function response_404(body = "Not Found")
-    HTTP.Response(
-        404,
-        ["Content-Type" => "text/html"],
-        body = body
-    )
+    return HTTP.Response(404, ["Content-Type" => "text/html"], body = body)
 end
 
 """
@@ -152,8 +143,8 @@ Handles the incoming websocket messages from the frontend
 """
 function handle_ws_message(session::Session, message)
     isempty(message) && return
-    data = JSON3.read(String(message))
-    typ = data["type"]
+    data = MsgPack.unpack(message)
+    typ = data["msg_type"]
     if typ == UpdateObservable
         registered, obs = session.observables[data["id"]]
         @assert registered # must have been registered to come from frontend
@@ -189,7 +180,7 @@ function handle_ws_connection(session::Session, websocket::WebSocket)
         catch e
             # IOErrors
             if !(e isa WebSockets.WebSocketClosedError || e isa Base.IOError)
-                @warn "handle ws error" exception=e
+                @warn "error in websocket handler!" exception=e
             end
         end
     end
@@ -200,9 +191,7 @@ end
 """
     handles a new websocket connection to a session
 """
-function websocket_handler(
-        context, websocket::WebSocket
-    )
+function websocket_handler(context, websocket::WebSocket)
     request = context.request; application = context.application
     sessionid_browserid = request_to_sessionid(request)
     if sessionid_browserid === nothing

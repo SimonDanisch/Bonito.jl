@@ -6,7 +6,8 @@ function Session(connections = WebSocket[])
         Dict{String, Tuple{Bool, Observable}}(),
         Dict{Symbol, Any}[],
         Set{Asset}(),
-        JSCode[]
+        JSCode[],
+        string(uuid4())
     )
 end
 
@@ -30,8 +31,14 @@ function Base.copy(session::Session)
     )
 end
 
-function Base.push!(session::Session, x::Observable)
-    session.observables[x.id] = (false, x)
+function Base.push!(session::Session, observable::Observable)
+    if !haskey(session.observables, observable.id)
+        session.observables[observable.id] = (true, observable)
+        # Register on the JS side by sending the current value
+        updater = JSUpdateObservable(session, observable.id)
+        # Make sure we update the Javascript values!
+        on(updater, observable)
+    end
 end
 
 function Base.push!(session::Session, dependency::Dependency)
@@ -55,24 +62,6 @@ function Base.push!(session::Session, websocket::WebSocket)
     return session
 end
 
-"""
-    send_queued(session::Session)
-
-Sends all queued operations to the frontend
-"""
-function send_queued(session::Session)
-    if isopen(session)
-        # send all queued messages
-        for message in session.message_queue
-            send(session, message)
-        end
-        empty!(session.message_queue)
-    else
-        error("To send queued messages make sure that session is open.")
-    end
-end
-
-
 
 """
     queued_as_script(session::Session)
@@ -81,27 +70,51 @@ Returns all queued messages as a script that can be included into html
 """
 function queued_as_script(io::IO, session::Session)
     # send all queued messages
-    # first register observables
+    # # first register observables
+    observables = Dict{String, Any}()
+
     for (id, (registered, observable)) in session.observables
-        if !registered
-            # Register on the JS side by sending the current value
-            updater = JSUpdateObservable(session, id)
-            # Make sure we update the Javascript values!
-            on(updater, observable)
-            session.observables[id] = (true, observable)
-            serialize_string(io, js"    registered_observables[$(observable)] = $(observable[]);")
-            println(io)
-        end
+        observables[observable.id] = observable[]
     end
-    for message in session.message_queue
-        serialize_string(
-            io,
-            js"    process_message(deserialize_js($(AsJSON(message))));"
-        )
-        println(io)
-    end
+
+    data = Dict("observables" => observables, "messages" => session.message_queue)
+
+    isdir(dependency_path("session_temp_data")) || mkdir(dependency_path("session_temp_data"))
+
+    deps_path = dependency_path("session_temp_data", session.id * ".msgpack")
+    open(io -> MsgPack.pack(io, serialize_js(data)), deps_path, "w")
+    url = AssetRegistry.register(deps_path)
+    println(io, js"""
+    var url = $(url);
+
+    var http_request = new XMLHttpRequest();
+    http_request.open("GET", url, true);
+    http_request.responseType = "arraybuffer";
+    var t0 = performance.now();
+    http_request.onload = function (event) {
+        var t1 = performance.now();
+        console.log("download done! " + (t1 - t0) + " milliseconds.");
+        var arraybuffer = http_request.response; // Note: not oReq.responseText
+        if (arraybuffer) {
+            var bytes = new Uint8Array(arraybuffer);
+            var data = msgpack.decode(bytes);
+            for (let obs_id in data.observables) {
+                registered_observables[obs_id] = data.observables[obs_id];
+            }
+            for (let message in data.messages) {
+                process_message(data.messages[message]);
+            }
+            t1 = performance.now();
+            console.log("msg process done! " + (t1 - t0) + " milliseconds.");
+        }else{
+            send_warning("Didn't receive any setup data from server.")
+        }
+    };
+    http_request.send(null);
+    """)
     empty!(session.message_queue)
 end
+
 queued_as_script(session::Session) = sprint(io-> queued_as_script(io, session))
 
 """
@@ -114,9 +127,6 @@ Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
     if isopen(session) && !session.fusing[]
-        # send all queued messages
-        # send_queued(session)
-        # sent the actual message
         for connection in session.connections
             serialize_websocket(connection, message)
         end
@@ -127,16 +137,16 @@ end
 
 fuse(f, has_session) = fuse(f, session(has_session))
 function fuse(f, session::Session)
-    session.fusing[] = true
+    # session.fusing[] = true
     result = f()
-    session.fusing[] = false
-    evaljs(session, JSCode([JSString(queued_as_script(session))]))
+    # session.fusing[] = false
+    # evaljs(session, JSCode([JSString(queued_as_script(session))]))
     return result
 end
 
 
 function Base.isopen(session::Session)
-    return !isempty(session.connections) && isopen(session.connections[1])
+    return !isempty(session.connections) && any(isopen, session.connections)
 end
 
 
@@ -153,7 +163,7 @@ function onjs(session::Session, obs::Observable, func::JSCode)
 
     send(
         session,
-        type = OnjsCallback,
+        msg_type = OnjsCallback,
         id = obs.id,
         # eval requires functions to be wrapped in ()
         payload = js"($func)"
@@ -219,7 +229,7 @@ Evaluate a javascript script in `session`.
 """
 function evaljs(session::Session, jss::JSCode)
     register_resource!(session, jss)
-    send(session, type = EvalJavascript, payload = jss)
+    send(session, msg_type = EvalJavascript, payload = jss)
 end
 
 function evaljs(has_session, jss::JSCode)
@@ -293,9 +303,9 @@ function update_dom!(session::Session, dom)
         var s = document.createElement("script");
         s.type = "text/javascript";
         s.async = false
-        s.text = $(serialize_string(new_jss));
+        s.text = $(serialize_readable(new_jss));
         document.head.appendChild(s);
     """
-    println(serialize_string(update_script))
+    println(serialize_readable(update_script))
     evaljs(session, update_script)
 end

@@ -6,7 +6,12 @@ function put_on_heap(id, value){
     javascript_object_heap[id] = value;
 }
 function get_heap_object(id){
-    return javascript_object_heap[id];
+    if(id in javascript_object_heap){
+        return javascript_object_heap[id];
+    }else{
+        send_error("Could not find heap object: " + id, "");
+        throw "Could not find heap object: " + id;
+    }
 }
 
 const session_websocket = []
@@ -75,13 +80,44 @@ const serializer_functions = {
     JSObject: get_heap_object,
 }
 
+function materialize(data){
+    // if is a node attribute
+    if(is_list(data)){
+        return data.map(materialize);
+    }else if(data.tag){
+        var node = document.createElement(data.tag);
+        for(var key in data){
+            if(key == 'class'){
+                node.className = data[key];
+            }else if(key != 'children' && key != 'tag'){
+                node.setAttribute(key, data[key]);
+            }
+        }
+        for(var idx in data.children){
+            var child = data.children[idx];
+            if(is_dict(child)){
+                node.appendChild(materialize(child));
+            }else{
+                node.innerText = child;
+            }
+        }
+        return node;
+    }else{ // anything else is used as is!
+        return data;
+    }
+}
+
 function deserialize_js(data){
     if(is_list(data)){
-        return data.map(deserialize_js)
+        return data.map(deserialize_js);
     }else if(is_dict(data)){
         if('__javascript_type__' in data){
             if(data.__javascript_type__ == 'JSObject'){
                 return get_heap_object(data.payload);
+            }else if (data.__javascript_type__ == 'typed_vector'){
+                return data.payload;
+            }else if (data.__javascript_type__ == 'js_code'){
+                return data.payload;
             }else{
                 send_error(
                     "Can't deserialize custom type: " + data.__javascript_type__,
@@ -134,18 +170,17 @@ function send_error(message, exception){
     console.error(message)
     console.error(exception)
     websocket_send({
-        type: JavascriptError,
+        msg_type: JavascriptError,
         message: message,
         exception: String(exception)
     })
 }
 
-
 function send_warning(message){
     console.warn(message)
 
     websocket_send({
-        type: JavascriptWarning,
+        msg_type: JavascriptWarning,
         message: message
     })
 }
@@ -184,7 +219,7 @@ function update_obs(id, value){
             run_js_callbacks(id, value)
             // update Julia side!
             websocket_send({
-                type: UpdateObservable,
+                msg_type: UpdateObservable,
                 id: id,
                 payload: value
             })
@@ -203,13 +238,33 @@ function update_obs(id, value){
 }
 
 function websocket_send(data){
-    session_websocket[0].send(JSON.stringify(data))
+    if(session_websocket.length == 0){
+        var popup = document.getElementById('WEBSOCKET_CONNECTION_WARNING');
+        if(!popup){
+            var doc_root = document.getElementById('application-dom');
+            var popup = document.createElement('div');
+            popup.id = "WEBSOCKET_CONNECTION_WARNING";
+            popup.style.position = "absolute";
+            popup.style.top = "2%";
+            popup.style.left = "50%";
+            popup.style.backgroundColor = "#ED4337";
+            popup.style.color = "#fff";
+            popup.style.textAlign = "center";
+            popup.style.borderRadius = "6px";
+            popup.style.padding = "8px";
+            popup.style.zIndex = "1002";
+            popup.style.overflow = "auto";
+            popup.style.boxShadow = "5px 5px 4px #888888";
+            popup.innerText = "Lost connection to server!";
+            doc_root.appendChild(popup);
+        }
+    }else{
+        session_websocket[0].send(msgpack.encode(data));
+    }
 }
 
-
-
 function process_message(data){
-    switch(data.type) {
+    switch(data.msg_type) {
         case UpdateObservable:
             try{
                 var value = data.payload
@@ -229,7 +284,7 @@ function process_message(data){
                 // register a callback that will executed on js side
                 // when observable updates
                 var id = data.id
-                var f = eval(data.payload);
+                var f = eval(deserialize_js(data.payload));
                 var callbacks = observable_callbacks[id] || [];
                 callbacks.push(f);
                 observable_callbacks[id] = callbacks;
@@ -243,21 +298,22 @@ function process_message(data){
             }
             break;
         case EvalJavascript:
+            var code = deserialize_js(data.payload);
             try{
-                eval(data.payload);
+                eval(code);
             }catch(exception){
                 send_error(
                     "Error while evaling JS from Julia. Source:\n" +
-                    data.payload,
+                    code,
                     exception
                 )
             }
             break;
         case JSCall:
             try{
-                var func = data.func;
+                var func = eval(deserialize_js(data.func));
                 var result;
-                var arguments = data.arguments;
+                var arguments = deserialize_js(data.arguments);
                 if(data.needs_new){
                     // if argument list we need to use apply
                     if (is_list(arguments)){
@@ -288,34 +344,38 @@ function process_message(data){
             break;
         case JSGetIndex:
             try{
-                var result = data.object[data.field];
+                var obj = deserialize_js(data.object);
+                var result = obj[data.field];
                 // if result is a class method, we need to bind it to the parent object
                 if(result.bind != undefined){
-                    result = result.bind(data.object);
+                    result = result.bind(obj);
                 }
                 put_on_heap(data.result, result);
             }catch(exception){
+                console.log(data);
                 send_error(
                     "Error while executing getting field " + data.field +
-                    " from:\n" + String(data.object),
+                    " from:\n" + obj,
                     exception
                 )
             }
             break;
         case JSSetIndex:
             try{
-                data.object[data.field] = data.value;
+                var obj = deserialize_js(data.object);
+                var val = deserialize_js(data.value);
+                obj[data.field] = val;
             }catch(exception){
                 send_error(
                     "Error while executing setting field " + data.field +
-                    " from:\n" + String(data.object) + " with value " + data.value,
+                    " from:\n" + String(obj) + " with value " + String(val),
                     exception
                 )
             }
             break;
         default:
             send_error(
-                "Unrecognized message type: " + data.id + ".",
+                "Unrecognized message type: " + data.msg_type + ".",
                 ""
             )
     }
@@ -325,15 +385,16 @@ function setup_connection(){
     var tries = 0
     function tryconnect(url) {
         websocket = new WebSocket(url);
+        websocket.binaryType = 'arraybuffer';
         if(session_websocket.length != 0){
             throw "Inconsistent state. Already opened a websocket!"
         }
         session_websocket.push(websocket)
         websocket.onopen = function () {
             websocket.onmessage = function (evt) {
-                var msg = JSON.parse(evt.data);
-                var dmsg = deserialize_js(msg);
-                process_message(dmsg);
+                var binary = new Uint8Array(evt.data);
+                var data = msgpack.decode(binary);
+                process_message(data);
             }
         }
         websocket.onclose = function (evt) {

@@ -4,3 +4,4 @@
 .DS_Store
 /Manifest.toml
 /dev/
+/js_dependencies/session_temp_data/

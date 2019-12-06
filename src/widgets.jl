@@ -43,6 +43,23 @@ function jsrender(tf::TextField)
     )
 end
 
+struct NumberInput <: AbstractWidget{Float64}
+    value::Observable{Float64}
+    attributes::Dict{Symbol, Any}
+end
+
+function NumberInput(value::Float64; kw...)
+    NumberInput(Observable(value), Dict{Symbol, Any}(kw))
+end
+
+function jsrender(ni::NumberInput)
+    return DOM.input(
+        type = "number",
+        value = ni.value,
+        onchange = js"update_obs($(ni.value), parseFloat(this.value));";
+        ni.attributes...
+    )
+end
 
 struct Slider{T <: AbstractRange, ET} <: AbstractWidget{T}
     range::Observable{T}

@@ -18,14 +18,6 @@ function dom_handler(session, request)
     return DOM.div(s1, s2, b, t)
 end;
 
-# with_session() do session
-#     dom_handler(session, nothing)
-# end |> display
-#
-# pop!(JSServe.global_application[].routes.table)
-# JSServe.route!(JSServe.global_application[], "/test") do ctx
-#     JSServe.serve_dom(ctx, dom_handler)
-# end
 
 app = JSServe.Application(
     dom_handler,

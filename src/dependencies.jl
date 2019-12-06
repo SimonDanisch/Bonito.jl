@@ -10,10 +10,10 @@ mediatype(asset::Asset) = asset.media_type
 
 const server_proxy_url = Ref{String}()
 
-
 function url(str::String)
     return server_proxy_url[] * str
 end
+
 function url(asset::Asset)
     if !isempty(asset.online_path)
         return asset.online_path
@@ -69,45 +69,22 @@ a remote resource that is hosted on, for example, a CDN).
 is_online(path) = any(startswith.(path, ("//", "https://", "http://", "ftp://")))
 
 function Dependency(name::Symbol, urls::AbstractVector)
-    Dependency(
-        name,
-        Asset.(urls),
-    )
-end
-
-function serialize_string(io::IO, assets::Set{Asset})
-    for asset in assets
-        serialize_string(io, asset)
-        println(io)
-    end
-end
-
-function serialize_string(io::IO, asset::Asset)
-    if mediatype(asset) == :js
-        println(
-            io,
-            "<script src='$(url(asset))'></script>"
-        )
-    elseif mediatype(asset) == :css
-        println(
-            io,
-            "<link href = $(repr(url(asset))) rel = \"stylesheet\",  type=\"text/css\">"
-        )
-    else
-        error("Unrecognized asset media type: $(mediatype(asset))")
-    end
-end
-
-function serialize_string(io::IO, dependency::Dependency)
-    print(io, dependency.name)
+    return Dependency(name, Asset.(urls))
 end
 
 # With this, one can just put a dependency anywhere in the dom to get loaded
 function jsrender(session::Session, x::Dependency)
     push!(session, x)
-    # TODO implement returning nothing to just not be in the dom directly
-    div(display = "none", visibility = "hidden")
+    return nothing
+end
+
+function jsrender(session::Session, asset::Asset)
+    register_resource!(session, asset)
+    return nothing
 end
 
 const JSCallLib = Asset("https://simondanisch.github.io/JSServe.jl/js_dependencies/core.js")
+
 const JSCallLibLocal = Asset(dependency_path("core.js"))
+
+const MsgPackLib = Asset("https://cdn.jsdelivr.net/gh/kawanet/msgpack-lite/dist/msgpack.min.js")

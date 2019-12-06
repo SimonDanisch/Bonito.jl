@@ -48,20 +48,6 @@ macro jsglobal(name)
     JSGlobal(Symbol(name))
 end
 
-function serialize_string(io::IO, g::JSGlobal)
-    print(io, g.name)
-end
-
-function serialize_string(io::JSONSerializer, jso::JSObject)
-    serialize_string(io, Dict(
-        :__javascript_type__ => :JSObject,
-        :payload => uuidstr(jso)
-    ))
-end
-function serialize_string(io::IO, jso::JSObject)
-    serialize_string(io, js"get_heap_object($(uuidstr(jso)))")
-end
-
 """
     JSObject(jso::JSObject, typ::Symbol)
 
@@ -73,6 +59,7 @@ function JSObject(jso::JSObject, typ::Symbol)
     evaljs(session(jso), js"put_on_heap($(uuidstr(jsonew)), $jso); undefined;")
     return jsonew
 end
+
 function JSObject(session::Session, name::Symbol)
     return JSObject(name, session, :variable)
 end
@@ -121,7 +108,7 @@ function Base.getproperty(jso::AbstractJSObject, field::Symbol)
         result = JSObject(field, session(jso), typ(jso))
         send(
             session(jso),
-            type = JSGetIndex,
+            msg_type = JSGetIndex,
             object = jso,
             field = field,
             result = uuidstr(result),
@@ -133,7 +120,7 @@ end
 function Base.setproperty!(jso::AbstractJSObject, field::Symbol, value)
     send(
         session(jso),
-        type = JSSetIndex,
+        msg_type = JSSetIndex,
         object = jso,
         value = value,
         field = field
@@ -171,7 +158,7 @@ function jscall(jso::AbstractJSObject, args, kw_args)
     result = JSObject(:result, session(jso), :call)
     send(
         session(jso),
-        type = JSCall,
+        msg_type = JSCall,
         func = jso,
         needs_new = getfield(jso, :typ) === :new,
         arguments = construct_arguments(args, kw_args),

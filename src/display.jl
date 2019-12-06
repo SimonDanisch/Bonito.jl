@@ -63,8 +63,7 @@ end
 function Base.show(io::IO, m::MIME"application/vnd.webio.application+html", dom::DisplayInline)
     application = get_global_app()
     session = Session()
-    sessionid = string(uuid4())
-    application.sessions[sessionid] = Dict("base" => session)
+    application.sessions[session.id] = Dict("base" => session)
     dom = Base.invokelatest(dom.dom_function, session, (target = "/show",))
-    dom2html(io, session, sessionid, )
+    dom2html(io, session, session.id, dom)
 end

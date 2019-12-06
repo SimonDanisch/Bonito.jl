@@ -71,6 +71,7 @@ struct Session
     message_queue::Vector{Dict{Symbol, Any}}
     dependencies::Set{Asset}
     on_document_load::Vector{JSCode}
+    id::String
 end
 
 

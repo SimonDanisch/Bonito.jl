@@ -9,10 +9,10 @@ using HTTP: Response, Request
 using HTTP.Streams: Stream
 using WebSockets
 using Base64
+using MsgPack
 
 include("compat.jl")
 include("types.jl")
-include("serialization.jl")
 include("js_source.jl")
 include("session.jl")
 include("observables.jl")
@@ -24,6 +24,9 @@ include("hyperscript_integration.jl")
 include("display.jl")
 include("jscall.jl")
 include("markdown_integration.jl")
+include("serialization.jl")
+include("diffing.jl")
+
 
 function __init__()
     url = get(ENV, "JULIA_WEBIO_BASEURL") do
@@ -35,6 +38,12 @@ function __init__()
         url = url[1:end-1]
     end
     server_proxy_url[] = url
+    atexit() do
+        # remove session folder, in which we store data dependencies temporary
+        # TODO remove whenever a session is closed to not accumulate waste until julia
+        # gets closed
+        rm(dependency_path("session_temp_data"), recursive=true, force=true)
+    end
 end
 
 
