@@ -124,3 +124,4 @@ jsrender(::Session, x::Union{Symbol, String}) = DOM.p(string(x))
 
 jsrender(::Session, x::String) = x
 jsrender(::Session, x::Hyperscript.Styled) = x
+jsrender(x) = x
