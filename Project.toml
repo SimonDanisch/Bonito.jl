@@ -1,7 +1,7 @@
 name = "JSServe"
 uuid = "824d6782-a2ef-11e9-3a09-e5662e0c26f9"
 authors = ["SimonDanisch <sdanisch@gmail.com>"]
-version = "0.2.0"
+version = "0.3.0"
 
 [deps]
 AssetRegistry = "bf4720bc-e11a-5d0c-854e-bdca1663c893"
@@ -17,13 +17,15 @@ UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 WebSockets = "104b5d7c-a370-577a-8038-80a2059c5097"
 
 [compat]
+julia = "1"
+
+MsgPack = "1.1.0"
 AssetRegistry = "0.1"
 HTTP = "0.8"
 Hyperscript = "0.0.3"
 JSON3 = "0.1"
 Observables = "0.2.3"
 WebSockets = "1.5"
-julia = "1"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
