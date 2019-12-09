@@ -8,7 +8,7 @@ dependency_path(paths...) = joinpath(@__DIR__, "..", "js_dependencies", paths...
 
 mediatype(asset::Asset) = asset.media_type
 
-const server_proxy_url = Ref{String}()
+const server_proxy_url = Ref("")
 
 function url(str::String)
     return server_proxy_url[] * str
