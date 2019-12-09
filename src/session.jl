@@ -181,8 +181,7 @@ calls javascript `func` with node, once node has been displayed.
 """
 function onload(session::Session, node::Node, func::JSCode)
     on_document_load(session, js"""
-        // on document load, call func with the node
-        ($(func))($node)
+        ($(func))($node);
     """)
 end
 

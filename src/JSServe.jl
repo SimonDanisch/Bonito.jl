@@ -29,15 +29,18 @@ include("diffing.jl")
 
 
 function __init__()
-    url = get(ENV, "JULIA_WEBIO_BASEURL") do
-        base = get(ENV, "WEBIO_SERVER_HOST_URL", "127.0.0.1")
+    url = if haskey(ENV, "WEBIO_SERVER_HOST_URL")
+        base = ENV["WEBIO_SERVER_HOST_URL"]
         port = get(ENV, "WEBIO_HTTP_PORT", "8081")
         return "http://" * base * ":" * port
+    else
+        return ""
     end
     if endswith(url, "/")
         url = url[1:end-1]
     end
     server_proxy_url[] = url
+
     atexit() do
         # remove session folder, in which we store data dependencies temporary
         # TODO remove whenever a session is closed to not accumulate waste until julia

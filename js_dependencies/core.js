@@ -139,25 +139,6 @@ function deserialize_js(data){
     }
 }
 
-
-function websocket_url(){
-    // something like http://127.0.0.1:8081/
-    var http_url = "http://127.0.0.1:8081/";
-    if(window.websocket_proxy_url){
-        http_url = window.websocket_proxy_url;
-    }else{
-        http_url = window.location.href;
-    }
-    var ws_url = http_url.replace("http", "ws");
-    // now should be like: ws://127.0.0.1:8081/
-    if(!ws_url.endsWith("/")){
-        ws_url = ws_url + "/";
-    }
-    ws_url = ws_url + get_session_id() + "/";
-    console.log("Websocket: " + ws_url);
-    return ws_url;
-}
-
 function get_observable(id){
     if(id in registered_observables){
         return registered_observables[id]
@@ -379,6 +360,24 @@ function process_message(data){
                 ""
             )
     }
+}
+
+
+
+function websocket_url(){
+    // something like http://127.0.0.1:8081/
+    var http_url = window.location.href;
+    if(window.websocket_proxy_url){
+        http_url = window.websocket_proxy_url;
+    }
+    var ws_url = http_url.replace("http", "ws");
+    // now should be like: ws://127.0.0.1:8081/
+    if(!ws_url.endsWith("/")){
+        ws_url = ws_url + "/";
+    }
+    ws_url = ws_url + get_session_id() + "/";
+    console.log("Websocket: " + ws_url);
+    return ws_url;
 }
 
 function setup_connection(){

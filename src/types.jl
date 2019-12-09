@@ -58,7 +58,6 @@ struct Dependency
     assets::Vector{Asset}
 end
 
-
 """
 A web session with a user
 """
@@ -153,7 +152,7 @@ struct Application
     routes::Routes
     websocket_routes::Routes
 end
-
+local_url(application::Application, url) = string("http://", application.url, ":", application.port, url)
 
 WebSockets.getrawstream(io::IO) = io
 
@@ -206,10 +205,9 @@ function warmup(application::Application)
         # This will error, since its not a propper websocket request
         @debug "Error in stream_handler" exception=e
     end
-
-    bundle_url = url(JSCallLibLocal) # online URL
     target = AssetRegistry.register(JSCallLibLocal.local_path) # http target part
-    request = Request("GET", AssetRegistry.register(JSCallLibLocal.local_path))
+    asset_url = local_url(application, target)
+    request = Request("GET", target)
 
     delegate(application.routes, application, request)
 
@@ -222,7 +220,7 @@ function warmup(application::Application)
             break
         end
         # async + fetch allows the server to do work while the request gets sent!
-        resp = fetch(@async WebSockets.HTTP.get(bundle_url))
+        resp = fetch(@async WebSockets.HTTP.get(asset_url))
         if resp.status == 200
             success = true
             break
@@ -291,9 +289,14 @@ function Application(
         routes,
         websocket_routes
     )
-    start(application)
-    # warmup server!
-    warmup(application)
+    try
+        start(application)
+        # warmup server!
+        warmup(application)
+    catch e
+        close(application)
+        rethrow(e)
+    end
 
     return application
 end
