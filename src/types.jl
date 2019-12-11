@@ -71,6 +71,7 @@ struct Session
     dependencies::Set{Asset}
     on_document_load::Vector{JSCode}
     id::String
+    on_websocket_ready::Any
 end
 
 

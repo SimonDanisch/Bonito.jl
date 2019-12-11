@@ -15,9 +15,9 @@ function DiffList(children::Vector; attributes...)
     return DiffList(
         children,
         Observable(Any[]),
-        Observable((Int[], Any[])),
+        Observable{Tuple{Vector{Int}, Any}}((Int[], Any[])),
         Observable(Int[]),
-        Observable((0, nothing)),
+        Observable{Tuple{Int64, Any}}((0, nothing)),
         Observable(false),
         Dict{Symbol, Any}(attributes)
     )
@@ -25,7 +25,11 @@ end
 
 Hyperscript.children(diffnode::DiffList) = diffnode.children
 
-Base.empty!(diffnode::DiffList) = diffnode.empty[] = true
+function Base.empty!(diffnode::DiffList)
+    diffnode.empty[] = true
+    empty!(children(diffnode))
+end
+
 Base.push!(diffnode::DiffList, value::Hyperscript.Node) = append!(diffnode, [value])
 
 function Base.append!(diffnode::DiffList, values::Vector)
@@ -62,11 +66,22 @@ function replace_children(diffnode::DiffList, list::Vector; batch = 100)
     #TODO, maybe diff this!?
     # async & batches: we assume it's pretty slow to upload whole list at once!
     # TODO we need a lock for this!
+    isempty(list) && return
+    append_lock = Ref(true)
     @async begin
         empty!(diffnode)
+        # append!(diffnode, list)
         for i in 1:batch:length(list)
+            # TODO replace with lock!
+            # The problem is, if I replace this with a SpinLock / ReentrantLock
+            # It will block on unlock, even though I verify before that the lock
+            # is unlocked
+            while !append_lock[]
+                yield()
+            end
+            append_lock[] = false
             append!(diffnode, list[i:min(i - 1 + batch, length(list))])
-            yield()
+            append_lock[] = true
         end
     end
 end
@@ -79,8 +94,6 @@ function JSServe.jsrender(session::JSServe.Session, diffnode::DiffList)
     append = map(diffnode.append) do values
         return JSServe.jsrender.((session,), values)
     end
-    push!(session, append)
-
     onjs(session, append, js"""function (nodes){
         var nodes_array = materialize(nodes);
         var node = $(node);
@@ -92,7 +105,6 @@ function JSServe.jsrender(session::JSServe.Session, diffnode::DiffList)
     setindex = map(diffnode.setindex) do (indices, values)
         return (indices, JSServe.jsrender.((session,), values))
     end
-    push!(session, setindex)
 
     onjs(session, setindex, js"""function (indices_children){
         var indices = deserialize_js(indices_children[0]); // 1 based indices
@@ -105,7 +117,6 @@ function JSServe.jsrender(session::JSServe.Session, diffnode::DiffList)
         }
     }""")
 
-    push!(session, diffnode.delete)
     onjs(session, diffnode.delete, js"""function (indices){
         var indices = deserialize_js(indices);
         var node = $(node);
@@ -121,23 +132,22 @@ function JSServe.jsrender(session::JSServe.Session, diffnode::DiffList)
             (index, nothing)
         end
     end
-    push!(session, insert)
     onjs(session, insert, js"""function (index_element){
         var node = $(node);
         var element = materialize(index_element[1]);
         node.insertBefore(element, node.children[index_element[0] - 1]);
     }""")
 
-    push!(session, diffnode.empty)
     onjs(session, diffnode.empty, js"""function (empty){
         var node = $(node);
         while (node.firstChild) {
             node.removeChild(node.firstChild);
         }
     }""")
-
     # Schedule to fill in nodes async & batched
-    replace_children(diffnode, children(diffnode))
+    # copy == otherwise it will call empty! on children(diffnode)
+    # before replacing!
+    replace_children(diffnode, copy(children(diffnode)))
 
     return node
 end

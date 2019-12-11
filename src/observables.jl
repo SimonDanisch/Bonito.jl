@@ -31,10 +31,7 @@ function register_obs!(session::Session)
     for (id, (registered, observable)) in session.observables
         if !registered
             # Register on the JS side by sending the current value
-            send(session, type=UpdateObservable,
-                id = id,
-                payload = observable[]
-            )
+            send(session, type=UpdateObservable, id = id, payload = observable[])
             updater = JSUpdateObservable(session, id)
             # Make sure we update the Javascript values!
             on(updater, observable)

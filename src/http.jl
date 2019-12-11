@@ -8,6 +8,7 @@ const JavascriptWarning = "4"
 const JSCall = "5"
 const JSGetIndex = "6"
 const JSSetIndex = "7"
+const JSDoneLoading = "8"
 
 """
     request_to_sessionid(request; throw = true)
@@ -42,11 +43,8 @@ end
 
 function dom2html(io::IO, session::Session, sessionid::String, dom)
     js_dom = jsrender(session, dom)
-
-    # register resources (observables, assets)
+    # register resources (e.g. observables, assets)
     register_resource!(session, js_dom)
-
-    yield() # yield, so that messages from jsrender can process!
 
     html = repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
 
@@ -155,6 +153,8 @@ function handle_ws_message(session::Session, message)
         @error "Error in Javascript: $(data["message"])\n with exception:\n$(data["exception"])"
     elseif typ == JavascriptWarning
         @warn "Error in Javascript: $(data["message"])\n)"
+    elseif typ == JSDoneLoading
+        session.on_websocket_ready(session)
     else
         @error "Unrecognized message: $(typ) with type: $(typeof(type))"
     end
@@ -201,11 +201,7 @@ function websocket_handler(context, websocket::WebSocket)
     # Look up the connection in our sessions
     if haskey(application.sessions, sessionid)
         browser_sessions = application.sessions[sessionid]
-        session = get!(browser_sessions, browserid) do
-            # If we don't have a session for this browser/client yet
-            # we make a new one!
-            return browser_sessions["base"]
-        end
+        session = browser_sessions["base"]
         # We can have multiple sessions for a client
         push!(session, websocket)
         handle_ws_connection(session, websocket)

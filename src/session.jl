@@ -1,4 +1,13 @@
 
+function init_session(session)
+    for msg in session.message_queue
+        for connection in session.connections
+            serialize_websocket(connection, msg)
+        end
+    end
+    empty!(session.message_queue)
+end
+
 function Session(connections = WebSocket[])
     Session(
         Ref(false),
@@ -7,7 +16,8 @@ function Session(connections = WebSocket[])
         Dict{Symbol, Any}[],
         Set{Asset}(),
         JSCode[],
-        string(uuid4())
+        string(uuid4()),
+        init_session
     )
 end
 
@@ -106,6 +116,7 @@ function queued_as_script(io::IO, session::Session)
             }
             t1 = performance.now();
             console.log("msg process done! " + (t1 - t0) + " milliseconds.");
+            websocket_send({msg_type: JSDoneLoading});
         }else{
             send_warning("Didn't receive any setup data from server.")
         }
@@ -124,9 +135,8 @@ Send values to the frontend via JSON for now
 """
 Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
-
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
-    if isopen(session) && !session.fusing[]
+    if isopen(session) #&& !session.fusing[]
         for connection in session.connections
             serialize_websocket(connection, message)
         end

@@ -27,6 +27,8 @@ const JSCall = '5'
 const JSGetIndex = '6'
 const JSSetIndex = '7'
 
+const JSDoneLoading = '8'
+
 function is_list(value){
     return value && typeof value === 'object' && value.constructor === Array;
 }
