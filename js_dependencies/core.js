@@ -368,7 +368,8 @@ function process_message(data){
 
 function websocket_url(){
     // something like http://127.0.0.1:8081/
-    var http_url = window.location.href;
+    var http_url = window.location.protocol + "//" + window.location.host;
+
     if(window.websocket_proxy_url){
         http_url = window.websocket_proxy_url;
     }
