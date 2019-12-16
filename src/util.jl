@@ -37,3 +37,4 @@ function richest_mime(val)
 end
 
 repr_richest(x) = repr(richest_mime(x), x)
+repr_richest(x::String) = x
