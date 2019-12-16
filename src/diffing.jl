@@ -30,7 +30,7 @@ function Base.empty!(diffnode::DiffList)
     empty!(children(diffnode))
 end
 
-Base.push!(diffnode::DiffList, value::Hyperscript.Node) = append!(diffnode, [value])
+Base.push!(diffnode::DiffList, value) = append!(diffnode, [value])
 
 function Base.append!(diffnode::DiffList, values::Vector)
     diffnode.append[] = values
