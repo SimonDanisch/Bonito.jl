@@ -63,14 +63,10 @@ function Base.insert!(diffnode::DiffList, index::Integer, item)
 end
 
 function replace_children(diffnode::DiffList, list::Vector; batch = 100)
-    #TODO, maybe diff this!?
-    # async & batches: we assume it's pretty slow to upload whole list at once!
-    # TODO we need a lock for this!
+    empty!(diffnode)
     isempty(list) && return
     append_lock = Ref(true)
     @async begin
-        empty!(diffnode)
-        # append!(diffnode, list)
         for i in 1:batch:length(list)
             # TODO replace with lock!
             # The problem is, if I replace this with a SpinLock / ReentrantLock
@@ -94,6 +90,7 @@ function JSServe.jsrender(session::JSServe.Session, diffnode::DiffList)
     append = map(diffnode.append) do values
         return JSServe.jsrender.((session,), values)
     end
+
     onjs(session, append, js"""function (nodes){
         var nodes_array = materialize(nodes);
         var node = $(node);
