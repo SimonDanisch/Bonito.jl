@@ -1,6 +1,5 @@
 abstract type AbstractJSObject end
 
-
 """
 References objects stored in Javascript.
 Maps the following expressions to actual calls on the Javascript side:
@@ -170,8 +169,6 @@ end
 (jso::JSObject)(args...; kw_args...) = jscall(jso, args, kw_args)
 (jso::JSGlobal)(args...; kw_args...) = jscall(jso, args, kw_args)
 
-
-
 struct JSModule <: AbstractJSObject
     session::Session
     mod::JSObject
@@ -180,6 +177,7 @@ struct JSModule <: AbstractJSObject
     this::JSObject
     display_func # A function that gets called on show with the modules Scope
 end
+
 session(x::JSModule) = getfield(x, :session)
 
 function make_renderable!(jsm::JSModule)
@@ -195,6 +193,5 @@ function make_renderable!(jsm::JSModule)
     onimport(jsm.scope, jss)
     return jsm.display_func(jsm.scope)
 end
-
 
 fuse(f, jso::JSObject) = fuse(f, session(jso))

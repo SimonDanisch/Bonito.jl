@@ -55,6 +55,9 @@ function Base.push!(session::Session, dependency::Dependency)
     for asset in dependency.assets
         push!(session, asset)
     end
+    for (name, jscode) in dependency.functions
+        push!(session.on_document_load, JSCode([JSString("$name = "), jscode.source...]))
+    end
     return dependency
 end
 
@@ -136,7 +139,7 @@ Send values to the frontend via JSON for now
 Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
-    if isopen(session) #&& !session.fusing[]
+    if isopen(session) && !session.fusing[]
         for connection in session.connections
             serialize_websocket(connection, message)
         end
@@ -147,10 +150,13 @@ end
 
 fuse(f, has_session) = fuse(f, session(has_session))
 function fuse(f, session::Session)
-    # session.fusing[] = true
+    session.fusing[] = true
     result = f()
-    # session.fusing[] = false
-    # evaljs(session, JSCode([JSString(queued_as_script(session))]))
+    session.fusing[] = false
+    if !isempty(session.message_queue)
+        send(session; msg_type=FusedMessage, payload=session.message_queue)
+        empty!(session.message_queue)
+    end
     return result
 end
 

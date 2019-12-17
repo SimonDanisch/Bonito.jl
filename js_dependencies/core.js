@@ -22,12 +22,11 @@ const OnjsCallback = '1'
 const EvalJavascript = '2'
 const JavascriptError = '3'
 const JavascriptWarning = '4'
-
 const JSCall = '5'
 const JSGetIndex = '6'
 const JSSetIndex = '7'
-
 const JSDoneLoading = '8'
+const FusedMessage = '9'
 
 function is_list(value){
     return value && typeof value === 'object' && value.constructor === Array;
@@ -348,6 +347,20 @@ function process_message(data){
                 var obj = deserialize_js(data.object);
                 var val = deserialize_js(data.value);
                 obj[data.field] = val;
+            }catch(exception){
+                send_error(
+                    "Error while executing setting field " + data.field +
+                    " from:\n" + String(obj) + " with value " + String(val),
+                    exception
+                )
+            }
+            break;
+        case FusedMessage:
+            try{
+                var messages = data.payload;
+                for(var i in messages){
+                    process_message(messages[i]);
+                }
             }catch(exception){
                 send_error(
                     "Error while executing setting field " + data.field +

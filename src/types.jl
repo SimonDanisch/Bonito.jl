@@ -20,7 +20,6 @@ struct JSCode
     source::Vector{Union{JSString, Any}}
 end
 
-
 """
 Represent an asset stored at an URL.
 We try to always have online & local files for assets
@@ -56,6 +55,8 @@ jsrender will make sure that all dependencies get loaded.
 struct Dependency
     name::Symbol # The JS Module name that will get loaded
     assets::Vector{Asset}
+    # The global -> Function name, JSCode -> the actual function code!
+    functions::Dict{Symbol, JSCode}
 end
 
 """

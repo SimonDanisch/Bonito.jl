@@ -9,6 +9,7 @@ const JSCall = "5"
 const JSGetIndex = "6"
 const JSSetIndex = "7"
 const JSDoneLoading = "8"
+const FusedMessage = "9"
 
 """
     request_to_sessionid(request; throw = true)

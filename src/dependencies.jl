@@ -69,7 +69,7 @@ a remote resource that is hosted on, for example, a CDN).
 is_online(path) = any(startswith.(path, ("//", "https://", "http://", "ftp://")))
 
 function Dependency(name::Symbol, urls::AbstractVector)
-    return Dependency(name, Asset.(urls))
+    return Dependency(name, Asset.(urls), Dict{Symbol, JSCode}())
 end
 
 # With this, one can just put a dependency anywhere in the dom to get loaded
@@ -88,3 +88,65 @@ const JSCallLib = Asset("https://simondanisch.github.io/JSServe.jl/js_dependenci
 const JSCallLibLocal = Asset(dependency_path("core.js"))
 
 const MsgPackLib = Asset("https://cdn.jsdelivr.net/gh/kawanet/msgpack-lite/dist/msgpack.min.js")
+
+"""
+    add_func(dependency::Dependency, func)
+Usage:
+```
+@add_func SomeDependency myfunc(a, b, c) = js"
+    return a + b * c
+"
+```
+Adds a Javascript function to `dependency`.
+Will make the function available under the function name, e.g. in this example `myfunc`.
+Which can be used as:
+```
+myfunc(any, julia, object, that, serializes, to, js)
+```
+"""
+macro add_func(dependency, func)
+    signature = func.args[1]
+    func_body = func.args[2]
+    funcname = signature.args[1]
+    func_args = signature.args[2:end]
+    arg_str = "(" * join(func_args, ", ") * ")"
+    js_func_wrap = "function " * arg_str * "{\n"
+    expr = quote
+        func_body = $(func_body)
+        func_body isa JSServe.JSCode || error("Func body needs to be js\"...\"")
+        pushfirst!(func_body.source, JSServe.JSString($js_func_wrap))
+        push!(func_body.source, JSServe.JSString("\n}"))
+        $(esc(dependency))[$(QuoteNode(funcname))] = func_body
+        return func_body
+    end
+    @show expr
+    return expr
+end
+
+"""
+    setindex!(dependency::Dependency, jscode::JSCode, name::Symbol)
+
+Add a javascript function to a Dependency.
+There is syntactic sugar via the `@add_func` macro:
+
+```julia
+@add_func SomeDependency myfunc(a, b, c) = js"
+    return a + b * c
+"
+```
+Which is equivalent to:
+
+```julia
+const myfunc = (SomeDependency[:myfunc] = js"function myfunc(a, b, c) = js"
+    return a + b * c
+}")
+@assert myfunc isa JSGlobal
+```
+"""
+function Base.setindex!(dependency::Dependency, jscode::JSCode, name::Symbol)
+    println("IMA HERE!!!")
+    # The function will get inserted in the scope of dependency!
+    qualified_name = Symbol(string(dependency.name, ".", name))
+    dependency.functions[qualified_name] = jscode
+    return JSGlobal(qualified_name)
+end
