@@ -96,9 +96,9 @@ function queued_as_script(io::IO, session::Session)
 
     deps_path = dependency_path("session_temp_data", session.id * ".msgpack")
     open(io -> MsgPack.pack(io, serialize_js(data)), deps_path, "w")
-    url = AssetRegistry.register(deps_path)
+    data_url = url(AssetRegistry.register(deps_path))
     println(io, js"""
-    var url = $(url);
+    var url = $(data_url);
 
     var http_request = new XMLHttpRequest();
     http_request.open("GET", url, true);
