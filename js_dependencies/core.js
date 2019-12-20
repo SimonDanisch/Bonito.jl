@@ -213,8 +213,6 @@ function update_obs(id, value){
         }
         return true
     }else{
-        // Actually, this should be an error........
-        send_warning("Observable not found " + id + ". Deregistering!")
         return false
     }
 }
