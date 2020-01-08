@@ -239,7 +239,15 @@ function websocket_send(data){
             doc_root.appendChild(popup);
         }
     }else{
-        session_websocket[0].send(msgpack.encode(data));
+        if (session_websocket[0].readyState === 1) {
+            session_websocket[0].send(msgpack.encode(data));
+        } else {
+            // wait until in ready state
+            setTimeout(function () {
+                websocket_send(data);
+            }, 100);
+        }
+
     }
 }
 

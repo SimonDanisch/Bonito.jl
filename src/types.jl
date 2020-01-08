@@ -72,6 +72,7 @@ struct Session
     dependencies::Set{Asset}
     on_document_load::Vector{JSCode}
     id::String
+    js_fully_loaded::Base.Event
     on_websocket_ready::Any
 end
 

@@ -1,14 +1,15 @@
 
-function init_session(session)
+function init_session(session::Session)
     for msg in session.message_queue
         for connection in session.connections
             serialize_websocket(connection, msg)
         end
     end
     empty!(session.message_queue)
+    notify(session.js_fully_loaded)
 end
 
-function Session(connections = WebSocket[])
+function Session(connections::Vector{WebSocket}=WebSocket[])
     Session(
         Ref(false),
         connections,
@@ -17,6 +18,7 @@ function Session(connections = WebSocket[])
         Set{Asset}(),
         JSCode[],
         string(uuid4()),
+        Base.Event(),
         init_session
     )
 end
@@ -48,6 +50,11 @@ function Base.push!(session::Session, observable::Observable)
         updater = JSUpdateObservable(session, observable.id)
         # Make sure we update the Javascript values!
         on(updater, observable)
+        if all(isopen, session.connections)
+            # If websockets are already open, we need to also update the value
+            # to register it with js
+            updater(observable[])
+        end
     end
 end
 

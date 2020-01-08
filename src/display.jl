@@ -49,18 +49,7 @@ for M in WebMimes
         println(io, "</iframe>")
     end
 end
-# function Base.show(io::IO, m::MIME"text/html", dom::Hyperscript.Node)
-#     inline_display = with_session() do session
-#         dom
-#     end
-#     show(io, m, inline_display)
-# end
-# function Base.show(io::IO, m::MIME"text/html", dom::Markdown.MD)
-#     inline_display = with_session() do session
-#         dom
-#     end
-#     show(io, m, inline_display)
-# end
+
 function Base.show(io::IO, m::MIME"application/vnd.webio.application+html", dom::DisplayInline)
     application = get_global_app()
     session = Session()
