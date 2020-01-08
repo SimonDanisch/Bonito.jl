@@ -1,8 +1,9 @@
 using Hyperscript, Markdown, Test
 using JSServe, Observables
-using JSServe: Application, Session, evaljs, linkjs, update_dom!, div, active_sessions
+using JSServe: Session, evaljs, linkjs, update_dom!, div, active_sessions
 using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, with_session
 using JSServe.DOM
+using JSServe.HTTP
 using Electron, URIParser
 
 function test(session, req)
@@ -31,10 +32,13 @@ function test(session, req)
     """
 end
 
-app = Application(test, "127.0.0.1", 8081)
+app = JSServe.Application(test, "127.0.0.1", 8081)
 
-response = JSServe.HTTP.get("http://127.0.0.1:8081/")
+response = HTTP.get("http://127.0.0.1:8081/")
 
 @test response.status == 200
+
+app = Electron.Application()
+win = Window(app, URI("http://localhost:8081"))
 
 #TODO tests with chromium headless!
