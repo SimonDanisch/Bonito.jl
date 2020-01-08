@@ -50,7 +50,7 @@ function Base.push!(session::Session, observable::Observable)
         updater = JSUpdateObservable(session, observable.id)
         # Make sure we update the Javascript values!
         on(updater, observable)
-        if all(isopen, session.connections)
+        if isopen(session.connections)
             # If websockets are already open, we need to also update the value
             # to register it with js
             updater(observable[])
@@ -256,6 +256,63 @@ end
 
 function evaljs(has_session, jss::JSCode)
     evaljs(session(has_session), jss)
+end
+
+const JS_COMM_CHANNEL = Channel{Dict{String, Any}}(1)
+const JS_COMM_OBSERVABLE = Observable(Dict{String, Any}())
+
+"""
+    get_js_comm()
+
+Gets the JS communication channels and asserts, that they're in the right state!
+"""
+function get_js_comm()
+    # on first run, we need to register our listener
+    if isempty(JS_COMM_OBSERVABLE.listeners)
+        # whenever we get a new value, put it in the channel
+        on(JS_COMM_OBSERVABLE) do value
+            put!(JS_COMM_CHANNEL, value)
+        end
+    end
+
+    @assert length(JS_COMM_OBSERVABLE.listeners) >= 1
+    js_listeners = @view JS_COMM_OBSERVABLE.listeners[2:end]
+    # There should be only the listeners needed to forward values to the Frontend!
+    @assert all(x-> x isa JSUpdateObservable, js_listeners) "Someone else registered to the comm channel. Nobody should do this!!"
+    @assert isopen(JS_COMM_CHANNEL)
+    @assert !isready(JS_COMM_CHANNEL) "Channel is still containing a value from another run!"
+    return JS_COMM_OBSERVABLE, JS_COMM_CHANNEL
+end
+
+"""
+    evaljs_value(session::Session, js::JSCode)
+
+Evals `js` code and returns the jsonified value.
+Blocks until value is returned. May block indefinitely, when called with a session
+that doesn't have a connection to the browser.
+"""
+function evaljs_value(session::Session, js::JSCode, error_on_closed=true)
+    if error_on_closed && !isopen(session)
+        error("Session is not open and would result in this function to indefinitely block.
+        It may unblock, if the browser is still connecting and opening the session later on. If this is expected,
+        you may try setting `error_on_closed=false`")
+    end
+    comm, comm_channel = get_js_comm()
+    js_with_result = js"""
+    try{
+        var result = $(js);
+        update_obs($(comm), {result: result});
+    }catch(e){
+        update_obs($(comm), {error: JSON.stringify(e)});
+    }
+    """
+    evaljs(session, js_with_result)
+    value = take!(comm_channel)
+    if haskey(value, "error")
+        error(value["error"])
+    else
+        return value["result"]
+    end
 end
 
 """

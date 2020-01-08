@@ -10,6 +10,9 @@ using HTTP.Streams: Stream
 using WebSockets
 using Base64
 using MsgPack
+# Needed, since we offer some extended testing functions to make it
+# easier for downstream packages to test their web stuff
+using Test
 
 include("compat.jl")
 include("types.jl")

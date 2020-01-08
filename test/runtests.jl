@@ -3,6 +3,7 @@ using JSServe, Observables
 using JSServe: Application, Session, evaljs, linkjs, update_dom!, div, active_sessions
 using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, with_session
 using JSServe.DOM
+using Electron, URIParser
 
 function test(session, req)
 
