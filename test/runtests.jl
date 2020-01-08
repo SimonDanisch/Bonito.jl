@@ -10,6 +10,14 @@ global dom
 global test_session
 global test_observable
 
+function wait_on_test_value()
+    test_channel = Channel{Dict{String, Any}}(1)
+    on(test_observable) do value
+        put!(test_channel, value)
+    end
+    return take!(test_channel)
+end
+
 function test_handler(session, req)
     global dom, test_session, test_observable
     test_session = session
@@ -29,6 +37,7 @@ function test_handler(session, req)
     end
 
     on(b) do value
+        @show value
         test_observable[] = Dict{String, Any}("button" => value)
     end
 
@@ -92,3 +101,10 @@ wait(test_session.js_fully_loaded)
 @test runjs(js"document.querySelectorAll('input[type=\"textfield\"]').length") == 1
 
 @test runjs(js"document.querySelectorAll('input[type=\"button\"]').length") == 1
+
+begin
+    val_t = @async wait_on_test_value()
+    @async runjs(js"document.querySelectorAll('input[type=\"button\"]')[0].click()")
+    val = fetch(val_t)
+    @test val["button"] == true
+end
