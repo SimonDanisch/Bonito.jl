@@ -29,6 +29,7 @@ include("jscall.jl")
 include("markdown_integration.jl")
 include("serialization.jl")
 include("diffing.jl")
+include("testing.jl")
 
 
 function __init__()
