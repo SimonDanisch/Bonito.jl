@@ -50,7 +50,7 @@ function Base.push!(session::Session, observable::Observable)
         updater = JSUpdateObservable(session, observable.id)
         # Make sure we update the Javascript values!
         on(updater, observable)
-        if isopen(session.connections)
+        if isopen(session)
             # If websockets are already open, we need to also update the value
             # to register it with js
             updater(observable[])
