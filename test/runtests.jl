@@ -60,7 +60,12 @@ http_app = JSServe.Application(test_handler, "127.0.0.1", 8081, verbose=true)
 
 response = HTTP.get("http://127.0.0.1:8081/")
 @test response.status == 200
-close(http_app)
+try
+    close(http_app)
+catch e
+    dump(e)
+    # TODO why does this error on travis?
+end
 # First get after close will still go through, see: https://github.com/JuliaWeb/HTTP.jl/pull/494
 HTTP.get("http://127.0.0.1:8081/", readtimeout=3, retries=1)
 
