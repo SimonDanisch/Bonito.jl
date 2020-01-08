@@ -293,7 +293,7 @@ function Application(
         websocket_routes
     )
     try
-        start(application)
+        start(application; verbose=verbose)
         # warmup server!
         warmup(application)
     catch e
@@ -319,28 +319,34 @@ function Base.close(application::Application)
         end
     end
 
-    close(application.server_connection[])
+    if isassigned(application.server_connection)
+        println("closing")
+        close(application.server_connection[])
+        @assert !isopen(application.server_connection[])
+    end
     # For good measures, wait until the task finishes!
-    try
-        wait(application.server_task[])
-    catch e
-        # the wait will throw with the below exception
-        if !(e isa TaskFailedException && e.task.exception.code == -4079)
-            rethrow(e)
+    if isassigned(application.server_task)
+        try
+            println("waiting")
+            wait(application.server_task[])
+            @assert !isdone(application.server_connection[])
+        catch e
+            # the wait will throw with the below exception
+            if !(e isa TaskFailedException && e.task.exception.code == -4079)
+                rethrow(e)
+            end
         end
     end
 end
 
-function start(application::Application)
+function start(application::Application; verbose=false)
     isrunning(application) && return
-    address = Sockets.InetAddr(
-        parse(Sockets.IPAddr, application.url), application.port
-    )
+    address = Sockets.InetAddr(parse(Sockets.IPAddr, application.url), application.port)
     ioserver = Sockets.listen(address)
     application.server_connection[] = ioserver
     # pass tcp connection to listen, so that we can close the server
     application.server_task[] = @async HTTP.listen(
-            application.url, application.port, server = ioserver
+            application.url, application.port; server=ioserver, verbose=verbose
         ) do stream::Stream
         Base.invokelatest(stream_handler, application, stream)
     end
