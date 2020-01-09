@@ -320,14 +320,12 @@ function Base.close(application::Application)
     end
 
     if isassigned(application.server_connection)
-        println("closing")
         close(application.server_connection[])
         @assert !isopen(application.server_connection[])
     end
     # For good measures, wait until the task finishes!
     if isassigned(application.server_task)
         try
-            println("waiting")
             wait(application.server_task[])
             @assert !isdone(application.server_connection[])
         catch e

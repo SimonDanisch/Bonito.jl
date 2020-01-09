@@ -45,7 +45,7 @@ for M in WebMimes
         end
         # Display the route we just added in an iframe inline:
         url = repr(local_url(application, session_url))
-        println(io, "<iframe src=$(url) frameborder=\"0\" width = '100%' height = '100%'>")
+        println(io, "<iframe src=$(url) style=\"position: absolute; height: 100%; border: none\">")
         println(io, "</iframe>")
     end
 end
