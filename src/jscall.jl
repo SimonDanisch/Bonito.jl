@@ -23,7 +23,7 @@ mutable struct JSObject <: AbstractJSObject
     typ::Symbol
     # transporting the UUID allows us to have a uuid different from the objectid
     # which will help to better capture === equivalence on the js side.
-    uuid::UInt64
+    uuid::UInt
 
     function JSObject(name::Symbol, scope::Session, typ::Symbol)
         obj = new(name, scope, typ)

@@ -43,7 +43,7 @@ function dom2html(session::Session, sessionid::String, dom)
 end
 
 function dom2html(io::IO, session::Session, sessionid::String, dom)
-    js_dom = jsrender(session, dom)
+    js_dom = DOM.div(jsrender(session, dom), id="application-dom")
     # register resources (e.g. observables, assets)
     register_resource!(session, js_dom)
 
@@ -86,11 +86,7 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
     )
     # insert on document load
     print(io, " onload = '__on_document_load__()'")
-    print(io, """>
-        <div id='application-dom'>
-        """
-    )
-    println(io, html, "\n</div>")
+    println(io, html)
     print(io, """
         </body>
         </html>
@@ -179,7 +175,6 @@ function handle_ws_connection(session::Session, websocket::WebSocket)
         try
             handle_ws_message(session, read(websocket))
         catch e
-            @show e
             # IOErrors
             if !(e isa WebSockets.WebSocketClosedError || e isa Base.IOError)
                 @warn "error in websocket handler!" exception=e

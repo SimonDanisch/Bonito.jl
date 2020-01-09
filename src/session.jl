@@ -355,7 +355,6 @@ function register_resource!(session::Session, node::Node)
     end
 end
 
-
 function update_dom!(session::Session, dom)
     # empty!(session.on_document_load)
     dom = jsrender(session, dom)
