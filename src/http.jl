@@ -179,12 +179,14 @@ function handle_ws_connection(session::Session, websocket::WebSocket)
         try
             handle_ws_message(session, read(websocket))
         catch e
+            @show e
             # IOErrors
             if !(e isa WebSockets.WebSocketClosedError || e isa Base.IOError)
                 @warn "error in websocket handler!" exception=e
             end
         end
     end
+    println("not accepting anymore!")
     close(session)
 end
 
