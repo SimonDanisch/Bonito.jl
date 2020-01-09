@@ -1,6 +1,6 @@
 using Hyperscript, Markdown, Test
 using JSServe, Observables
-using JSServe: Session, evaljs, linkjs, update_dom!, div, active_sessions
+using JSServe: Session, evaljs, linkjs, div, active_sessions
 using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, with_session, jsobject
 using JSServe.DOM
 using JSServe.HTTP
@@ -318,6 +318,7 @@ end
 @testset "markdown" begin
     local_url = URI("http://localhost:8081")
     win = Window(local_url)
+    wait(test_session.js_fully_loaded)
     # Lets not be too porcelainy about this ...
     md_js_dom = jsobject(test_session, js"document.getElementById('application-dom')")
     @test runjs(md_js_dom.children.length) == 1
@@ -325,5 +326,30 @@ end
     @test runjs(md_children.length) == 23
     @test occursin("This is the first footnote.", runjs(js"$(md_children)[22].innerText"))
     @test runjs(js"$(md_children)[2].children[0].children[0].tagName") == "IMG"
+    close(win)
+end
+
+function test_handler(session, req)
+    global dom, test_session, test_observable
+    test_session = session
+    rslider = JSServe.RangeSlider(1:100; value=[10, 80])
+    start = map(first, rslider)
+    stop = map(last, rslider)
+    dom = DOM.div(rslider, start, stop, id="rslider")
+    return dom
+end
+
+@testset "range slider" begin
+    local_url = URI("http://localhost:8081")
+    win = Window(local_url)
+    wait(test_session.js_fully_loaded)
+    # Lets not be too porcelainy about this ...
+    rslider = getfield(dom, :children)[1]
+    @test rslider[] == [10, 80]
+    rslider_html = jsobject(test_session, js"document.getElementById('rslider')")
+    @test runjs(js"$(rslider_html).children.length") == 3
+    @test runjs(js"$(rslider_html).children[1].innerText") == "10"
+    @test runjs(js"$(rslider_html).children[2].innerText") == "80"
+    rslider[] = [20, 70]
     close(win)
 end

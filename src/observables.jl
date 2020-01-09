@@ -22,25 +22,6 @@ function update_nocycle!(obs::Observable, value)
     setindex!(obs, value, notify = (f-> !(f isa JSUpdateObservable)))
 end
 
-"""
-Register all Observables of a session with the connected Javascript frontend.
-It updates all the values on the JS side accordingly,
-and enables two way communication
-"""
-function register_obs!(session::Session)
-    for (id, (registered, observable)) in session.observables
-        if !registered
-            # Register on the JS side by sending the current value
-            send(session, type=UpdateObservable, id=id, payload=observable[])
-            updater = JSUpdateObservable(session, id)
-            # Make sure we update the Javascript values!
-            on(updater, observable)
-            session.observables[id] = (true, observable)
-        end
-    end
-    return
-end
-
 function jsrender(session::Session, obs::Observable)
     html = map(obs) do data
         repr_richest(jsrender(session, data))
