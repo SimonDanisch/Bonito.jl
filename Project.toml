@@ -13,22 +13,24 @@ Markdown = "d6f4376e-aef5-505a-96c1-9c027394607a"
 MsgPack = "99f44e22-a591-53d1-9472-aa23ef4bd671"
 Observables = "510215fc-4207-5dde-b226-833fc4488ee2"
 Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 WebSockets = "104b5d7c-a370-577a-8038-80a2059c5097"
 
 [compat]
-julia = "1"
-
-MsgPack = "1.1.0"
 AssetRegistry = "0.1"
 HTTP = "0.8"
 Hyperscript = "0.0.3"
 JSON3 = "0.1"
+MsgPack = "1.1.0"
 Observables = "0.2.3"
 WebSockets = "1.5"
+julia = "1.1"
 
 [extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Electron = "a1bb12fb-d4d1-54b4-b10a-ee7951ef7ad3"
+URIParser = "30578b45-9adc-5946-b283-645ec420af67"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [targets]
-test = ["Test"]
+test = ["URIParser", "Electron", "Random"]
