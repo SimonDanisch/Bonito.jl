@@ -75,14 +75,12 @@ function remove_js_reference(jso::JSObject)
     evaljs(session(jso), js"delete $jso")
 end
 
-
 """
     uuidstr(jso::JSObject)
 
 Returns the uuid as a string
 """
 uuidstr(jso::JSObject) = string(uuid(jso))
-
 
 """
 Overloading getproperty to allow the same semantic as Javascript.
@@ -180,18 +178,18 @@ end
 
 session(x::JSModule) = getfield(x, :session)
 
-function make_renderable!(jsm::JSModule)
-    jss = js"""
-        function (mod){
-            $(object_pool_identifier) = {}
-            $(object_pool_identifier)[$(uuidstr(jsm.mod))] = mod
-            $(object_pool_identifier)[$(uuidstr(jsm.document))] = document
-            $(object_pool_identifier)[$(uuidstr(jsm.window))] = window
-            $(object_pool_identifier)[$(uuidstr(jsm.this))] = this
-        }
-    """
-    onimport(jsm.scope, jss)
-    return jsm.display_func(jsm.scope)
-end
-
 fuse(f, jso::JSObject) = fuse(f, session(jso))
+
+"""
+    jsobject(session::Session, js::JSCode, name = :object)
+
+Returns the JSObject referencing the return value of `js`
+"""
+function jsobject(session::Session, js::JSCode, name = :object)
+    result = JSObject(session, name)
+    evaljs(session, js"""
+        var object = $(js)
+        put_on_heap($(uuidstr(result)), object);
+    """)
+    return result
+end

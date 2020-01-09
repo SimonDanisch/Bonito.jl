@@ -1,7 +1,7 @@
 using Hyperscript, Markdown, Test
 using JSServe, Observables
 using JSServe: Session, evaljs, linkjs, update_dom!, div, active_sessions
-using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, with_session
+using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, with_session, jsobject
 using JSServe.DOM
 using JSServe.HTTP
 using Electron, URIParser
@@ -180,4 +180,32 @@ end
     end
 end
 
-runjs(js"document.querySelectorAll('input[type=\"range\"]').length")
+@testset "slider" begin
+    # We test with JSCall this time, to test it as well ;)
+    slider1 = dom.content[2].content[2]
+    slider2 = dom.content[3].content[2]
+    slider1_js = jsobject(test_session, js"document.querySelectorAll('input[type=\"range\"]')[0]")
+    slider2_js = jsobject(test_session, js"document.querySelectorAll('input[type=\"range\"]')[1]")
+    @testset "set via jscall" begin
+        for i in 1:100
+            slider1_js.value = i
+            slider1_js.oninput()
+            @test runjs(slider1_js.value) == "$i"
+            # Test linkjs
+            @test runjs(slider2_js.value) == "$i"
+            @test slider1[] == i
+            @test slider2[] == i
+            runjs(js"document.querySelector('#application-dom > span > div:nth-child(9) > span').innerText") == "$i"
+        end
+    end
+    @testset "set via julia" begin
+        for i in 1:100
+            slider1[] = i
+            @test runjs(slider1_js.value) == "$i"
+            # Test linkjs
+            @test runjs(slider2_js.value) == "$i"
+            @test slider2[] == i
+            runjs(js"document.querySelector('#application-dom > span > div:nth-child(9) > span').innerText") == "$i"
+        end
+    end
+end
