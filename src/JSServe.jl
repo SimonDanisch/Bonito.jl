@@ -31,6 +31,9 @@ include("serialization.jl")
 include("diffing.jl")
 include("testing.jl")
 
+function update_dom!()
+    error("Deprecated")
+end
 
 function __init__()
     url = if haskey(ENV, "JULIA_WEBIO_BASEURL")

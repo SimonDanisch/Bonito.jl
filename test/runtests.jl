@@ -4,9 +4,14 @@ using JSServe: Session, evaljs, linkjs, div, active_sessions
 using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, with_session, jsobject
 using JSServe.DOM
 using JSServe.HTTP
-using Electron, URIParser
+using Electron
+using URIParser
 using Random
 using ElectronDisplay
+using Base64
+using AbstractPlotting
+using WGLMakie
+using AbstractPlotting.Colors: color, reducec
 
 global dom
 global test_session
@@ -353,3 +358,36 @@ end
     rslider[] = [20, 70]
     close(win)
 end
+
+function test_handler(session, req)
+    global dom, test_session, test_observable
+    test_session = session
+    scene = scatter(rand(4), resolution=(500,500))
+    dom = DOM.div(scene)
+    return dom
+end
+
+
+# TODO Tag WGLMakie with session2image!
+function js_session2image(sessionlike)
+    s = JSServe.session(sessionlike)
+    picture_base64 = JSServe.evaljs_value(s, js"document.querySelector('canvas').toDataURL()")
+    picture_base64 = replace(picture_base64, "data:image/png;base64," => "")
+    bytes = Base64.base64decode(picture_base64)
+    return AbstractPlotting.ImageMagick.load_(bytes)
+end
+
+@testset "WGLMakie" begin
+    local_url = URI("http://localhost:8081")
+    win = Window(local_url)
+    wait(test_session.js_fully_loaded)
+    # Lets not be too porcelainy about this ...
+    @test runjs(js"document.querySelector('canvas').style.width") == "500px"
+    @test runjs(js"document.querySelector('canvas').style.height") == "500px"
+    img = js_session2image(test_session)
+    img_ref = AbstractPlotting.FileIO.load(joinpath(@__DIR__, "test_reference.png"))
+    meancol = AbstractPlotting.mean(color.(img) .- color.(img_ref))
+    @test (reducec(+, 0.0, meancol) / 3) <= 0.02
+    close(win)
+end
+#application-dom > div > canvas

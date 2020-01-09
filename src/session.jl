@@ -23,6 +23,8 @@ function Session(connections::Vector{WebSocket}=WebSocket[])
     )
 end
 
+session(session::Session) = session
+
 function Base.close(session::Session)
     foreach(close, session.connections)
     empty!(session.connections)
