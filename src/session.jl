@@ -326,7 +326,6 @@ function active_sessions(app::Application)
     end)
 end
 
-
 """
     register_resource!(session::Session, domlike)
 
@@ -353,37 +352,4 @@ function register_resource!(session::Session, node::Node)
     walk_dom(session, node) do x
         register_resource!(session, x)
     end
-end
-
-function update_dom!(session::Session, dom)
-    # empty!(session.on_document_load)
-    dom = jsrender(session, dom)
-    register_resource!(session, dom)
-    innerhtml = repr(MIME"text/html"(), dom)
-    new_deps = session.dependencies
-    new_jss = JSCode(Any[])
-    for jss in session.on_document_load
-        append_source!(new_jss, jss)
-    end
-    register_obs!(session)
-    script_urls = url.(new_deps)
-    update_script = js"""
-        var dom = document.getElementById('application-dom')
-        dom.innerHTML = $(innerhtml)
-        var urls = $(script_urls)
-        for (var i = 0; i < urls.length; i++) {
-            var s = document.createElement("script");
-            s.type = "text/javascript";
-            s.async = false
-            s.src = urls[i];
-            document.head.appendChild(s);
-        }
-        var s = document.createElement("script");
-        s.type = "text/javascript";
-        s.async = false
-        s.text = $(serialize_readable(new_jss));
-        document.head.appendChild(s);
-    """
-    println(serialize_readable(update_script))
-    evaljs(session, update_script)
 end
