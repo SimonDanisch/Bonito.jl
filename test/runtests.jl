@@ -239,9 +239,8 @@ close(electron_disp)
 end
 
 @testset "Electron standalone" begin
-    app = Electron.Application()
     local_url = URI("http://localhost:8081")
-    win = Window(app, local_url)
+    win = Window(local_url)
     test_current_session()
     close(win)
 end
@@ -317,9 +316,8 @@ function test_handler(session, req)
 end
 
 @testset "markdown" begin
-    app = Electron.Application()
     local_url = URI("http://localhost:8081")
-    win = Window(app, local_url)
+    win = Window(local_url)
     # Lets not be too porcelainy about this ...
     md_js_dom = jsobject(test_session, js"document.getElementById('application-dom')")
     @test runjs(md_js_dom.children.length) == 1
