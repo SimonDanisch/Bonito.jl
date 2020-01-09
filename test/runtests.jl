@@ -157,7 +157,7 @@ function test_current_session()
                 val = @test_value(do_input)
                 @test val["textfield"] == str
                 @test text_obs[] == str
-                runjs(js"document.querySelector('#application-dom > span > div:nth-child(18) > span').innerText") == str
+                runjs(js"document.querySelector('#application-dom > div > p:nth-child(7) > span').innerText") == str
                 @test textfield[] == str
             end
         end
@@ -167,7 +167,7 @@ function test_current_session()
                 val = @test_value(()-> textfield[] = str)
                 @test val["textfield"] == str
                 @test text_obs[] == str
-                runjs(js"document.querySelector('#application-dom > span > div:nth-child(18) > span').innerText") == str
+                runjs(js"document.querySelector('#application-dom > div > p:nth-child(7) > span').innerText") == str
                 @test textfield[] == str
             end
         end
@@ -188,7 +188,7 @@ function test_current_session()
                 @test runjs(slider2_js.value) == "$i"
                 @test slider1[] == i
                 @test slider2[] == i
-                runjs(js"document.querySelector('#application-dom > span > div:nth-child(9) > span').innerText") == "$i"
+                runjs(js"document.querySelector('#application-dom > div > p:nth-child(4) > span').innerText") == "$i"
             end
         end
         @testset "set via julia" begin
@@ -198,7 +198,7 @@ function test_current_session()
                 # Test linkjs
                 @test runjs(slider2_js.value) == "$i"
                 @test slider2[] == i
-                runjs(js"document.querySelector('#application-dom > span > div:nth-child(9) > span').innerText") == "$i"
+                runjs(js"document.querySelector('#application-dom > div > p:nth-child(4) > span').innerText") == "$i"
             end
         end
     end
@@ -209,13 +209,13 @@ x = with_session() do session, req
     test_handler(session, req)
 end
 
-electon_disp = electrondisplay(x)
+electron_disp = electrondisplay(x)
 
 @testset "electron inline display" begin
     test_current_session()
 end
 
-close(electon_disp)
+close(electron_disp)
 
 @testset "starting and closing of app" begin
     monkey_close(JSServe.global_application[])
@@ -241,7 +241,7 @@ end
 @testset "Electron standalone" begin
     app = Electron.Application()
     local_url = URI("http://localhost:8081")
-    win = Window(app, URI("http://localhost:8081"))
+    win = Window(app, local_url)
     test_current_session()
     close(win)
 end
@@ -317,6 +317,9 @@ function test_handler(session, req)
 end
 
 @testset "markdown" begin
+    app = Electron.Application()
+    local_url = URI("http://localhost:8081")
+    win = Window(app, local_url)
     # Lets not be too porcelainy about this ...
     md_js_dom = jsobject(test_session, js"document.getElementById('application-dom')")
     @test runjs(md_js_dom.children.length) == 1
@@ -324,4 +327,5 @@ end
     @test runjs(md_children.length) == 23
     @test occursin("This is the first footnote.", runjs(js"$(md_children)[22].innerText"))
     @test runjs(js"$(md_children)[2].children[0].children[0].tagName") == "IMG"
+    close(win)
 end
