@@ -245,3 +245,83 @@ end
     test_current_session()
     close(win)
 end
+
+
+function test_handler(session, req)
+    global dom, test_session, test_observable
+    test_session = session
+    dom = md"""
+    # More MD
+
+    [Github-flavored Markdown info page](http://github.github.com/github-flavored-markdown/)
+
+    [![Build Status](https://travis-ci.com/SimonDanisch/JSServe.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/JSServe.jl)
+
+    Lalala
+    ======
+
+    Alt-H2
+    ------
+
+    Emphasis, aka italics, with *asterisks* or _underscores_.
+
+    Strong emphasis, aka bold, with **asterisks** or __underscores__.
+
+    Combined emphasis with **asterisks and _underscores_**.
+
+    Strikethrough uses two tildes. ~~Scratch this.~~
+
+    1. First ordered list item
+    2. Another item
+        * Unordered sub-list.
+    1. Actual numbers don't matter, just that it's a number
+        1. Ordered sub-list
+    4. And another item.
+
+    * Unordered list can use asterisks
+    - Or minuses
+    + Or pluses
+
+    Inline `code` has `back-ticks around` it.
+
+    ```julia
+    test("haha")
+    ```
+
+    | Tables        | Are           | Cool  |
+    | ------------- |:-------------:| -----:|
+    | col 3 is      | right-aligned | $1600 |
+    | col 2 is      | centered      |   $12 |
+    | zebra stripes | are neat      |    $1 |
+
+    > Blockquotes are very handy in email to emulate reply text.
+    > This line is part of the same quote.
+
+    Three or more...
+
+    ---
+
+    Hyphens[^1]
+
+    ***
+
+    Asterisks
+
+    ___
+
+    Underscores
+
+    [^1]: This is the first footnote.
+    """
+    return dom
+end
+
+@testset "markdown" begin
+    # Lets not be too porcelainy about this ...
+    md_js_dom = jsobject(test_session, js"document.getElementById('application-dom')")
+    @test runjs(md_js_dom.children.length) == 1
+    md_children = jsobject(test_session, js"$(md_js_dom.children)[0].children")
+    @test runjs(md_children.length) == 23
+    @test occursin("This is the first footnote.", runjs(js"$(md_children)[22].innerText"))
+    @test runjs(js"$(md_children)[2].children[0].children[0].tagName") == "IMG"
+end
