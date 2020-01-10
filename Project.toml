@@ -28,10 +28,12 @@ WebSockets = "1.5"
 julia = "1.1"
 
 [extras]
+WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
+AbstractPlotting = "537997a7-5e4e-5d89-9595-2241ea00577e"
 Electron = "a1bb12fb-d4d1-54b4-b10a-ee7951ef7ad3"
 ElectronDisplay = "d872a56f-244b-5cc9-b574-2017b5b909a8"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 URIParser = "30578b45-9adc-5946-b283-645ec420af67"
 
 [targets]
-test = ["URIParser", "Electron", "Random", "ElectronDisplay"]
+test = ["URIParser", "Electron", "Random", "ElectronDisplay", "WGLMakie", "AbstractPlotting"]

@@ -66,7 +66,13 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
             window.websocket_proxy_url = '$(server_proxy_url[])';
         """)
     end
+    println(io, "    </script>")
+
+    serialize_readable(io, MsgPackLib)
+    serialize_readable(io, JSCallLibLocal)
+
     println(io, """
+        <script>
         function __on_document_load__(){
     """)
     # create a function we call in body onload =, which loads all
@@ -78,8 +84,7 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
         </script>
         """
     )
-    serialize_readable(io, MsgPackLib)
-    serialize_readable(io, JSCallLibLocal)
+
     print(io, """
         </head>
         <body"""

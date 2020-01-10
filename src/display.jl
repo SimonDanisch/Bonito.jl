@@ -32,7 +32,7 @@ function get_global_app()
             verbose = get(ENV, "JSCALL_VERBOSITY_LEVEL", "false") == "true"
         )
     end
-    global_application[]
+    return global_application[]
 end
 
 for M in WebMimes
@@ -45,7 +45,7 @@ for M in WebMimes
         end
         # Display the route we just added in an iframe inline:
         url = repr(local_url(application, session_url))
-        println(io, "<iframe src=$(url) style=\"position: absolute; height: 100%; border: none\">")
+        println(io, "<iframe src=$(url) style=\"position: absolute; height: 100%; width: 100%;border: none\">")
         println(io, "</iframe>")
     end
 end

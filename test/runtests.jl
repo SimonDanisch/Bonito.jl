@@ -4,9 +4,14 @@ using JSServe: Session, evaljs, linkjs, div, active_sessions
 using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, with_session, jsobject
 using JSServe.DOM
 using JSServe.HTTP
-using Electron, URIParser
+using Electron
+using URIParser
 using Random
 using ElectronDisplay
+using Base64
+using AbstractPlotting
+using WGLMakie
+using AbstractPlotting.Colors: color, reducec
 
 global dom
 global test_session
@@ -245,6 +250,7 @@ end
     close(win)
 end
 
+markdown_css = JSServe.Asset(JSServe.dependency_path("markdown.css"))
 
 function test_handler(session, req)
     global dom, test_session, test_observable
@@ -312,7 +318,7 @@ function test_handler(session, req)
 
     [^1]: This is the first footnote.
     """
-    return dom
+    return DOM.div(markdown_css, dom)
 end
 
 @testset "markdown" begin
@@ -320,7 +326,7 @@ end
     win = Window(local_url)
     wait(test_session.js_fully_loaded)
     # Lets not be too porcelainy about this ...
-    md_js_dom = jsobject(test_session, js"document.getElementById('application-dom')")
+    md_js_dom = jsobject(test_session, js"document.getElementById('application-dom').children[0]")
     @test runjs(md_js_dom.children.length) == 1
     md_children = jsobject(test_session, js"$(md_js_dom.children)[0].children")
     @test runjs(md_children.length) == 23
@@ -353,3 +359,34 @@ end
     rslider[] = [20, 70]
     close(win)
 end
+
+function test_handler(session, req)
+    global dom, test_session, test_observable
+    test_session = session
+    scene = scatter([1, 2, 3, 4], resolution=(500,500), color=:red)
+    dom = DOM.div(scene)
+    return dom
+end
+
+@testset "WGLMakie" begin
+    local_url = URI("http://localhost:8081")
+    win = Window(local_url)
+    wait(test_session.js_fully_loaded)
+    # Lets not be too porcelainy about this ...
+    @test runjs(js"document.querySelector('canvas').style.width") == "500px"
+    @test runjs(js"document.querySelector('canvas').style.height") == "500px"
+    img = WGLMakie.session2image(test_session)
+    ratio = runjs(js"window.devicePixelRatio")
+    @info "device pixel ration: $(ratio)"
+    if ratio != 1
+        img = ImageTransformations.imresize(img, (500, 500))
+    end
+    img_ref = AbstractPlotting.FileIO.load(joinpath(@__DIR__, "test_reference.png"))
+    meancol = AbstractPlotting.mean(color.(img) .- color.(img_ref))
+    @show (reducec(+, 0.0, meancol) / 3)
+    # This is pretty high... But I don't know how to look into travis atm
+    # And seems it's not suuper wrong, so I'll take it for now ;) 
+    @test (reducec(+, 0.0, meancol) / 3) <= 0.025
+    close(win)
+end
+#application-dom > div > canvas
