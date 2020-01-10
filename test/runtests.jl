@@ -250,6 +250,7 @@ end
     close(win)
 end
 
+markdown_css = JSServe.Asset(JSServe.dependency_path("markdown.css"))
 
 function test_handler(session, req)
     global dom, test_session, test_observable
@@ -317,7 +318,7 @@ function test_handler(session, req)
 
     [^1]: This is the first footnote.
     """
-    return dom
+    return DOM.div(markdown_css, dom)
 end
 
 @testset "markdown" begin
@@ -325,7 +326,7 @@ end
     win = Window(local_url)
     wait(test_session.js_fully_loaded)
     # Lets not be too porcelainy about this ...
-    md_js_dom = jsobject(test_session, js"document.getElementById('application-dom')")
+    md_js_dom = jsobject(test_session, js"document.getElementById('application-dom').children[0]")
     @test runjs(md_js_dom.children.length) == 1
     md_children = jsobject(test_session, js"$(md_js_dom.children)[0].children")
     @test runjs(md_children.length) == 23
@@ -362,19 +363,9 @@ end
 function test_handler(session, req)
     global dom, test_session, test_observable
     test_session = session
-    scene = scatter(rand(4), resolution=(500,500))
+    scene = scatter([1, 2, 3, 4], resolution=(500,500), color=:red)
     dom = DOM.div(scene)
     return dom
-end
-
-
-# TODO Tag WGLMakie with session2image!
-function js_session2image(sessionlike)
-    s = JSServe.session(sessionlike)
-    picture_base64 = JSServe.evaljs_value(s, js"document.querySelector('canvas').toDataURL()")
-    picture_base64 = replace(picture_base64, "data:image/png;base64," => "")
-    bytes = Base64.base64decode(picture_base64)
-    return AbstractPlotting.ImageMagick.load_(bytes)
 end
 
 @testset "WGLMakie" begin
@@ -384,10 +375,16 @@ end
     # Lets not be too porcelainy about this ...
     @test runjs(js"document.querySelector('canvas').style.width") == "500px"
     @test runjs(js"document.querySelector('canvas').style.height") == "500px"
-    img = js_session2image(test_session)
+    img = WGLMakie.session2image(test_session)
+    ratio = runjs(js"window.devicePixelRatio")
+    @info "device pixel ration: $(ratio)"
+    if ratio != 1
+        img = ImageTransformations.imresize(img, (500, 500))
+    end
     img_ref = AbstractPlotting.FileIO.load(joinpath(@__DIR__, "test_reference.png"))
     meancol = AbstractPlotting.mean(color.(img) .- color.(img_ref))
-    @test (reducec(+, 0.0, meancol) / 3) <= 0.02
+    @show (reducec(+, 0.0, meancol) / 3)
+    @test (reducec(+, 0.0, meancol) / 3) <= 0.002
     close(win)
 end
 #application-dom > div > canvas
