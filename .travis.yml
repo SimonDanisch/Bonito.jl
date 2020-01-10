@@ -20,6 +20,7 @@ addons:
 install:
   - export DISPLAY=':99.0'
   - Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-
+before_script:
+  - julia -e 'using Pkg; pkg"add WGLMakie@0.1.2"'
 after_success:
   - julia -e 'using Pkg; Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
