@@ -384,7 +384,7 @@ end
     img_ref = AbstractPlotting.FileIO.load(joinpath(@__DIR__, "test_reference.png"))
     meancol = AbstractPlotting.mean(color.(img) .- color.(img_ref))
     @show (reducec(+, 0.0, meancol) / 3)
-    @test (reducec(+, 0.0, meancol) / 3) <= 0.002
+    @test (reducec(+, 0.0, meancol) / 3) <= 0.01
     close(win)
 end
 #application-dom > div > canvas
