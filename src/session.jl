@@ -6,7 +6,7 @@ function init_session(session::Session)
         end
     end
     empty!(session.message_queue)
-    notify(session.js_fully_loaded)
+    put!(session.js_fully_loaded, true)
 end
 
 function Session(connections::Vector{WebSocket}=WebSocket[])
@@ -18,7 +18,7 @@ function Session(connections::Vector{WebSocket}=WebSocket[])
         Set{Asset}(),
         JSCode[],
         string(uuid4()),
-        Base.Event(),
+        Channel{Bool}(1),
         init_session
     )
 end
