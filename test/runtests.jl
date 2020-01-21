@@ -385,7 +385,7 @@ end
     meancol = AbstractPlotting.mean(color.(img) .- color.(img_ref))
     @show (reducec(+, 0.0, meancol) / 3)
     # This is pretty high... But I don't know how to look into travis atm
-    # And seems it's not suuper wrong, so I'll take it for now ;) 
+    # And seems it's not suuper wrong, so I'll take it for now ;)
     @test (reducec(+, 0.0, meancol) / 3) <= 0.025
     close(win)
 end

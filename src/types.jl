@@ -202,7 +202,9 @@ function warmup(application::Application)
     # Make a websocket request
     stream = websocket_request()
     try
-        stream_handler(application, stream)
+        @async stream_handler(application, stream)
+        write(stream, "blaaa")
+
     catch e
         # TODO make it not error so we can test this properly
         # This will error, since its not a propper websocket request
@@ -214,25 +216,14 @@ function warmup(application::Application)
 
     delegate(application.routes, application, request)
 
-    wait_time = 10.0; start = time() # wait for max 10 s
-    success = false
-    while time() - start < wait_time
-        # Block as long as our server doesn't actually serve the bundle
-        if Base.istaskdone(task)
-            error("Webserver doesn't serve! Error: $(fetch(task))")
-            break
-        end
-        # async + fetch allows the server to do work while the request gets sent!
-        resp = fetch(@async WebSockets.HTTP.get(asset_url))
-        if resp.status == 200
-            success = true
-            break
-        end
-        sleep(0.1)
+    if Base.istaskdone(task)
+        error("Webserver doesn't serve! Error: $(fetch(task))")
     end
-    if !success
-        error("Waited $(wait_time)s for webserver to start up, and didn't receive any response")
+    resp = WebSockets.HTTP.get(asset_url, readtimeout=10, retries=1)
+    if resp.status != 200
+        error("Webserver didn't start succesfully")
     end
+    return
 end
 
 function stream_handler(application::Application, stream::Stream)
