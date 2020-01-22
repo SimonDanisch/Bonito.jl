@@ -186,7 +186,6 @@ function handle_ws_connection(session::Session, websocket::WebSocket)
             end
         end
     end
-    println("not accepting anymore!")
     close(session)
 end
 
