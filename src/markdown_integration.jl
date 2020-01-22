@@ -99,3 +99,4 @@ function htmlinline(session::Session, br::Markdown.LineBreak)
 end
 
 htmlinline(session::Session, x) = [jsrender(session, x)]
+md_html(session::Session, x) = [jsrender(session, x)]
