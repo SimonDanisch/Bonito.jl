@@ -250,8 +250,6 @@ end
     close(win)
 end
 
-markdown_css = JSServe.Asset(JSServe.dependency_path("markdown.css"))
-
 function test_handler(session, req)
     global dom, test_session, test_observable
     test_session = session
@@ -318,7 +316,7 @@ function test_handler(session, req)
 
     [^1]: This is the first footnote.
     """
-    return DOM.div(markdown_css, dom)
+    return DOM.div(JSServe.MarkdownCSS, dom)
 end
 
 @testset "markdown" begin
