@@ -25,27 +25,6 @@ function jsrender(button::Button)
     )
 end
 
-
-struct Toggle <: AbstractWidget{Bool}
-    value::Observable{Bool}
-    attributes::Dict{Symbol, Any}
-end
-
-function Toggle(value = false; kw...)
-    return Toggle(
-        Observable(value), Dict{Symbol, Any}(kw)
-    )
-end
-
-function jsrender(toggle::Toggle)
-    return DOM.input(
-        type = "checkbox",
-        onchange = js"update_obs($(toggle.value), checked.checked);";
-        toggle.attributes...
-    )
-end
-
-
 struct TextField <: AbstractWidget{String}
     value::Observable{String}
     attributes::Dict{Symbol, Any}
