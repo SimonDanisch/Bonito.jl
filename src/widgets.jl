@@ -93,20 +93,24 @@ end
 @enum Orientation vertical horizontal
 
 struct RangeSlider{T <: AbstractRange, ET <: AbstractArray} <: AbstractWidget{T}
+    attributes::Dict{Symbol, Any}
     range::Observable{T}
     value::Observable{ET}
-    attributes::Dict{Symbol, Any}
     connect::Observable{Bool}
     orientation::Observable{Orientation}
+    tooltips::Observable{Bool}
+    ticks::Observable{Dict{String, Any}}
 end
 
 function RangeSlider(range::T; value = [first(range)], kw...) where T <: AbstractRange
     RangeSlider{T, typeof(value)}(
+        Dict{Symbol, Any}(kw),
         Observable(range),
         Observable(value),
-        Dict{Symbol, Any}(kw),
         Observable(true),
-        Observable(horizontal)
+        Observable(horizontal),
+        Observable(false),
+        Observable(Dict{String, Any}()),
     )
 end
 
@@ -120,33 +124,37 @@ const noUiSlider = Dependency(
 )
 
 function jsrender(session::Session, slider::RangeSlider)
+    args = (slider.range, slider.connect, slider.orientation,
+            slider.tooltips, slider.ticks)
+    style = map(args...) do range, connect, orientation, tooltips, ticks
+        value = slider.value[]
+        return Dict(
+            "range" => Dict(
+                "min" => fill(range[1], length(value)),
+                "max" => fill(range[end], length(value)),
+            ),
+            "step" => step(range),
+            "start" => value,
+            "connect" => connect,
+            "tooltips" => tooltips,
+            "direction" => "ltr",
+            "orientation" => string(orientation),
+            "pips" => isempty(ticks) ? nothing : ticks
+        )
+    end
     rangediv = DOM.div()
-    onload(session, rangediv, js"""
-        function create_slider(range){
-            $(noUiSlider).create(range, {
-
-                range: {
-                    'min': $(fill(slider.range[][1], length(slider.value[]))),
-                    'max': $(fill(slider.range[][end], length(slider.value[])))
-                },
-
-                step: $(step(slider.range[])),
-
-                // Handles start at ...
-                start: $(slider.value[]),
-                // Display colored bars between handles
-                connect: $(slider.connect[]),
-                tooltips: true,
-
-                // Put '0' at the bottom of the slider
-                direction: 'ltr',
-                orientation: $(string(slider.orientation[])),
-            });
-
-            range.noUiSlider.on('update', function (values, handle, unencoded, tap, positions){
-                update_obs($(slider.value), [parseFloat(values[0]), parseFloat(values[1])]);
-            });
-        }
-    """)
+    create_slider = js"""function create_slider(style){
+        var range = $(rangediv);
+        console.log(style);
+        range.noUiSlider.updateOptions(deserialize_js(style), true);
+    }"""
+    onload(session, rangediv, js"""function onload(range){
+        var style = $(style[]);
+        $(noUiSlider).create(range, style);
+        range.noUiSlider.on('update', function (values, handle, unencoded, tap, positions){
+            update_obs($(slider.value), [parseFloat(values[0]), parseFloat(values[1])]);
+        });
+    }""")
+    onjs(session, style, create_slider)
     return rangediv
 end

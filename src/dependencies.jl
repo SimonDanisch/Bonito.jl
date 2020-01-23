@@ -89,6 +89,8 @@ const JSCallLibLocal = Asset(dependency_path("core.js"))
 
 const MsgPackLib = Asset("https://cdn.jsdelivr.net/gh/kawanet/msgpack-lite/dist/msgpack.min.js")
 
+const MarkdownCSS = Asset(dependency_path("markdown.css"))
+
 """
     add_func(dependency::Dependency, func)
 Usage:
