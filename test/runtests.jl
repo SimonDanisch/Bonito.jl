@@ -198,56 +198,21 @@ function test_current_session(app)
     end
 end
 
-
+global test_session = nothing
+global dom = nothing
 x = with_session() do session, req
-    test_handler(session, req)
+    global test_session = session
+    global dom = test_handler(session, req)
+    return DOM.div(ElectronTests.JSTest, dom)
 end;
 
 electron_disp = electrondisplay(x);
-TestSession
-    url::URI
-    serve_comm::Channel{Any}
-    initialized::Bool
-    server::JSServe.Application
-    application::Electron.Application
-    window::Electron.Window
-    dom::Node{HTMLSVG}
-    session::Session
-    request::Request
-    # Library to run test commands
-    js_library::JSObject
-    function TestSession(url::URI)
-        return new(url, Channel(1), false)
-    end
-end
+app = ElectronTests.TestSession(URI("http://localhost:8081/show"), JSServe.global_application[], electron_disp, test_session)
+app.dom = dom
 @testset "electron inline display" begin
-    test_current_session()
+    test_current_session(app)
 end
-
-close(electron_disp)
-
-
-@testset "starting and closing of app" begin
-    close(JSServe.global_application[])
-    http_app = JSServe.Application(test_handler, "127.0.0.1", 8081, verbose=true)
-    # JSServe.start(app, verbose=true)
-    response = HTTP.get("http://127.0.0.1:8081/")
-    @test response.status == 200
-
-    monkey_close(http_app)
-
-    connection_refused = try
-        x = HTTP.get("http://127.0.0.1:8081/", readtimeout=3, retries=1)
-        false
-    catch e
-        e isa HTTP.IOExtras.IOError && e.e == Base.IOError("connect: connection refused (ECONNREFUSED)", -4078)
-    end
-
-    JSServe.start(http_app)
-    response = HTTP.get("http://127.0.0.1:8081/")
-    @test response.status == 200
-end
-
+close(app)
 
 @testset "Electron standalone" begin
     testsession(test_handler) do app
