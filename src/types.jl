@@ -321,8 +321,10 @@ function Base.close(application::Application)
             @assert !isdone(application.server_connection[])
         catch e
             # the wait will throw with the below exception
-            if !(e isa TaskFailedException && e.task.exception.code == -4079)
-                rethrow(e)
+            if isdefined(Base, :TaskFailedException)
+                if !(e isa Base.TaskFailedException && e.task.exception.code == -4079)
+                    rethrow(e)
+                end
             end
         end
     end
