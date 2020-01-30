@@ -345,3 +345,54 @@ end
         @test (reducec(+, 0.0, meancol) / 3) <= 0.025
     end
 end
+
+
+struct Custom
+end
+JSServe.jsrender(custom::Custom) = DOM.div("i'm a custom struct")
+
+function test_handler(session, request)
+    return DOM.div(JSServe.DiffList([Custom(), md"jo", DOM.div("span span span")], dataTestId="difflist"))
+end
+
+@testset "difflist" begin
+    testsession(test_handler) do app
+        js_list = query_testid(app, "difflist")
+        difflist = children(app.dom)[1]
+        @wait_for evaljs(app, js_list.children.length) == 3
+        @test evaljs(app, js"$(js_list).children[0].innerText") == "i'm a custom struct"
+        @test evaljs(app, js"$(js_list).children[1].innerText") == "jo"
+        @test evaljs(app, js"$(js_list).children[2].innerText") == "span span span"
+
+        empty!(difflist)
+        @wait_for evaljs(app, js_list.children.length) == 0
+        push!(difflist, md"new node 1")
+        push!(difflist, md"new node 2")
+        push!(difflist, md"new node 3")
+
+        @test evaljs(app, js"$(js_list).children[0].innerText") == "new node 1"
+        @test evaljs(app, js"$(js_list).children[1].innerText") == "new node 2"
+        @test evaljs(app, js"$(js_list).children[2].innerText") == "new node 3"
+        append!(difflist, [md"append", md"much fun"])
+        @test evaljs(app, js"$(js_list).children[3].innerText") == "append"
+        @test evaljs(app, js"$(js_list).children[4].innerText") == "much fun"
+
+        difflist[2] = md"old node 2"
+        @test evaljs(app, js"$(js_list).children[1].innerText") == "old node 2"
+
+        JSServe.replace_children(difflist, [md"meowdy", md"monsieur", md"maunz"])
+
+        @wait_for evaljs(app, js_list.children.length) == 3
+        @test evaljs(app, js"$(js_list).children[0].innerText") == "meowdy"
+        @test evaljs(app, js"$(js_list).children[1].innerText") == "monsieur"
+        @test evaljs(app, js"$(js_list).children[2].innerText") == "maunz"
+
+        insert!(difflist, 2, md"rowdy")
+        @test evaljs(app, js"$(js_list).children[1].innerText") == "rowdy"
+        delete!(difflist, [1, 4])
+
+        @test evaljs(app, js"$(js_list).children[0].innerText") == "rowdy"
+        @test evaljs(app, js"$(js_list).children[1].innerText") == "monsieur"
+        @test children(difflist) == [md"rowdy", md"monsieur"]
+    end
+end

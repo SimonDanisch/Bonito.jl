@@ -51,10 +51,9 @@ end
 function Base.delete!(diffnode::DiffList, idx::Union{Integer, AbstractVector{<: Integer}, AbstractRange})
     indices = idx isa Integer ? Int[idx] : convert(Vector{Int}, idx)
     diffnode.delete[] = indices
-    for idx in indices
-        splice!(children(diffnode), idx)
-    end
-    return values
+    i = 0
+    filter!(x->(i+=1; !(i in idx)), children(diffnode))
+    return idx
 end
 
 function Base.insert!(diffnode::DiffList, index::Integer, item)
@@ -117,8 +116,9 @@ function JSServe.jsrender(session::JSServe.Session, diffnode::DiffList)
     onjs(session, diffnode.delete, js"""function (indices){
         var indices = deserialize_js(indices);
         var node = $(node);
-        for(var idx in indices){
-            node.removeChild(node.children[indices[idx] - 1]);
+        var children2remove = indices.map(x=> node.children[x - 1]);
+        for(var idx in children2remove){
+            node.removeChild(children2remove[idx]);
         }
     }""")
 
