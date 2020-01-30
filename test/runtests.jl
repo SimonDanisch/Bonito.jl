@@ -209,8 +209,10 @@ end;
 electron_disp = electrondisplay(x);
 app = ElectronTests.TestSession(URI("http://localhost:8081/show"), JSServe.global_application[], electron_disp, test_session)
 app.dom = dom
+
 @testset "electron inline display" begin
     test_current_session(app)
+    html_webio = sprint(io-> show(io, MIME"application/vnd.webio.application+html"(), x))
 end
 close(app)
 
@@ -346,7 +348,6 @@ end
     end
 end
 
-
 struct Custom
 end
 JSServe.jsrender(custom::Custom) = DOM.div("i'm a custom struct")
@@ -394,5 +395,25 @@ end
         @test evaljs(app, js"$(js_list).children[0].innerText") == "rowdy"
         @test evaljs(app, js"$(js_list).children[1].innerText") == "monsieur"
         @test children(difflist) == [md"rowdy", md"monsieur"]
+    end
+end
+
+function test_handler(session, request)
+    obs1 = Observable(Float16(2.0))
+    obs2 = Observable(DOM.div("Data: ", obs1, dataTestId="hey"))
+    return DOM.div(obs2)
+end
+
+@testset "serialization" begin
+    xx = "hey"; some_js = js"var"; x = [1f0, 2f0]
+    @test string(js"console.log($xx); $x; $((2, 4)); $(some_js) hello = 1;") == "console.log(\"hey\"); [1.0,2.0]; [2,4]; var hello = 1;"
+    test_throw() = sprint(io->JSServe.serialize_readable(io, JSServe.Asset("file.dun_exist")))
+    Test.@test_throws ErrorException("Unrecognized asset media type: dun_exist") test_throw()
+    testsession(test_handler) do app
+        hey = query_testid("hey")
+        @test evaljs(app, js"$(hey).innerText") == "Data: Float16(2.0)"
+        float16_obs = children(children(app.dom)[1][])[2]
+        float16_obs[] = Float16(77)
+        @test evaljs(app, js"$(hey).innerText") == "Data: Float16(77.0)"
     end
 end
