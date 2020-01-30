@@ -293,7 +293,7 @@ Evals `js` code and returns the jsonified value.
 Blocks until value is returned. May block indefinitely, when called with a session
 that doesn't have a connection to the browser.
 """
-function evaljs_value(session::Session, js, error_on_closed=true)
+function evaljs_value(session::Session, js; error_on_closed=true, time_out=10.0)
     if error_on_closed && !isopen(session)
         error("Session is not open and would result in this function to indefinitely block.
         It may unblock, if the browser is still connecting and opening the session later on. If this is expected,
@@ -309,12 +309,21 @@ function evaljs_value(session::Session, js, error_on_closed=true)
     }
     """
     evaljs(session, js_with_result)
-    value = take!(comm_channel)
-    if haskey(value, "error")
-        error(value["error"])
-    else
-        return value["result"]
+    # TODO, have an on error callback, that triggers when evaljs goes wrong
+    # (e.g. because of syntax error that isn't caught by the above try catch!)
+    tstart = time()
+    while time() - tstart < time_out
+        if isready(comm_channel)
+            value = take!(comm_channel)
+            if haskey(value, "error")
+                error(value["error"])
+            else
+                return value["result"]
+            end
+        end
+        sleep(0.01)
     end
+    error("Waited for $(time_out) seconds for JS to return, but it didn't!")
 end
 
 """

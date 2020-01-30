@@ -5,36 +5,15 @@ using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, w
 using JSServe.DOM
 using JSServe.HTTP
 using Electron
+using ElectronDisplay
+using ElectronTests
 using URIParser
 using Random
-using ElectronDisplay
-using Base64
 using AbstractPlotting
 using WGLMakie
 using AbstractPlotting.Colors: color, reducec
-
-global dom
-global test_session
-global test_observable
-
-"""
-    monkey_close(app)
-`close(application)` Is a bit buggy atm, and relies on an upstream fix & needs
-some more debugging on linux... While this isn't fixed/merged, we monkey patch it!
-"""
-function monkey_close(application)
-    try
-        # close the global application created by display!
-        close(application)
-        # First get after close will still go through, see: https://github.com/JuliaWeb/HTTP.jl/pull/494
-    catch e
-        # TODO why does this error on travis? Possibly linux in general
-        dump(e)
-    end
-
-    HTTP.get("http://127.0.0.1:8081/", readtimeout=3, retries=1)
-    return
-end
+using Hyperscript: children
+using ImageTransformations
 
 function wait_on_test_observable()
     test_channel = Channel{Dict{String, Any}}(1)
@@ -47,40 +26,38 @@ function wait_on_test_observable()
 end
 
 """
-    @test_value(statement)
+    test_value(app, statement)
 Executes statemen (js code, or julia function with 0 args),
 And waits on `test_observable` to push a new value!
 Returns new value from `test_observable`
 """
-macro test_value(statement)
-    return quote
-        # First start waiting on the test communication channel
-        # We do this async before scheduling the js, since otherwise there is a
-        # chance, that the event gets triggered before we have a chance to wait for it
-        # which would make use wait forever
-        val_t = @async wait_on_test_observable()
-        # eval our js expression that is supposed to write something to test_observable
-        statement = $(esc(statement))
-        if statement isa JSServe.JSCode
-            JSServe.evaljs(test_session, statement)
-        else
-            statement()
-        end
-        fetch(val_t) # fetch the value!
+function test_value(app, statement)
+    # First start waiting on the test communication channel
+    # We do this async before scheduling the js, since otherwise there is a
+    # chance, that the event gets triggered before we have a chance to wait for it
+    # which would make use wait forever
+    val_t = @async wait_on_test_observable()
+    # eval our js expression that is supposed to write something to test_observable
+    if statement isa JSServe.JSCode
+        JSServe.evaljs(app.session, statement)
+    else
+        statement()
     end
-end
-# inline session for a little bit less writing!
-function runjs(js)
-    JSServe.evaljs_value(test_session, js)
+    fetch(val_t) # fetch the value!
 end
 
 function test_handler(session, req)
-    global dom, test_session, test_observable
+    global test_observable
     test_session = session
 
-    s1 = Slider(1:100)
-    s2 = Slider(1:100)
-    b = Button("hi")
+    s1 = JSServe.Slider(1:100)
+    s2 = JSServe.Slider(1:100)
+    b = JSServe.Button("hi"; dataTestId="hi_button")
+    clicks = Observable(0)
+    on(b) do click
+        clicks[] = clicks[] + 1
+    end
+    clicks_div = DOM.div(clicks, dataTestId="button_clicks")
     t = TextField("Write!")
 
     test_observable = Observable(Dict{String, Any}())
@@ -99,6 +76,9 @@ function test_handler(session, req)
         test_observable[] = Dict{String, Any}("button" => value)
     end
 
+    textresult = DOM.div(t.value; dataTestId="text_result")
+    sliderresult = DOM.div(s1.value; dataTestId="slider_result")
+
     dom = md"""
     # IS THIS REAL?
 
@@ -106,51 +86,59 @@ function test_handler(session, req)
 
     My second slider: $(s2)
 
-    Test: $(s1.value)
+    Test: $(sliderresult)
 
     The BUTTON: $(b)
 
+    $(clicks_div)
+
     Type something for the list: $(t)
 
-    some list $(t.value)
+    some list $(textresult)
     """
-    return dom
+    return DOM.div(dom)
 end
 
-# load(win, local_url)
 
-function test_current_session()
-    wait(test_session.js_fully_loaded)
-    # toggle_devtools(win)
-
-    @test runjs(js"document.getElementById('application-dom').children.length") == 1
-    @test runjs(js"document.getElementById('application-dom').children[0].children[0].innerText") == "IS THIS REAL?"
-    @test runjs(js"document.querySelectorAll('input[type=\"button\"]').length") == 1
-    @test runjs(js"document.querySelectorAll('input[type=\"range\"]').length") == 2
+function test_current_session(app)
+    dom = children(app.dom)[1]
+    root = js"document.getElementById('application-dom').children[0]"
+    @test evaljs(app, js"$(root).children.length") == 1
+    @test evaljs(app, js"$(root).children[0].children[0].children[0].innerText") == "IS THIS REAL?"
+    @test evaljs(app, js"document.querySelectorAll('input[type=\"button\"]').length") == 1
+    @test evaljs(app, js"document.querySelectorAll('input[type=\"range\"]').length") == 2
+    @test evaljs(app, js"document.querySelectorAll('input[type=\"button\"]').length") == 1
+    @test evaljs(app, js"document.querySelectorAll('input[type=\"range\"]').length") == 2
 
     @testset "button" begin
         # It's in the dom!
-        @test runjs(js"document.querySelectorAll('input[type=\"button\"]').length") == 1
+        @test evaljs(app, js"document.querySelectorAll('input[type=\"button\"]').length") == 1
+        button = query_testid(app, "hi_button")
         # Spam the button press on the JS side a bit, to make sure we're not loosing events!
         for i in 1:100
-            val = @test_value(js"document.querySelectorAll('input[type=\"button\"]')[0].click()")
+            val = test_value(app, ()-> button.click())
             @test val["button"] == true
         end
+        button = query_testid("button_clicks")
+        @test evaljs(app, js"$(button).innerText") == "100"
         button = dom.content[5].content[2]
         @test button.content[] == "hi"
         button.content[] = "new name"
-        @test runjs(js"document.querySelector('input[type=\"button\"]').value") == "new name"
+        bquery = query_testid("hi_button")
+        @test evaljs(app, js"$(bquery).value") == "new name"
         # button press from Julia
-        val = @test_value(()-> button.value[] = true)
+        val = test_value(app, ()-> (button.value[] = true))
         @test val["button"] == true
     end
 
     @testset "textfield" begin
-        @test runjs(js"document.querySelectorAll('input[type=\"textfield\"]').length") == 1
-        # @test runjs(js"document.querySelector('input[type=\"textfield\"]').value") == "Write!"
+        @test evaljs(app, js"document.querySelectorAll('input[type=\"textfield\"]').length") == 1
+        # @test evaljs(app, js"document.querySelector('input[type=\"textfield\"]').value") == "Write!"
         # Spam the button press a bit!
-        text_obs = dom.content[end].content[2]
+        text_obs = children(dom.content[end].content[2])[1]
         textfield = dom.content[end-1].content[2]
+        text_result = query_testid("text_result")
+        @test evaljs(app, js"$(text_result).innerText") == "Write!"
         @testset "setting value from js" begin
             for i in 1:10
                 str = randstring(10)
@@ -159,20 +147,20 @@ function test_current_session()
                     tfield.value = $(str);
                     tfield.onchange();
                 """
-                val = @test_value(do_input)
+                val = test_value(app, do_input)
                 @test val["textfield"] == str
                 @test text_obs[] == str
-                runjs(js"document.querySelector('#application-dom > div > p:nth-child(7) > span').innerText") == str
+                evaljs(app, js"$(text_result).innerText") == str
                 @test textfield[] == str
             end
         end
         @testset "setting value from julia" begin
             for i in 1:10
                 str = randstring(10)
-                val = @test_value(()-> textfield[] = str)
+                val = test_value(app, ()-> textfield[] = str)
                 @test val["textfield"] == str
                 @test text_obs[] == str
-                runjs(js"document.querySelector('#application-dom > div > p:nth-child(7) > span').innerText") == str
+                evaljs(app, js"$(text_result).innerText") == str
                 @test textfield[] == str
             end
         end
@@ -182,28 +170,29 @@ function test_current_session()
         # We test with JSCall this time, to test it as well ;)
         slider1 = dom.content[2].content[2]
         slider2 = dom.content[3].content[2]
-        slider1_js = jsobject(test_session, js"document.querySelectorAll('input[type=\"range\"]')[0]")
-        slider2_js = jsobject(test_session, js"document.querySelectorAll('input[type=\"range\"]')[1]")
+        slider1_js = jsobject(app, js"document.querySelectorAll('input[type=\"range\"]')[0]")
+        slider2_js = jsobject(app, js"document.querySelectorAll('input[type=\"range\"]')[1]")
+        sliderresult = query_testid("slider_result")
         @testset "set via jscall" begin
             for i in 1:100
                 slider1_js.value = i
                 slider1_js.oninput()
-                @test runjs(slider1_js.value) == "$i"
+                @test evaljs(app, slider1_js.value) == "$i"
                 # Test linkjs
-                @test runjs(slider2_js.value) == "$i"
+                @test evaljs(app, slider2_js.value) == "$i"
                 @test slider1[] == i
                 @test slider2[] == i
-                runjs(js"document.querySelector('#application-dom > div > p:nth-child(4) > span').innerText") == "$i"
+                evaljs(app, js"$(sliderresult).innerText") == "$i"
             end
         end
         @testset "set via julia" begin
             for i in 1:100
                 slider1[] = i
-                @test runjs(slider1_js.value) == "$i"
+                @test evaljs(app, slider1_js.value) == "$i"
                 # Test linkjs
-                @test runjs(slider2_js.value) == "$i"
+                @test evaljs(app, slider2_js.value) == "$i"
                 @test slider2[] == i
-                runjs(js"document.querySelector('#application-dom > div > p:nth-child(4) > span').innerText") == "$i"
+                evaljs(app, js"$(sliderresult).innerText") == "$i"
             end
         end
     end
@@ -212,18 +201,34 @@ end
 
 x = with_session() do session, req
     test_handler(session, req)
+end;
+
+electron_disp = electrondisplay(x);
+TestSession
+    url::URI
+    serve_comm::Channel{Any}
+    initialized::Bool
+    server::JSServe.Application
+    application::Electron.Application
+    window::Electron.Window
+    dom::Node{HTMLSVG}
+    session::Session
+    request::Request
+    # Library to run test commands
+    js_library::JSObject
+    function TestSession(url::URI)
+        return new(url, Channel(1), false)
+    end
 end
-
-electron_disp = electrondisplay(x)
-
 @testset "electron inline display" begin
     test_current_session()
 end
 
 close(electron_disp)
 
+
 @testset "starting and closing of app" begin
-    monkey_close(JSServe.global_application[])
+    close(JSServe.global_application[])
     http_app = JSServe.Application(test_handler, "127.0.0.1", 8081, verbose=true)
     # JSServe.start(app, verbose=true)
     response = HTTP.get("http://127.0.0.1:8081/")
@@ -243,11 +248,11 @@ close(electron_disp)
     @test response.status == 200
 end
 
+
 @testset "Electron standalone" begin
-    local_url = URI("http://localhost:8081")
-    win = Window(local_url)
-    test_current_session()
-    close(win)
+    testsession(test_handler) do app
+        test_current_session(app)
+    end
 end
 
 function test_handler(session, req)
@@ -320,71 +325,58 @@ function test_handler(session, req)
 end
 
 @testset "markdown" begin
-    local_url = URI("http://localhost:8081")
-    win = Window(local_url)
-    wait(test_session.js_fully_loaded)
-    # Lets not be too porcelainy about this ...
-    md_js_dom = jsobject(test_session, js"document.getElementById('application-dom').children[0]")
-    @test runjs(md_js_dom.children.length) == 1
-    md_children = jsobject(test_session, js"$(md_js_dom.children)[0].children")
-    @test runjs(md_children.length) == 23
-    @test occursin("This is the first footnote.", runjs(js"$(md_children)[22].innerText"))
-    @test runjs(js"$(md_children)[2].children[0].children[0].tagName") == "IMG"
-    close(win)
+    testsession(test_handler) do app
+        # Lets not be too porcelainy about this ...
+        md_js_dom = jsobject(app, js"document.getElementById('application-dom').children[0]")
+        @test evaljs(app, md_js_dom.children.length) == 1
+        md_children = jsobject(app, js"$(md_js_dom.children)[0].children[0].children")
+        @test evaljs(app, md_children.length) == 23
+        @test occursin("This is the first footnote.", evaljs(app, js"$(md_children)[22].innerText"))
+        @test evaljs(app, js"$(md_children)[2].children[0].children[0].tagName") == "IMG"
+    end
 end
 
 function test_handler(session, req)
-    global dom, test_session, test_observable
-    test_session = session
     rslider = JSServe.RangeSlider(1:100; value=[10, 80])
     start = map(first, rslider)
     stop = map(last, rslider)
-    dom = DOM.div(rslider, start, stop, id="rslider")
-    return dom
+    return DOM.div(rslider, start, stop, id="rslider")
 end
 
 @testset "range slider" begin
-    local_url = URI("http://localhost:8081")
-    win = Window(local_url)
-    wait(test_session.js_fully_loaded)
-    # Lets not be too porcelainy about this ...
-    rslider = getfield(dom, :children)[1]
-    @test rslider[] == [10, 80]
-    rslider_html = jsobject(test_session, js"document.getElementById('rslider')")
-    @test runjs(js"$(rslider_html).children.length") == 3
-    @test runjs(js"$(rslider_html).children[1].innerText") == "10"
-    @test runjs(js"$(rslider_html).children[2].innerText") == "80"
-    rslider[] = [20, 70]
-    close(win)
+    testsession(test_handler) do app
+        # Lets not be too porcelainy about this ...
+        rslider = getfield(app.dom, :children)[1]
+        @test rslider[] == [10, 80]
+        rslider_html = jsobject(app, js"document.getElementById('rslider')")
+        @test evaljs(app, js"$(rslider_html).children.length") == 3
+        @test evaljs(app, js"$(rslider_html).children[1].innerText") == "10"
+        @test evaljs(app, js"$(rslider_html).children[2].innerText") == "80"
+        rslider[] = [20, 70]
+    end
 end
 
 function test_handler(session, req)
-    global dom, test_session, test_observable
-    test_session = session
     scene = scatter([1, 2, 3, 4], resolution=(500,500), color=:red)
-    dom = DOM.div(scene)
-    return dom
+    return DOM.div(scene)
 end
 
 @testset "WGLMakie" begin
-    local_url = URI("http://localhost:8081")
-    win = Window(local_url)
-    wait(test_session.js_fully_loaded)
-    # Lets not be too porcelainy about this ...
-    @test runjs(js"document.querySelector('canvas').style.width") == "500px"
-    @test runjs(js"document.querySelector('canvas').style.height") == "500px"
-    img = WGLMakie.session2image(test_session)
-    ratio = runjs(js"window.devicePixelRatio")
-    @info "device pixel ration: $(ratio)"
-    if ratio != 1
-        img = ImageTransformations.imresize(img, (500, 500))
+    testsession(test_handler) do app
+        # Lets not be too porcelainy about this ...
+        @test evaljs(app, js"document.querySelector('canvas').style.width") == "500px"
+        @test evaljs(app, js"document.querySelector('canvas').style.height") == "500px"
+        img = WGLMakie.session2image(app.session)
+        ratio = evaljs(app, js"window.devicePixelRatio")
+        @info "device pixel ration: $(ratio)"
+        if ratio != 1
+            img = ImageTransformations.imresize(img, (500, 500))
+        end
+        img_ref = AbstractPlotting.FileIO.load(joinpath(@__DIR__, "test_reference.png"))
+        # AbstractPlotting.FileIO.save(joinpath(@__DIR__, "test_reference.png"), img)
+        meancol = AbstractPlotting.mean(color.(img) .- color.(img_ref))
+        # This is pretty high... But I don't know how to look into travis atm
+        # And seems it's not suuper wrong, so I'll take it for now ;)
+        @test (reducec(+, 0.0, meancol) / 3) <= 0.025
     end
-    img_ref = AbstractPlotting.FileIO.load(joinpath(@__DIR__, "test_reference.png"))
-    meancol = AbstractPlotting.mean(color.(img) .- color.(img_ref))
-    @show (reducec(+, 0.0, meancol) / 3)
-    # This is pretty high... But I don't know how to look into travis atm
-    # And seems it's not suuper wrong, so I'll take it for now ;)
-    @test (reducec(+, 0.0, meancol) / 3) <= 0.025
-    close(win)
 end
-#application-dom > div > canvas
