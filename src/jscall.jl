@@ -31,12 +31,6 @@ mutable struct JSObject <: AbstractJSObject
         # finalizer(remove_js_reference, obj)
         return obj
     end
-
-    function JSObject(name::Symbol, scope::Session, typ::Symbol, uuid::UInt64)
-        obj = new(name, scope, typ, uuid)
-        # finalizer(remove_js_reference, obj)
-        return obj
-    end
 end
 
 struct JSGlobal <: AbstractJSObject
@@ -66,13 +60,6 @@ end
 # define accessors
 for name in (:name, :session, :typ, :uuid)
     @eval $(name)(jso::JSObject) = getfield(jso, $(QuoteNode(name)))
-end
-
-"""
-Removes an JSObject from the object pool!
-"""
-function remove_js_reference(jso::JSObject)
-    evaljs(session(jso), js"delete $jso")
 end
 
 """
@@ -165,7 +152,6 @@ function jscall(jso::AbstractJSObject, args, kw_args)
 end
 
 (jso::JSObject)(args...; kw_args...) = jscall(jso, args, kw_args)
-(jso::JSGlobal)(args...; kw_args...) = jscall(jso, args, kw_args)
 
 struct JSModule <: AbstractJSObject
     session::Session
@@ -177,7 +163,6 @@ struct JSModule <: AbstractJSObject
 end
 
 session(x::JSModule) = getfield(x, :session)
-
 fuse(f, jso::JSObject) = fuse(f, session(jso))
 
 """

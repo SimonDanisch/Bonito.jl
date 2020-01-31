@@ -114,20 +114,6 @@ function file_server(context)
     return HTTP.Response(404)
 end
 
-function getsession(application, request)
-    sessionid, browserid = request_to_sessionid(request)
-    if haskey(application.sessions, sessionid)
-        browser_sessions = application.sessions[sessionid]
-        if haskey(browser_sessions, browserid)
-            return browser_sessions[browserid], browserid
-        else
-            error("Browser id not found: $(browserid)")
-        end
-    else
-        error("Session id not found: $(sessionid)")
-    end
-end
-
 function html(body)
     return HTTP.Response(200, ["Content-Type" => "text/html"], body = body)
 end
@@ -162,7 +148,11 @@ function handle_ws_message(session::Session, message)
     end
 end
 
-function wait_timeout(condition, error_msg, timeout = 5.0)
+"""
+    wait_timeout(condition, error_msg, timeout = 5.0)
+Wait until `condition` function returns true. If running out of time throws `error_msg`!
+"""
+function wait_timeout(condition::Function, error_msg::String, timeout = 5.0)
     start_time = time()
     while !condition()
         sleep(0.001)

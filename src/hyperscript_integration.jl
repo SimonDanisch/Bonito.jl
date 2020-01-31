@@ -1,5 +1,3 @@
-
-
 module DOM
 
 using Hyperscript
@@ -107,10 +105,6 @@ function uuid(node::Node)
     end
 end
 
-
-
-
-
 """
     jsrender([::Session], x::Any)
 Internal render method to create a valid dom. Registers used observables with a session
@@ -120,8 +114,7 @@ You can also overload it to take a session as first argument, to register
 messages with the current web session (e.g. via onjs).
 """
 jsrender(::Session, x::Any) = jsrender(x)
-jsrender(::Session, x::Union{Symbol, String}) = DOM.p(string(x))
-
+jsrender(::Session, x::Symbol) = DOM.p(string(x))
 jsrender(::Session, x::String) = x
 jsrender(::Session, x::Hyperscript.Styled) = x
 jsrender(x) = x
