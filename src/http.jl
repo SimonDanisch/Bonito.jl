@@ -185,10 +185,7 @@ end
 """
 function websocket_handler(context, websocket::WebSocket)
     request = context.request; application = context.application
-    sessionid_browserid = request_to_sessionid(request)
-    if sessionid_browserid === nothing
-        error("Not a valid websocket request")
-    end
+    sessionid_browserid = request_to_sessionid(request, throw=true)
     sessionid, browserid = sessionid_browserid
     # Look up the connection in our sessions
     if haskey(application.sessions, sessionid)
@@ -198,6 +195,6 @@ function websocket_handler(context, websocket::WebSocket)
         push!(session, websocket)
         handle_ws_connection(session, websocket)
     else
-        error("Unregistered session id: $sessionid")
+        error("Unregistered session id: $sessionid. Sessions: $(collect(keys(application.sessions)))")
     end
 end

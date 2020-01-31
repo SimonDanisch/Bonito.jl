@@ -80,6 +80,9 @@ function test_handler(session, req)
     textresult = DOM.div(t.value; dataTestId="text_result")
     sliderresult = DOM.div(s1.value; dataTestId="slider_result")
 
+    number_input = JSServe.NumberInput(66.0)
+    number_result = DOM.div(number_input.value, dataTestId="number_result")
+
     dom = md"""
     # IS THIS REAL?
 
@@ -96,6 +99,13 @@ function test_handler(session, req)
     Type something for the list: $(t)
 
     some list $(textresult)
+
+    # Number Input
+
+    $(number_input)
+
+    $(number_result)
+
     """
     return DOM.div(dom)
 end
@@ -196,6 +206,10 @@ function test_current_session(app)
                 evaljs(app, js"$(sliderresult).innerText") == "$i"
             end
         end
+    end
+    
+    @testset "number inpug" begin
+
     end
 end
 

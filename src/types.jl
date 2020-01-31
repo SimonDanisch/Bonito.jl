@@ -331,7 +331,7 @@ function Base.close(application::Application)
         app_url = JSServe.local_url(application, "/")
         while true
             x = HTTP.get(app_url, readtimeout=1, retries=1)
-            x.status != 200 && break
+            x.status != 200 && break # we got a bad request, maining server is closed!
         end
     catch e
         # This is expected to fail!
