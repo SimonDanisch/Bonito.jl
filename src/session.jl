@@ -34,17 +34,6 @@ function Base.close(session::Session)
     empty!(session.dependencies)
 end
 
-function Base.copy(session::Session)
-    obs = Dict((k => (true, map(identity, obs)) for (k, (regs, obs)) in session.observables))
-    return Session(
-        WebSocket[],
-        session.observables,
-        Dict{Symbol, Any}[],
-        copy(session.dependencies),
-        JSCode[]
-    )
-end
-
 function Base.push!(session::Session, observable::Observable)
     if !haskey(session.observables, observable.id)
         session.observables[observable.id] = (true, observable)
@@ -63,9 +52,6 @@ end
 function Base.push!(session::Session, dependency::Dependency)
     for asset in dependency.assets
         push!(session, asset)
-    end
-    for (name, jscode) in dependency.functions
-        push!(session.on_document_load, JSCode([JSString("$name = "), jscode.source...]))
     end
     return dependency
 end
@@ -137,8 +123,6 @@ function queued_as_script(io::IO, session::Session)
     """)
     empty!(session.message_queue)
 end
-
-queued_as_script(session::Session) = sprint(io-> queued_as_script(io, session))
 
 """
     send(session::Session; attributes...)
@@ -311,30 +295,13 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=10.0)
     evaljs(session, js_with_result)
     # TODO, have an on error callback, that triggers when evaljs goes wrong
     # (e.g. because of syntax error that isn't caught by the above try catch!)
-    tstart = time()
-    while time() - tstart < time_out
-        if isready(comm_channel)
-            value = take!(comm_channel)
-            if haskey(value, "error")
-                error(value["error"])
-            else
-                return value["result"]
-            end
-        end
-        sleep(0.01)
+    wait_timeout(()-> isready(comm_channel), "Waited for $(time_out) seconds for JS to return, but it didn't!", time_out)
+    value = take!(comm_channel)
+    if haskey(value, "error")
+        error(value["error"])
+    else
+        return value["result"]
     end
-    error("Waited for $(time_out) seconds for JS to return, but it didn't!")
-end
-
-"""
-    active_sessions(app::Application)
-
-Returns all active sessions of an Application
-"""
-function active_sessions(app::Application)
-    collect(filter(app.sessions) do (k, v)
-        any(x-> isopen(x[2]), v) # leave not yet started connections
-    end)
 end
 
 """

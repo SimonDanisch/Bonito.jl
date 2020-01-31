@@ -1,6 +1,6 @@
 using Hyperscript, Markdown, Test
 using JSServe, Observables
-using JSServe: Session, evaljs, linkjs, div, active_sessions
+using JSServe: Session, evaljs, linkjs, div
 using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, with_session, jsobject
 using JSServe.DOM
 using JSServe.HTTP
@@ -14,6 +14,7 @@ using WGLMakie
 using AbstractPlotting.Colors: color, reducec
 using Hyperscript: children
 using ImageTransformations
+using ElectronTests: TestSession
 
 function wait_on_test_observable()
     test_channel = Channel{Dict{String, Any}}(1)
@@ -200,21 +201,39 @@ end
 
 global test_session = nothing
 global dom = nothing
-x = with_session() do session, req
+inline_display = with_session() do session, req
     global test_session = session
     global dom = test_handler(session, req)
     return DOM.div(ElectronTests.JSTest, dom)
 end;
 
-electron_disp = electrondisplay(x);
-app = ElectronTests.TestSession(URI("http://localhost:8081/show"), JSServe.global_application[], electron_disp, test_session)
+electron_disp = electrondisplay(inline_display);
+app = TestSession(URI("http://localhost:8081/show"),
+                  JSServe.global_application[], electron_disp, test_session)
 app.dom = dom
 
 @testset "electron inline display" begin
     test_current_session(app)
-    html_webio = sprint(io-> show(io, MIME"application/vnd.webio.application+html"(), x))
 end
 close(app)
+
+@testset "webio mime" begin
+    ENV["JULIA_WEBIO_BASEURL"] = "https//google.de/"
+    JSServe.__init__()
+    @test JSServe.server_proxy_url[] == "https//google.de"
+    html_webio = sprint(io-> show(io, MIME"application/vnd.webio.application+html"(), inline_display))
+    @test JSServe.url("/test") == "https//google.de/test"
+    @test occursin("window.websocket_proxy_url = 'https//google.de';", html_webio)
+    JSServe.server_proxy_url[] = ""
+    @test JSServe.url("/test") == "/test" # back to relative urls
+    html_webio = sprint(io-> show(io, MIME"application/vnd.webio.application+html"(), inline_display))
+    @test !occursin("window.websocket_proxy_url", html_webio)
+    # We open the display server with the above TestSession
+    # TODO electrontests should do this!
+    ElectronTests.check_and_close_display()
+end
+
+
 
 @testset "Electron standalone" begin
     testsession(test_handler) do app
@@ -416,4 +435,9 @@ end
         float16_obs[] = Float16(77)
         @test evaljs(app, js"$(hey).innerText") == "Data: Float16(77.0)"
     end
+end
+
+@testset "http" begin
+    @test_throws ErrorException("Invalid sessionid: lol") JSServe.request_to_sessionid((target="lol",))
+    @test JSServe.request_to_sessionid((target="lol",), throw=false) == nothing
 end
