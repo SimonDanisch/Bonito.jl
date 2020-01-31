@@ -228,7 +228,12 @@ close(app)
     @test JSServe.url("/test") == "/test" # back to relative urls
     html_webio = sprint(io-> show(io, MIME"application/vnd.webio.application+html"(), inline_display))
     @test !occursin("window.websocket_proxy_url", html_webio)
+    # We open the display server with the above TestSession
+    # TODO electrontests should do this!
+    ElectronTests.check_and_close_display()
 end
+
+
 
 @testset "Electron standalone" begin
     testsession(test_handler) do app
