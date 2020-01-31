@@ -320,14 +320,24 @@ function Base.close(application::Application)
             wait(application.server_task[])
             @assert !isdone(application.server_connection[])
         catch e
-            # the wait will throw with the below exception
-            if isdefined(Base, :TaskFailedException)
-                if !(e isa Base.TaskFailedException && e.task.exception.code == -4079)
-                    rethrow(e)
-                end
-            end
+            @debug "Server task failed with an (expected) exception on close" exception=e
         end
     end
+    # Sometimes, the first request after closing will still go through
+    # see: https://github.com/JuliaWeb/HTTP.jl/pull/494
+    # We need to make sure, that we are the ones making this request,
+    # So that a newly opened connection won't get a faulty response from this server!
+    try
+        app_url = JSServe.local_url(application, "/")
+        while true
+            x = HTTP.get(app_url, readtimeout=1, retries=1)
+            x.status != 200 && break
+        end
+    catch e
+        # This is expected to fail!
+        @debug "Failed get request successfully after closing server!" exception=e
+    end
+    @assert !isrunning(application)
 end
 
 function start(application::Application; verbose=false)
