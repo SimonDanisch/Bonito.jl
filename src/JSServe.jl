@@ -14,7 +14,10 @@ using MsgPack
 # easier for downstream packages to test their web stuff
 using Test
 
-include("compat.jl")
+if VERSION < v"1.3-"
+    include("compat.jl")
+end
+
 include("types.jl")
 include("js_source.jl")
 include("session.jl")

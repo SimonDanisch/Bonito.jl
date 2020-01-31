@@ -34,7 +34,3 @@ macro js_str(js_source)
     append!(value_array.args, iterate_interpolations(js_source))
     return :(JSCode($value_array))
 end
-
-append_source!(x::JSCode, value::String) = push!(x.source, JSString(value))
-append_source!(x::JSCode, value::JSString) = push!(x.source, value)
-append_source!(x::JSCode, value::JSCode) = append!(x.source, value.source)
