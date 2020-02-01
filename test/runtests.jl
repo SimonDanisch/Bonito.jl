@@ -458,4 +458,22 @@ end
         @test JSServe.request_to_sessionid((target="lol",), throw=false) == nothing
     end
 
+    @testset "hyperscript" begin
+        function handler(session, request)
+            the_script = DOM.script("window.testglobal = 42")
+            s1 = Hyperscript.Style(css("p", fontWeight="bold"), css("span", color="red"))
+            the_style = DOM.style(Hyperscript.styles(s1))
+            return DOM.div(:hello, the_style, the_script, dataTestId="hello")
+        end
+        testsession(handler) do app
+            @test evaljs(app, js"window.testglobal")  == 42
+            hello_div = query_testid("hello")
+            @test evaljs(app, js"$(hello_div).innerText")  == "hello"
+            @test evaljs(app, js"$(hello_div).children.length") == 3
+            @test evaljs(app, js"$(hello_div).children[0].tagName") == "P"
+            @test evaljs(app, js"$(hello_div).children[1].tagName") == "STYLE"
+            @test evaljs(app, js"$(hello_div).children[2].tagName") == "SCRIPT"
+        end
+    end
+
 end
