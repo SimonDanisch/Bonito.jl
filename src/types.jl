@@ -219,7 +219,7 @@ function warmup(application::Application)
     if Base.istaskdone(task)
         error("Webserver doesn't serve! Error: $(fetch(task))")
     end
-    resp = WebSockets.HTTP.get(asset_url, readtimeout=10, retries=1)
+    resp = WebSockets.HTTP.get(asset_url, readtimeout=500, retries=1)
     if resp.status != 200
         error("Webserver didn't start succesfully")
     end
