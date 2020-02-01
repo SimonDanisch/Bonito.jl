@@ -96,16 +96,15 @@ function test_handler(session, req)
 
     $(clicks_div)
 
-    Type something for the list: $(t)
-
-    some list $(textresult)
-
     # Number Input
 
     $(number_input)
 
     $(number_result)
 
+    Type something for the list: $(t)
+
+    some list $(textresult)
     """
     return DOM.div(dom)
 end
@@ -207,8 +206,11 @@ function test_current_session(app)
             end
         end
     end
-    
+
     @testset "number inpug" begin
+        number_input = jsobject(app, js"document.querySelector('input[type=\"number\"]')")
+        number_input.value = "10.0"
+        number_input.onchange()
 
     end
 end
