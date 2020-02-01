@@ -240,7 +240,15 @@ function stream_handler(application::Application, stream::Stream)
             application.routes, application, request,
         )
     end
-    HTTP.handle(f, stream)
+    try
+        HTTP.handle(f, stream)
+    catch e
+        # we expect the IOError to happen, if either the page gets closed
+        # or we close the server!
+        if !(e isa Base.IOError && e.msg == "stream is closed or unusable")
+            rethrow(e)
+        end
+    end
 end
 
 const MATCH_HEX = r"[\da-f]"
@@ -331,7 +339,7 @@ function Base.close(application::Application)
         app_url = JSServe.local_url(application, "/")
         while true
             x = HTTP.get(app_url, readtimeout=1, retries=1)
-            x.status != 200 && break
+            x.status != 200 && break # we got a bad request, maining server is closed!
         end
     catch e
         # This is expected to fail!
