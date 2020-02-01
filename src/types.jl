@@ -240,7 +240,15 @@ function stream_handler(application::Application, stream::Stream)
             application.routes, application, request,
         )
     end
-    HTTP.handle(f, stream)
+    try
+        HTTP.handle(f, stream)
+    catch e
+        # we expect the IOError to happen, if either the page gets closed
+        # or we close the server!
+        if !(e isa IOError && e.msg == "stream is closed or unusable")
+            rethrow(e)
+        end
+    end
 end
 
 const MATCH_HEX = r"[\da-f]"
