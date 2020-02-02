@@ -426,8 +426,7 @@ end
             @test stripnl(evaljs(app, js"$(js_list).children[1].innerText")) == "rowdy"
             delete!(difflist, [1, 4])
 
-            @test stripnl(evaljs(app, js"$(js_list).children[0].innerText"))
- == "rowdy"
+            @test stripnl(evaljs(app, js"$(js_list).children[0].innerText")) == "rowdy"
             @test stripnl(evaljs(app, js"$(js_list).children[1].innerText")) == "monsieur"
             @test children(difflist) == [md"rowdy", md"monsieur"]
         end
