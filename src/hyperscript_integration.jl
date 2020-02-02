@@ -65,10 +65,6 @@ end
 
 render_node(session::Session, x) = x
 
-function render_node(session::Session, node::Node{Hyperscript.CSS})
-# do nothing
-    return node
-end
 function render_node(session::Session, node::Node)
     # give each node a unique id inside the dom
     new_attributes = Dict{String, Any}()
@@ -115,6 +111,5 @@ messages with the current web session (e.g. via onjs).
 """
 jsrender(::Session, x::Any) = jsrender(x)
 jsrender(::Session, x::Symbol) = DOM.p(string(x))
-jsrender(::Session, x::String) = x
 jsrender(::Session, x::Hyperscript.Styled) = x
 jsrender(x) = x
