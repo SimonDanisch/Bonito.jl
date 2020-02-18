@@ -289,7 +289,7 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=10.0)
         var result = $(js);
         update_obs($(comm), {result: result});
     }catch(e){
-        update_obs($(comm), {error: JSON.stringify(e)});
+        update_obs($(comm), {error: e.toString()});
     }
     """
     evaljs(session, js_with_result)

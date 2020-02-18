@@ -50,6 +50,13 @@ function test_handler(session, req)
     ```
 
     ---
+    # JSServe
+
+    [![Build Status](https://travis-ci.com/SimonDanisch/JSServe.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/JSServe.jl)
+    [![Build Status](https://ci.appveyor.com/api/projects/status/github/SimonDanisch/JSServe.jl?svg=true)](https://ci.appveyor.com/project/SimonDanisch/JSServe-jl)
+    [![Codecov](https://codecov.io/gh/SimonDanisch/JSServe.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/SimonDanisch/JSServe.jl)
+    [![Build Status](https://travis-ci.com/SimonDanisch/JSServe.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/JSServe.jl)
+
 
     | Tables        | Are           | Cool  |
     | ------------- |:-------------:| -----:|
@@ -61,7 +68,7 @@ function test_handler(session, req)
     > This line is part of the same quote.
 
     # Plots:
-    
+
     $(slider)
 
     $(button)
