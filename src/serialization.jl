@@ -136,10 +136,10 @@ JSON3.StructType(::Type{Hyperscript.Node{Hyperscript.HTMLSVG}}) = JSON3.ObjectTy
 MsgPack.msgpack_type(::Type{Hyperscript.Node{Hyperscript.HTMLSVG}}) = MsgPack.MapType()
 
 function MsgPack.to_msgpack(::MsgPack.MapType, node::Hyperscript.Node{Hyperscript.HTMLSVG})
-    return JSON3.keyvaluepairs(node)
+    return JSON3.StructTypes.keyvaluepairs(node)
 end
 
-function JSON3.keyvaluepairs(node::Hyperscript.Node{Hyperscript.HTMLSVG})
+function JSON3.StructTypes.keyvaluepairs(node::Hyperscript.Node{Hyperscript.HTMLSVG})
     return [
         :tag => getfield(node, :tag),
         :children => getfield(node, :children),
