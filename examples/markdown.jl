@@ -79,7 +79,7 @@ function test_handler(session, req)
 
     ---
     """
-    return DOM.div(markdown_css, dom)
+    return JSServe.DOM.div(markdown_css, dom)
 end
 
 app = JSServe.Application(test_handler, "0.0.0.0", 8081)
