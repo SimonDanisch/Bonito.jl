@@ -2,7 +2,7 @@ using Hyperscript
 using JSServe, Observables
 using JSServe.DOM
 
-using JSServe: Application, Session, evaljs, linkjs, update_dom!, div, active_sessions
+using JSServe: Application, Session, evaljs, linkjs, div, active_sessions
 using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, with_session
 
 # Javascript & CSS dependencies can be declared locally and
