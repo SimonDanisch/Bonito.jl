@@ -60,6 +60,7 @@ function attribute_render(session, parent, attribute, obs::Observable)
 end
 
 function attribute_render(session, parent, attribute, jss::JSCode)
+    register_resource!(session, jss)
     return serialize_readable(jss)
 end
 
