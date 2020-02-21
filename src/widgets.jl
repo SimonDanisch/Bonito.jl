@@ -155,3 +155,22 @@ function jsrender(session::Session, slider::RangeSlider)
     onjs(session, style, create_slider)
     return rangediv
 end
+
+
+struct Checkbox <: JSServe.AbstractWidget{Bool}
+    value::Observable{Bool}
+    attributes::Dict{Symbol, Any}
+end
+
+function Checkbox(value::Bool; kw...)
+    return Checkbox(Observable(value), Dict{Symbol, Any}(kw))
+end
+
+function JSServe.jsrender(tb::Checkbox)
+    return DOM.input(
+        type = "checkbox",
+        checked = tb.value,
+        onchange = js"update_obs($(tb.value), this.checked);";
+        tb.attributes...
+    )
+end

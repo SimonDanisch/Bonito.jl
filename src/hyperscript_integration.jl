@@ -41,8 +41,11 @@ end
 using .DOM
 
 # default turn attributes into strings
-attribute_render(session, parent, attribute, x) = string(x)
-function attribute_render(session, parent, attribute, obs::Observable)
+attribute_render(session::Session, parent, attribute::String, x) = string(x)
+attribute_render(session::Session, parent, attribute::String, x::Nothing) = x
+attribute_render(session::Session, parent, attribute::String, x::Bool) = x
+
+function attribute_render(session::Session, parent, attribute::String, obs::Observable)
     onjs(session, obs, js"""
     function (value){
         var node = $(parent);
@@ -59,11 +62,42 @@ function attribute_render(session, parent, attribute, obs::Observable)
     return attribute_render(session, parent, attribute, obs[])
 end
 
-function attribute_render(session, parent, attribute, jss::JSCode)
+function attribute_render(session::Session, parent, attribute::String, jss::JSCode)
+    register_resource!(session, jss)
     return serialize_readable(jss)
 end
 
 render_node(session::Session, x) = x
+
+const BOOLEAN_ATTRIUTES = Set([
+    "allowfullscreen",
+    "allowpaymentrequest",
+    "async",
+    "autofocus",
+    "autoplay",
+    "checked",
+    "controls",
+    "default",
+    "defer",
+    "disabled",
+    "formnovalidate",
+    "hidden",
+    "ismap",
+    "itemscope",
+    "loop",
+    "multiple",
+    "muted",
+    "nomodule",
+    "novalidate",
+    "open",
+    "readonly",
+    "required",
+    "reversed",
+    "selected",
+    "typemustmatch"
+])
+
+is_boolean_attribute(attribute::String) = attribute in BOOLEAN_ATTRIUTES
 
 function render_node(session::Session, node::Node)
     # give each node a unique id inside the dom
@@ -79,7 +113,20 @@ function render_node(session::Session, node::Node)
         return childnode
     end
     for (k, v) in Hyperscript.attrs(node)
-        new_attributes[k] = attribute_render(session, node, k, v)
+        rendered = attribute_render(session, node, k, v)
+        # We code nothing to mean omitting the attribute!
+        if is_boolean_attribute(k)
+            if rendered isa Bool
+                if rendered
+                    # only add attribute if true!
+                    new_attributes[k] = true
+                end
+            else
+                error("Boolean attribute $(k) expects a boolean! Found: $(typeof(rendered))")
+            end
+        else
+            new_attributes[k] = rendered
+        end
     end
     return Node(
         Hyperscript.context(node),
