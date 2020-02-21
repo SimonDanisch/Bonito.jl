@@ -167,16 +167,9 @@ function Checkbox(value::Bool; kw...)
 end
 
 function JSServe.jsrender(tb::Checkbox)
-    # unchecked in css is encoded by leaving out the attribute (*sigh*)
-    # which we encode with setting the attribute to nothing!
-    # Buhuuut, later, to update checked, it only supports true/false
-    checked = Observable{Union{Bool, Nothing}}(tb[] ? true : nothing)
-    on(tb) do val
-        checked[] = val
-    end
     return DOM.input(
         type = "checkbox",
-        checked = checked,
+        checked = tb.value,
         onchange = js"update_obs($(tb.value), this.checked);";
         tb.attributes...
     )
