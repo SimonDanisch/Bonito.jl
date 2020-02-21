@@ -42,12 +42,16 @@ using .DOM
 
 # default turn attributes into strings
 attribute_render(session, parent, attribute, x) = string(x)
+attribute_render(session, parent, attribute, x::Nothing) = x
 function attribute_render(session, parent, attribute, obs::Observable)
     onjs(session, obs, js"""
     function (value){
         var node = $(parent);
         if(node){
-            if(node[$attribute] != value){
+            // we encode nothing == null to mean attribute not set!
+            if(value == null){
+                node.removeAttribute($attribute);
+            }else if(node[$attribute] != value){
                 node[$attribute] = value;
             }
             return true;
@@ -80,7 +84,11 @@ function render_node(session::Session, node::Node)
         return childnode
     end
     for (k, v) in Hyperscript.attrs(node)
-        new_attributes[k] = attribute_render(session, node, k, v)
+        rendered = attribute_render(session, node, k, v)
+        # We code nothing to mean omitting the attribute!
+        if rendered !== nothing
+            new_attributes[k] = rendered
+        end
     end
     return Node(
         Hyperscript.context(node),

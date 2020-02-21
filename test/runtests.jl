@@ -17,6 +17,7 @@ using ImageTransformations
 using ElectronTests: TestSession
 
 function wait_on_test_observable()
+    global test_observable
     test_channel = Channel{Dict{String, Any}}(1)
     f = on(test_observable) do value
         put!(test_channel, value)
@@ -50,11 +51,13 @@ end
 @testset "JSServe" begin
     function test_handler(session, req)
         global test_observable
+        test_observable = Observable(Dict{String, Any}())
         test_session = session
 
         s1 = JSServe.Slider(1:100)
         s2 = JSServe.Slider(1:100)
         b = JSServe.Button("hi"; dataTestId="hi_button")
+
         clicks = Observable(0)
         on(b) do click
             clicks[] = clicks[] + 1
@@ -62,7 +65,7 @@ end
         clicks_div = DOM.div(clicks, dataTestId="button_clicks")
         t = TextField("Write!")
 
-        test_observable = Observable(Dict{String, Any}())
+
         linkjs(session, s1.value, s2.value)
 
         onjs(session, s1.value, js"""function (v){
@@ -473,6 +476,45 @@ end
             @test evaljs(app, js"$(hello_div).children[0].tagName") == "P"
             @test evaljs(app, js"$(hello_div).children[1].tagName") == "STYLE"
             @test evaljs(app, js"$(hello_div).children[2].tagName") == "SCRIPT"
+        end
+    end
+
+    @testset "checkbox" begin
+        function handler(session, request)
+            global test_observable
+            test_observable = Observable(Dict{String, Any}())
+            checkbox1 = JSServe.Checkbox(true)
+            checkbox2 = JSServe.Checkbox(false)
+
+            on(checkbox1) do value
+                test_observable[] = Dict{String, Any}("checkbox1" => value)
+            end
+            on(checkbox2) do value
+                test_observable[] = Dict{String, Any}("checkbox2" => value)
+            end
+
+            return DOM.div(checkbox1, checkbox2)
+        end
+
+        testsession(handler) do app
+            checkbox1_jl = children(app.dom)[1]
+            checkbox2_jl = children(app.dom)[2]
+            @test evaljs(app, js"document.querySelectorAll('input[type=\"checkbox\"]').length") == 2
+            checkbox1 = js"document.querySelectorAll('input[type=\"checkbox\"]')[0]"
+            checkbox2 = js"document.querySelectorAll('input[type=\"checkbox\"]')[1]"
+            @test evaljs(app, js"$(checkbox1).checked") == true
+            @test evaljs(app, js"$(checkbox2).checked") == false
+            val = test_value(app, js"$(checkbox1).click()")
+            @test val["checkbox1"] == false
+            @test checkbox1_jl[] == false
+            val = test_value(app, js"$(checkbox2).click()")
+            @test val["checkbox2"] == true
+            @test checkbox2_jl[] == true
+            # button press from Julia
+            checkbox1_jl[] = true # this won't trigger onchange!!!!
+            @test evaljs(app, js"$(checkbox1).checked") == true
+            checkbox2_jl[] = false
+            @test evaljs(app, js"$(checkbox2).checked") == false
         end
     end
 
