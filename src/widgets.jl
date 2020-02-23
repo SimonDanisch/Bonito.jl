@@ -1,20 +1,4 @@
-using Observables
-
-abstract type AbstractWidget{T} <: Observables.AbstractObservable{T} end
-
-Observables.observe(x::AbstractWidget) = x.value
-
-struct Button{T} <: AbstractWidget{Bool}
-    content::Observable{T}
-    value::Observable{Bool}
-    attributes::Dict{Symbol, Any}
-end
-
-function Button(content; kw...)
-    return Button(
-        Observable(content), Observable(false), Dict{Symbol, Any}(kw)
-    )
-end
+# Render the widgets from WidgetsBase!
 
 function jsrender(button::Button)
     return DOM.input(
@@ -23,15 +7,6 @@ function jsrender(button::Button)
         onclick = js"update_obs($(button.value), true);";
         button.attributes...
     )
-end
-
-struct TextField <: AbstractWidget{String}
-    value::Observable{String}
-    attributes::Dict{Symbol, Any}
-end
-
-function TextField(value::String; kw...)
-    TextField(Observable(value), Dict{Symbol, Any}(kw))
 end
 
 function jsrender(tf::TextField)
@@ -43,35 +18,12 @@ function jsrender(tf::TextField)
     )
 end
 
-struct NumberInput <: AbstractWidget{Float64}
-    value::Observable{Float64}
-    attributes::Dict{Symbol, Any}
-end
-
-function NumberInput(value::Float64; kw...)
-    NumberInput(Observable(value), Dict{Symbol, Any}(kw))
-end
-
 function jsrender(ni::NumberInput)
     return DOM.input(
         type = "number",
         value = ni.value,
         onchange = js"update_obs($(ni.value), parseFloat(this.value));";
         ni.attributes...
-    )
-end
-
-struct Slider{T <: AbstractRange, ET} <: AbstractWidget{T}
-    range::Observable{T}
-    value::Observable{ET}
-    attributes::Dict{Symbol, Any}
-end
-
-function Slider(range::T, value = first(range); kw...) where T <: AbstractRange
-    Slider{T, eltype(range)}(
-        convert(Observable, range),
-        convert(Observable, value),
-        Dict{Symbol, Any}(kw)
     )
 end
 
@@ -86,31 +38,6 @@ function jsrender(slider::Slider)
         slider.attributes...
     )
 end
-
-@enum Orientation vertical horizontal
-
-struct RangeSlider{T <: AbstractRange, ET <: AbstractArray} <: AbstractWidget{T}
-    attributes::Dict{Symbol, Any}
-    range::Observable{T}
-    value::Observable{ET}
-    connect::Observable{Bool}
-    orientation::Observable{Orientation}
-    tooltips::Observable{Bool}
-    ticks::Observable{Dict{String, Any}}
-end
-
-function RangeSlider(range::T; value = [first(range)], kw...) where T <: AbstractRange
-    RangeSlider{T, typeof(value)}(
-        Dict{Symbol, Any}(kw),
-        Observable(range),
-        Observable(value),
-        Observable(true),
-        Observable(horizontal),
-        Observable(false),
-        Observable(Dict{String, Any}()),
-    )
-end
-
 
 const noUiSlider = Dependency(
     :noUiSlider,
@@ -154,16 +81,6 @@ function jsrender(session::Session, slider::RangeSlider)
     }""")
     onjs(session, style, create_slider)
     return rangediv
-end
-
-
-struct Checkbox <: JSServe.AbstractWidget{Bool}
-    value::Observable{Bool}
-    attributes::Dict{Symbol, Any}
-end
-
-function Checkbox(value::Bool; kw...)
-    return Checkbox(Observable(value), Dict{Symbol, Any}(kw))
 end
 
 function JSServe.jsrender(tb::Checkbox)
