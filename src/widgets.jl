@@ -69,7 +69,6 @@ function jsrender(session::Session, slider::RangeSlider)
     rangediv = DOM.div()
     create_slider = js"""function create_slider(style){
         var range = $(rangediv);
-        console.log(style);
         range.noUiSlider.updateOptions(deserialize_js(style), true);
     }"""
     onload(session, rangediv, js"""function onload(range){
