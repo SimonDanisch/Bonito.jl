@@ -1,7 +1,7 @@
 name = "JSServe"
 uuid = "824d6782-a2ef-11e9-3a09-e5662e0c26f9"
 authors = ["SimonDanisch <sdanisch@gmail.com>"]
-version = "0.3.8"
+version = "0.3.9"
 
 [deps]
 AssetRegistry = "bf4720bc-e11a-5d0c-854e-bdca1663c893"
