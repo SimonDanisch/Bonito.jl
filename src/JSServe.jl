@@ -16,10 +16,6 @@ using WidgetsBase: vertical, horizontal
 # easier for downstream packages to test their web stuff
 using Test
 
-if VERSION < v"1.3-"
-    include("compat.jl")
-end
-
 include("types.jl")
 include("js_source.jl")
 include("session.jl")
