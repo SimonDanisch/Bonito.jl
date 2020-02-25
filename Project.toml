@@ -24,7 +24,7 @@ HTTP = "0.8"
 Hyperscript = "0.0.3"
 JSON3 = "0.1, 1.0"
 MsgPack = "1.1.0"
-Observables = "0.2.3"
+Observables = "0.2.3, 0.3"
 WebSockets = "1.5"
 julia = "1"
 
