@@ -21,7 +21,7 @@ WidgetsBase = "eead4739-05f7-45a1-878c-cee36b57321c"
 
 [compat]
 AssetRegistry = "0.1"
-HTTP = "=0.8.8"
+HTTP = "0.8"
 Hyperscript = "0.0.3"
 JSON3 = "0.1, 1.0"
 MsgPack = "1.1.0"
