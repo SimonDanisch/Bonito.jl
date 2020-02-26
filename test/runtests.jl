@@ -50,4 +50,5 @@ end
     @testset "WGLMakie" begin; include("wglmakie.jl"); end
     @testset "various" begin; include("various.jl"); end
     @testset "markdown" begin; include("markdown.jl"); end
+    @testset "diffing" begin; include("diffing.jl"); end
 end

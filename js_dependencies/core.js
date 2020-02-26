@@ -5,6 +5,12 @@ const javascript_object_heap = {}
 function put_on_heap(id, value){
     javascript_object_heap[id] = value;
 }
+
+function delete_from_heap(id){
+    delete javascript_object_heap[id];
+}
+
+
 function get_heap_object(id){
     if(id in javascript_object_heap){
         return javascript_object_heap[id];
@@ -27,6 +33,7 @@ const JSGetIndex = '6'
 const JSSetIndex = '7'
 const JSDoneLoading = '8'
 const FusedMessage = '9'
+const DeleteObjects = '10'
 
 function is_list(value){
     return value && typeof value === 'object' && value.constructor === Array;
@@ -371,6 +378,19 @@ function process_message(data){
                 send_error(
                     "Error while executing setting field " + data.field +
                     " from:\n" + String(obj) + " with value " + String(val),
+                    exception
+                )
+            }
+            break;
+        case DeleteObjects:
+            try{
+                var objects_to_delete = data.payload;
+                for(var object in objects_to_delete){
+                    delete_from_heap(objects_to_delete[object]);
+                }
+            }catch(exception){
+                send_error(
+                    "Error while deleting objects: " + objects_to_delete,
                     exception
                 )
             }

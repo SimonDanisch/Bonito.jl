@@ -68,6 +68,8 @@ struct Session
     fusing::Base.RefValue{Bool}
     connections::Vector{WebSocket}
     observables::Dict{String, Tuple{Bool, Observable}} # Bool -> if already registered with Frontend
+    # We need to keep track of any objects that is used on the js side, to not free it!
+    objects::Vector{Any}
     message_queue::Vector{Dict{Symbol, Any}}
     dependencies::Set{Asset}
     on_document_load::Vector{JSCode}
@@ -76,6 +78,43 @@ struct Session
     on_websocket_ready::Any
 end
 
+abstract type AbstractJSObject end
+
+const GLOBAL_UUID = Base.Threads.Atomic{UInt}(0)
+
+"""
+References objects stored in Javascript.
+Maps the following expressions to actual calls on the Javascript side:
+```julia
+jso = JSObject(name, scope, typ)
+# getfield:
+x = jso.property # returns a new JSObject
+# setfield
+jso.property = "newval" # Works with JSObjects or Julia objects as newval
+# call:
+result = jso.func(args...) # works with julia objects and other JSObjects as args
+
+# constructors are wrapped this way:
+scene = jso.new.Scene() # same as in JS: scene = new jso.Scene()
+```
+"""
+mutable struct JSObject <: AbstractJSObject
+    # fields are private and not accessible via jsobject.field
+    name::Symbol
+    session::Session
+    typ::Symbol
+    # transporting the UUID allows us to have a uuid different from the objectid
+    # which will help to better capture === equivalence on the js side.
+    uuid::UInt
+
+    function JSObject(name::Symbol, scope::Session, typ::Symbol)
+        obj = new(name, scope, typ)
+        uuid = GLOBAL_UUID[] += 1
+        setfield!(obj, :uuid, uuid)
+        finalizer(remove_js_reference, obj)
+        return obj
+    end
+end
 
 struct Routes
     table::Vector{Pair{Any, Any}}

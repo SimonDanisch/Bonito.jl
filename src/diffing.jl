@@ -23,46 +23,88 @@ function DiffList(children::Vector; attributes...)
     )
 end
 
-Hyperscript.children(diffnode::DiffList) = diffnode.children
+Hyperscript.children(difflist::DiffList) = difflist.children
 
-function Base.empty!(diffnode::DiffList)
-    diffnode.empty[] = true
-    empty!(children(diffnode))
+"""
+    connect!(observable_list::Observable{<:AbstractVector}, difflist::DiffList)
+Connects an Observable list with the events (empty, append, setindex, delete, insert) from
+`difflist`.
+"""
+function Observables.connect!(observable_list::Observable{<:AbstractVector}, difflist::DiffList)
+    if observable_list[] != difflist.children
+        empty!(observable_list[])
+        append!(observable_list[], difflist.children)
+    end
+    on(difflist.empty) do bool
+        empty!(observable_list[])
+        observable_list[] = observable_list[]
+    end
+
+    on(difflist.append) do values
+        append!(observable_list[], values)
+        observable_list[] = observable_list[]
+    end
+
+    on(difflist.setindex) do (indices, values)
+        observable_list[][indices] = values
+        observable_list[] = observable_list[]
+    end
+
+    on(difflist.setindex) do (indices, values)
+        observable_list[][indices] = values
+        observable_list[] = observable_list[]
+    end
+
+    on(difflist.delete) do indices
+        i = 0
+        filter!(x->(i+=1; !(i in indices)), observable_list[])
+        observable_list[] = observable_list[]
+    end
+
+    on(difflist.insert) do (index, item)
+        insert!(observable_list[], index, item)
+        observable_list[] = observable_list[]
+    end
 end
 
-Base.push!(diffnode::DiffList, value) = append!(diffnode, [value])
+function Base.empty!(difflist::DiffList)
+    difflist.empty[] = true
+    empty!(children(difflist))
+end
 
-function Base.append!(diffnode::DiffList, values::Vector)
-    diffnode.append[] = values
-    append!(children(diffnode), values)
+Base.push!(difflist::DiffList, value) = append!(difflist, [value])
+
+function Base.append!(difflist::DiffList, values::Vector)
+    difflist.append[] = values
+    append!(children(difflist), values)
     return values
 end
 
-Base.setindex!(diffnode::DiffList, value, idx::Integer) = setindex!(diffnode, [value], Int[idx])
+Base.setindex!(difflist::DiffList, value, idx::Integer) = setindex!(difflist, [value], Int[idx])
 
-function Base.setindex!(diffnode::DiffList, values::Vector, idx::Union{Integer, AbstractVector{<: Integer}, AbstractRange})
+function Base.setindex!(difflist::DiffList, values::Vector, idx::Union{Integer, AbstractVector{<: Integer}, AbstractRange})
     indices = convert(Vector{Int}, idx)
     length(values) != length(indices) && error("Dimensions must match!")
-    diffnode.setindex[] = (indices, values)
-    children(diffnode)[indices] = values
+    difflist.setindex[] = (indices, values)
+    children(difflist)[indices] = values
     return values
 end
 
-function Base.delete!(diffnode::DiffList, idx::Union{Integer, AbstractVector{<: Integer}, AbstractRange})
+function Base.delete!(difflist::DiffList, idx::Union{Integer, AbstractVector{<: Integer}, AbstractRange})
     indices = idx isa Integer ? Int[idx] : convert(Vector{Int}, idx)
-    diffnode.delete[] = indices
+    difflist.delete[] = indices
     i = 0
-    filter!(x->(i+=1; !(i in idx)), children(diffnode))
+    filter!(x->(i+=1; !(i in idx)), children(difflist))
     return idx
 end
 
-function Base.insert!(diffnode::DiffList, index::Integer, item)
-    diffnode.insert[] = (Int(index), item)
-    insert!(children(diffnode), index, item)
+function Base.insert!(difflist::DiffList, index::Integer, item)
+    difflist.insert[] = (Int(index), item)
+    insert!(children(difflist), index, item)
 end
 
-function replace_children(diffnode::DiffList, list::Vector; batch = 100)
-    empty!(diffnode)
+function replace_children(difflist::DiffList, list::Vector; batch = 100)
+    empty!(difflist)
     isempty(list) && return
     append_lock = Ref(true)
     @async begin
@@ -75,18 +117,17 @@ function replace_children(diffnode::DiffList, list::Vector; batch = 100)
                 yield()
             end
             append_lock[] = false
-            append!(diffnode, list[i:min(i - 1 + batch, length(list))])
+            append!(difflist, list[i:min(i - 1 + batch, length(list))])
             append_lock[] = true
         end
     end
 end
 
-function JSServe.jsrender(session::JSServe.Session, diffnode::DiffList)
+function JSServe.jsrender(session::JSServe.Session, difflist::DiffList)
     # We start with an ampty node, to not stress rendering too much!
     # We will fill the div async after creation.
-    node = DOM.div(; diffnode.attributes...)
-
-    append = map(diffnode.append) do values
+    node = DOM.div(; difflist.attributes...)
+    append = map(difflist.append) do values
         return JSServe.jsrender.((session,), values)
     end
 
@@ -98,7 +139,7 @@ function JSServe.jsrender(session::JSServe.Session, diffnode::DiffList)
         }
     }""")
 
-    setindex = map(diffnode.setindex) do (indices, values)
+    setindex = map(difflist.setindex) do (indices, values)
         return (indices, JSServe.jsrender.((session,), values))
     end
 
@@ -113,7 +154,7 @@ function JSServe.jsrender(session::JSServe.Session, diffnode::DiffList)
         }
     }""")
 
-    onjs(session, diffnode.delete, js"""function (indices){
+    onjs(session, difflist.delete, js"""function (indices){
         var indices = deserialize_js(indices);
         var node = $(node);
         var children2remove = indices.map(x=> node.children[x - 1]);
@@ -122,29 +163,30 @@ function JSServe.jsrender(session::JSServe.Session, diffnode::DiffList)
         }
     }""")
 
-    insert = map(diffnode.insert) do (index, element)
+    insert = map(difflist.insert) do (index, element)
         if element !== nothing
             return (index, JSServe.jsrender(session, element))
         else
             (index, nothing)
         end
     end
+
     onjs(session, insert, js"""function (index_element){
         var node = $(node);
         var element = materialize(index_element[1]);
         node.insertBefore(element, node.children[index_element[0] - 1]);
     }""")
 
-    onjs(session, diffnode.empty, js"""function (empty){
+    onjs(session, difflist.empty, js"""function (empty){
         var node = $(node);
         while (node.firstChild) {
             node.removeChild(node.firstChild);
         }
     }""")
     # Schedule to fill in nodes async & batched
-    # copy == otherwise it will call empty! on children(diffnode)
+    # copy == otherwise it will call empty! on children(difflist)
     # before replacing!
-    replace_children(diffnode, copy(children(diffnode)))
+    replace_children(difflist, copy(children(difflist)))
 
     return node
 end

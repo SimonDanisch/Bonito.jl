@@ -49,6 +49,7 @@ function __init__()
         # gets closed
         rm(dependency_path("session_temp_data"), recursive=true, force=true)
     end
+    start_gc_task()
 end
 
 

@@ -10,10 +10,11 @@ function init_session(session::Session)
 end
 
 function Session(connections::Vector{WebSocket}=WebSocket[])
-    Session(
+    return Session(
         Ref(false),
         connections,
         Dict{String, Tuple{Bool, Observable}}(),
+        Any[],
         Dict{Symbol, Any}[],
         Set{Asset}(),
         JSCode[],
@@ -29,47 +30,11 @@ function Base.close(session::Session)
     foreach(close, session.connections)
     empty!(session.connections)
     empty!(session.observables)
+    empty!(session.objects)
     empty!(session.on_document_load)
     empty!(session.message_queue)
     empty!(session.dependencies)
 end
-
-function Base.push!(session::Session, observable::Observable)
-    if !haskey(session.observables, observable.id)
-        session.observables[observable.id] = (true, observable)
-        # Register on the JS side by sending the current value
-        updater = JSUpdateObservable(session, observable.id)
-        # Make sure we update the Javascript values!
-        on(updater, observable)
-        if isopen(session)
-            # If websockets are already open, we need to also update the value
-            # to register it with js
-            updater(observable[])
-        end
-    end
-end
-
-function Base.push!(session::Session, dependency::Dependency)
-    for asset in dependency.assets
-        push!(session, asset)
-    end
-    return dependency
-end
-
-function Base.push!(session::Session, asset::Asset)
-    push!(session.dependencies, asset)
-    if asset.onload !== nothing
-        on_document_load(session, asset.onload)
-    end
-    return asset
-end
-
-function Base.push!(session::Session, websocket::WebSocket)
-    push!(session.connections, websocket)
-    filter!(isopen, session.connections)
-    return session
-end
-
 
 """
     queued_as_script(session::Session)
@@ -80,7 +45,6 @@ function queued_as_script(io::IO, session::Session)
     # send all queued messages
     # # first register observables
     observables = Dict{String, Any}()
-
     for (id, (registered, observable)) in session.observables
         observables[observable.id] = observable[]
     end
@@ -147,8 +111,11 @@ function fuse(f, session::Session)
     result = f()
     session.fusing[] = false
     if !isempty(session.message_queue)
-        send(session; msg_type=FusedMessage, payload=session.message_queue)
-        empty!(session.message_queue)
+        # only sent when open!
+        if isopen(session)
+            send(session; msg_type=FusedMessage, payload=session.message_queue)
+            empty!(session.message_queue)
+        end
     end
     return result
 end
@@ -244,6 +211,10 @@ function evaljs(has_session, jss::JSCode)
     evaljs(session(has_session), jss)
 end
 
+function delete_objects(session::Session, objects::Vector{String})
+    send(session; msg_type=DeleteObjects, payload=objects)
+end
+
 const JS_COMM_CHANNEL = Channel{Dict{String, Any}}(1)
 const JS_COMM_OBSERVABLE = Observable(Dict{String, Any}())
 
@@ -322,7 +293,7 @@ function register_resource!(session::Session, jss::JSCode)
     register_resource!(session, jss.source)
 end
 
-function register_resource!(session::Session, asset::Union{Asset, Dependency, Observable})
+function register_resource!(session::Session, asset::Union{Asset, Dependency, Observable, JSObject})
     push!(session, asset)
 end
 
@@ -330,4 +301,45 @@ function register_resource!(session::Session, node::Node)
     walk_dom(session, node) do x
         register_resource!(session, x)
     end
+end
+
+function Base.push!(session::Session, observable::Observable)
+    if !haskey(session.observables, observable.id)
+        session.observables[observable.id] = (true, observable)
+        # Register on the JS side by sending the current value
+        updater = JSUpdateObservable(session, observable.id)
+        # Make sure we update the Javascript values!
+        on(updater, observable)
+        if isopen(session)
+            # If websockets are already open, we need to also update the value
+            # to register it with js
+            updater(observable[])
+        end
+    end
+end
+
+function Base.push!(session::Session, dependency::Dependency)
+    for asset in dependency.assets
+        push!(session, asset)
+    end
+    return dependency
+end
+
+function Base.push!(session::Session, asset::Asset)
+    push!(session.dependencies, asset)
+    if asset.onload !== nothing
+        on_document_load(session, asset.onload)
+    end
+    return asset
+end
+
+function Base.push!(session::Session, websocket::WebSocket)
+    push!(session.connections, websocket)
+    filter!(isopen, session.connections)
+    return session
+end
+
+function Base.push!(session::Session, object::JSObject)
+    push!(session.objects, object)
+    return object
 end
