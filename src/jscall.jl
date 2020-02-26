@@ -1,6 +1,27 @@
 
+const OBJECTIDS_QUEUED_FOR_FREEING = WeakKeyDict{Session, Vector{String}}()
+
+function start_gc_task()
+    @async begin
+        while true
+            try
+                for (session, objects) in OBJECTIDS_QUEUED_FOR_FREEING
+                    if length(objects) > 100
+                        delete_objects(session, objects)
+                        empty!(objects)
+                    end
+                end
+            catch e
+                @warn "Error while freeing!" exception=e
+            end
+            sleep(5)
+        end
+    end
+end
+
 function remove_js_reference(object::JSObject)
-    @async evaljs(object, js"delete_from_heap($(uuidstr(object)))")
+    objects = get!(OBJECTIDS_QUEUED_FOR_FREEING, session(object), String[])
+    push!(objects, uuidstr(object))
 end
 
 struct JSGlobal <: AbstractJSObject

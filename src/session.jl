@@ -209,6 +209,10 @@ function evaljs(has_session, jss::JSCode)
     evaljs(session(has_session), jss)
 end
 
+function delete_objects(session::Session, objects::Vector{String})
+    send(session; msg_type=DeleteObjects, payload=objects)
+end
+
 const JS_COMM_CHANNEL = Channel{Dict{String, Any}}(1)
 const JS_COMM_OBSERVABLE = Observable(Dict{String, Any}())
 
