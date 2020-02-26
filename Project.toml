@@ -6,6 +6,7 @@ version = "0.4.0"
 [deps]
 AssetRegistry = "bf4720bc-e11a-5d0c-854e-bdca1663c893"
 Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+ElectronTests = "fa9e6d27-338f-4c48-a526-3b082c2df35e"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 Hyperscript = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
