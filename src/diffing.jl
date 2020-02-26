@@ -30,7 +30,7 @@ Hyperscript.children(difflist::DiffList) = difflist.children
 Connects an Observable list with the events (empty, append, setindex, delete, insert) from
 `difflist`.
 """
-function connect!(observable_list::Observable{<:AbstractVector}, difflist::DiffList)
+function Observables.connect!(observable_list::Observable{<:AbstractVector}, difflist::DiffList)
     if observable_list[] != difflist.children
         empty!(observable_list[])
         append!(observable_list[], difflist.children)
@@ -127,7 +127,6 @@ function JSServe.jsrender(session::JSServe.Session, difflist::DiffList)
     # We start with an ampty node, to not stress rendering too much!
     # We will fill the div async after creation.
     node = DOM.div(; difflist.attributes...)
-
     append = map(difflist.append) do values
         return JSServe.jsrender.((session,), values)
     end
@@ -171,6 +170,7 @@ function JSServe.jsrender(session::JSServe.Session, difflist::DiffList)
             (index, nothing)
         end
     end
+
     onjs(session, insert, js"""function (index_element){
         var node = $(node);
         var element = materialize(index_element[1]);
