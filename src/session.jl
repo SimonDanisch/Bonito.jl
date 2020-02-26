@@ -45,7 +45,6 @@ function queued_as_script(io::IO, session::Session)
     # send all queued messages
     # # first register observables
     observables = Dict{String, Any}()
-
     for (id, (registered, observable)) in session.observables
         observables[observable.id] = observable[]
     end
@@ -112,8 +111,11 @@ function fuse(f, session::Session)
     result = f()
     session.fusing[] = false
     if !isempty(session.message_queue)
-        send(session; msg_type=FusedMessage, payload=session.message_queue)
-        empty!(session.message_queue)
+        # only sent when open!
+        if isopen(session)
+            send(session; msg_type=FusedMessage, payload=session.message_queue)
+            empty!(session.message_queue)
+        end
     end
     return result
 end
