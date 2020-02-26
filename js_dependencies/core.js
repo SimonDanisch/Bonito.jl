@@ -5,6 +5,12 @@ const javascript_object_heap = {}
 function put_on_heap(id, value){
     javascript_object_heap[id] = value;
 }
+
+function delete_from_heap(id){
+    delete javascript_object_heap[id];
+}
+
+
 function get_heap_object(id){
     if(id in javascript_object_heap){
         return javascript_object_heap[id];

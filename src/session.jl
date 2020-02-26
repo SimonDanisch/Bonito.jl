@@ -10,10 +10,11 @@ function init_session(session::Session)
 end
 
 function Session(connections::Vector{WebSocket}=WebSocket[])
-    Session(
+    return Session(
         Ref(false),
         connections,
         Dict{String, Tuple{Bool, Observable}}(),
+        Any[],
         Dict{Symbol, Any}[],
         Set{Asset}(),
         JSCode[],
@@ -29,47 +30,11 @@ function Base.close(session::Session)
     foreach(close, session.connections)
     empty!(session.connections)
     empty!(session.observables)
+    empty!(session.objects)
     empty!(session.on_document_load)
     empty!(session.message_queue)
     empty!(session.dependencies)
 end
-
-function Base.push!(session::Session, observable::Observable)
-    if !haskey(session.observables, observable.id)
-        session.observables[observable.id] = (true, observable)
-        # Register on the JS side by sending the current value
-        updater = JSUpdateObservable(session, observable.id)
-        # Make sure we update the Javascript values!
-        on(updater, observable)
-        if isopen(session)
-            # If websockets are already open, we need to also update the value
-            # to register it with js
-            updater(observable[])
-        end
-    end
-end
-
-function Base.push!(session::Session, dependency::Dependency)
-    for asset in dependency.assets
-        push!(session, asset)
-    end
-    return dependency
-end
-
-function Base.push!(session::Session, asset::Asset)
-    push!(session.dependencies, asset)
-    if asset.onload !== nothing
-        on_document_load(session, asset.onload)
-    end
-    return asset
-end
-
-function Base.push!(session::Session, websocket::WebSocket)
-    push!(session.connections, websocket)
-    filter!(isopen, session.connections)
-    return session
-end
-
 
 """
     queued_as_script(session::Session)
@@ -322,7 +287,7 @@ function register_resource!(session::Session, jss::JSCode)
     register_resource!(session, jss.source)
 end
 
-function register_resource!(session::Session, asset::Union{Asset, Dependency, Observable})
+function register_resource!(session::Session, asset::Union{Asset, Dependency, Observable, JSObject})
     push!(session, asset)
 end
 
@@ -330,4 +295,45 @@ function register_resource!(session::Session, node::Node)
     walk_dom(session, node) do x
         register_resource!(session, x)
     end
+end
+
+function Base.push!(session::Session, observable::Observable)
+    if !haskey(session.observables, observable.id)
+        session.observables[observable.id] = (true, observable)
+        # Register on the JS side by sending the current value
+        updater = JSUpdateObservable(session, observable.id)
+        # Make sure we update the Javascript values!
+        on(updater, observable)
+        if isopen(session)
+            # If websockets are already open, we need to also update the value
+            # to register it with js
+            updater(observable[])
+        end
+    end
+end
+
+function Base.push!(session::Session, dependency::Dependency)
+    for asset in dependency.assets
+        push!(session, asset)
+    end
+    return dependency
+end
+
+function Base.push!(session::Session, asset::Asset)
+    push!(session.dependencies, asset)
+    if asset.onload !== nothing
+        on_document_load(session, asset.onload)
+    end
+    return asset
+end
+
+function Base.push!(session::Session, websocket::WebSocket)
+    push!(session.connections, websocket)
+    filter!(isopen, session.connections)
+    return session
+end
+
+function Base.push!(session::Session, object::JSObject)
+    push!(session.objects, object)
+    return object
 end
