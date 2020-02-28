@@ -26,7 +26,7 @@ function m_unesc(tag, args...; kw...)
     m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, tag, args..., dataJscallId = get_unique_dom_id(); kw...)
 end
 
-for node in (:p, :div, :input, :font, :nav, :ul, :li, :img)
+for node in (:p, :div, :input, :font, :nav, :ul, :li, :img, :a)
     node_name = string(node)
     unesc = Symbol(node_name * "_unesc")
     @eval $(node)(args...; kw...) = um($(node_name), args...; kw...)
