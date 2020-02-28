@@ -38,14 +38,28 @@ end
 for M in WebMimes
     @eval function Base.show(io::IO, m::$M, dom::DisplayInline)
         application = get_global_app()
-        session_url = "/show"
+        # Display the route we just added in an iframe inline:
+        session = Session()
+        session_url = "/show_" * session.id
+        url = repr(local_url(application, session_url))
+        iframe_id = repr("iframe_" * session.id)
         route!(application, session_url) do context
-            # Serve the actual content
+            # Serve the actual content, and add an iframe resize onload
+            function display_closure(session, request)
+                dom = dom.dom_function(session, request)
+                onload(session, dom, js"""function resize_iframe(dom){
+                    var iframe = document.getElementById($(iframe_id));
+                    // Adjusting the iframe height onload event
+                    iframe.onload = function(){
+                        iframe.style.height = iframe.contentWindow.document.body.scrollHeight + 'px';
+                    }
+                }""")
+                return dom
+            end
             return serve_dom(context, dom.dom_function)
         end
-        # Display the route we just added in an iframe inline:
-        url = repr(local_url(application, session_url))
-        println(io, "<iframe src=$(url) style=\"position: absolute; height: 100%; width: 100%;border: none\">")
+        style = repr("position: absolute; height: 100%; width: 100%; border: none")
+        println(io, "<iframe id=$(iframe_id) src=$(url) style=$(style)>")
         println(io, "</iframe>")
     end
 end
@@ -57,3 +71,11 @@ function Base.show(io::IO, m::MIME"application/vnd.webio.application+html", dom:
     dom = Base.invokelatest(dom.dom_function, session, (target = "/show",))
     dom2html(io, session, session.id, dom)
 end
+
+# function Base.show(io::IO, m::MIME"text/html", dom::DisplayInline)
+#     application = get_global_app()
+#     session = Session()
+#     application.sessions[session.id] = Dict("base" => session)
+#     dom = Base.invokelatest(dom.dom_function, session, (target = "/show",))
+#     dom2html(io, session, session.id, dom)
+# end
