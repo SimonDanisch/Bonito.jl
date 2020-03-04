@@ -9,6 +9,7 @@ struct DiffList
     insert::Observable{Tuple{Int, Any}}
     empty::Observable{Bool}
     attributes::Dict{Symbol, Any}
+    update_lock::ReentrantLock
 end
 
 function DiffList(children::Vector; attributes...)
@@ -19,11 +20,44 @@ function DiffList(children::Vector; attributes...)
         Observable(Int[]),
         Observable{Tuple{Int64, Any}}((0, nothing)),
         Observable(false),
-        Dict{Symbol, Any}(attributes)
+        Dict{Symbol, Any}(attributes),
+        ReentrantLock()
     )
 end
 
-Hyperscript.children(difflist::DiffList) = difflist.children
+function synchronize_update(f, difflist::DiffList)
+    lock(difflist.update_lock)
+    try
+        return f()
+    catch e
+        rethrow(e)
+    finally
+        unlock(difflist.update_lock)
+    end
+end
+
+function Hyperscript.children(difflist::DiffList)
+    synchronize_update(difflist) do
+        return difflist.children
+    end
+end
+
+function Base.length(difflist::DiffList)
+    synchronize_update(difflist) do
+        return length(difflist.children)
+    end
+end
+function Base.isempty(difflist::DiffList)
+    synchronize_update(difflist) do
+        return isempty(difflist.children)
+    end
+end
+
+function Base.getindex(difflist::DiffList, i)
+    synchronize_update(difflist) do
+        return difflist.children[i]
+    end
+end
 
 """
     connect!(observable_list::Observable{<:AbstractVector}, difflist::DiffList)
@@ -68,57 +102,75 @@ function Observables.connect!(observable_list::Observable{<:AbstractVector}, dif
 end
 
 function Base.empty!(difflist::DiffList)
-    difflist.empty[] = true
-    empty!(children(difflist))
+    synchronize_update(difflist) do
+        difflist.empty[] = true
+        empty!(children(difflist))
+    end
 end
 
 Base.push!(difflist::DiffList, value) = append!(difflist, [value])
 
 function Base.append!(difflist::DiffList, values::Vector)
-    difflist.append[] = values
-    append!(children(difflist), values)
-    return values
+    synchronize_update(difflist) do
+        difflist.append[] = values
+        append!(children(difflist), values)
+        return values
+    end
 end
 
 Base.setindex!(difflist::DiffList, value, idx::Integer) = setindex!(difflist, [value], Int[idx])
 
 function Base.setindex!(difflist::DiffList, values::Vector, idx::Union{Integer, AbstractVector{<: Integer}, AbstractRange})
-    indices = convert(Vector{Int}, idx)
-    length(values) != length(indices) && error("Dimensions must match!")
-    difflist.setindex[] = (indices, values)
-    children(difflist)[indices] = values
-    return values
+    synchronize_update(difflist) do
+        indices = convert(Vector{Int}, idx)
+        length(values) != length(indices) && error("Dimensions must match!")
+        difflist.setindex[] = (indices, values)
+        children(difflist)[indices] = values
+        return values
+    end
 end
 
 function Base.delete!(difflist::DiffList, idx::Union{Integer, AbstractVector{<: Integer}, AbstractRange})
-    indices = idx isa Integer ? Int[idx] : convert(Vector{Int}, idx)
-    difflist.delete[] = indices
-    i = 0
-    filter!(x->(i+=1; !(i in idx)), children(difflist))
-    return idx
+    synchronize_update(difflist) do
+        indices = idx isa Integer ? Int[idx] : convert(Vector{Int}, idx)
+        difflist.delete[] = indices
+        i = 0
+        filter!(x->(i+=1; !(i in idx)), children(difflist))
+        return idx
+    end
 end
 
 function Base.insert!(difflist::DiffList, index::Integer, item)
-    difflist.insert[] = (Int(index), item)
-    insert!(children(difflist), index, item)
+    synchronize_update(difflist) do
+        difflist.insert[] = (Int(index), item)
+        insert!(children(difflist), index, item)
+    end
 end
 
 function replace_children(difflist::DiffList, list::Vector; batch = 100)
     empty!(difflist)
     isempty(list) && return
-    append_lock = Ref(true)
+    append_lock = Base.Threads.Atomic{Bool}(true)
     @async begin
-        for i in 1:batch:length(list)
-            # TODO replace with lock!
-            # The problem is, if I replace this with a SpinLock / ReentrantLock
-            # It will block on unlock, even though I verify before that the lock
-            # is unlocked
-            while !append_lock[]
-                yield()
+        try
+            synchronize_update(difflist) do
+                for i in 1:batch:length(list)
+                    # TODO replace with lock!
+                    # The problem is, if I replace this with a SpinLock / ReentrantLock
+                    # It will block on unlock, even though I verify before that the lock
+                    # is unlocked
+                    while !append_lock[]
+                        yield()
+                    end
+                    append_lock[] = false
+                    append!(difflist, list[i:min(i - 1 + batch, length(list))])
+                    append_lock[] = true
+                end
             end
-            append_lock[] = false
-            append!(difflist, list[i:min(i - 1 + batch, length(list))])
-            append_lock[] = true
+        catch e
+            @warn "error in list updates" exception=CapturedException(e, Base.catch_backtrace())
+        finally
+            difflist.is_updating[] = false
         end
     end
 end
