@@ -181,7 +181,6 @@ function handle_ws_connection(session::Session, websocket::WebSocket)
     close(session)
 end
 
-
 """
     handles a new websocket connection to a session
 """

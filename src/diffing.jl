@@ -9,7 +9,7 @@ struct DiffList
     insert::Observable{Tuple{Int, Any}}
     empty::Observable{Bool}
     attributes::Dict{Symbol, Any}
-    update_lock::ReentrantLock
+    update_lock::Any
 end
 
 function DiffList(children::Vector; attributes...)
@@ -26,13 +26,13 @@ function DiffList(children::Vector; attributes...)
 end
 
 function synchronize_update(f, difflist::DiffList)
-    lock(difflist.update_lock)
+    Base.lock(difflist.update_lock)
     try
         return f()
     catch e
         rethrow(e)
     finally
-        unlock(difflist.update_lock)
+        Base.unlock(difflist.update_lock)
     end
 end
 
@@ -47,6 +47,7 @@ function Base.length(difflist::DiffList)
         return length(difflist.children)
     end
 end
+
 function Base.isempty(difflist::DiffList)
     synchronize_update(difflist) do
         return isempty(difflist.children)
@@ -150,29 +151,21 @@ end
 function replace_children(difflist::DiffList, list::Vector; batch = 100)
     empty!(difflist)
     isempty(list) && return
-    append_lock = Base.Threads.Atomic{Bool}(true)
     @async begin
-        try
-            synchronize_update(difflist) do
+        synchronize_update(difflist) do
+            try
                 for i in 1:batch:length(list)
-                    # TODO replace with lock!
-                    # The problem is, if I replace this with a SpinLock / ReentrantLock
-                    # It will block on unlock, even though I verify before that the lock
-                    # is unlocked
-                    while !append_lock[]
-                        yield()
-                    end
-                    append_lock[] = false
                     append!(difflist, list[i:min(i - 1 + batch, length(list))])
-                    append_lock[] = true
                 end
+            catch e
+                @warn "error in list updates" exception=CapturedException(e, Base.catch_backtrace())
             end
-        catch e
-            @warn "error in list updates" exception=CapturedException(e, Base.catch_backtrace())
-        finally
-            difflist.is_updating[] = false
         end
     end
+    # yield to task to make it lock!
+    # TODO, might this actually yield to another task and end up not locking?
+    yield()
+    return
 end
 
 function JSServe.jsrender(session::JSServe.Session, difflist::DiffList)
