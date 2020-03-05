@@ -151,20 +151,22 @@ end
 function replace_children(difflist::DiffList, list::Vector; batch = 100)
     empty!(difflist)
     isempty(list) && return
-    @async begin
+    task = @async begin
         synchronize_update(difflist) do
             try
                 for i in 1:batch:length(list)
                     append!(difflist, list[i:min(i - 1 + batch, length(list))])
+                    yield()
                 end
             catch e
                 @warn "error in list updates" exception=CapturedException(e, Base.catch_backtrace())
             end
         end
     end
-    # yield to task to make it lock!
-    # TODO, might this actually yield to another task and end up not locking?
-    yield()
+    # Wait untill task started running & locking
+    while !istaskstarted(task)
+        yield()
+    end
     return
 end
 
