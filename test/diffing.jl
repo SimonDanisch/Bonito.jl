@@ -62,5 +62,14 @@ stripnl(x) = strip(x, '\n')
         @test children(difflist) == [md"rowdy", md"monsieur"]
 
         @test test_connection()
+        JSServe.replace_children(difflist, [md"$i" for i in 1:3000])
+        insert!(difflist, 2999, md"hehe")
+        @test length(difflist) == 3001
+        @test difflist[2999] == md"hehe"
+        @test difflist[3000].content[1] == 2999
+        @test difflist[3001].content[1] == 3000
+        @test stripnl(evaljs(app, js"$(js_list).children[2999-1].innerText")) == "hehe"
+        @test stripnl(evaljs(app, js"$(js_list).children[3000-1].innerText")) == "2999"
+        @test stripnl(evaljs(app, js"$(js_list).children[3001-1].innerText")) == "3000"
     end
 end

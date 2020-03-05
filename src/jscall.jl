@@ -1,18 +1,22 @@
 
-const OBJECTIDS_QUEUED_FOR_FREEING = WeakKeyDict{Session, Vector{String}}()
+const OBJECTIDS_QUEUED_FOR_FREEING = WeakKeyDict{Any, Vector{String}}()
 
 function start_gc_task()
     @async begin
         while true
             try
                 for (session, objects) in OBJECTIDS_QUEUED_FOR_FREEING
+                    if session === nothing # got gc'ed
+                        empty!(objects)
+                        continue
+                    end
                     if length(objects) > 100
                         delete_objects(session, objects)
                         empty!(objects)
                     end
                 end
             catch e
-                @warn "Error while freeing!" exception=e
+                @warn "Error while freeing!" exception=CapturedException(e, Base.catch_backtrace())
             end
             sleep(5)
         end
