@@ -161,7 +161,6 @@ function onload(session::Session, node::Node, func::JSCode)
     """)
 end
 
-
 """
     on_document_load(session::Session, js::JSCode)
 
