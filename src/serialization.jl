@@ -108,7 +108,7 @@ function serialize_readable(io::IO, asset::Asset)
     elseif mediatype(asset) == :css
         println(
             io,
-            "<link href = $(repr(url(asset))) rel = \"stylesheet\",  type=\"text/css\">"
+            "<link href=$(repr(url(asset))) rel=\"stylesheet\" type=\"text/css\">"
         )
     else
         error("Unrecognized asset media type: $(mediatype(asset))")

@@ -91,7 +91,7 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
         <body"""
     )
     # insert on document load
-    print(io, " onload = '__on_document_load__()'")
+    print(io, " onload='__on_document_load__()'>")
     println(io, html)
     print(io, """
         </body>
