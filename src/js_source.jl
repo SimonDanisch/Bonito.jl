@@ -5,9 +5,11 @@ function iterate_interpolations(source::String)
     while true
         c = source[i]
         if c == '$'
+            # add elements before $
             if !isempty(lastidx:(i - 1))
                 push!(result, JSString(source[lastidx:(i - 1)]))
             end
+            # parse the $ expression
             expr, i2 = Meta.parse(source, i + 1, greedy = false, raise = false)
             if i2 >= lindex && expr === nothing
                 error("Invalid interpolation at index $(i)-$(lindex): $(source[i:lindex])")

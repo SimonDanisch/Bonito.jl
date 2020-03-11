@@ -76,10 +76,11 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
         <script>
         function __on_document_load__(){
     """)
+
+    queued_as_script(io, session)
     # create a function we call in body onload =, which loads all
     # on_document_load javascript
     serialize_readable(io, session.on_document_load)
-    queued_as_script(io, session)
     print(io, """
         };
         </script>
