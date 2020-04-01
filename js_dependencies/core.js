@@ -15,7 +15,7 @@ function get_heap_object(id){
     if(id in javascript_object_heap){
         return javascript_object_heap[id];
     }else{
-        send_error("Could not find heap object: " + id, "");
+        send_error("Could not find heap object: " + id, null);
         throw "Could not find heap object: " + id;
     }
 }
@@ -58,24 +58,7 @@ function get_session_id(){
     var session_id = window.js_call_session_id
 
     var browser_id = rand4hex();
-    // if we have local storage, we use it,
-    // otherwise we leave the random browser id
-    if (typeof(Storage) !== "undefined") {// check for browser support
-        // get the browser local id
-        // var b_id;
-        // try{
-        //     b_id = sessionStorage.getItem("julia-jscall-browser-id");
-        // }catch(e){
-        //     send_warning(String(e))
-        // }
-        // if(b_id){
-        //     browser_id = b_id;
-        // }else{
-        //     // this is the first session in this browser, we use our randomly
-        //     // generated id and store it for next session in this browser
-        //     sessionStorage.setItem("julia-jscall-browser-id", browser_id)
-        // }
-    }
+
     // Now, we also need an id for having multiple tabs open in the same browser
     // or for a refresh. this will always be random one...
     // We will create a new websocket connection for any new tab,
@@ -129,7 +112,7 @@ function deserialize_js(data){
             }else{
                 send_error(
                     "Can't deserialize custom type: " + data.__javascript_type__,
-                    ""
+                    null
                 );
                 return undefined;
             }
@@ -149,19 +132,20 @@ function deserialize_js(data){
 
 function get_observable(id){
     if(id in registered_observables){
-        return registered_observables[id]
+        return registered_observables[id];
     }else{
         throw ("Can't find observable with id: " + id)
     }
 }
 
 function send_error(message, exception){
-    console.error(message)
-    console.error(exception)
+    console.error(message);
+    console.error(exception);
     websocket_send({
         msg_type: JavascriptError,
         message: message,
-        exception: String(exception)
+        exception: String(exception),
+        stacktrace: exception == null ? "" : exception.stack
     })
 }
 
@@ -224,8 +208,17 @@ function update_obs(id, value){
     }
 }
 
-function websocket_send(data){
+
+function ensure_connection(){
+    // we lost the connection :(
     if(session_websocket.length == 0){
+        // try to connect again!
+        setup_connection();
+    }
+    // check if we have a connection now!
+    if(session_websocket.length == 0){
+        // still no connection...
+        // Display a warning, that we lost conenction!
         var popup = document.getElementById('WEBSOCKET_CONNECTION_WARNING');
         if(!popup){
             var doc_root = document.getElementById('application-dom');
@@ -245,8 +238,17 @@ function websocket_send(data){
             popup.innerText = "Lost connection to server!";
             doc_root.appendChild(popup);
         }
-    }else{
-        if (session_websocket[0].readyState === 1) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
+function websocket_send(data){
+    const has_conenction = ensure_connection();
+
+    if(has_conenction) {
+        if (session_websocket[0].readyState == 1) {
             session_websocket[0].send(msgpack.encode(data));
         } else {
             // wait until in ready state
@@ -278,9 +280,9 @@ function process_message(data){
             try{
                 // register a callback that will executed on js side
                 // when observable updates
-                var id = data.id
-                var f = eval(deserialize_js(data.payload));
-                var callbacks = observable_callbacks[id] || [];
+                const id = data.id
+                const f = eval(deserialize_js(data.payload));
+                const callbacks = observable_callbacks[id] || [];
                 callbacks.push(f);
                 observable_callbacks[id] = callbacks;
             }catch(exception){
@@ -293,7 +295,7 @@ function process_message(data){
             }
             break;
         case EvalJavascript:
-            var code = deserialize_js(data.payload);
+            const code = deserialize_js(data.payload);
             try{
                 eval(code);
             }catch(exception){
@@ -347,7 +349,6 @@ function process_message(data){
                 }
                 put_on_heap(data.result, result);
             }catch(exception){
-                console.log(data);
                 send_error(
                     "Error while executing getting field " + data.field +
                     " from:\n" + obj,
@@ -398,7 +399,7 @@ function process_message(data){
         default:
             send_error(
                 "Unrecognized message type: " + data.msg_type + ".",
-                ""
+                null
             )
     }
 }

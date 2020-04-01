@@ -124,6 +124,17 @@ function response_404(body = "Not Found")
     return HTTP.Response(404, ["Content-Type" => "text/html"], body = body)
 end
 
+
+function replace_url(match_str)
+    key_regex = r"(/assetserver/[a-z0-9]+-.*?):([\d]+):[\d]+"
+    m = match(key_regex, match_str)
+    key = m[1]
+    path = AssetRegistry.registry[key]
+    return path * ":" * m[2]
+end
+
+const ASSET_URL_REGEX = r"http://.*/assetserver/([a-z0-9]+-.*?):([\d]+):[\d]+"
+
 """
     handle_ws_message(session::Session, message)
 
@@ -141,6 +152,10 @@ function handle_ws_message(session::Session, message)
         Base.invokelatest(update_nocycle!, obs, data["payload"])
     elseif typ == JavascriptError
         @error "Error in Javascript: $(data["message"])\n with exception:\n$(data["exception"])"
+        for line in split(data["stacktrace"], "\n")
+            line_with_local_path = replace(line, ASSET_URL_REGEX => replace_url)
+            println(stderr, line_with_local_path)
+        end
     elseif typ == JavascriptWarning
         @warn "Error in Javascript: $(data["message"])\n)"
     elseif typ == JSDoneLoading
