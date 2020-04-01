@@ -101,21 +101,6 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
     )
 end
 
-include("mimetypes.jl")
-
-function file_server(context)
-    path = context.request.target
-    if haskey(AssetRegistry.registry, path)
-        filepath = AssetRegistry.registry[path]
-        if isfile(filepath)
-            header = ["Access-Control-Allow-Origin" => "*",
-                      "Content-Type" => file_mimetype(filepath)]
-            return HTTP.Response(200, header, body = read(filepath))
-        end
-    end
-    return HTTP.Response(404)
-end
-
 function html(body)
     return HTTP.Response(200, ["Content-Type" => "text/html"], body = body)
 end
@@ -129,7 +114,7 @@ function replace_url(match_str)
     key_regex = r"(/assetserver/[a-z0-9]+-.*?):([\d]+):[\d]+"
     m = match(key_regex, match_str)
     key = m[1]
-    path = AssetRegistry.registry[key]
+    path = assetserver_to_localfile(key)
     return path * ":" * m[2]
 end
 

@@ -55,7 +55,7 @@ function queued_as_script(io::IO, session::Session)
 
     deps_path = dependency_path("session_temp_data", session.id * ".msgpack")
     open(io -> MsgPack.pack(io, serialize_js(data)), deps_path, "w")
-    data_url = url(AssetRegistry.register(deps_path))
+    data_url = url(register_local_file(deps_path))
     println(io, js"""
     var url = $(data_url);
 
