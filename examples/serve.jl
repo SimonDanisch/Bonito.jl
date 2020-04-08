@@ -1,7 +1,5 @@
-using Hyperscript
 using JSServe, Observables
-using JSServe: Application, Session, evaljs, linkjs, update_dom!, div, active_sessions
-using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, with_session
+using JSServe: @js_str, onjs, Button, TextField, Slider, linkjs
 using JSServe.DOM
 
 function dom_handler(session, request)
@@ -16,13 +14,10 @@ function dom_handler(session, request)
         println(text)
     end
     return DOM.div(s1, s2, b, t)
-end;
-
+end
 
 app = JSServe.Application(
     dom_handler,
-    get(ENV, "WEBIO_SERVER_HOST_URL", "127.0.0.1"),
-    parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081")),
-    verbose = false
+    "127.0.0.1", 8081, verbose = false
 )
-close(app)
+# close(app)

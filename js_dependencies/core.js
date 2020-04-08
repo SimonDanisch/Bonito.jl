@@ -10,7 +10,6 @@ function delete_from_heap(id){
     delete javascript_object_heap[id];
 }
 
-
 function get_heap_object(id){
     if(id in javascript_object_heap){
         return javascript_object_heap[id];
@@ -246,17 +245,13 @@ function ensure_connection(){
 
 function websocket_send(data){
     const has_conenction = ensure_connection();
-
     if(has_conenction) {
         if (session_websocket[0].readyState == 1) {
             session_websocket[0].send(msgpack.encode(data));
         } else {
             // wait until in ready state
-            setTimeout(function () {
-                websocket_send(data);
-            }, 100);
+            setTimeout(()=> websocket_send(data), 100);
         }
-
     }
 }
 
@@ -270,8 +265,7 @@ function process_message(data){
                 run_js_callbacks(data.id, value)
             }catch(exception){
                 send_error(
-                    "Error while updating observable " + data.id +
-                    " from Julia!",
+                    "Error while updating observable " + data.id + " from Julia!",
                     exception
                 )
             }
@@ -300,8 +294,7 @@ function process_message(data){
                 eval(code);
             }catch(exception){
                 send_error(
-                    "Error while evaling JS from Julia. Source:\n" +
-                    code,
+                    "Error while evaling JS from Julia. Source:\n" + code,
                     exception
                 )
             }
@@ -397,10 +390,7 @@ function process_message(data){
             }
             break;
         default:
-            send_error(
-                "Unrecognized message type: " + data.msg_type + ".",
-                null
-            )
+            send_error("Unrecognized message type: " + data.msg_type + ".", null)
     }
 }
 
