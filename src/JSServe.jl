@@ -14,7 +14,6 @@ using WidgetsBase
 using WidgetsBase: vertical, horizontal
 using SHA
 
-
 include("types.jl")
 include("js_source.jl")
 include("session.jl")
@@ -29,8 +28,6 @@ include("jscall.jl")
 include("markdown_integration.jl")
 include("serialization.jl")
 include("diffing.jl")
-
-const active_sessions = nothing # deprecated binding!
 
 function __init__()
     url = if haskey(ENV, "JULIA_WEBIO_BASEURL")

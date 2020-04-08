@@ -137,9 +137,11 @@ function handle_ws_message(session::Session, message)
         Base.invokelatest(update_nocycle!, obs, data["payload"])
     elseif typ == JavascriptError
         @error "Error in Javascript: $(data["message"])\n with exception:\n$(data["exception"])"
-        for line in split(data["stacktrace"], "\n")
-            line_with_local_path = replace(line, ASSET_URL_REGEX => replace_url)
-            println(stderr, line_with_local_path)
+        if data["stacktrace"] !== nothing
+            for line in split(data["stacktrace"], "\n")
+                line_with_local_path = replace(line, ASSET_URL_REGEX => replace_url)
+                println(stderr, line_with_local_path)
+            end
         end
     elseif typ == JavascriptWarning
         @warn "Error in Javascript: $(data["message"])\n)"
