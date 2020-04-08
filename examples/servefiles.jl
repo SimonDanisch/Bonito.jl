@@ -1,8 +1,8 @@
-using JSServe, AssetRegistry
+using JSServe
 
 function create_link(parent, file)
-    url = AssetRegistry.register(joinpath(parent, file))
-    return JSServe.DOM.a(href=url, file)
+    local_asset = JSServe.Asset(joinpath(parent, file))
+    return JSServe.DOM.a(href=local_asset, file)
 end
 
 function test_handler(session, req)

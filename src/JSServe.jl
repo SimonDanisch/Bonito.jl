@@ -1,6 +1,6 @@
 module JSServe
 
-import AssetRegistry, Sockets
+import Sockets
 using UUIDs, Hyperscript, Hyperscript, JSON3, Observables
 import Sockets: send, TCPServer
 using Hyperscript: Node, children, tag
@@ -12,9 +12,8 @@ using Base64
 using MsgPack
 using WidgetsBase
 using WidgetsBase: vertical, horizontal
-# Needed, since we offer some extended testing functions to make it
-# easier for downstream packages to test their web stuff
-using Test
+using SHA
+
 
 include("types.jl")
 include("js_source.jl")

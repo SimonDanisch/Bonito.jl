@@ -101,21 +101,6 @@ function dom2html(io::IO, session::Session, sessionid::String, dom)
     )
 end
 
-include("mimetypes.jl")
-
-function file_server(context)
-    path = context.request.target
-    if haskey(AssetRegistry.registry, path)
-        filepath = AssetRegistry.registry[path]
-        if isfile(filepath)
-            header = ["Access-Control-Allow-Origin" => "*",
-                      "Content-Type" => file_mimetype(filepath)]
-            return HTTP.Response(200, header, body = read(filepath))
-        end
-    end
-    return HTTP.Response(404)
-end
-
 function html(body)
     return HTTP.Response(200, ["Content-Type" => "text/html"], body = body)
 end
@@ -123,6 +108,17 @@ end
 function response_404(body = "Not Found")
     return HTTP.Response(404, ["Content-Type" => "text/html"], body = body)
 end
+
+
+function replace_url(match_str)
+    key_regex = r"(/assetserver/[a-z0-9]+-.*?):([\d]+):[\d]+"
+    m = match(key_regex, match_str)
+    key = m[1]
+    path = assetserver_to_localfile(key)
+    return path * ":" * m[2]
+end
+
+const ASSET_URL_REGEX = r"http://.*/assetserver/([a-z0-9]+-.*?):([\d]+):[\d]+"
 
 """
     handle_ws_message(session::Session, message)
@@ -141,6 +137,10 @@ function handle_ws_message(session::Session, message)
         Base.invokelatest(update_nocycle!, obs, data["payload"])
     elseif typ == JavascriptError
         @error "Error in Javascript: $(data["message"])\n with exception:\n$(data["exception"])"
+        for line in split(data["stacktrace"], "\n")
+            line_with_local_path = replace(line, ASSET_URL_REGEX => replace_url)
+            println(stderr, line_with_local_path)
+        end
     elseif typ == JavascriptWarning
         @warn "Error in Javascript: $(data["message"])\n)"
     elseif typ == JSDoneLoading
