@@ -244,7 +244,6 @@ function dom_handler(session, request)
     dom
 end
 
-
 # app = JSServe.Application(dom_handler, "127.0.0.1", 8082)
 
 

@@ -1,3 +1,15 @@
+md"""
+
+# What is JSServe?
+
+* a connection between Julia & Javascript
+* a reactive DOM
+* a server with routing
+* can be used for dashboards, wrapping JS libraries & writing webpages
+* Similar to React.js - as far as I can tell
+"""
+
+
 using JSServe, Observables
 using JSServe: @js_str, onjs, with_session, onload, Button, TextField, Slider, linkjs, serve_dom
 using JSServe.DOM
