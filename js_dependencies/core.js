@@ -1,6 +1,6 @@
-const registered_observables = {}
-const observable_callbacks = {}
-const javascript_object_heap = {}
+const registered_observables = {};
+const observable_callbacks = {};
+const javascript_object_heap = {};
 
 function put_on_heap(id, value){
     javascript_object_heap[id] = value;
@@ -19,20 +19,20 @@ function get_heap_object(id){
     }
 }
 
-const session_websocket = []
+const session_websocket = [];
 
 // Save some bytes by using ints for switch variable
-const UpdateObservable = '0'
-const OnjsCallback = '1'
-const EvalJavascript = '2'
-const JavascriptError = '3'
-const JavascriptWarning = '4'
-const JSCall = '5'
-const JSGetIndex = '6'
-const JSSetIndex = '7'
-const JSDoneLoading = '8'
-const FusedMessage = '9'
-const DeleteObjects = '10'
+const UpdateObservable = '0';
+const OnjsCallback = '1';
+const EvalJavascript = '2';
+const JavascriptError = '3';
+const JavascriptWarning = '4';
+const JSCall = '5';
+const JSGetIndex = '6';
+const JSSetIndex = '7';
+const JSDoneLoading = '8';
+const FusedMessage = '9';
+const DeleteObjects = '10';
 
 function is_list(value){
     return value && typeof value === 'object' && value.constructor === Array;
@@ -54,7 +54,7 @@ function rand4hex(){
 function get_session_id(){
     // We have one session id, which handles the connection
     // for one APP state
-    var session_id = window.js_call_session_id
+    var session_id = window.js_call_session_id;
 
     var browser_id = rand4hex();
 
@@ -63,7 +63,7 @@ function get_session_id(){
     // We will create a new websocket connection for any new tab,
     // which will share the same state with the other tabs/refresh
     // var tab_id = rand4hex();
-    return session_id + "/" + browser_id //* "/" * tab_id;
+    return session_id + "/" + browser_id; //* "/" * tab_id;
 }
 
 const serializer_functions = {
@@ -149,24 +149,24 @@ function send_error(message, exception){
 }
 
 function send_warning(message){
-    console.warn(message)
+    console.warn(message);
 
     websocket_send({
         msg_type: JavascriptWarning,
         message: message
-    })
+    });
 }
 
 function run_js_callbacks(id, value){
     if(id in observable_callbacks){
-        var callbacks = observable_callbacks[id]
-        var deregister_calls = []
+        var callbacks = observable_callbacks[id];
+        var deregister_calls = [];
         for (var i = 0; i < callbacks.length; i++) {
             // onjs can return false to deregister itself
             try{
-                var register = callbacks[i](value)
+                var register = callbacks[i](value);
                 if(register == false){
-                    deregister_calls.push(i)
+                    deregister_calls.push(i);
                 }
             }catch(exception){
                  send_error(
@@ -174,11 +174,11 @@ function run_js_callbacks(id, value){
                     "Callback:\n" +
                     callbacks[i].toString(),
                     exception
-                )
+                );
             }
         }
         for (var i = 0; i < deregister_calls.length; i++) {
-            callbacks.splice(deregister_calls[i], 1)
+            callbacks.splice(deregister_calls[i], 1);
         }
     }
 }
@@ -186,24 +186,24 @@ function run_js_callbacks(id, value){
 function update_obs(id, value){
     if(id in registered_observables){
         try{
-            registered_observables[id] = value
+            registered_observables[id] = value;
             // call onjs callbacks
-            run_js_callbacks(id, value)
+            run_js_callbacks(id, value);
             // update Julia side!
             websocket_send({
                 msg_type: UpdateObservable,
                 id: id,
                 payload: value
-            })
+            });
         }catch(exception){
             send_error(
                 "Error during update_obs with observable " + id,
                 exception
-            )
+            );
         }
-        return true
+        return true;
     }else{
-        return false
+        return false;
     }
 }
 
@@ -259,15 +259,15 @@ function process_message(data){
     switch(data.msg_type) {
         case UpdateObservable:
             try{
-                var value = data.payload
-                registered_observables[data.id] = value
+                var value = data.payload;
+                registered_observables[data.id] = value;
                 // update all onjs callbacks
-                run_js_callbacks(data.id, value)
+                run_js_callbacks(data.id, value);
             }catch(exception){
                 send_error(
                     "Error while updating observable " + data.id + " from Julia!",
                     exception
-                )
+                );
             }
             break;
         case OnjsCallback:
@@ -285,7 +285,7 @@ function process_message(data){
                     "onjs function source:\n" +
                     data.payload,
                     exception
-                )
+                );
             }
             break;
         case EvalJavascript:
@@ -296,7 +296,7 @@ function process_message(data){
                 send_error(
                     "Error while evaling JS from Julia. Source:\n" + code,
                     exception
-                )
+                );
             }
             break;
         case JSCall:
@@ -329,7 +329,7 @@ function process_message(data){
                     "Error while calling JS function from Julia. Function:\n" +
                     String(func),
                     exception
-                )
+                );
             }
             break;
         case JSGetIndex:
@@ -346,7 +346,7 @@ function process_message(data){
                     "Error while executing getting field " + data.field +
                     " from:\n" + obj,
                     exception
-                )
+                );
             }
             break;
         case JSSetIndex:
@@ -359,7 +359,7 @@ function process_message(data){
                     "Error while executing setting field " + data.field +
                     " from:\n" + String(obj) + " with value " + String(val),
                     exception
-                )
+                );
             }
             break;
         case FusedMessage:
@@ -373,7 +373,7 @@ function process_message(data){
                     "Error while executing setting field " + data.field +
                     " from:\n" + String(obj) + " with value " + String(val),
                     exception
-                )
+                );
             }
             break;
         case DeleteObjects:
@@ -386,11 +386,11 @@ function process_message(data){
                 send_error(
                     "Error while deleting objects: " + objects_to_delete,
                     exception
-                )
+                );
             }
             break;
         default:
-            send_error("Unrecognized message type: " + data.msg_type + ".", null)
+            send_error("Unrecognized message type: " + data.msg_type + ".", null);
     }
 }
 
@@ -398,12 +398,12 @@ function process_message(data){
 
 function websocket_url(){
     // something like http://127.0.0.1:8081/
-    var http_url = window.location.protocol + "//" + window.location.host;
+    let http_url = window.location.protocol + "//" + window.location.host;
 
     if(window.websocket_proxy_url){
         http_url = window.websocket_proxy_url;
     }
-    var ws_url = http_url.replace("http", "ws");
+    let ws_url = http_url.replace("http", "ws");
     // now should be like: ws://127.0.0.1:8081/
     if(!ws_url.endsWith("/")){
         ws_url = ws_url + "/";
@@ -414,7 +414,7 @@ function websocket_url(){
 }
 
 function setup_connection(){
-    var tries = 0
+    let tries = 0;
     function tryconnect(url) {
         websocket = new WebSocket(url);
         websocket.binaryType = 'arraybuffer';
@@ -424,8 +424,8 @@ function setup_connection(){
         session_websocket.push(websocket)
         websocket.onopen = function () {
             websocket.onmessage = function (evt) {
-                var binary = new Uint8Array(evt.data);
-                var data = msgpack.decode(binary);
+                const binary = new Uint8Array(evt.data);
+                const data = msgpack.decode(binary);
                 process_message(data);
             }
         }
@@ -441,12 +441,12 @@ function setup_connection(){
             if(tries <= 5){
                 session_websocket.length = 0;
                 tries = tries + 1;
-                console.log("Retrying to connect the " + tries + " time!")
+                console.log("Retrying to connect the " + tries + " time!");
                 setTimeout(()=> tryconnect(websocket_url()), 1000);
             }
         };
     }
-    tryconnect(websocket_url())
+    tryconnect(websocket_url());
 }
 
-setup_connection()
+setup_connection();

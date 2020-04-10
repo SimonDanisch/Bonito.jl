@@ -109,7 +109,6 @@ function response_404(body = "Not Found")
     return HTTP.Response(404, ["Content-Type" => "text/html"], body = body)
 end
 
-
 function replace_url(match_str)
     key_regex = r"(/assetserver/[a-z0-9]+-.*?):([\d]+):[\d]+"
     m = match(key_regex, match_str)

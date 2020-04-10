@@ -6,7 +6,7 @@ function dom_handler(session, request)
     s1 = Slider(1:100)
     s2 = Slider(1:100)
     b = Button("hi")
-    t = TextField("lol")
+    t = TextField("enter your text")
     s_value = s1.value
     linkjs(session, s1.value, s2.value)
     onjs(session, s1.value, js"(v)=> console.log(v)")
@@ -16,8 +16,9 @@ function dom_handler(session, request)
     return DOM.div(s1, s2, b, t)
 end
 
+isdefined(Main, :app) && close(app)
+
 app = JSServe.Application(
     dom_handler,
     "127.0.0.1", 8081, verbose = false
 )
-# close(app)
