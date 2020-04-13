@@ -81,6 +81,11 @@ function serialize2string(io::IO, data_dependencies::Vector{Any}, jso::JSObject)
     serialize2string(io, data_dependencies, js"get_heap_object($(uuidstr(jso)))")
 end
 
+function serialize2string(io::IO, data_dependencies::Vector{Any}, jso::Dependency)
+    print(io, jso.name)
+end
+
+
 function flatten_references(jso::JSObject, refs = Union{String, Symbol}[])
     if getfield(jso, :typ) == :Module
         pushfirst!(refs, getfield(jso, :name))

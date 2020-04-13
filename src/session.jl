@@ -338,7 +338,7 @@ end
 function serialize_message_readable(message)
     type = message[:msg_type]
     if type == UpdateObservable
-        return js"update_obs($(obs), $(obs[]));"
+        return js"update_obs($(message[:id]), $(message[:payload]));"
     elseif type == OnjsCallback
         return js"""{
             const func = $(message[:payload]);
@@ -367,11 +367,7 @@ function serialize_message_readable(message)
                 message[:arguments]
             end
         end
-        if message[:needs_new]
-            return js"put_on_heap($(message[:result]), new $(message[:func])($(args)));"
-        else
-            return js"put_on_heap($(message[:result]), $(message[:func])($(args)));"
-        end
+        return js"put_on_heap($(message[:result]), $(message[:func])($(args)));"
     elseif type == JSGetIndex
         return js"get_js_index($(message[:object]), $(message[:field]), $(message[:result]));"
     elseif type == JSSetIndex
