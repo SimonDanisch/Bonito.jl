@@ -29,6 +29,21 @@ include("markdown_integration.jl")
 include("serialization.jl")
 include("diffing.jl")
 
+const JSSERVE_CONFIGURATION = (
+    # The URL used to which the default server listens to
+    listen_url = Ref("0.0.0.0"),
+    # The Port to which the default server listens to
+    listen_port = Ref(8081),
+    # The url Javascript uses to connect to the websocket.
+    # if empty, it will use:
+    # `window.location.protocol + "//" + window.location.host`
+    websocket_proxy = Ref(""),
+    # The url prepended to assets when served!
+    # if `""`, urls are inserted into HTML in relative form!
+    content_delivery_url = Ref(""),
+    # Verbosity for logging!
+    verbose = Ref(false)
+)
 
 function __init__()
     url = if haskey(ENV, "JULIA_WEBIO_BASEURL")
@@ -39,7 +54,7 @@ function __init__()
     if endswith(url, "/")
         url = url[1:end-1]
     end
-    server_proxy_url[] = url
+    JSSERVE_CONFIGURATION.websocket_proxy[] = url
     atexit() do
         # remove session folder, in which we store data dependencies temporary
         # TODO remove whenever a session is closed to not accumulate waste until julia

@@ -37,70 +37,6 @@ function request_to_sessionid(request; throw = true)
     end
 end
 
-function dom2html(session::Session, sessionid::String, dom)
-    return sprint() do io
-        dom2html(io, session, sessionid, dom)
-    end
-end
-
-function dom2html(io::IO, session::Session, sessionid::String, dom)
-    js_dom = DOM.div(jsrender(session, dom), id="application-dom")
-    # register resources (e.g. observables, assets)
-    register_resource!(session, js_dom)
-
-    html = repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
-
-    print(io, """
-        <html>
-        <head>
-        """
-    )
-    # Insert all script/css dependencies into the header
-    serialize_readable(io, session.dependencies)
-    # insert the javascript for JSCall
-    print(io, """
-        <script>
-            window.js_call_session_id = '$(sessionid)';
-        """)
-    if !isempty(server_proxy_url[])
-        print(io, """
-            window.websocket_proxy_url = '$(server_proxy_url[])';
-        """)
-    end
-    println(io, "    </script>")
-
-    serialize_readable(io, MsgPackLib)
-    serialize_readable(io, JSCallLibLocal)
-
-    println(io, """
-        <script>
-        function __on_document_load__(){
-    """)
-
-    queued_as_script(io, session)
-    # create a function we call in body onload =, which loads all
-    # on_document_load javascript
-    serialize_readable(io, session.on_document_load)
-    print(io, """
-        };
-        </script>
-        """
-    )
-
-    print(io, """
-        </head>
-        <body"""
-    )
-    # insert on document load
-    println(io, " onload='__on_document_load__()'>")
-    println(io, html)
-    print(io, """
-        </body>
-        </html>
-        """
-    )
-end
-
 function html(body)
     return HTTP.Response(200, ["Content-Type" => "text/html"], body = body)
 end
@@ -113,7 +49,7 @@ function replace_url(match_str)
     key_regex = r"(/assetserver/[a-z0-9]+-.*?):([\d]+):[\d]+"
     m = match(key_regex, match_str)
     key = m[1]
-    path = assetserver_to_localfile(key)
+    path = assetserver_to_localfile(string(key))
     return path * ":" * m[2]
 end
 
@@ -192,8 +128,7 @@ function websocket_handler(context, websocket::WebSocket)
     sessionid, browserid = sessionid_browserid
     # Look up the connection in our sessions
     if haskey(application.sessions, sessionid)
-        browser_sessions = application.sessions[sessionid]
-        session = browser_sessions["base"]
+        session = application.sessions[sessionid]
         # We can have multiple sessions for a client
         push!(session, websocket)
         handle_ws_connection(session, websocket)

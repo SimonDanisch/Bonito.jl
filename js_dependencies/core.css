@@ -1,0 +1,14 @@
+#WEBSOCKET_CONNECTION_WARNING {
+    position: absolute;
+    top: 2%;
+    left: 50%;
+    backgroundColor: rgba(0, 0, 0, 0.2);
+    color: #888;
+    textAlign: center;
+    borderRadius: 1px;
+    transparency: 0.1;
+    padding: 2px;
+    zIndex: 1002;
+    overflow: auto;
+    boxShadow: 1px 1px 1px #888;
+}

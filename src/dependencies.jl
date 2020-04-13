@@ -69,13 +69,7 @@ end
 function Asset(online_path::String, onload::Union{Nothing, JSCode} = nothing)
     local_path = ""; real_online_path = ""
     if is_online(online_path)
-        local_path = try
-            #download(online_path, dependency_path(basename(online_path)))
-            ""
-        catch e
-            @warn "Download for $online_path failed" exception=e
-            local_path = ""
-        end
+        local_path = ""
         real_online_path = online_path
     else
         local_path = online_path
@@ -90,16 +84,18 @@ The extension is defined to be the bit after the last dot, excluding any query
 string.
 # Examples
 ```julia-repl
-julia> WebIO.getextension("foo.bar.js")
+julia> JSServe.getextension("foo.bar.js")
 "js"
-julia> WebIO.getextension("https://my-cdn.net/foo.bar.css?version=1")
+julia> JSServe.getextension("https://my-cdn.net/foo.bar.css?version=1")
 "css"
 ```
+Taken from WebIO.jl
 """
 getextension(path) = lowercase(last(split(first(split(path, "?")), ".")))
 
 """
-    islocal(path)
+    is_online(path)
+
 Determine whether or not the specified path is a local filesystem path (and not
 a remote resource that is hosted on, for example, a CDN).
 """
@@ -120,10 +116,8 @@ function jsrender(session::Session, asset::Asset)
     return nothing
 end
 
-const JSCallLib = Asset("https://simondanisch.github.io/JSServe.jl/js_dependencies/core.js")
-
 const JSCallLibLocal = Asset(dependency_path("core.js"))
 
-const MsgPackLib = Asset("https://cdn.jsdelivr.net/gh/kawanet/msgpack-lite/dist/msgpack.min.js")
+const MsgPackLib = Asset(dependency_path("msgpack.min.js"))
 
 const MarkdownCSS = Asset(dependency_path("markdown.css"))

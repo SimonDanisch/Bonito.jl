@@ -103,8 +103,6 @@ mutable struct JSObject <: AbstractJSObject
     name::Symbol
     session::Session
     typ::Symbol
-    # transporting the UUID allows us to have a uuid different from the objectid
-    # which will help to better capture === equivalence on the js side.
     uuid::UInt
 
     function JSObject(name::Symbol, scope::Session, typ::Symbol)
@@ -116,6 +114,13 @@ mutable struct JSObject <: AbstractJSObject
     end
 end
 
+struct JSReference <: AbstractJSObject
+    parent::AbstractJSObject
+    name::Symbol
+end
+
+session(reference::JSReference) = session(getfield(reference, :parent))
+
 struct Routes
     table::Vector{Pair{Any, Any}}
 end
@@ -124,6 +129,7 @@ function Routes(pairs::Pair...)
     return Routes([pairs...])
 end
 
+# Priorities, so that e.g. r".*" doesn't catch absolut matches by e.g a string
 pattern_priority(x::Pair) = pattern_priority(x[1])
 pattern_priority(x::String) = 1
 pattern_priority(x::Tuple) = 2
@@ -188,7 +194,7 @@ The application one serves
 struct Application
     url::String
     port::Int
-    sessions::Dict{String, Dict{String, Session}}
+    sessions::Dict{String, Session}
     server_task::Ref{Task}
     server_connection::Ref{TCPServer}
     routes::Routes
@@ -296,11 +302,10 @@ const MATCH_SESSION_ID = MATCH_UUID4 * r"/" * MATCH_HEX^4
 
 function serve_dom(context, dom)
     application = context.application
-    session_id = string(uuid4())
     session = Session()
-    application.sessions[session_id] = Dict("base" => session)
+    application.sessions[session.id] = session
     html_dom = Base.invokelatest(dom, session, context.request)
-    return html(dom2html(session, session_id, html_dom))
+    return html(dom2html(session, html_dom))
 end
 
 """
@@ -351,10 +356,8 @@ end
 
 function Base.close(application::Application)
     # Closing the io connection should shut down the HTTP listen loop
-    for (id, clients) in application.sessions
-        for (id, session) in clients
-            close(session)
-        end
+    for (id, session) in application.sessions
+        close(session)
     end
 
     if isassigned(application.server_connection)

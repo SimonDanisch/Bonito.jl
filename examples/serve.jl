@@ -9,7 +9,8 @@ function dom_handler(session, request)
     t = TextField("enter your text")
     s_value = s1.value
     linkjs(session, s1.value, s2.value)
-    onjs(session, s1.value, js"(v)=> console.log(v)")
+    test = [1,2,3]
+    onjs(session, s1.value, js"(v)=> console.log(v + ' ' + $(test))")
     on(t) do text
         println(text)
     end
@@ -18,7 +19,4 @@ end
 
 isdefined(Main, :app) && close(app)
 
-app = JSServe.Application(
-    dom_handler,
-    "127.0.0.1", 8081, verbose = false
-)
+app = JSServe.Application(dom_handler, "127.0.0.1", 8081)

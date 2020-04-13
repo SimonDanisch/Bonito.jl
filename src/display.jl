@@ -27,9 +27,9 @@ function get_global_app()
     if !isassigned(global_application) || istaskdone(global_application[].server_task[])
         global_application[] = Application(
             (ctx, request)-> "Nothing to see",
-            get(ENV, "WEBIO_SERVER_HOST_URL", "127.0.0.1"),
-            parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081")),
-            verbose = get(ENV, "JSCALL_VERBOSITY_LEVEL", "false") == "true"
+            JSSERVE_CONFIGURATION.listen_url[],
+            JSSERVE_CONFIGURATION.port[],
+            verbose=JSSERVE_CONFIGURATION.verbose[]
         )
     end
     return global_application[]
@@ -53,7 +53,36 @@ end
 function Base.show(io::IO, m::MIME"application/vnd.webio.application+html", dom::DisplayInline)
     application = get_global_app()
     session = Session()
-    application.sessions[session.id] = Dict("base" => session)
+    application.sessions[session.id] = session
     dom = Base.invokelatest(dom.dom_function, session, (target = "/show",))
-    dom2html(io, session, session.id, dom)
+    println(io, dom2html(session, dom))
+end
+
+function dom2html(session::Session, dom)
+    js_dom = DOM.div(jsrender(session, dom), id="application-dom")
+    # register resources (e.g. observables, assets)
+    register_resource!(session, js_dom)
+    proxy_url = JSSERVE_CONFIGURATION.websocket_proxy[]
+    html = repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
+    return """
+    <html>
+    <head>
+    $(serialize_readable(session.dependencies))
+    <script>
+        window.js_call_session_id = '$(session.id)';
+        window.websocket_proxy_url = '$(proxy_url)';
+    </script>
+    $(serialize_readable(MsgPackLib))
+    $(serialize_readable(JSCallLibLocal))
+    <script>
+    function __on_document_load__(){
+        $(queued_as_script(session))
+    };
+    </script>
+    </head>
+    <body onload=__on_document_load__()>
+        $(html)
+    </body>
+    </html>
+    """
 end

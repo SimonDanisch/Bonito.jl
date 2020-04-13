@@ -14,6 +14,7 @@ function get_heap_object(id){
     if(id in javascript_object_heap){
         return javascript_object_heap[id];
     }else{
+        console.log(Object.keys(javascript_object_heap))
         send_error("Could not find heap object: " + id, null);
         throw "Could not find heap object: " + id;
     }
@@ -97,6 +98,37 @@ function materialize(data){
     }
 }
 
+function js_dereference_rec(parent, field_names) {
+    if(field_names.length == 0){
+        // we're done, no more fields to index into
+        return parent;
+    }
+    const next_field = field_names.shift();
+    let next_parent;
+    // skip new, which sneaks into our reference due to how we handle new in Julia
+    if(next_field != 'new') {
+        next_parent = js_getindex(parent, next_field)
+    } else {
+        next_parent = parent;
+    }
+    return js_dereference_rec(next_parent, field_names);
+}
+
+function js_dereference(field_names) {
+    // see if the name is a Javascript Module
+    const parent_field = field_names.shift();
+    let parent = window[parent_field];
+    if(!parent) {
+        // if not a module, it must be on the heap!
+        parent = get_heap_object(parent_field);
+        if(!parent) {
+            // ok, we're out of options at this point!
+            send_error("Could not dereference " + parent_field + "." + field_names, null);
+        }
+    }
+    return js_dereference_rec(parent, field_names);
+}
+
 function deserialize_js(data){
     if(is_list(data)){
         return data.map(deserialize_js);
@@ -104,8 +136,12 @@ function deserialize_js(data){
         if('__javascript_type__' in data){
             if(data.__javascript_type__ == 'JSObject'){
                 return get_heap_object(data.payload);
+            }else if (data.__javascript_type__ == 'JSReference'){
+                return js_dereference(data.payload);
             }else if (data.__javascript_type__ == 'typed_vector'){
                 return data.payload;
+            }else if (data.__javascript_type__ == 'DomNode'){
+                return document.querySelector('[data-jscall-id="' + data.payload + '"]');
             }else if (data.__javascript_type__ == 'js_code'){
                 return data.payload;
             }else{
@@ -223,17 +259,6 @@ function ensure_connection(){
             var doc_root = document.getElementById('application-dom');
             var popup = document.createElement('div');
             popup.id = "WEBSOCKET_CONNECTION_WARNING";
-            popup.style.position = "absolute";
-            popup.style.top = "2%";
-            popup.style.left = "50%";
-            popup.style.backgroundColor = "#ED4337";
-            popup.style.color = "#fff";
-            popup.style.textAlign = "center";
-            popup.style.borderRadius = "6px";
-            popup.style.padding = "8px";
-            popup.style.zIndex = "1002";
-            popup.style.overflow = "auto";
-            popup.style.boxShadow = "5px 5px 4px #888888";
             popup.innerText = "Lost connection to server!";
             doc_root.appendChild(popup);
         }
@@ -253,6 +278,92 @@ function websocket_send(data){
             setTimeout(()=> websocket_send(data), 100);
         }
     }
+}
+
+function register_onjs(f, observable) {
+    const callbacks = observable_callbacks[observable] || [];
+    callbacks.push(f);
+    observable_callbacks[observable] = callbacks;
+}
+
+function call_js_func(func, arguments, needs_new, result_object) {
+    let result;
+    if(needs_new){
+        // if argument list we need to use apply
+        if (is_list(arguments)){
+            result = new func(...arguments);
+        }else{
+            // for dictionaries we use a normal call
+            result = new func(arguments);
+        }
+    }else{
+        // TODO remove code duplication here. I don't think new would propagate
+        // correctly if we'd use something like apply_func
+        if (is_list(arguments)){
+            result = func(...arguments);
+        }else{
+            // for dictionaries we use a normal call
+            result = func(arguments);
+        }
+    }
+    put_on_heap(result_object, result);
+}
+
+function js_getindex(object, field) {
+    let result = object[field];
+    // if result is a class method, we need to bind it to the parent object
+    if(result.bind != undefined){
+        result = result.bind(object);
+    }
+    return result;
+}
+
+function put_js_getindex(object, field, result_object) {
+    const result = js_getindex(object, field);
+    put_on_heap(result_object, result);
+}
+
+function delete_heap_objects(objects) {
+    for(var object in objects){
+        delete_from_heap(objects[object]);
+    }
+}
+
+function update_node_attribute(node, attribute, value){
+    if(node){
+        if(node[attribute] != value){
+            node[attribute] = value;
+        }
+        return true;
+    }else{
+        return false; //deregister
+    }
+}
+
+function init_from_byte_array(init_func, data) {
+    for (let obs_id in data.observables) {
+        registered_observables[obs_id] = data.observables[obs_id];
+    }
+    init_func(data.payload);
+    websocket_send({msg_type: JSDoneLoading});
+}
+
+function init_from_file(init_func, url) {
+    var http_request = new XMLHttpRequest();
+    http_request.open("GET", url, true);
+    http_request.responseType = "arraybuffer";
+    http_request.onload = function (event) {
+        var t1 = performance.now();
+        var arraybuffer = http_request.response; // Note: not oReq.responseText
+        if (arraybuffer) {
+            var bytes = new Uint8Array(arraybuffer);
+            var data = msgpack.decode(bytes);
+            init_from_byte_array(init_func, data);
+        }else{
+            send_warning("Didn't receive any setup data from server.")
+        }
+    };
+    http_request.send(null);
 }
 
 function process_message(data){
@@ -276,9 +387,7 @@ function process_message(data){
                 // when observable updates
                 const id = data.id
                 const f = eval(deserialize_js(data.payload));
-                const callbacks = observable_callbacks[id] || [];
-                callbacks.push(f);
-                observable_callbacks[id] = callbacks;
+                register_onjs(f, id);
             }catch(exception){
                 send_error(
                     "Error while registering an onjs callback.\n" +
@@ -302,28 +411,8 @@ function process_message(data){
         case JSCall:
             try{
                 var func = eval(deserialize_js(data.func));
-                var result;
                 var arguments = deserialize_js(data.arguments);
-                if(data.needs_new){
-                    // if argument list we need to use apply
-                    if (is_list(arguments)){
-                        result = new func(...arguments);
-                    }else{
-                        // for dictionaries we use a normal call
-                        result = new func(arguments);
-                    }
-                }else{
-                    // TODO remove code duplication here. I don't think new would propagate
-                    // correctly if we'd use something like apply_func
-                    if (is_list(arguments)){
-                        result = func(...arguments);
-                    }else{
-                        // for dictionaries we use a normal call
-                        result = func(arguments);
-                    }
-                }
-                // finally put result on the heap, so the julia object works correctly
-                put_on_heap(data.result, result);
+                call_js_func(func, arguments, data.needs_new, data.result);
             }catch(exception){
                 send_error(
                     "Error while calling JS function from Julia. Function:\n" +
@@ -335,12 +424,7 @@ function process_message(data){
         case JSGetIndex:
             try{
                 var obj = deserialize_js(data.object);
-                var result = obj[data.field];
-                // if result is a class method, we need to bind it to the parent object
-                if(result.bind != undefined){
-                    result = result.bind(obj);
-                }
-                put_on_heap(data.result, result);
+                put_js_getindex(obj, data.field, data.result);
             }catch(exception){
                 send_error(
                     "Error while executing getting field " + data.field +
@@ -378,10 +462,7 @@ function process_message(data){
             break;
         case DeleteObjects:
             try{
-                var objects_to_delete = data.payload;
-                for(var object in objects_to_delete){
-                    delete_from_heap(objects_to_delete[object]);
-                }
+                delete_heap_objects(data.payload);
             }catch(exception){
                 send_error(
                     "Error while deleting objects: " + objects_to_delete,
