@@ -133,6 +133,8 @@ function websocket_handler(context, websocket::WebSocket)
         push!(session, websocket)
         handle_ws_connection(session, websocket)
     else
-        error("Unregistered session id: $sessionid. Sessions: $(collect(keys(application.sessions)))")
+        # This happens when an old session trys to reconnect to a new app
+        # We somehow need to figure out better, how to recognize this
+        @debug("Unregistered session id: $sessionid. Sessions: $(collect(keys(application.sessions)))")
     end
 end

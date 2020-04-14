@@ -14,7 +14,6 @@ function get_heap_object(id){
     if(id in javascript_object_heap){
         return javascript_object_heap[id];
     }else{
-        console.log(Object.keys(javascript_object_heap))
         send_error("Could not find heap object: " + id, null);
         throw "Could not find heap object: " + id;
     }
@@ -238,7 +237,7 @@ function update_obs(id, value){
             );
         }
         return true;
-    }else{
+    } else {
         return false;
     }
 }
@@ -349,6 +348,7 @@ function init_from_byte_array(init_func, data) {
 }
 
 function init_from_file(init_func, url) {
+    var t0 = performance.now();
     var http_request = new XMLHttpRequest();
     http_request.open("GET", url, true);
     http_request.responseType = "arraybuffer";
@@ -359,6 +359,7 @@ function init_from_file(init_func, url) {
             var bytes = new Uint8Array(arraybuffer);
             var data = msgpack.decode(bytes);
             init_from_byte_array(init_func, data);
+            console.log("Processing done!! " + (t1 - t0) + " milliseconds.");
         }else{
             send_warning("Didn't receive any setup data from server.")
         }
@@ -382,17 +383,18 @@ function process_message(data){
             }
             break;
         case OnjsCallback:
+            let js_source = "";
             try{
                 // register a callback that will executed on js side
                 // when observable updates
-                const id = data.id
-                const f = eval(deserialize_js(data.payload));
+                const id = data.id;
+                js_source = deserialize_js(data.payload);
+                const f = eval(js_source);
                 register_onjs(f, id);
             }catch(exception){
                 send_error(
                     "Error while registering an onjs callback.\n" +
-                    "onjs function source:\n" +
-                    data.payload,
+                    "onjs function source:\n" + js_source,
                     exception
                 );
             }

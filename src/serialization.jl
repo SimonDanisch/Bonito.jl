@@ -29,10 +29,6 @@ function serialize_js(jso::JSReference)
     return js_type(:JSReference, string.(refs))
 end
 
-function serialize_js(node::Node)
-    return js_type(:DomNode, uuid(node))
-end
-
 function serialize_js(x::Union{AbstractArray, Tuple})
     return map(serialize_js, x)
 end

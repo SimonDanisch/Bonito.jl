@@ -175,7 +175,7 @@ function JSServe.jsrender(session::JSServe.Session, difflist::DiffList)
     # We will fill the div async after creation.
     node = DOM.div(; difflist.attributes...)
     append = map(difflist.append) do values
-        return JSServe.jsrender.((session,), values)
+        return jsrender.((session,), values)
     end
 
     onjs(session, append, js"""function (nodes){
@@ -230,6 +230,7 @@ function JSServe.jsrender(session::JSServe.Session, difflist::DiffList)
             node.removeChild(node.firstChild);
         }
     }""")
+
     # Schedule to fill in nodes async & batched
     # copy == otherwise it will call empty! on children(difflist)
     # before replacing!

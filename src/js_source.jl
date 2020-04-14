@@ -37,6 +37,63 @@ macro js_str(js_source)
     return :(JSCode($value_array))
 end
 
+const TypesWePrint = Union{Number, String, Symbol, Bool}
+
+
+"""
+    printable_size(@nospecialize(x))
+
+finds out if all element types are nicely printeable
+And find out their size.
+Returns `typemax(Int)` if any used type isn't Union{Vector, Dict, Number, String, Symbol}
+"""
+function printable_size(@nospecialize(x))
+    if !(x isa TypesWePrint)
+        return typemax(Int)
+    else
+        return sizeof(x)
+    end
+end
+
+function printable_size(x::AbstractFloat)
+    isfinite(x) && return sizeof(x)
+    return typemax(Int)
+end
+
+function printable_size(x::AbstractArray{T}) where T
+    if !(T <: TypesWePrint)
+        return typemax(Int)
+    end
+    if isconcretetype(T) && x isa Array
+        # NaN doens't seem to be allowed in JSON!?!?
+        # So we also need to check, that we dont print out any NaNs
+        if T <: AbstractFloat && !all(isfinite, x)
+            return typemax(Int)
+        end
+        return sizeof(x)
+    else
+        return mapreduce(printable_size, +, x, init=0)
+    end
+end
+
+function printable_size(x::AbstractDict)
+    size = 0
+    for (k, v) in x
+        if !(x isa TypesWePrint || v isa TypesWePrint)
+            return typemax(Int)
+        end
+        size += printable_size(k) + printable_size(v)
+    end
+    return size
+end#
+
+function is_small_data(@nospecialize(object))
+    # Very primitive way of determining this..
+    # Maybe we should just recursively check sizeof, and define small sizes?
+    # return printable_size(object) <= 100
+    return false
+end
+
 function serialize2string(@nospecialize(x))
     data_dependencies = []
     source = sprint() do io
@@ -46,10 +103,15 @@ function serialize2string(@nospecialize(x))
 end
 
 function serialize2string(io::IO, data_dependencies::Vector{Any}, @nospecialize(any))
-    idx = length(data_dependencies) # idx before push --> JS is 0 indexed
-    push!(data_dependencies, any)
-    # TODO how do we call this?
-    print(io, "deserialize_js(__data_dependencies[$(idx)])")
+    if is_small_data(any)
+        # if small, we just inline the data in a readable form!
+        JSON3.write(io, any)
+    else
+        idx = length(data_dependencies) # idx before push --> JS is 0 indexed
+        push!(data_dependencies, any)
+        # TODO how do we call this?
+        print(io, "deserialize_js(__data_dependencies[$(idx)])")
+    end
 end
 
 function serialize2string(io::IO, data_dependencies::Vector{Any}, x::JSString)
@@ -84,7 +146,6 @@ end
 function serialize2string(io::IO, data_dependencies::Vector{Any}, jso::Dependency)
     print(io, jso.name)
 end
-
 
 function flatten_references(jso::JSObject, refs = Union{String, Symbol}[])
     if getfield(jso, :typ) == :Module

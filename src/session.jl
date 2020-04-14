@@ -59,9 +59,9 @@ function queued_as_script(session::Session)
     data_url = url(register_local_file(deps_path))
     return js"""
     function init_function(__data_dependencies) {
-        $(JSString(source))
-    }
-    init_from_file(init_function, $(data_url));
+    $(JSString(source))
+        }
+        init_from_file(init_function, $(data_url));
     $(session.on_document_load)
     """
 end
@@ -75,6 +75,7 @@ Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
     if isopen(session) && !session.fusing[] && isready(session.js_fully_loaded)
+        @assert isempty(session.message_queue)
         for connection in session.connections
             serialize_websocket(connection, message)
         end
@@ -91,8 +92,9 @@ function fuse(f, session::Session)
     if !isempty(session.message_queue)
         # only sent when open!
         if isopen(session)
-            send(session; msg_type=FusedMessage, payload=session.message_queue)
+            fused = copy(session.message_queue)
             empty!(session.message_queue)
+            send(session; msg_type=FusedMessage, payload=fused)
         end
     end
     return result
@@ -119,7 +121,7 @@ function onjs(session::Session, obs::Observable, func::JSCode)
         session;
         msg_type=OnjsCallback,
         id=obs.id,
-        payload=func
+        payload=js"($(func))"
     )
 end
 
@@ -308,44 +310,21 @@ function Base.push!(session::Session, object::JSObject)
     return object
 end
 
-const JS_GENSYM_VARIABLES = Dict{String, Int}()
-
-function js_gensym(name::String)
-    counter = get(JS_GENSYM_VARIABLES, name, 0) + 1
-    JS_GENSYM_VARIABLES[name] = counter
-    return "__js_" * name * "_$(counter)"
-end
-
-function escape_js_function(js)
-    name = find_func_name(js)
-    gensymed = JSString(js_gensym(name))
-    gensymed, js"""$(gensymed) = {
-        $(js)
-    }"""
-end
-
-function fuse_js_code(codes)
-    return JSCode(codes)
-end
-
-function is_small_dict(dict)
-    # Very primitive way of determining this..
-    # Maybe we should just recursively check sizeof, and define small sizes?
-    return length(keys(dict)) < 5 &&
-           all(x-> x isa Union{String, Symbol, Number}, values(dict))
-end
-
 function serialize_message_readable(message)
     type = message[:msg_type]
     if type == UpdateObservable
-        return js"update_obs($(message[:id]), $(message[:payload]));"
+        return js"        {const value = $(message[:payload]);
+                          registered_observables[$(message[:id])] = value;
+                          // update all onjs callbacks
+                          run_js_callbacks($(message[:id]), value);}"
     elseif type == OnjsCallback
-        return js"""{
-            const func = $(message[:payload]);
-            register_onjs(func, $(message[:id]));
-        }"""
+        return js"""        {
+                const func = $(message[:payload]);
+                register_onjs(func, $(message[:id]));
+                }
+        """
     elseif type == EvalJavascript
-        return js"{$(message[:payload])}"
+        return js"        {$(message[:payload])}"
     elseif type == JSCall
         args = if message[:arguments] isa Tuple
             if isempty(message[:arguments])
@@ -360,29 +339,18 @@ function serialize_message_readable(message)
                 JSCode(args)
             end
         else
-            # Small dicts are getting directly inlined!
-            if is_small_dict(message[:arguments])
-                JSString(JSON3.write(message[:arguments]))
-            else
-                message[:arguments]
-            end
+            message[:arguments]
         end
-        return js"put_on_heap($(message[:result]), $(message[:func])($(args)));"
+        return js"        put_on_heap($(message[:result]), $(message[:func])($(args)));"
     elseif type == JSGetIndex
-        return js"get_js_index($(message[:object]), $(message[:field]), $(message[:result]));"
+        return js"        get_js_index($(message[:object]), $(message[:field]), $(message[:result]));"
     elseif type == JSSetIndex
-        return js"$(message[:object])[$(message[:field])] = $(message[:value]);"
+        return js"        $(message[:object])[$(message[:field])] = $(message[:value]);"
     elseif type == FusedMessage
         return serialize_message_readable.(message[:payload])
     elseif type == DeleteObjects
-        return js"delete_heap_objects($(message[:payload]));"
+        return js"        delete_heap_objects($(message[:payload]));"
     else
         error("type not found: $(type)")
     end
-end
-
-
-function serialize_messages(messages)
-    codes = JSCode(serialize_message_readable.(messages))
-    js_source, data = serialize2string(codes)
 end

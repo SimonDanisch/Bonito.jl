@@ -28,7 +28,7 @@ function get_global_app()
         global_application[] = Application(
             (ctx, request)-> "Nothing to see",
             JSSERVE_CONFIGURATION.listen_url[],
-            JSSERVE_CONFIGURATION.port[],
+            JSSERVE_CONFIGURATION.listen_port[],
             verbose=JSSERVE_CONFIGURATION.verbose[]
         )
     end
@@ -77,6 +77,8 @@ function dom2html(session::Session, dom)
     <script>
     function __on_document_load__(){
         $(queued_as_script(session))
+
+        $(serialize_readable(session.on_document_load))
     };
     </script>
     </head>

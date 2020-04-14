@@ -60,7 +60,7 @@ attribute_render(session::Session, parent, attribute::String, x::Nothing) = x
 attribute_render(session::Session, parent, attribute::String, x::Bool) = x
 
 function attribute_render(session::Session, parent, attribute::String, obs::Observable)
-    onjs(session, obs, js"value=> update_node_attribute($(parent), $attribute, value);")
+    onjs(session, obs, js"value=> update_node_attribute($(parent), $attribute, value)")
     return attribute_render(session, parent, attribute, obs[])
 end
 
