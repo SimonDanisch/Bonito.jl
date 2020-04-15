@@ -55,6 +55,7 @@ function __init__()
         url = url[1:end-1]
     end
     JSSERVE_CONFIGURATION.websocket_proxy[] = url
+    JSSERVE_CONFIGURATION.content_delivery_url[] = url
     atexit() do
         # remove session folder, in which we store data dependencies temporary
         # TODO remove whenever a session is closed to not accumulate waste until julia

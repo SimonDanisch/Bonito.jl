@@ -156,7 +156,7 @@ Link the observables in Julia, but only as long as the session is active.
 """
 function linkjs(session::Session, a::Observable, b::Observable)
     # register the callback with the JS session
-    onjs(session, a, js"(v) => update_obs($b, v);")
+    onjs(session, a, js"(v) => update_obs($b, v)")
 end
 
 function linkjs(has_session, a::Observable, b::Observable)
