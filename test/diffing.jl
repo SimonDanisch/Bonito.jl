@@ -10,7 +10,7 @@ stripnl(x) = strip(x, '\n')
         return DOM.div(JSServe.DiffList([Custom(), md"jo", DOM.div("span span span")], dataTestId="difflist"))
     end
 
-    testsession(test_handler) do app
+    testsession(test_handler, port=8555) do app
         js_list = query_testid(app, "difflist")
         difflist = children(app.dom)[1]
 
