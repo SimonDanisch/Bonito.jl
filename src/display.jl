@@ -67,6 +67,7 @@ function dom2html(session::Session, dom)
     return """
     <html>
     <head>
+    <meta charset="UTF-8">
     $(serialize_readable(session.dependencies))
     <script>
         window.js_call_session_id = '$(session.id)';

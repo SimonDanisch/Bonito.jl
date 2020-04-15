@@ -10,7 +10,7 @@
     asset = JSServe.Asset("file.dun_exist"; check_isfile=false)
     test_throw() = sprint(io->JSServe.serialize_readable(io, JSServe.Asset("file.dun_exist")))
     Test.@test_throws ErrorException("Unrecognized asset media type: dun_exist") test_throw()
-    testsession(test_handler) do app
+    testsession(test_handler, port=8555) do app
         hey = query_testid("hey")
         @test evaljs(app, js"$(hey).innerText") == "Data: Float16(2.0)"
         float16_obs = children(children(app.dom)[1][])[2]

@@ -172,7 +172,7 @@ inline_display = with_session() do session, req
 end;
 
 electron_disp = electrondisplay(inline_display);
-app = TestSession(URI("http://localhost:8081/show"),
+app = TestSession(URI("http://localhost:8555/show"),
                   JSServe.global_application[], electron_disp, test_session)
 app.dom = dom
 
@@ -199,7 +199,7 @@ close(app)
 end
 
 @testset "Electron standalone" begin
-    testsession(test_handler) do app
+    testsession(test_handler, port=8555) do app
         test_current_session(app)
     end
 end
@@ -274,7 +274,7 @@ end
         return DOM.div(JSServe.MarkdownCSS, dom)
     end
 
-    testsession(test_handler) do app
+    testsession(test_handler, port=8555) do app
         # Lets not be too porcelainy about this ...
         md_js_dom = jsobject(app, js"document.getElementById('application-dom').children[0]")
         @test evaljs(app, md_js_dom.children.length) == 1
@@ -292,7 +292,7 @@ end
         stop = map(last, rslider)
         return DOM.div(rslider, start, stop, id="rslider")
     end
-    testsession(test_handler) do app
+    testsession(test_handler, port=8555) do app
         # Lets not be too porcelainy about this ...
         rslider = getfield(app.dom, :children)[1]
         @test rslider[] == [10, 80]

@@ -8,7 +8,7 @@ using ImageTransformations
         scene = AbstractPlotting.scatter([1, 2, 3, 4], resolution=(500,500), color=:red)
         return DOM.div(scene)
     end
-    testsession(test_handler) do app
+    testsession(test_handler, port=8555) do app
         # Lets not be too porcelainy about this ...
         @test evaljs(app, js"document.querySelector('canvas').style.width") == "500px"
         @test evaljs(app, js"document.querySelector('canvas').style.height") == "500px"

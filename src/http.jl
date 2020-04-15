@@ -38,11 +38,11 @@ function request_to_sessionid(request; throw = true)
 end
 
 function html(body)
-    return HTTP.Response(200, ["Content-Type" => "text/html"], body = body)
+    return HTTP.Response(200, ["Content-Type" => "text/html", "charset" => "utf-8"], body = body)
 end
 
 function response_404(body = "Not Found")
-    return HTTP.Response(404, ["Content-Type" => "text/html"], body = body)
+    return HTTP.Response(404, ["Content-Type" => "text/html", "charset" => "utf-8"], body = body)
 end
 
 function replace_url(match_str)
