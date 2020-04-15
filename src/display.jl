@@ -78,8 +78,6 @@ function dom2html(session::Session, dom)
     <script>
     function __on_document_load__(){
         $(queued_as_script(session))
-
-        $(serialize_readable(session.on_document_load))
     };
     </script>
     </head>
