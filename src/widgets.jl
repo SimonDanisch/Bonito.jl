@@ -1,4 +1,4 @@
-# Render the widgets from WidgetsBase!
+# Render the widgets from WidgetsBase.jl
 
 function jsrender(button::Button)
     return DOM.input(
@@ -41,10 +41,7 @@ end
 
 const noUiSlider = Dependency(
     :noUiSlider,
-    [
-        "https://cdn.jsdelivr.net/gh/leongersen/noUiSlider/distribute/nouislider.min.js",
-        "https://cdn.jsdelivr.net/gh/leongersen/noUiSlider/distribute/nouislider.min.css"
-    ]
+    [dependency_path("nouislider.min.js"), dependency_path("nouislider.min.css")]
 )
 
 function jsrender(session::Session, slider::RangeSlider)

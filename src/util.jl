@@ -22,8 +22,6 @@ function walk_dom(f, session::Session, x::Node, visited = IdDict())
     end
 end
 
-
-
 const mime_order = MIME.((
     "text/html", "text/latex", "image/svg+xml", "image/png",
     "image/jpeg", "text/markdown", "application/javascript", "text/plain"

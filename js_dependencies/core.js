@@ -1,6 +1,6 @@
-const registered_observables = {}
-const observable_callbacks = {}
-const javascript_object_heap = {}
+const registered_observables = {};
+const observable_callbacks = {};
+const javascript_object_heap = {};
 
 function put_on_heap(id, value){
     javascript_object_heap[id] = value;
@@ -19,20 +19,20 @@ function get_heap_object(id){
     }
 }
 
-const session_websocket = []
+const session_websocket = [];
 
 // Save some bytes by using ints for switch variable
-const UpdateObservable = '0'
-const OnjsCallback = '1'
-const EvalJavascript = '2'
-const JavascriptError = '3'
-const JavascriptWarning = '4'
-const JSCall = '5'
-const JSGetIndex = '6'
-const JSSetIndex = '7'
-const JSDoneLoading = '8'
-const FusedMessage = '9'
-const DeleteObjects = '10'
+const UpdateObservable = '0';
+const OnjsCallback = '1';
+const EvalJavascript = '2';
+const JavascriptError = '3';
+const JavascriptWarning = '4';
+const JSCall = '5';
+const JSGetIndex = '6';
+const JSSetIndex = '7';
+const JSDoneLoading = '8';
+const FusedMessage = '9';
+const DeleteObjects = '10';
 
 function is_list(value){
     return value && typeof value === 'object' && value.constructor === Array;
@@ -51,20 +51,6 @@ function rand4hex(){
     return randhex() + randhex() + randhex() + randhex();
 }
 
-function get_session_id(){
-    // We have one session id, which handles the connection
-    // for one APP state
-    var session_id = window.js_call_session_id
-
-    var browser_id = rand4hex();
-
-    // Now, we also need an id for having multiple tabs open in the same browser
-    // or for a refresh. this will always be random one...
-    // We will create a new websocket connection for any new tab,
-    // which will share the same state with the other tabs/refresh
-    // var tab_id = rand4hex();
-    return session_id + "/" + browser_id //* "/" * tab_id;
-}
 
 const serializer_functions = {
     JSObject: get_heap_object,
@@ -97,6 +83,37 @@ function materialize(data){
     }
 }
 
+function js_dereference_rec(parent, field_names) {
+    if(field_names.length == 0){
+        // we're done, no more fields to index into
+        return parent;
+    }
+    const next_field = field_names.shift();
+    let next_parent;
+    // skip new, which sneaks into our reference due to how we handle new in Julia
+    if(next_field != 'new') {
+        next_parent = js_getindex(parent, next_field)
+    } else {
+        next_parent = parent;
+    }
+    return js_dereference_rec(next_parent, field_names);
+}
+
+function js_dereference(field_names) {
+    // see if the name is a Javascript Module
+    const parent_field = field_names.shift();
+    let parent = window[parent_field];
+    if(!parent) {
+        // if not a module, it must be on the heap!
+        parent = get_heap_object(parent_field);
+        if(!parent) {
+            // ok, we're out of options at this point!
+            send_error("Could not dereference " + parent_field + "." + field_names, null);
+        }
+    }
+    return js_dereference_rec(parent, field_names);
+}
+
 function deserialize_js(data){
     if(is_list(data)){
         return data.map(deserialize_js);
@@ -104,8 +121,12 @@ function deserialize_js(data){
         if('__javascript_type__' in data){
             if(data.__javascript_type__ == 'JSObject'){
                 return get_heap_object(data.payload);
+            }else if (data.__javascript_type__ == 'JSReference'){
+                return js_dereference(data.payload);
             }else if (data.__javascript_type__ == 'typed_vector'){
                 return data.payload;
+            }else if (data.__javascript_type__ == 'DomNode'){
+                return document.querySelector('[data-jscall-id="' + data.payload + '"]');
             }else if (data.__javascript_type__ == 'js_code'){
                 return data.payload;
             }else{
@@ -149,24 +170,24 @@ function send_error(message, exception){
 }
 
 function send_warning(message){
-    console.warn(message)
+    console.warn(message);
 
     websocket_send({
         msg_type: JavascriptWarning,
         message: message
-    })
+    });
 }
 
 function run_js_callbacks(id, value){
     if(id in observable_callbacks){
-        var callbacks = observable_callbacks[id]
-        var deregister_calls = []
+        var callbacks = observable_callbacks[id];
+        var deregister_calls = [];
         for (var i = 0; i < callbacks.length; i++) {
             // onjs can return false to deregister itself
             try{
-                var register = callbacks[i](value)
+                var register = callbacks[i](value);
                 if(register == false){
-                    deregister_calls.push(i)
+                    deregister_calls.push(i);
                 }
             }catch(exception){
                  send_error(
@@ -174,11 +195,11 @@ function run_js_callbacks(id, value){
                     "Callback:\n" +
                     callbacks[i].toString(),
                     exception
-                )
+                );
             }
         }
         for (var i = 0; i < deregister_calls.length; i++) {
-            callbacks.splice(deregister_calls[i], 1)
+            callbacks.splice(deregister_calls[i], 1);
         }
     }
 }
@@ -186,24 +207,24 @@ function run_js_callbacks(id, value){
 function update_obs(id, value){
     if(id in registered_observables){
         try{
-            registered_observables[id] = value
+            registered_observables[id] = value;
             // call onjs callbacks
-            run_js_callbacks(id, value)
+            run_js_callbacks(id, value);
             // update Julia side!
             websocket_send({
                 msg_type: UpdateObservable,
                 id: id,
                 payload: value
-            })
+            });
         }catch(exception){
             send_error(
                 "Error during update_obs with observable " + id,
                 exception
-            )
+            );
         }
-        return true
-    }else{
-        return false
+        return true;
+    } else {
+        return false;
     }
 }
 
@@ -223,17 +244,6 @@ function ensure_connection(){
             var doc_root = document.getElementById('application-dom');
             var popup = document.createElement('div');
             popup.id = "WEBSOCKET_CONNECTION_WARNING";
-            popup.style.position = "absolute";
-            popup.style.top = "2%";
-            popup.style.left = "50%";
-            popup.style.backgroundColor = "#ED4337";
-            popup.style.color = "#fff";
-            popup.style.textAlign = "center";
-            popup.style.borderRadius = "6px";
-            popup.style.padding = "8px";
-            popup.style.zIndex = "1002";
-            popup.style.overflow = "auto";
-            popup.style.boxShadow = "5px 5px 4px #888888";
             popup.innerText = "Lost connection to server!";
             doc_root.appendChild(popup);
         }
@@ -246,46 +256,138 @@ function ensure_connection(){
 function websocket_send(data){
     const has_conenction = ensure_connection();
     if(has_conenction) {
-        if (session_websocket[0].readyState == 1) {
-            session_websocket[0].send(msgpack.encode(data));
+        if (session_websocket[0]) {
+            if (session_websocket[0].readyState == 1) {
+                session_websocket[0].send(msgpack.encode(data));
+            } else {
+                // wait until in ready state
+                setTimeout(()=> websocket_send(data), 100);
+            }
         } else {
-            // wait until in ready state
-            setTimeout(()=> websocket_send(data), 100);
+            // we're in offline mode!
+            return;
         }
     }
+}
+
+function register_onjs(f, observable) {
+    const callbacks = observable_callbacks[observable] || [];
+    callbacks.push(f);
+    observable_callbacks[observable] = callbacks;
+}
+
+function call_js_func(func, arguments, needs_new, result_object) {
+    let result;
+    if(needs_new){
+        // if argument list we need to use apply
+        if (is_list(arguments)){
+            result = new func(...arguments);
+        }else{
+            // for dictionaries we use a normal call
+            result = new func(arguments);
+        }
+    }else{
+        // TODO remove code duplication here. I don't think new would propagate
+        // correctly if we'd use something like apply_func
+        if (is_list(arguments)){
+            result = func(...arguments);
+        }else{
+            // for dictionaries we use a normal call
+            result = func(arguments);
+        }
+    }
+    put_on_heap(result_object, result);
+}
+
+function js_getindex(object, field) {
+    let result = object[field];
+    // if result is a class method, we need to bind it to the parent object
+    if(result.bind != undefined){
+        result = result.bind(object);
+    }
+    return result;
+}
+
+function put_js_getindex(object, field, result_object) {
+    const result = js_getindex(object, field);
+    put_on_heap(result_object, result);
+}
+
+function delete_heap_objects(objects) {
+    for(var object in objects){
+        delete_from_heap(objects[object]);
+    }
+}
+
+function update_node_attribute(node, attribute, value){
+    if(node){
+        if(node[attribute] != value){
+            node[attribute] = value;
+        }
+        return true;
+    }else{
+        return false; //deregister
+    }
+}
+
+function init_from_byte_array(init_func, data) {
+    for (let obs_id in data.observables) {
+        registered_observables[obs_id] = data.observables[obs_id];
+    }
+    init_func(data.payload);
+    websocket_send({msg_type: JSDoneLoading});
+}
+
+function init_from_file(init_func, url) {
+    var t0 = performance.now();
+    var http_request = new XMLHttpRequest();
+    http_request.open("GET", url, true);
+    http_request.responseType = "arraybuffer";
+    http_request.onload = function (event) {
+        var t1 = performance.now();
+        var arraybuffer = http_request.response; // Note: not oReq.responseText
+        if (arraybuffer) {
+            var bytes = new Uint8Array(arraybuffer);
+            var data = msgpack.decode(bytes);
+            init_from_byte_array(init_func, data);
+            console.log("Processing done!! " + (t1 - t0) + " milliseconds.");
+        }else{
+            send_warning("Didn't receive any setup data from server.")
+        }
+    };
+    http_request.send(null);
 }
 
 function process_message(data){
     switch(data.msg_type) {
         case UpdateObservable:
             try{
-                var value = data.payload
-                registered_observables[data.id] = value
+                var value = data.payload;
+                registered_observables[data.id] = value;
                 // update all onjs callbacks
-                run_js_callbacks(data.id, value)
+                run_js_callbacks(data.id, value);
             }catch(exception){
                 send_error(
                     "Error while updating observable " + data.id + " from Julia!",
                     exception
-                )
+                );
             }
             break;
         case OnjsCallback:
+            let js_source = "";
             try{
                 // register a callback that will executed on js side
                 // when observable updates
-                const id = data.id
-                const f = eval(deserialize_js(data.payload));
-                const callbacks = observable_callbacks[id] || [];
-                callbacks.push(f);
-                observable_callbacks[id] = callbacks;
+                const id = data.id;
+                js_source = deserialize_js(data.payload);
+                const f = eval(js_source);
+                register_onjs(f, id);
             }catch(exception){
                 send_error(
                     "Error while registering an onjs callback.\n" +
-                    "onjs function source:\n" +
-                    data.payload,
+                    "onjs function source:\n" + js_source,
                     exception
-                )
+                );
             }
             break;
         case EvalJavascript:
@@ -296,57 +398,32 @@ function process_message(data){
                 send_error(
                     "Error while evaling JS from Julia. Source:\n" + code,
                     exception
-                )
+                );
             }
             break;
         case JSCall:
             try{
                 var func = eval(deserialize_js(data.func));
-                var result;
                 var arguments = deserialize_js(data.arguments);
-                if(data.needs_new){
-                    // if argument list we need to use apply
-                    if (is_list(arguments)){
-                        result = new func(...arguments);
-                    }else{
-                        // for dictionaries we use a normal call
-                        result = new func(arguments);
-                    }
-                }else{
-                    // TODO remove code duplication here. I don't think new would propagate
-                    // correctly if we'd use something like apply_func
-                    if (is_list(arguments)){
-                        result = func(...arguments);
-                    }else{
-                        // for dictionaries we use a normal call
-                        result = func(arguments);
-                    }
-                }
-                // finally put result on the heap, so the julia object works correctly
-                put_on_heap(data.result, result);
+                call_js_func(func, arguments, data.needs_new, data.result);
             }catch(exception){
                 send_error(
                     "Error while calling JS function from Julia. Function:\n" +
                     String(func),
                     exception
-                )
+                );
             }
             break;
         case JSGetIndex:
             try{
                 var obj = deserialize_js(data.object);
-                var result = obj[data.field];
-                // if result is a class method, we need to bind it to the parent object
-                if(result.bind != undefined){
-                    result = result.bind(obj);
-                }
-                put_on_heap(data.result, result);
+                put_js_getindex(obj, data.field, data.result);
             }catch(exception){
                 send_error(
                     "Error while executing getting field " + data.field +
                     " from:\n" + obj,
                     exception
-                )
+                );
             }
             break;
         case JSSetIndex:
@@ -359,7 +436,7 @@ function process_message(data){
                     "Error while executing setting field " + data.field +
                     " from:\n" + String(obj) + " with value " + String(val),
                     exception
-                )
+                );
             }
             break;
         case FusedMessage:
@@ -373,37 +450,51 @@ function process_message(data){
                     "Error while executing setting field " + data.field +
                     " from:\n" + String(obj) + " with value " + String(val),
                     exception
-                )
+                );
             }
             break;
         case DeleteObjects:
             try{
-                var objects_to_delete = data.payload;
-                for(var object in objects_to_delete){
-                    delete_from_heap(objects_to_delete[object]);
-                }
+                delete_heap_objects(data.payload);
             }catch(exception){
                 send_error(
                     "Error while deleting objects: " + objects_to_delete,
                     exception
-                )
+                );
             }
             break;
         default:
-            send_error("Unrecognized message type: " + data.msg_type + ".", null)
+            send_error("Unrecognized message type: " + data.msg_type + ".", null);
     }
 }
 
+function get_session_id(){
+    // We have one session id, which handles the connection
+    // for one APP state
+    var session_id = window.js_call_session_id;
 
+    var browser_id = rand4hex();
+
+    // Now, we also need an id for having multiple tabs open in the same browser
+    // or for a refresh. this will always be random one...
+    // We will create a new websocket connection for any new tab,
+    // which will share the same state with the other tabs/refresh
+    // var tab_id = rand4hex();
+    return session_id + "/" + browser_id; //* "/" * tab_id;
+}
 
 function websocket_url(){
     // something like http://127.0.0.1:8081/
-    var http_url = window.location.protocol + "//" + window.location.host;
-
+    let http_url = window.location.protocol + "//" + window.location.host;
+    console.log("proxy url " + window.websocket_proxy_url);
+    console.log("js_call_session_id " + window.js_call_session_id);
     if(window.websocket_proxy_url){
         http_url = window.websocket_proxy_url;
+    } else if (!window.js_call_session_id) {
+        // we're in offline mode!
+        return null;
     }
-    var ws_url = http_url.replace("http", "ws");
+    let ws_url = http_url.replace("http", "ws");
     // now should be like: ws://127.0.0.1:8081/
     if(!ws_url.endsWith("/")){
         ws_url = ws_url + "/";
@@ -414,18 +505,19 @@ function websocket_url(){
 }
 
 function setup_connection(){
-    var tries = 0
+    let tries = 0;
     function tryconnect(url) {
+        console.log("URL " + url);
         websocket = new WebSocket(url);
         websocket.binaryType = 'arraybuffer';
         if(session_websocket.length != 0){
             throw "Inconsistent state. Already opened a websocket!"
         }
-        session_websocket.push(websocket)
+        session_websocket.push(websocket);
         websocket.onopen = function () {
             websocket.onmessage = function (evt) {
-                var binary = new Uint8Array(evt.data);
-                var data = msgpack.decode(binary);
+                const binary = new Uint8Array(evt.data);
+                const data = msgpack.decode(binary);
                 process_message(data);
             }
         }
@@ -441,12 +533,18 @@ function setup_connection(){
             if(tries <= 5){
                 session_websocket.length = 0;
                 tries = tries + 1;
-                console.log("Retrying to connect the " + tries + " time!")
+                console.log("Retrying to connect the " + tries + " time!");
                 setTimeout(()=> tryconnect(websocket_url()), 1000);
             }
         };
     }
-    tryconnect(websocket_url())
+    const url = websocket_url();
+    if(url){
+        tryconnect(url);
+    } else {
+        // we're in offline mode!
+        session_websocket.push(null);
+    }
 }
 
-setup_connection()
+setup_connection();

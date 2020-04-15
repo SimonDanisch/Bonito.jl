@@ -2,7 +2,7 @@ using Hyperscript
 using JSServe, Observables
 using JSServe.DOM
 
-using JSServe: Application, Session, evaljs, linkjs, div, active_sessions
+using JSServe: Application, evaljs, linkjs
 using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, with_session
 
 # Javascript & CSS dependencies can be declared locally and
@@ -32,7 +32,6 @@ function dom_handler(session, request)
     }""")
     JSServe.onload(session, dom, js"""
         function (element){
-            console.log(element)
             var editor = $ace.edit(element);
             editor.setTheme("ace/theme/chrome");
             editor.session.setMode("ace/mode/javascript");
@@ -41,7 +40,7 @@ function dom_handler(session, request)
                 copyWithEmptySelection: true,
             });
 
-            editor.resize()
+            editor.resize();
             // use setOptions method to set several options at once
             editor.setOptions({
                 autoScrollEditorIntoView: true,
@@ -53,14 +52,6 @@ function dom_handler(session, request)
         }
     """)
     return DOM.div(DOM.style(styles(s)), s(dom))
-end;
-
-app = JSServe.Application(
-    dom_handler,
-    get(ENV, "WEBIO_SERVER_HOST_URL", "127.0.0.1"),
-    parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081")),
-    verbose = false
-)
-with_session() do session
-    dom_handler(session, nothing)
 end
+
+app = Application(dom_handler, "127.0.0.1", 8081)

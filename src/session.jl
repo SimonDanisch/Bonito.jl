@@ -9,7 +9,7 @@ function init_session(session::Session)
     put!(session.js_fully_loaded, true)
 end
 
-function Session(connections::Vector{WebSocket}=WebSocket[])
+function Session(connections::Vector{WebSocket}=WebSocket[]; url_serializer=UrlSerializer(), id=string(uuid4()))
     return Session(
         Ref(false),
         connections,
@@ -18,9 +18,10 @@ function Session(connections::Vector{WebSocket}=WebSocket[])
         Dict{Symbol, Any}[],
         Set{Asset}(),
         JSCode[],
-        string(uuid4()),
+        id,
         Channel{Bool}(1),
-        init_session
+        init_session,
+        url_serializer
     )
 end
 
@@ -41,51 +42,30 @@ end
 
 Returns all queued messages as a script that can be included into html
 """
-function queued_as_script(io::IO, session::Session)
+function queued_as_script(session::Session)
     # send all queued messages
     # # first register observables
     observables = Dict{String, Any}()
     for (id, (registered, observable)) in session.observables
         observables[observable.id] = observable[]
     end
-
-    data = Dict("observables" => observables, "messages" => session.message_queue)
-
-    isdir(dependency_path("session_temp_data")) || mkdir(dependency_path("session_temp_data"))
-
-    deps_path = dependency_path("session_temp_data", session.id * ".msgpack")
-    open(io -> MsgPack.pack(io, serialize_js(data)), deps_path, "w")
-    data_url = url(register_local_file(deps_path))
-    println(io, js"""
-    var url = $(data_url);
-
-    var http_request = new XMLHttpRequest();
-    http_request.open("GET", url, true);
-    http_request.responseType = "arraybuffer";
-    var t0 = performance.now();
-    http_request.onload = function (event) {
-        var t1 = performance.now();
-        console.log("download done! " + (t1 - t0) + " milliseconds.");
-        var arraybuffer = http_request.response; // Note: not oReq.responseText
-        if (arraybuffer) {
-            var bytes = new Uint8Array(arraybuffer);
-            var data = msgpack.decode(bytes);
-            for (let obs_id in data.observables) {
-                registered_observables[obs_id] = data.observables[obs_id];
-            }
-            for (let message in data.messages) {
-                process_message(data.messages[message]);
-            }
-            t1 = performance.now();
-            console.log("msg process done! " + (t1 - t0) + " milliseconds.");
-            websocket_send({msg_type: JSDoneLoading});
-        }else{
-            send_warning("Didn't receive any setup data from server.")
-        }
-    };
-    http_request.send(null);
-    """)
+    codes = JSServe.serialize_message_readable.(session.message_queue)
     empty!(session.message_queue)
+    source, data = JSServe.serialize2string(codes)
+
+    data = Dict("observables" => observables, "payload" => data)
+    isdir(dependency_path("session_temp_data")) || mkdir(dependency_path("session_temp_data"))
+    deps_path = dependency_path("session_temp_data", session.id * ".msgpack")
+
+    open(io -> MsgPack.pack(io, serialize_js(data)), deps_path, "w")
+    data_url = url(Asset(deps_path), session.url_serializer)
+    return js"""
+    function init_function(__data_dependencies) {
+    $(JSString(source))
+        }
+        init_from_file(init_function, $(data_url));
+    $(session.on_document_load)
+    """
 end
 
 """
@@ -96,7 +76,8 @@ Send values to the frontend via JSON for now
 Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
-    if isopen(session) && !session.fusing[]
+    if isopen(session) && !session.fusing[] && isready(session.js_fully_loaded)
+        @assert isempty(session.message_queue)
         for connection in session.connections
             serialize_websocket(connection, message)
         end
@@ -113,8 +94,9 @@ function fuse(f, session::Session)
     if !isempty(session.message_queue)
         # only sent when open!
         if isopen(session)
-            send(session; msg_type=FusedMessage, payload=session.message_queue)
+            fused = copy(session.message_queue)
             empty!(session.message_queue)
+            send(session; msg_type=FusedMessage, payload=fused)
         end
     end
     return result
@@ -138,11 +120,10 @@ function onjs(session::Session, obs::Observable, func::JSCode)
     register_resource!(session, (obs, func))
 
     send(
-        session,
-        msg_type = OnjsCallback,
-        id = obs.id,
-        # eval requires functions to be wrapped in ()
-        payload = js"($func)"
+        session;
+        msg_type=OnjsCallback,
+        id=obs.id,
+        payload=js"($(func))"
     )
 end
 
@@ -156,9 +137,7 @@ end
 calls javascript `func` with node, once node has been displayed.
 """
 function onload(session::Session, node::Node, func::JSCode)
-    on_document_load(session, js"""
-        ($(func))($node);
-    """)
+    on_document_load(session, js"($(func))($node);")
 end
 
 """
@@ -179,17 +158,7 @@ Link the observables in Julia, but only as long as the session is active.
 """
 function linkjs(session::Session, a::Observable, b::Observable)
     # register the callback with the JS session
-    onjs(
-        session,
-        a,
-        js"""
-        function (value){
-            // update_obs will return false once b is gone,
-            // so this will automatically deregister the link!
-            return update_obs($b, value)
-        }
-        """
-    )
+    onjs(session, a, js"(v) => update_obs($b, v)")
 end
 
 function linkjs(has_session, a::Observable, b::Observable)
@@ -341,4 +310,49 @@ end
 function Base.push!(session::Session, object::JSObject)
     push!(session.objects, object)
     return object
+end
+
+function serialize_message_readable(message)
+    type = message[:msg_type]
+    if type == UpdateObservable
+        return js"        {const value = $(message[:payload]);
+                          registered_observables[$(message[:id])] = value;
+                          // update all onjs callbacks
+                          run_js_callbacks($(message[:id]), value);}"
+    elseif type == OnjsCallback
+        return js"""        {
+                const func = $(message[:payload]);
+                register_onjs(func, $(message[:id]));
+                }
+        """
+    elseif type == EvalJavascript
+        return js"        {$(message[:payload])}"
+    elseif type == JSCall
+        args = if message[:arguments] isa Tuple
+            if isempty(message[:arguments])
+                JSString("")
+            else
+                args = []
+                for arg in message[:arguments][1:end-1]
+                    push!(args, arg)
+                    push!(args, JSString(", "))
+                end
+                push!(args, message[:arguments][end])
+                JSCode(args)
+            end
+        else
+            message[:arguments]
+        end
+        return js"        put_on_heap($(message[:result]), $(message[:func])($(args)));"
+    elseif type == JSGetIndex
+        return js"        get_js_index($(message[:object]), $(message[:field]), $(message[:result]));"
+    elseif type == JSSetIndex
+        return js"        $(message[:object])[$(message[:field])] = $(message[:value]);"
+    elseif type == FusedMessage
+        return serialize_message_readable.(message[:payload])
+    elseif type == DeleteObjects
+        return js"        delete_heap_objects($(message[:payload]));"
+    else
+        error("type not found: $(type)")
+    end
 end

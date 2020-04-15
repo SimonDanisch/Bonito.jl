@@ -52,6 +52,12 @@ function JSObject(session::Session, name::Symbol)
     return JSObject(name, session, :variable)
 end
 
+function JSObject(session, dependency::Dependency)
+    mod = JSObject(dependency.name, session, :Module)
+    push!(session, dependency)
+    return mod
+end
+
 # define accessors
 for name in (:name, :session, :typ, :uuid)
     @eval $(name)(jso::JSObject) = getfield(jso, $(QuoteNode(name)))
@@ -80,25 +86,12 @@ obj = Module.new.Constructor()
 ```
 """
 function Base.getproperty(jso::AbstractJSObject, field::Symbol)
-    if field === :new
-        # Create a new instance of jso, with the `new` modifier
-        return JSObject(jso, :new)
-    else
-        result = JSObject(field, session(jso), typ(jso))
-        send(
-            session(jso),
-            msg_type = JSGetIndex,
-            object = jso,
-            field = field,
-            result = uuidstr(result),
-        )
-        return result
-    end
+    return JSReference(jso, field)
 end
 
 function Base.setproperty!(jso::AbstractJSObject, field::Symbol, value)
     send(
-        session(jso),
+        session(jso);
         msg_type = JSSetIndex,
         object = jso,
         value = value,
@@ -127,6 +120,14 @@ function construct_arguments(args, keyword_arguments)
     end
 end
 
+function needs_new(reference::JSReference)
+    return :new in flatten_references(reference)
+end
+
+function needs_new(reference::JSObject)
+    return getfield(jso, :typ) == :new
+end
+
 """
     jsobject(args...; kw_args...)
 
@@ -139,7 +140,7 @@ function jscall(jso::AbstractJSObject, args, kw_args)
         session(jso),
         msg_type = JSCall,
         func = jso,
-        needs_new = getfield(jso, :typ) === :new,
+        needs_new = needs_new(jso),
         arguments = construct_arguments(args, kw_args),
         result = uuidstr(result)
     )
@@ -147,6 +148,7 @@ function jscall(jso::AbstractJSObject, args, kw_args)
 end
 
 (jso::JSObject)(args...; kw_args...) = jscall(jso, args, kw_args)
+(jso::JSReference)(args...; kw_args...) = jscall(jso, args, kw_args)
 
 struct JSModule <: AbstractJSObject
     session::Session

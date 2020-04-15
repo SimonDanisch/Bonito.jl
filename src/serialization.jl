@@ -24,6 +24,11 @@ function serialize_js(jso::JSObject)
     return js_type(:JSObject, uuidstr(jso))
 end
 
+function serialize_js(jso::JSReference)
+    refs = flatten_references(jso)
+    return js_type(:JSReference, string.(refs))
+end
+
 function serialize_js(x::Union{AbstractArray, Tuple})
     return map(serialize_js, x)
 end
@@ -90,6 +95,10 @@ end
 
 function serialize_readable(io::IO, jso::JSObject)
     serialize_readable(io, js"get_heap_object($(uuidstr(jso)))")
+end
+
+function serialize_readable(io::IO, jso::JSReference)
+    serialize_readable(io, js_name(jso))
 end
 
 function serialize_readable(io::IO, assets::Set{Asset})

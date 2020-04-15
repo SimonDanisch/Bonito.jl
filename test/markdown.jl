@@ -64,9 +64,6 @@ end
 
 function test_current_session(app)
     dom = children(app.dom)[1]
-    root = js"document.getElementById('application-dom').children[0]"
-    @test evaljs(app, js"$(root).children.length") == 1
-    @test evaljs(app, js"$(root).children[0].children[0].children[0].innerText") == "IS THIS REAL?"
     @test evaljs(app, js"document.querySelectorAll('input[type=\"button\"]').length") == 1
     @test evaljs(app, js"document.querySelectorAll('input[type=\"range\"]').length") == 2
     @test evaljs(app, js"document.querySelectorAll('input[type=\"button\"]').length") == 1
@@ -185,16 +182,17 @@ end
 close(app)
 
 @testset "webio mime" begin
-    ENV["JULIA_WEBIO_BASEURL"] = "https//google.de/"
+    ENV["JULIA_WEBIO_BASEURL"] = "https://google.de/"
     JSServe.__init__()
-    @test JSServe.server_proxy_url[] == "https//google.de"
+    @test JSServe.JSSERVE_CONFIGURATION.websocket_proxy[] == "https://google.de"
+    @test JSServe.JSSERVE_CONFIGURATION.content_delivery_url[] == "https://google.de"
     html_webio = sprint(io-> show(io, MIME"application/vnd.webio.application+html"(), inline_display))
-    @test JSServe.url("/test") == "https//google.de/test"
-    @test occursin("window.websocket_proxy_url = 'https//google.de';", html_webio)
-    JSServe.server_proxy_url[] = ""
-    @test JSServe.url("/test") == "/test" # back to relative urls
+    @test occursin("window.websocket_proxy_url = 'https://google.de';", html_webio)
+    # @test JSServe.url("/test") == "https://google.de/test"
+    JSServe.JSSERVE_CONFIGURATION.websocket_proxy[] = ""
+    JSServe.JSSERVE_CONFIGURATION.content_delivery_url[] = ""
+    # @test JSServe.url("/test") == "/test" # back to relative urls
     html_webio = sprint(io-> show(io, MIME"application/vnd.webio.application+html"(), inline_display))
-    @test !occursin("window.websocket_proxy_url", html_webio)
     # We open the display server with the above TestSession
     # TODO electrontests should do this!
     ElectronTests.check_and_close_display()

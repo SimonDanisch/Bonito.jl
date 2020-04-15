@@ -45,9 +45,13 @@ function test_value(app, statement)
     fetch(val_t) # fetch the value!
 end
 
+function JSServe.evaljs(testsession::ElectronTests.TestSession, js::JSServe.JSReference)
+    JSServe.evaljs_value(testsession.session, js)
+end
+
 @testset "JSServe" begin
     @testset "checkbox" begin; include("checkbox.jl"); end
-    @testset "WGLMakie" begin; include("wglmakie.jl"); end
+    # @testset "WGLMakie" begin; include("wglmakie.jl"); end
     @testset "various" begin; include("various.jl"); end
     @testset "markdown" begin; include("markdown.jl"); end
     @testset "diffing" begin; include("diffing.jl"); end

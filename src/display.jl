@@ -27,9 +27,9 @@ function get_global_app()
     if !isassigned(global_application) || istaskdone(global_application[].server_task[])
         global_application[] = Application(
             (ctx, request)-> "Nothing to see",
-            get(ENV, "WEBIO_SERVER_HOST_URL", "127.0.0.1"),
-            parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081")),
-            verbose = get(ENV, "JSCALL_VERBOSITY_LEVEL", "false") == "true"
+            JSSERVE_CONFIGURATION.listen_url[],
+            JSSERVE_CONFIGURATION.listen_port[],
+            verbose=JSSERVE_CONFIGURATION.verbose[]
         )
     end
     return global_application[]
@@ -53,7 +53,98 @@ end
 function Base.show(io::IO, m::MIME"application/vnd.webio.application+html", dom::DisplayInline)
     application = get_global_app()
     session = Session()
-    application.sessions[session.id] = Dict("base" => session)
+    application.sessions[session.id] = session
     dom = Base.invokelatest(dom.dom_function, session, (target = "/show",))
-    dom2html(io, session, session.id, dom)
+    println(io, dom2html(session, dom))
+end
+
+function dom2html(session::Session, dom)
+    js_dom = DOM.div(jsrender(session, dom), id="application-dom")
+    # register resources (e.g. observables, assets)
+    register_resource!(session, js_dom)
+    proxy_url = JSSERVE_CONFIGURATION.websocket_proxy[]
+    html = repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
+    return """
+    <html>
+    <head>
+    $(serialize_readable(session.dependencies))
+    <script>
+        window.js_call_session_id = '$(session.id)';
+        window.websocket_proxy_url = '$(proxy_url)';
+    </script>
+    $(serialize_readable(MsgPackLib))
+    $(serialize_readable(JSCallLibLocal))
+    <script>
+    function __on_document_load__(){
+        $(queued_as_script(session))
+
+        $(serialize_readable(session.on_document_load))
+    };
+    </script>
+    </head>
+    <body onload=__on_document_load__()>
+        $(html)
+    </body>
+    </html>
+    """
+end
+
+
+
+"""
+export_standalone(dom_handler, folder::String;
+        absolute_urls=false, content_delivery_url="file://" * folder * "/",
+    )
+
+Exports the app defined by `dom_handler` with all its assets to `folder`.
+Will write the main html out into `folder/index.html`.
+Overwrites all existing files!
+If this gets served behind a proxy, set `absolute_urls=true` and
+set `content_delivery_url` to your proxy url.
+If `clear_folder=true` all files in `folder` will get deleted before exporting again!
+"""
+function export_standalone(dom_handler, folder::String;
+        clear_folder=false,
+        absolute_urls=false, content_delivery_url="file://" * folder * "/",
+    )
+    if clear_folder
+        for file in readdir(folder)
+            rm(joinpath(folder, file), force=true, recursive=true)
+        end
+    end
+    serializer = UrlSerializer(false, folder, absolute_urls, content_delivery_url)
+    # set id to "", since we dont needed, and like this we get nicer file names
+    session = Session(url_serializer=serializer, id="standalone")
+    html_dom = Base.invokelatest(dom_handler, session, (target="/",))
+    js_dom = DOM.div(jsrender(session, html_dom), id="application-dom")
+    # register resources (e.g. observables, assets)
+    register_resource!(session, js_dom)
+    html = repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
+
+    open(joinpath(folder, "index.html"), "w") do io
+        println(io, """
+            <html>
+            <head>
+            $(include_asset(session.dependencies, serializer))
+            <script>
+                window.js_call_session_id = null;
+                window.websocket_proxy_url = null;
+            </script>
+            $(include_asset(MsgPackLib, serializer))
+            $(include_asset(JSCallLibLocal, serializer))
+            <script>
+            function __on_document_load__(){
+                $(queued_as_script(session))
+
+                $(serialize_readable(session.on_document_load))
+            };
+            </script>
+            </head>
+            <body onload=__on_document_load__()>
+                $(html)
+            </body>
+            </html>
+            """)
+    end
+    return
 end

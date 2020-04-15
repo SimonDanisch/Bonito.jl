@@ -1,24 +1,47 @@
-using Hyperscript, Markdown
+using Markdown
 using JSServe, Observables
-using JSServe: Session, evaljs, linkjs, div, active_sessions
-using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, Asset
+using JSServe: Session, evaljs, linkjs
+using JSServe: @js_str, onjs, Button, Slider, Asset
 using WGLMakie, AbstractPlotting
 
 markdown_css = Asset(JSServe.dependency_path("markdown.css"))
 
 function test_handler(session, req)
-    button = Button("click")
-    slider = Slider(1:100)
+    cmap_button = Button("change colormap")
+    algorithm_button = Button("change algorithm")
+    algorithms = ["mip", "iso", "absorption"]
+    algorithm = Observable(first(algorithms))
+    dropdown_onchange = js"update_obs($algorithm, this.options[this.selectedIndex].text);"
+    algorithm_drop = DOM.select(DOM.option.(algorithms); class="bandpass-dropdown", onclick=dropdown_onchange)
 
-    signal = map(slider) do value
-        sin.(LinRange(0, value, 1000))
+    data_slider = Slider(LinRange(1f0, 10f0, 100))
+    iso_value = Slider(LinRange(0f0, 1f0, 100))
+    N = 100
+    slice_idx = Slider(1:N)
+
+    signal = map(Observables.async_latest(data_slider.value)) do α
+        a = -1; b = 2
+        r = LinRange(-2, 2, N)
+        z = ((x,y) -> x + y).(r, r') ./ 5
+        me = [z .* sin.(α .* (atan.(y ./ x) .+ z.^2 .+ pi .* (x .> 0))) for x=r, y=r, z=r]
+        return me .* (me .> z .* 0.25)
     end
 
-    scene = scatter(signal, markersize=(10.0,10.0), resolution=(500,200), limits=FRect(0, -1, 1000, 2))
-
-    on(button) do val
-        scene[end].color = rand(RGBf0)
+    slice = map(signal, slice_idx) do x, idx
+        view(x, :, idx, :)
     end
+
+    vol = volume(signal; algorithm=map(Symbol, algorithm), ambient=Vec3f0(0.8),
+                 isovalue=iso_value)
+
+    colormaps = collect(AbstractPlotting.all_gradient_names)
+    cmap = map(cmap_button) do click
+        return colormaps[rand(1:length(colormaps))]
+    end
+
+    heat = heatmap(slice, colormap=cmap)
+    scene = vbox(vol, heat)
+
     dom = md"""
     # More MD
 
@@ -26,7 +49,7 @@ function test_handler(session, req)
 
     [![Build Status](https://travis-ci.com/SimonDanisch/JSServe.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/JSServe.jl)
 
-    Lalala
+    Thoughtful example
     ======
 
     Alt-H2
@@ -69,9 +92,15 @@ function test_handler(session, req)
 
     # Plots:
 
-    $(slider)
+    $(DOM.div("data param", data_slider))
 
-    $(button)
+    $(DOM.div("iso value", iso_value))
+
+    $(DOM.div("y slice", slice_idx))
+
+    $(algorithm_drop)
+
+    $(cmap_button)
 
     ---
 
@@ -82,4 +111,5 @@ function test_handler(session, req)
     return JSServe.DOM.div(markdown_css, dom)
 end
 
+isdefined(Main, :app) && close(app)
 app = JSServe.Application(test_handler, "0.0.0.0", 8081)

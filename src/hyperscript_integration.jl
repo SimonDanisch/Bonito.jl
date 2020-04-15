@@ -26,14 +26,21 @@ function m_unesc(tag, args...; kw...)
     m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, tag, args..., dataJscallId = get_unique_dom_id(); kw...)
 end
 
-for node in (:a, :abbr, :address, :area, :article, :aside, :audio, :b,
-    :base, :bdi, :bdo, :blockquote, :body, :br, :button, :canvas, :caption, :cite, :code, :col, :colgroup, :data, :datalist,
-    :dd, :del, :details, :dfn, :dialog, :div, :dl, :dt, :em, :embed, :fieldset, :figcaption, :figure, :footer, :form, :h1, :h2,
-    :h3, :h4, :h5, :h6, :head, :header, :hgroup, :hr, :html, :i, :iframe, :img, :input, :ins, :kbd, :label, :legend, :li, :link,
-     :main, :map, :mark, :math, :menu, :menuitem, :meta, :meter, :nav, :noscript, :object, :ol, :optgroup, :option, :output, :p, :param,
-      :picture, :pre, :progress, :q, :rb, :rp, :rt, :rtc, :ruby, :s, :samp, :section, :select, :slot, :small, :source, :span,
-      :strong, :sub, :summary, :sup, :svg, :table, :tbody, :td, :template, :textarea, :tfoot, :th, :thead, :time, :title, :tr,
-      :track, :u, :ul, :var, :video, :wbr, :font)
+for node in [:a, :abbr, :address, :area, :article, :aside, :audio, :b,
+             :base, :bdi, :bdo, :blockquote, :body, :br, :button, :canvas,
+             :code, :col, :colgroup, :data, :datalist, :caption, :cite,
+             :dd, :del, :details, :dfn, :dialog, :div, :dl, :dt, :em, :embed,
+             :figcaption, :figure, :footer, :form, :h1, :h2, :fieldset,
+             :h3, :h4, :h5, :h6, :head, :header, :hgroup, :hr, :html, :i, :iframe,
+             :input, :ins, :kbd, :label, :legend, :li, :link, :img,
+             :main, :map, :mark, :math, :menu, :menuitem, :meta, :meter, :nav,
+             :object, :ol, :optgroup, :option, :output, :p, :param, :noscript,
+             :picture, :pre, :progress, :q, :rb, :rp, :rt, :rtc, :ruby, :s, :samp,
+             :section, :select, :slot, :small, :source, :span,
+             :strong, :sub, :summary, :sup, :svg, :table, :tbody, :td, :template,
+             :textarea, :tfoot, :th, :thead, :time, :title, :tr,
+             :track, :u, :ul, :var, :video, :wbr, :font]
+
     node_name = string(node)
     unesc = Symbol(node_name * "_unesc")
     @eval $(node)(args...; kw...) = um($(node_name), args...; kw...)
@@ -53,25 +60,23 @@ attribute_render(session::Session, parent, attribute::String, x::Nothing) = x
 attribute_render(session::Session, parent, attribute::String, x::Bool) = x
 
 function attribute_render(session::Session, parent, attribute::String, obs::Observable)
-    onjs(session, obs, js"""
-    function (value){
-        var node = $(parent);
-        if(node){
-            if(node[$attribute] != value){
-                node[$attribute] = value;
-            }
-            return true;
-        }else{
-            return false; //deregister
-        }
-    }
-    """)
+    onjs(session, obs, js"value=> update_node_attribute($(parent), $attribute, value)")
     return attribute_render(session, parent, attribute, obs[])
 end
 
 function attribute_render(session::Session, parent, attribute::String, jss::JSCode)
     register_resource!(session, jss)
     return serialize_readable(jss)
+end
+
+
+function attribute_render(session::Session, parent, attribute::String, jss::Asset)
+    if parent isa Hyperscript.Node{Hyperscript.CSS}
+        # css seems to require an url object
+        return "url($(url(jss, session.url_serializer)))"
+    else
+        return "$(url(jss, session.url_serializer))"
+    end
 end
 
 render_node(session::Session, x) = x
