@@ -47,6 +47,10 @@ function serialize_js(jsc::Union{JSCode, JSString})
     return js_type(:js_code, serialize_readable(jsc))
 end
 
+function serialize_js(asset::Asset)
+    return url(asset)
+end
+
 serialize_readable(@nospecialize(x)) = sprint(io-> serialize_readable(io, x))
 serialize_readable(io::IO, @nospecialize(object)) = JSON3.write(io, object)
 serialize_readable(io::IO, x::JSString) = print(io, x.source)
