@@ -9,7 +9,7 @@ function init_session(session::Session)
     put!(session.js_fully_loaded, true)
 end
 
-function Session(connections::Vector{WebSocket}=WebSocket[])
+function Session(connections::Vector{WebSocket}=WebSocket[]; url_serializer=UrlSerializer(), id=string(uuid4()))
     return Session(
         Ref(false),
         connections,
@@ -18,9 +18,10 @@ function Session(connections::Vector{WebSocket}=WebSocket[])
         Dict{Symbol, Any}[],
         Set{Asset}(),
         JSCode[],
-        string(uuid4()),
+        id,
         Channel{Bool}(1),
-        init_session
+        init_session,
+        url_serializer
     )
 end
 
@@ -55,8 +56,9 @@ function queued_as_script(session::Session)
     data = Dict("observables" => observables, "payload" => data)
     isdir(dependency_path("session_temp_data")) || mkdir(dependency_path("session_temp_data"))
     deps_path = dependency_path("session_temp_data", session.id * ".msgpack")
+
     open(io -> MsgPack.pack(io, serialize_js(data)), deps_path, "w")
-    data_url = url(register_local_file(deps_path))
+    data_url = url(Asset(deps_path), session.url_serializer)
     return js"""
     function init_function(__data_dependencies) {
     $(JSString(source))

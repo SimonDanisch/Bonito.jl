@@ -69,6 +69,16 @@ function attribute_render(session::Session, parent, attribute::String, jss::JSCo
     return serialize_readable(jss)
 end
 
+
+function attribute_render(session::Session, parent, attribute::String, jss::Asset)
+    if parent isa Hyperscript.Node{Hyperscript.CSS}
+        # css seems to require an url object
+        return "url($(url(jss, session.url_serializer)))"
+    else
+        return "$(url(jss, session.url_serializer))"
+    end
+end
+
 render_node(session::Session, x) = x
 
 const BOOLEAN_ATTRIUTES = Set([

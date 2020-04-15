@@ -1,6 +1,5 @@
-
 using JSServe, WGLMakie, AbstractPlotting
-using JSServe: JSServe.DOM, @js_str, onjs, linkjs, evaljs
+using JSServe: JSServe.DOM, @js_str, onjs, linkjs, evaljs, Asset
 using Colors
 using Random
 using Observables
@@ -11,11 +10,6 @@ thetas = [0.1, -0.8, 1.5, 0.0, 0.3]
 # Needed for sliders as well
 thetalims = [(0.0,1.0), (-5.0,5.0), (0.0,10.0), (0.0,10.0), (0.0,1.0)]
 truethetas = [0.1, -0.8, 1.5, 0.0, 0.3];
-#thetas = truethetas # should true parameters or point estimates marked in the app?
-
-# fallback values if statistical analysis is not run
-
-WGLMakie.activate!()
 
 # load histogram images to use as slider background
 sliderbg = [JSServe.Asset(joinpath(@__DIR__, "results", "slider1.png")),
@@ -24,11 +18,9 @@ sliderbg = [JSServe.Asset(joinpath(@__DIR__, "results", "slider1.png")),
             JSServe.Asset(joinpath(@__DIR__, "results", "slider4.png")),
             JSServe.Asset(joinpath(@__DIR__, "results", "slider5.png"))]
 
-particlecss = JSServe.Asset(joinpath("results", "particle.css")) # style sheet
+particlecss = JSServe.Asset(joinpath(@__DIR__, "results", "particle.css")) # style sheet
 
 function dom_handler(session, request)
-    global three, scene
-
     # fetch initial parameter (initial slider settings)
     eps = thetas[1];
     s = thetas[2];
@@ -36,7 +28,7 @@ function dom_handler(session, request)
     beta = thetas[4];
     si = thetas[5];
     rebirth = 0.001; # how often a particle is "reborn" at random position
-    sl = 101 # slider sub-divisions
+    sl = 101 # sliderdom_handler sub-divisions
 
 
     # slider and field for sigma
@@ -82,11 +74,11 @@ function dom_handler(session, request)
     ms2 = 0.02 # markersize isokline
 
     # plot particles, initially at random positions
-    global scene = WGLMakie.scatter(repeat(R1*(2rand(n) .- 1), outer=K), repeat(R2*(2rand(n) .- 1),outer=K), color = fill((:white,0f0), n*K),
+    scene = WGLMakie.scatter(repeat(R1*(2rand(n) .- 1), outer=K), repeat(R2*(2rand(n) .- 1),outer=K), color = fill((:white,0f0), n*K),
         backgroundcolor = RGB{Float32}(0.04, 0.11, 0.22), markersize = ms1,
         glowwidth = 0.005, glowcolor = :white,
         resolution=(500,500), limits = limits,
-        )
+    )
 
     # style plot
     axis = scene[Axis]
@@ -132,7 +124,6 @@ function dom_handler(session, request)
                         positions[i+1] = beta + positions[i]*gamma;
                 }
             mesh.geometry.attributes.offset.needsUpdate = true;
-            //mesh.geometry.attributes.color.needsUpdate = true;
         }
         updateklinegamma = function (value){
             gamma = value;
@@ -152,7 +143,6 @@ function dom_handler(session, request)
                         positions[i+1] = positions[i] - positions[i]*positions[i]*positions[i] + s;
                 }
             mesh.geometry.attributes.offset.needsUpdate = true;
-            //mesh.geometry.attributes.color.needsUpdate = true;
         }
 
         // move particles every x milliseconds
@@ -169,7 +159,7 @@ function dom_handler(session, request)
                 var K = $(K);
                 var n = $(n);
                 var dt = $(dt);
-                console.log(iter++);
+                iter++;
                 var sqrtdt = $(sqrtdt);
                 k = iter%K;
                 var positions = mesh.geometry.attributes.offset.array;
@@ -223,30 +213,43 @@ function dom_handler(session, request)
     }""")
 
     # set background for sliders
-    styles = [Observable("padding-top: 10px; height: 50px; background-size: 115px 50px; background-repeat: no-repeat;
-    background-position: center center; background-image: url($(JSServe.url(sliderbg[j])));") for j in 1:5]
-    #style2 = Observable("width=150px;")
-
+    styles = map(1:5) do i
+        return DOM.css("#slider$(i)",
+            paddingTop = "10px",
+            height = "50px",
+            backgroundSize = "115px 50px",
+            backgroundRepeat = "no-repeat",
+            backgroundPosition = "center center",
+            backgroundImage = sliderbg[i])
+    end
     # arrange canvas and sliders as html elements
-    dom = DOM.div(particlecss, DOM.p(canvas), DOM.p("Parameters"), DOM.table(
-    DOM.tr(DOM.td("ε ($eps)"), DOM.td("s ($s)"), DOM.td("γ ($gamma)"), DOM.td("β ($beta)"), DOM.td("σ ($si)")),
-    DOM.tr(
-        DOM.td(DOM.div(slider1, id="slider1", style=styles[1]), DOM.div(nrs1)),
-        DOM.td(DOM.div(slider2, id="slider2", style=styles[2]), DOM.div(nrs2)),
-        DOM.td(DOM.div(slider3, id="slider3", style=styles[3]), DOM.div(nrs3)),
-        DOM.td(DOM.div(slider4, id="slider4", style=styles[4]), DOM.div(nrs4)),
-        DOM.td(DOM.div(slider5, id="slider5", style=styles[5] ), DOM.div(nrs5))
-       ),
-    DOM.tr(
-        DOM.td("rebirth", DOM.div(slider6, id="slider6"), DOM.div(nrs6)),
-    )))
-    println("running...")
-    dom
+    dom = DOM.div(DOM.style(styles...),
+        particlecss, DOM.p(canvas), DOM.p("Parameters"), DOM.table(
+            DOM.tr(DOM.td("ε ($eps)"), DOM.td("s ($s)"), DOM.td("γ ($gamma)"), DOM.td("β ($beta)"), DOM.td("σ ($si)")),
+            DOM.tr(
+                DOM.td(DOM.div(slider1, id="slider1"), DOM.div(nrs1)),
+                DOM.td(DOM.div(slider2, id="slider2"), DOM.div(nrs2)),
+                DOM.td(DOM.div(slider3, id="slider3"), DOM.div(nrs3)),
+                DOM.td(DOM.div(slider4, id="slider4"), DOM.div(nrs4)),
+                DOM.td(DOM.div(slider5, id="slider5"), DOM.div(nrs5))
+            ), DOM.tr(
+                DOM.td("rebirth", DOM.div(slider6, id="slider6"), DOM.div(nrs6)),
+            )))
+    return dom
 end
 
-# app = JSServe.Application(dom_handler, "127.0.0.1", 8082)
+app = JSServe.Application(dom_handler, "127.0.0.1", 8082)
+close(app)
 
+# Export as standalone offline version:
 
+asset_folder = joinpath(@__DIR__, "exported")
+rm(asset_folder, recursive=true, force=true)
+mkdir(asset_folder)
+JSServe.export_standalone(dom_handler, asset_folder, clear_folder=true)
+# Serve folder with e.g. LiveServer
+using LiveServer
+@async LiveServer.serve(dir=asset_folder)
 # Animation: Particles moving according to the inferred model on the phase plane $(X,Y)$ . The sliders are showing the marginal posterior and are initially set to the median value of the inferred parameters (black dot).*
 
 #=

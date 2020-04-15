@@ -60,6 +60,40 @@ struct Dependency
 end
 
 """
+    UrlSerializer
+Struct used to encode how an url is rendered
+Fields:
+```julia
+# uses assetserver?
+assetserver::Bool
+# if assetserver == false, we move all assets into asset_folder
+# for someone else to serve them!
+asset_folder::Union{Nothing, String}
+
+absolute::Bool
+# Used to prepend if absolute == true
+content_delivery_url::String
+```
+"""
+struct UrlSerializer
+    # uses assetserver?
+    assetserver::Bool
+    # if assetserver == false, we move all assets into asset_folder
+    # for someone else to serve them!
+    asset_folder::Union{Nothing, String}
+
+    absolute::Bool
+    # Used to prepend if absolute == true
+    content_delivery_url::String
+end
+
+function UrlSerializer()
+    return UrlSerializer(
+        true, nothing, false, JSSERVE_CONFIGURATION.content_delivery_url[]
+    )
+end
+
+"""
 A web session with a user
 """
 struct Session
@@ -76,6 +110,7 @@ struct Session
     id::String
     js_fully_loaded::Channel{Bool}
     on_websocket_ready::Any
+    url_serializer::UrlSerializer
 end
 
 abstract type AbstractJSObject end

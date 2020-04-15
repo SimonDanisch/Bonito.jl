@@ -51,20 +51,6 @@ function rand4hex(){
     return randhex() + randhex() + randhex() + randhex();
 }
 
-function get_session_id(){
-    // We have one session id, which handles the connection
-    // for one APP state
-    var session_id = window.js_call_session_id;
-
-    var browser_id = rand4hex();
-
-    // Now, we also need an id for having multiple tabs open in the same browser
-    // or for a refresh. this will always be random one...
-    // We will create a new websocket connection for any new tab,
-    // which will share the same state with the other tabs/refresh
-    // var tab_id = rand4hex();
-    return session_id + "/" + browser_id; //* "/" * tab_id;
-}
 
 const serializer_functions = {
     JSObject: get_heap_object,
@@ -270,11 +256,16 @@ function ensure_connection(){
 function websocket_send(data){
     const has_conenction = ensure_connection();
     if(has_conenction) {
-        if (session_websocket[0].readyState == 1) {
-            session_websocket[0].send(msgpack.encode(data));
+        if (session_websocket[0]) {
+            if (session_websocket[0].readyState == 1) {
+                session_websocket[0].send(msgpack.encode(data));
+            } else {
+                // wait until in ready state
+                setTimeout(()=> websocket_send(data), 100);
+            }
         } else {
-            // wait until in ready state
-            setTimeout(()=> websocket_send(data), 100);
+            // we're in offline mode!
+            return;
         }
     }
 }
@@ -477,14 +468,31 @@ function process_message(data){
     }
 }
 
+function get_session_id(){
+    // We have one session id, which handles the connection
+    // for one APP state
+    var session_id = window.js_call_session_id;
 
+    var browser_id = rand4hex();
+
+    // Now, we also need an id for having multiple tabs open in the same browser
+    // or for a refresh. this will always be random one...
+    // We will create a new websocket connection for any new tab,
+    // which will share the same state with the other tabs/refresh
+    // var tab_id = rand4hex();
+    return session_id + "/" + browser_id; //* "/" * tab_id;
+}
 
 function websocket_url(){
     // something like http://127.0.0.1:8081/
     let http_url = window.location.protocol + "//" + window.location.host;
-
+    console.log("proxy url " + window.websocket_proxy_url);
+    console.log("js_call_session_id " + window.js_call_session_id);
     if(window.websocket_proxy_url){
         http_url = window.websocket_proxy_url;
+    } else if (!window.js_call_session_id) {
+        // we're in offline mode!
+        return null;
     }
     let ws_url = http_url.replace("http", "ws");
     // now should be like: ws://127.0.0.1:8081/
@@ -499,12 +507,13 @@ function websocket_url(){
 function setup_connection(){
     let tries = 0;
     function tryconnect(url) {
+        console.log("URL " + url);
         websocket = new WebSocket(url);
         websocket.binaryType = 'arraybuffer';
         if(session_websocket.length != 0){
             throw "Inconsistent state. Already opened a websocket!"
         }
-        session_websocket.push(websocket)
+        session_websocket.push(websocket);
         websocket.onopen = function () {
             websocket.onmessage = function (evt) {
                 const binary = new Uint8Array(evt.data);
@@ -529,7 +538,13 @@ function setup_connection(){
             }
         };
     }
-    tryconnect(websocket_url());
+    const url = websocket_url();
+    if(url){
+        tryconnect(url);
+    } else {
+        // we're in offline mode!
+        session_websocket.push(null);
+    }
 }
 
 setup_connection();

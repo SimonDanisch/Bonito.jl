@@ -5,3 +5,4 @@
 /Manifest.toml
 /dev/
 /js_dependencies/session_temp_data/
+/examples/jsserve_demo/exported/*
