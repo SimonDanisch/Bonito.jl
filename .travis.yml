@@ -4,6 +4,8 @@ os:
   - linux
 julia:
   - 1
+if: branch = master OR tag IS present OR type = pull_request
+
 notifications:
   email: false
 addons:
