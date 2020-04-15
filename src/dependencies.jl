@@ -52,7 +52,7 @@ function Base.show(io::IO, asset::Asset)
     print(io, url(asset))
 end
 
-function Asset(online_path::String, onload::Union{Nothing, JSCode}=nothing; check_isfile=true)
+function Asset(online_path::String, onload::Union{Nothing, JSCode}=nothing; check_isfile=false)
     local_path = ""; real_online_path = ""
     if is_online(online_path)
         local_path = ""
