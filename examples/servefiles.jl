@@ -8,9 +8,10 @@ end
 function test_handler(session, req)
     path = pwd()
 
-    dom = JSServe.DOM.div([JSServe.DOM.div(create_link(path, file)) for file in readdir(path)]...)
+    dom = JSServe.DOM.div([JSServe.DOM.div(create_link(path, file)) for file in readdir(path) if isfile(file)]...)
 
     return JSServe.DOM.div(dom)
 end
 
-app = JSServe.Application(test_handler, "0.0.0.0", 8081)
+isdefined(Main, :app) && close(app)
+app = JSServe.Application(test_handler, "0.0.0.0", 8082)

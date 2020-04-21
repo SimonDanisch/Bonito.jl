@@ -1,4 +1,5 @@
-using JSServe, FileIO, Colors
+using JSServe, FileIO, Colors, Observables
+using JSServe.DOM
 
 dir = mktempdir()
 for i in 1:5
@@ -17,4 +18,4 @@ function dom_handler(session, request)
 end
 
 isdefined(Main, :app) && close(app)
-app = JSServe.Application(dom_handler, "127.0.0.1", 8081)
+app = JSServe.Application(dom_handler, "127.0.0.1", 8082)
