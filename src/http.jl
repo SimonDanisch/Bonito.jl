@@ -107,7 +107,7 @@ function handle_ws_connection(session::Session, websocket::WebSocket)
     wait_timeout(()-> isopen(websocket), "Websocket not open after waiting 5s")
     while isopen(websocket)
         try
-            # fuse all julia->js events triggered by an incoming message
+            # TODO fuse all julia->js events triggered by an incoming message?
             handle_ws_message(session, read(websocket))
         catch e
             # IOErrors
