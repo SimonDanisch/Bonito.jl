@@ -27,17 +27,6 @@ function jsrender(session::Session, obs::Observable)
         repr_richest(jsrender(session, data))
     end
     dom = DOM.m_unesc("span", html[])
-    onjs(session, html, js"""
-        function (html){
-            var dom = $(dom);
-            if(dom){
-                dom.innerHTML = html;
-                return true;
-            }else{
-                //deregister the callback if the observable dom is gone
-                return false;
-            }
-        }
-    """)
+    onjs(session, html, js"(html)=> update_dom_node($(dom), html)")
     return dom
 end
