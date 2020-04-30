@@ -87,3 +87,31 @@ function JSServe.jsrender(tb::Checkbox)
         tb.attributes...
     )
 end
+
+"""
+A simple wrapper for types that conform to the Tables.jl Table interface,
+which gets rendered nicely!
+"""
+struct Table
+    table
+    class::String
+    row_renderer::Function
+end
+
+render_row_value(x) = x
+render_row_value(x::Missing) = "n/a"
+
+function Table(table; class="", row_renderer=render_row_value)
+    return Table(table, class, row_renderer)
+end
+
+function JSServe.jsrender(table::Table)
+    names = string.(Tables.schema(table.table).names)
+    header = DOM.thead(DOM.tr(DOM.th.(names)...))
+    rows = []
+    for row in Tables.rows(table.table)
+        push!(rows, DOM.tr(DOM.th.(table.row_renderer.(values(row)))...))
+    end
+    body = DOM.tbody(rows...)
+    return DOM.table(header, body; class=table.class)
+end

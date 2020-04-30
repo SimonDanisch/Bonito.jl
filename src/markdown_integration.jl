@@ -100,3 +100,55 @@ end
 
 htmlinline(session::Session, x) = [jsrender(session, x)]
 md_html(session::Session, x) = [jsrender(session, x)]
+
+"""
+    contextual_eval(parent, expr)
+"Evals" expression without eval by only allowing getfield + getindex expressions
+
+```
+contextual_eval(context, :(lala.blalba)) == context.lala.blabla
+contextual_eval(context, :(lala.blalba[1])) == context.lala.blabla[1]
+contextual_eval(context, :(julia_func())) == error
+```
+"""
+function contextual_eval(parent, expr)
+    if expr isa Symbol
+        return getfield(parent, expr)
+    else
+        if expr.head == :(.)
+            return getfield(contextual_eval(parent, expr.args[1]), expr.args[2].value)
+        elseif expr.head == :ref
+            getindex(contextual_eval(parent, expr.args[1]), expr.args[2])
+        else
+            return contextual_eval(parent, expr.args[1])
+        end
+    end
+end
+
+"""
+    replace_expressions(markdown, context)
+Replaces all expressions inside `markdown` savely, by only supporting
+getindex/getfield expression that will index into `context`
+"""
+function replace_expressions(markdown, context)
+    if markdown isa Union{Expr, Symbol}
+        return contextual_eval(context, markdown)
+    end
+    if hasproperty(markdown, :content)
+        markdown.content .= replace_expressions.(markdown.content, (context,))
+    elseif hasproperty(markdown, :text)
+        markdown.text .= replace_expressions.(markdown.text, (context,))
+    end
+    return markdown
+end
+
+"""
+    string_to_markdown(source::String, context)
+
+Replaces all interpolation expressions inside `markdown` savely, by only supporting
+getindex/getfield expression that will index into `context`
+"""
+function string_to_markdown(source::String, context)
+    markdown = Markdown.parse(source)
+    return replace_expressions(markdown, context)
+end

@@ -226,15 +226,16 @@ function update_obs(id, value) {
     }
 }
 
-
 function ensure_connection() {
     // we lost the connection :(
     if (session_websocket.length == 0) {
+        console.log("Length of websocket 0")
         // try to connect again!
         setup_connection();
     }
     // check if we have a connection now!
     if (session_websocket.length == 0) {
+        console.log("Length of websocket 0 after setup_connection. We assume server is offline")
         // still no connection...
         // Display a warning, that we lost conenction!
         var popup = document.getElementById('WEBSOCKET_CONNECTION_WARNING');
@@ -245,6 +246,7 @@ function ensure_connection() {
             popup.innerText = "Lost connection to server!";
             doc_root.appendChild(popup);
         }
+        popup.style
         return false;
     } else {
         return true;
@@ -258,10 +260,12 @@ function websocket_send(data) {
             if (session_websocket[0].readyState == 1) {
                 session_websocket[0].send(msgpack.encode(data));
             } else {
+                console.log("Websocket not in readystate!");
                 // wait until in ready state
                 setTimeout(() => websocket_send(data), 100);
             }
         } else {
+            console.log("Websocket is null!");
             // we're in offline mode!
             return;
         }
@@ -496,8 +500,6 @@ function get_session_id() {
 function websocket_url() {
     // something like http://127.0.0.1:8081/
     let http_url = window.location.protocol + "//" + window.location.host;
-    console.log("proxy url " + window.websocket_proxy_url);
-    console.log("js_call_session_id " + window.js_call_session_id);
     if (window.websocket_proxy_url) {
         http_url = window.websocket_proxy_url;
     } else if (!window.js_call_session_id) {
@@ -510,7 +512,6 @@ function websocket_url() {
         ws_url = ws_url + "/";
     }
     ws_url = ws_url + get_session_id() + "/";
-    console.log("Websocket: " + ws_url);
     return ws_url;
 }
 
@@ -534,6 +535,7 @@ function setup_connection() {
         }
         websocket.onclose = function(evt) {
             session_websocket.length = 0;
+            console.log("Wesocket close code: " + evt.code);
             if (evt.code === 1005) {
                 // TODO handle this!?
                 //tryconnect(url)

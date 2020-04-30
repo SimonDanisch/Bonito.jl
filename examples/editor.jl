@@ -5,18 +5,18 @@ using JSServe.DOM
 using JSServe: Application, evaljs, linkjs
 using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, with_session
 
+struct Editor
+    source::Observable{String}
+    theme::Observable{String}
+    language::Observable{String}
+end
+
 # Javascript & CSS dependencies can be declared locally and
 # freely interpolated in the DOM / js string, and will make sure it loads
 const ace = JSServe.Dependency(
     :ace,
     ["https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"]
 )
-
-struct Editor
-    source::Observable{String}
-    theme::Observable{String}
-    language::Observable{String}
-end
 
 function dom_handler(session, request)
     s = Style(css("div",
