@@ -13,6 +13,7 @@ using MsgPack
 using WidgetsBase
 using WidgetsBase: vertical, horizontal
 using SHA
+using Tables
 
 include("types.jl")
 include("js_source.jl")

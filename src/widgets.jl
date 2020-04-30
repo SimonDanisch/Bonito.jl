@@ -87,3 +87,102 @@ function JSServe.jsrender(tb::Checkbox)
         tb.attributes...
     )
 end
+
+"""
+A simple wrapper for types that conform to the Tables.jl Table interface,
+which gets rendered nicely!
+"""
+struct Table
+    table
+    class::String
+    row_renderer::Function
+end
+
+render_row_value(x) = x
+render_row_value(x::Missing) = "n/a"
+
+function Table(table; class="", row_renderer=render_row_value)
+    return Table(table, class, row_renderer)
+end
+
+function JSServe.jsrender(table::Table)
+    names = string.(Tables.schema(table.table).names)
+    header = DOM.thead(DOM.tr(DOM.th.(names)...))
+    rows = []
+    for row in Tables.rows(table.table)
+        push!(rows, DOM.tr(DOM.th.(table.row_renderer.(values(row)))...))
+    end
+    body = DOM.tbody(rows...)
+    return DOM.table(header, body; class=table.class)
+end
+
+const ace = JSServe.Dependency(
+    :ace,
+    ["https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"]
+)
+
+struct CodeEditor
+    theme::String
+    language::String
+    options::Dict{Symbol, Any}
+    onchange::Observable{String}
+    element::Hyperscript.Node{Hyperscript.HTMLSVG}
+end
+
+"""
+    CodeEditor(language::String; initial_source="", theme="chrome", editor_options...)
+
+Defaults for `editor_options`:
+```
+(
+    autoScrollEditorIntoView = true,
+    copyWithEmptySelection = true,
+    wrapBehavioursEnabled = true,
+    useSoftTabs = true,
+    enableMultiselect = true,
+    showLineNumbers = false,
+    fontSize = 16,
+    wrap = 80,
+    mergeUndoDeltas = "always"
+)
+```
+"""
+function CodeEditor(language::String; initial_source="", theme="chrome", editor_options...)
+    defaults = Dict(
+        :autoScrollEditorIntoView => true,
+        :copyWithEmptySelection => true,
+        :wrapBehavioursEnabled => true,
+        :useSoftTabs => true,
+        :enableMultiselect => true,
+        :showLineNumbers => false,
+        :fontSize => 16,
+        :wrap => 80,
+        :mergeUndoDeltas => "always"
+    )
+    options = Dict{Symbol, Any}(merge(Dict(editor_options), defaults))
+    onchange = Observable(initial_source)
+    element = DOM.div("", id="editor")
+    return CodeEditor(theme, language, options, onchange, element)
+end
+
+function jsrender(session::Session, editor::CodeEditor)
+    theme = "ace/theme/$(editor.theme)"
+    language = "ace/mode/$(editor.language)"
+    JSServe.onload(session, editor.element, js"""
+        function (element){
+            var editor = $ace.edit(element);
+            editor.setTheme($theme);
+            editor.session.setMode($language);
+            editor.resize();
+            // use setOptions method to set several options at once
+            editor.setOptions($(editor.options));
+
+            editor.session.on('change', function(delta) {
+                update_obs($(editor.onchange), editor.getValue());
+            });
+
+            editor.session.setValue($(editor.onchange[]));
+        }
+    """)
+    return editor.element
+end
