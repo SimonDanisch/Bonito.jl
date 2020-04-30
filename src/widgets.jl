@@ -115,3 +115,74 @@ function JSServe.jsrender(table::Table)
     body = DOM.tbody(rows...)
     return DOM.table(header, body; class=table.class)
 end
+
+const ace = JSServe.Dependency(
+    :ace,
+    ["https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"]
+)
+
+struct CodeEditor
+    theme::String
+    language::String
+    options::Dict{Symbol, Any}
+    onchange::Observable{String}
+    element::Hyperscript.Node{Hyperscript.HTMLSVG}
+end
+
+"""
+    CodeEditor(language::String; initial_source="", theme="chrome", editor_options...)
+
+Defaults for `editor_options`:
+```
+(
+    autoScrollEditorIntoView = true,
+    copyWithEmptySelection = true,
+    wrapBehavioursEnabled = true,
+    useSoftTabs = true,
+    enableMultiselect = true,
+    showLineNumbers = false,
+    fontSize = 16,
+    wrap = 80,
+    mergeUndoDeltas = "always"
+)
+```
+"""
+function CodeEditor(language::String; initial_source="", theme="chrome", editor_options...)
+    defaults = Dict(
+        :autoScrollEditorIntoView => true,
+        :copyWithEmptySelection => true,
+        :wrapBehavioursEnabled => true,
+        :useSoftTabs => true,
+        :enableMultiselect => true,
+        :showLineNumbers => false,
+        :fontSize => 16,
+        :wrap => 80,
+        :mergeUndoDeltas => "always"
+    )
+    options = Dict{Symbol, Any}(merge(Dict(editor_options), defaults))
+    onchange = Observable(initial_source)
+    element = DOM.div("", id="editor")
+    return CodeEditor(theme, language, options, onchange, element)
+end
+
+function jsrender(session::Session, editor::CodeEditor)
+    theme = "ace/theme/$(editor.theme)"
+    language = "ace/mode/$(editor.language)"
+    JSServe.onload(session, editor.element, js"""
+        function (element){
+            var editor = $ace.edit(element);
+            editor.setTheme($theme);
+            editor.session.setMode($language);
+            editor.resize();
+            // use setOptions method to set several options at once
+            editor.setOptions($(editor.options));
+
+            editor.session.on('change', function(delta) {
+                update_obs($(editor.onchange), editor.getValue());
+            });
+
+            editor.session.setValue($(editor.onchange[]));
+        }
+    """)
+    return editor.element
+end
