@@ -68,13 +68,13 @@ function dom2html(session::Session, dom)
     <html>
     <head>
     <meta charset="UTF-8">
-    $(serialize_readable(session.dependencies))
+    $(include_asset(session.dependencies))
     <script>
         window.js_call_session_id = '$(session.id)';
         window.websocket_proxy_url = '$(proxy_url)';
     </script>
-    $(serialize_readable(MsgPackLib))
-    $(serialize_readable(JSCallLibLocal))
+    $(include_asset(MsgPackLib))
+    $(include_asset(JSCallLibLocal))
     <script>
     function __on_document_load__(){
         $(queued_as_script(session))
@@ -92,8 +92,6 @@ function dom2html(session::Session, dom)
     empty!(session.on_document_load)
     return html_str
 end
-
-
 
 """
 export_standalone(dom_handler, folder::String;
@@ -127,28 +125,28 @@ function export_standalone(dom_handler, folder::String;
 
     open(joinpath(folder, "index.html"), "w") do io
         println(io, """
-            <html>
-            <head>
-            $(include_asset(session.dependencies, serializer))
-            <script>
-                window.js_call_session_id = null;
-                window.websocket_proxy_url = null;
-            </script>
-            $(include_asset(MsgPackLib, serializer))
-            $(include_asset(JSCallLibLocal, serializer))
-            <script>
-            function __on_document_load__(){
-                $(queued_as_script(session))
+        <html>
+        <head>
+        $(include_asset(session.dependencies, serializer))
+        <script>
+            window.js_call_session_id = null;
+            window.websocket_proxy_url = null;
+        </script>
+        $(include_asset(MsgPackLib, serializer))
+        $(include_asset(JSCallLibLocal, serializer))
+        <script>
+        function __on_document_load__(){
+            $(queued_as_script(session))
 
-                $(serialize_readable(session.on_document_load))
-            };
-            </script>
-            </head>
-            <body onload=__on_document_load__()>
-                $(html)
-            </body>
-            </html>
-            """)
+            $(serialize_readable(session.on_document_load))
+        };
+        </script>
+        </head>
+        <body onload=__on_document_load__()>
+            $(html)
+        </body>
+        </html>
+        """)
     end
     return
 end
