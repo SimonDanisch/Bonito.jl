@@ -110,12 +110,18 @@ function serialize2string(io::IO, data_dependencies::Vector{Any}, @nospecialize(
         idx = length(data_dependencies) # idx before push --> JS is 0 indexed
         push!(data_dependencies, any)
         # TODO how do we call this?
-        print(io, "deserialize_js(__data_dependencies[$(idx)])")
+        print(io, "deserialize_js(window.__data_dependencies[$(idx)])")
     end
 end
 
 function serialize2string(io::IO, data_dependencies::Vector{Any}, x::JSString)
     print(io, x.source)
+end
+
+function serialize2string(io::IO, data_dependencies::Vector{Any}, jsc::JSCode)
+    for elem in jsc.source
+        serialize2string(io, data_dependencies, elem)
+    end
 end
 
 function serialize2string(io::IO, data_dependencies::Vector{Any}, x::Union{Symbol, String})
@@ -126,11 +132,6 @@ function serialize2string(io::IO, data_dependencies::Vector{Any}, x::Number)
     print(io,  x)
 end
 
-function serialize2string(io::IO, data_dependencies::Vector{Any}, jsc::JSCode)
-    for elem in jsc.source
-        serialize2string(io, data_dependencies, elem)
-    end
-end
 
 function serialize2string(io::IO, data_dependencies::Vector{Any}, jsss::AbstractVector{JSCode})
     for jss in jsss

@@ -1,0 +1,81 @@
+:root {
+  --main-color: #1fdcb3;
+  --site-padding: 50pt;
+}
+
+@media print {
+  hr {
+    /* use hr (--- in markdown) as page breaks for printing this to pdf */
+    page-break-after: always;
+  }
+}
+
+body {
+  /* enable pdf print support for backgrounds in firefox & chrome */
+  -webkit-print-color-adjust: exact !important;
+  color-adjust: exact;
+}
+
+.page {
+  position: absolute;
+  left: 900px;
+  width: 600pt;
+  background-color: #fff;
+  height: 1200px;
+  padding: 5px;
+  overflow-y: scroll;
+}
+
+#editor {
+  position: absolute;
+  top: 0;
+  right: 100px;
+  bottom: 0;
+  left: 0;
+  width: 700px;
+}
+
+.drag-list {
+  position: absolute;
+  left: 700px;
+  width: 200px;
+  padding: 5px;
+}
+
+.list-item {
+  width: 200px;
+  padding: 5px;
+  margin: 1px;
+  background-color: #ddd;
+}
+
+blockquote {
+  font-style: italic;
+  margin-inline-start: 0;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+table,
+td,
+th {
+  border: 1px solid #ddd;
+}
+
+table > thead > tr > th {
+  font-size: 11pt;
+  color: white;
+  padding: 3pt;
+  max-width: 50pt;
+  background-color: var(--main-color);
+  text-align: center;
+}
+
+table > tbody > tr > th {
+  max-width: 60px;
+  text-align: center;
+  font-weight: normal;
+  padding: 3pt;
+}

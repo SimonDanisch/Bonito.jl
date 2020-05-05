@@ -44,11 +44,8 @@ end
 serialize_js(jss::JSString) = jss.source
 
 function serialize_js(jsc::Union{JSCode, JSString})
-    return js_type(:js_code, serialize_readable(jsc))
-end
-
-function serialize_js(asset::Asset)
-    return url(asset)
+    source, data = JSServe.serialize2string(jsc)
+    return js_type(:js_code, Dict(:source => source, :data => serialize_js(data)))
 end
 
 serialize_readable(@nospecialize(x)) = sprint(io-> serialize_readable(io, x))
@@ -136,7 +133,7 @@ serialize_readable(io::IO, x::Observable) = print(io, "'", x.id, "'")
 
 # Handle interpolating into Javascript
 function serialize_readable(io::IO, node::Node)
-    # This relies on jsrender to give each node a unique id under the
+# This relies on jsrender to give each node a unique id under the
     # attribute data-jscall-id. This is a bit brittle
     # improving this would be nice
     print(io, "(document.querySelector('[data-jscall-id=$(repr(uuid(node)))]'))")
@@ -163,8 +160,8 @@ end
 function keyvaluepairs(node::Hyperscript.Node{Hyperscript.HTMLSVG})
     return [
         :tag => getfield(node, :tag),
-        :children => getfield(node, :children),
-        getfield(node, :attrs)...
+        :children => serialize_js(getfield(node, :children)),
+        serialize_js(getfield(node, :attrs))...
     ]
 end
 

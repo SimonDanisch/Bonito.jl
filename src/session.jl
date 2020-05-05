@@ -60,7 +60,8 @@ function queued_as_script(session::Session)
     open(io -> MsgPack.pack(io, serialize_js(data)), deps_path, "w")
     data_url = url(Asset(deps_path), session.url_serializer)
     return js"""
-    function init_function(__data_dependencies) {
+    function init_function(data_dependencies) {
+        window.__data_dependencies = data_dependencies;
     $(JSString(source))
         }
         init_from_file(init_function, $(data_url));
@@ -88,9 +89,10 @@ end
 
 fuse(f, has_session) = fuse(f, session(has_session))
 function fuse(f, session::Session)
+    oldval = session.fusing[]
     session.fusing[] = true
     result = f()
-    session.fusing[] = false
+    session.fusing[] = oldval
     if !isempty(session.message_queue)
         # only sent when open!
         if isopen(session)
@@ -102,11 +104,9 @@ function fuse(f, session::Session)
     return result
 end
 
-
 function Base.isopen(session::Session)
     return !isempty(session.connections) && any(isopen, session.connections)
 end
-
 
 """
     onjs(session::Session, obs::Observable, func::JSCode)
@@ -172,7 +172,8 @@ Evaluate a javascript script in `session`.
 """
 function evaljs(session::Session, jss::JSCode)
     register_resource!(session, jss)
-    send(session, msg_type = EvalJavascript, payload = jss)
+    source, data = serialize2string(jss)
+    send(session; msg_type=EvalJavascript, payload=JSString(source), data=data)
 end
 
 function evaljs(has_session, jss::JSCode)
@@ -349,7 +350,7 @@ function serialize_message_readable(message)
     elseif type == JSSetIndex
         return js"        $(message[:object])[$(message[:field])] = $(message[:value]);"
     elseif type == FusedMessage
-        return serialize_message_readable.(message[:payload])
+        return JSCode(serialize_message_readable.(message[:payload]))
     elseif type == DeleteObjects
         return js"        delete_heap_objects($(message[:payload]));"
     else

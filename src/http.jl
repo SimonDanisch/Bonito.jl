@@ -71,13 +71,13 @@ function handle_ws_message(session::Session, message)
         # julia updating js, ...)
         Base.invokelatest(update_nocycle!, obs, data["payload"])
     elseif typ == JavascriptError
-        @error "Error in Javascript: $(data["message"])\n with exception:\n$(data["exception"])"
-        if data["stacktrace"] !== nothing
-            for line in split(data["stacktrace"], "\n")
-                line_with_local_path = replace(line, ASSET_URL_REGEX => replace_url)
-                println(stderr, line_with_local_path)
-            end
-        end
+        # @error "Error in Javascript: $(data["message"])\n with exception:\n$(data["exception"])"
+        # if data["stacktrace"] !== nothing
+        #     for line in split(data["stacktrace"], "\n")
+        #         line_with_local_path = replace(line, ASSET_URL_REGEX => replace_url)
+        #         println(stderr, line_with_local_path)
+        #     end
+        # end
     elseif typ == JavascriptWarning
         @warn "Error in Javascript: $(data["message"])\n)"
     elseif typ == JSDoneLoading

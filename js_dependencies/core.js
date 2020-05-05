@@ -127,7 +127,8 @@ function deserialize_js(data) {
             } else if (data.__javascript_type__ == 'DomNode') {
                 return document.querySelector('[data-jscall-id="' + data.payload + '"]');
             } else if (data.__javascript_type__ == 'js_code') {
-                return data.payload;
+                window.__data_dependencies = deserialize_js(data.payload.data);
+                return eval(data.payload.source);
             } else {
                 send_error(
                     "Can't deserialize custom type: " + data.__javascript_type__,
@@ -388,13 +389,11 @@ function process_message(data) {
             }
             break;
         case OnjsCallback:
-            let js_source = "";
             try {
                 // register a callback that will executed on js side
                 // when observable updates
                 const id = data.id;
-                js_source = deserialize_js(data.payload);
-                const f = eval(js_source);
+                const f = deserialize_js(data.payload);
                 register_onjs(f, id);
             } catch (exception) {
                 send_error(
@@ -405,9 +404,8 @@ function process_message(data) {
             }
             break;
         case EvalJavascript:
-            const code = deserialize_js(data.payload);
             try {
-                eval(code);
+                const func = deserialize_js(data.payload);
             } catch (exception) {
                 send_error(
                     "Error while evaling JS from Julia. Source:\n" + code,
@@ -417,7 +415,7 @@ function process_message(data) {
             break;
         case JSCall:
             try {
-                var func = eval(deserialize_js(data.func));
+                var func = deserialize_js(data.func);
                 var arguments = deserialize_js(data.arguments);
                 call_js_func(func, arguments, data.needs_new, data.result);
             } catch (exception) {

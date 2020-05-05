@@ -11,7 +11,7 @@ end
 
 function (x::JSUpdateObservable)(value)
     # Sent an update event
-    send(x.session, payload = value, id = x.id, msg_type = UpdateObservable)
+    send(x.session, payload=value, id=x.id, msg_type=UpdateObservable)
 end
 
 """
@@ -24,9 +24,37 @@ end
 
 function jsrender(session::Session, obs::Observable)
     html = map(obs) do data
-        repr_richest(jsrender(session, data))
+        if isopen(session)
+            fuse(session) do
+                new_dom = jsrender(session, data)
+                # if session is already running, register_resource! won't
+                # be called by html display, and also on_document_load will just
+                # be ignored... So we need to do this here:
+                register_resource!(session, new_dom)
+                codes = JSServe.serialize_message_readable.(session.message_queue)
+                all_javascript = [session.on_document_load..., codes...]
+                source, data = JSServe.serialize2string(all_javascript)
+                # sourc_scr = DOM.script(source, charset="utf8")
+                dom_with_deps = DOM.span(session.dependencies..., new_dom)
+                empty!(session.dependencies)
+                empty!(session.message_queue)
+                empty!(session.on_document_load)
+                return Dict(:dom => dom_with_deps, :data_deps => data, :source=>source)
+            end
+        else
+            return Dict(:dom => jsrender(session, data))
+        end
     end
-    dom = DOM.m_unesc("span", html[])
-    onjs(session, html, js"(html)=> update_dom_node($(dom), html)")
-    return dom
+    div = DOM.span(html[][:dom])
+    onjs(session, html, js"""function (html){
+        const dom = materialize(deserialize_js(html.dom));
+        dom.children[0].onload = function (){
+            console.log("HEY")
+            window.__data_dependencies = html.data_deps;
+            eval(html.source);
+        }
+        const div = $(div);
+        div.replaceChild(dom, div.children[0]);
+    }""")
+    return div
 end

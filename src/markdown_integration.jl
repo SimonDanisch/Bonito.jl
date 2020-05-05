@@ -130,25 +130,44 @@ end
 Replaces all expressions inside `markdown` savely, by only supporting
 getindex/getfield expression that will index into `context`
 """
-function replace_expressions(markdown, context)
+function replace_expressions(markdown, context; eval_julia_code=false)
     if markdown isa Union{Expr, Symbol}
         return contextual_eval(context, markdown)
     end
     if hasproperty(markdown, :content)
-        markdown.content .= replace_expressions.(markdown.content, (context,))
+        markdown.content .= replace_expressions.(markdown.content, (context,); eval_julia_code=eval_julia_code)
     elseif hasproperty(markdown, :text)
-        markdown.text .= replace_expressions.(markdown.text, (context,))
+        markdown.text .= replace_expressions.(markdown.text, (context,); eval_julia_code=eval_julia_code)
     end
     return markdown
 end
 
+function replace_expressions(markdown::Markdown.Code, context; eval_julia_code=false)
+    if markdown.language == "julia" && eval_julia_code isa Module
+        run = Button(">")
+        result = Observable{Any}(DOM.span(""))
+        on(run) do click
+            result[] = include_string(eval_julia_code, markdown.code)
+        end
+        return md"""
+            $(markdown)
+            $(run)
+            $(result)
+            """
+    else
+        return markdown
+    end
+end
+
 """
-    string_to_markdown(source::String, context)
+    string_to_markdown(source::String, context; eval_julia_code=false)
 
 Replaces all interpolation expressions inside `markdown` savely, by only supporting
-getindex/getfield expression that will index into `context`
+getindex/getfield expression that will index into `context`.
+You can eval Julia code blocks by setting `eval_julia_code` to a Module, into which
+the code gets evaluated!
 """
-function string_to_markdown(source::String, context)
+function string_to_markdown(source::String, context; eval_julia_code=false)
     markdown = Markdown.parse(source)
-    return replace_expressions(markdown, context)
+    return replace_expressions(markdown, context; eval_julia_code=eval_julia_code)
 end
