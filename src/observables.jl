@@ -39,22 +39,18 @@ function jsrender(session::Session, obs::Observable)
                 empty!(session.dependencies)
                 empty!(session.message_queue)
                 empty!(session.on_document_load)
-                return Dict(:dom => dom_with_deps, :data_deps => data, :source=>source)
+                return Dict(:dom => dom_with_deps, :javascript => serialize_js(source))
             end
         else
-            return Dict(:dom => jsrender(session, data))
+            return Dict(:dom => DOM.span(jsrender(session, data)))
         end
     end
     div = DOM.span(html[][:dom])
     onjs(session, html, js"""function (html){
         const dom = materialize(deserialize_js(html.dom));
-        dom.children[0].onload = function (){
-            console.log("HEY")
-            window.__data_dependencies = html.data_deps;
-            eval(html.source);
-        }
         const div = $(div);
-        div.replaceChild(dom, div.children[0]);
+        div.children[0].replaceWith(dom);
+        deserialize_js(html.javasript);
     }""")
     return div
 end

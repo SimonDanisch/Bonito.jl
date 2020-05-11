@@ -8,7 +8,8 @@ using ImageTransformations
         scene = AbstractPlotting.scatter([1, 2, 3, 4], resolution=(500,500), color=:red)
         return DOM.div(scene)
     end
-    testsession(test_handler, port=8555) do app
+
+    testsession(test_handler, port=8557) do app
         # Lets not be too porcelainy about this ...
         @test evaljs(app, js"document.querySelector('canvas').style.width") == "500px"
         @test evaljs(app, js"document.querySelector('canvas').style.height") == "500px"
@@ -18,6 +19,7 @@ using ImageTransformations
         if ratio != 1
             img = ImageTransformations.imresize(img, (500, 500))
         end
+
         img_ref = AbstractPlotting.FileIO.load(joinpath(@__DIR__, "test_reference.png"))
         # AbstractPlotting.FileIO.save(joinpath(@__DIR__, "test_reference.png"), img)
         meancol = AbstractPlotting.mean(color.(img) .- color.(img_ref))

@@ -1,4 +1,3 @@
-
 function iterate_interpolations(source::String)
     result = Union{Expr, JSString, Symbol}[]
     lastidx = 1; i = 1; lindex = lastindex(source)
@@ -125,7 +124,7 @@ function serialize2string(io::IO, data_dependencies::Vector{Any}, jsc::JSCode)
 end
 
 function serialize2string(io::IO, data_dependencies::Vector{Any}, x::Union{Symbol, String})
-    print(io, "'", x, "'")
+    print(io, "\"", x, "\"")
 end
 
 function serialize2string(io::IO, data_dependencies::Vector{Any}, x::Number)
@@ -183,7 +182,7 @@ function serialize2string(io::IO, data_dependencies::Vector{Any}, jso::JSReferen
 end
 
 function serialize2string(io::IO, data_dependencies::Vector{Any}, observable::Observable)
-    print(io, "'", observable.id, "'")
+    print(io, "\"", observable.id, "\"")
 end
 
 # Handle interpolating into Javascript
@@ -191,5 +190,5 @@ function serialize2string(io::IO, data_dependencies::Vector{Any}, node::Node)
     # This relies on jsrender to give each node a unique id under the
     # attribute data-jscall-id. This is a bit brittle
     # improving this would be nice
-    print(io, "(document.querySelector('[data-jscall-id=$(repr(uuid(node)))]'))")
+    print(io, "(document.querySelector('[data-jscall-id=\"$(uuid(node))\"]'))")
 end

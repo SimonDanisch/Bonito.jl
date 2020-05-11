@@ -175,7 +175,8 @@ electron_disp = electrondisplay(inline_display);
 app = TestSession(URI("http://localhost:8555/show"),
                   JSServe.global_application[], electron_disp, test_session)
 app.dom = dom
-
+Electron.toggle_devtools(app.window)
+sleep(1)
 @testset "electron inline display" begin
     test_current_session(app)
 end
@@ -298,7 +299,7 @@ end
         @test rslider[] == [10, 80]
         rslider_html = jsobject(app, js"document.getElementById('rslider')")
         @test evaljs(app, js"$(rslider_html).children.length") == 3
-        @test evaljs(app, js"$(rslider_html).children[1].innerText") == "10"
+        @test evaljs(app, js"$(rslider_html).children[1].innerText") == "10 "
         @test evaljs(app, js"$(rslider_html).children[2].innerText") == "80"
         rslider[] = [20, 70]
     end

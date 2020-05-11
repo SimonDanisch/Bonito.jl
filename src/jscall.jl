@@ -129,7 +129,7 @@ function needs_new(reference::JSObject)
 end
 
 """
-    jsobject(args...; kw_args...)
+    jscall(args...; kw_args...)
 
 Call overload for JSObjects.
 Only supports keyword arguments OR positional arguments.

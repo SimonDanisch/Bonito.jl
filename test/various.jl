@@ -12,10 +12,10 @@
     Test.@test_throws ErrorException("Unrecognized asset media type: dun_exist") test_throw()
     testsession(test_handler, port=8555) do app
         hey = query_testid("hey")
-        @test evaljs(app, js"$(hey).innerText") == "Data: Float16(2.0)"
+        @test evaljs(app, js"$(hey).innerText") == "Data: 2.0"
         float16_obs = children(children(app.dom)[1][])[2]
         float16_obs[] = Float16(77)
-        @test evaljs(app, js"$(hey).innerText") == "Data: Float16(77.0)"
+        @test evaljs(app, js"$(hey).innerText") == "Data: 77"
     end
 end
 
@@ -31,8 +31,8 @@ end
         the_style = DOM.style(Hyperscript.styles(s1))
         return DOM.div(:hello, the_style, the_script, dataTestId="hello")
     end
-    testsession(handler) do app
-        @test evaljs(app, js"window.testglobal")  == 42
+    testsession(handler, port=8555) do app
+        @test evaljs(app, js"window.testglobal") == 42
         hello_div = query_testid("hello")
         @test evaljs(app, js"$(hello_div).innerText")  == "hello"
         @test evaljs(app, js"$(hello_div).children.length") == 3

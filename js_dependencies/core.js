@@ -53,7 +53,7 @@ function rand4hex() {
 
 const serializer_functions = {
     JSObject: get_heap_object,
-}
+};
 
 function materialize(data) {
     // if is a node attribute
@@ -91,7 +91,7 @@ function js_dereference_rec(parent, field_names) {
     let next_parent;
     // skip new, which sneaks into our reference due to how we handle new in Julia
     if (next_field != 'new') {
-        next_parent = js_getindex(parent, next_field)
+        next_parent = js_getindex(parent, next_field);
     } else {
         next_parent = parent;
     }
@@ -154,7 +154,7 @@ function get_observable(id) {
     if (id in registered_observables) {
         return registered_observables[id];
     } else {
-        throw ("Can't find observable with id: " + id)
+        throw ("Can't find observable with id: " + id);
     }
 }
 
@@ -166,7 +166,7 @@ function send_error(message, exception) {
         message: message,
         exception: String(exception),
         stacktrace: exception == null ? "" : exception.stack
-    })
+    });
 }
 
 function send_warning(message) {
@@ -230,13 +230,13 @@ function update_obs(id, value) {
 function ensure_connection() {
     // we lost the connection :(
     if (session_websocket.length == 0) {
-        console.log("Length of websocket 0")
+        console.log("Length of websocket 0");
         // try to connect again!
         setup_connection();
     }
     // check if we have a connection now!
     if (session_websocket.length == 0) {
-        console.log("Length of websocket 0 after setup_connection. We assume server is offline")
+        console.log("Length of websocket 0 after setup_connection. We assume server is offline");
         // still no connection...
         // Display a warning, that we lost conenction!
         var popup = document.getElementById('WEBSOCKET_CONNECTION_WARNING');
@@ -247,7 +247,7 @@ function ensure_connection() {
             popup.innerText = "Lost connection to server!";
             doc_root.appendChild(popup);
         }
-        popup.style
+        popup.style;
         return false;
     } else {
         return true;
@@ -279,24 +279,24 @@ function register_onjs(f, observable) {
     observable_callbacks[observable] = callbacks;
 }
 
-function call_js_func(func, arguments, needs_new, result_object) {
+function call_js_func(func, args, needs_new, result_object) {
     let result;
     if (needs_new) {
         // if argument list we need to use apply
-        if (is_list(arguments)) {
-            result = new func(...arguments);
+        if (is_list(args)) {
+            result = new func(...args);
         } else {
             // for dictionaries we use a normal call
-            result = new func(arguments);
+            result = new func(args);
         }
     } else {
         // TODO remove code duplication here. I don't think new would propagate
         // correctly if we'd use something like apply_func
-        if (is_list(arguments)) {
-            result = func(...arguments);
+        if (is_list(args)) {
+            result = func(...args);
         } else {
             // for dictionaries we use a normal call
-            result = func(arguments);
+            result = func(args);
         }
     }
     put_on_heap(result_object, result);
@@ -367,7 +367,7 @@ function init_from_file(init_func, url) {
             init_from_byte_array(init_func, data);
             console.log("Processing done!! " + (t1 - t0) + " milliseconds.");
         } else {
-            send_warning("Didn't receive any setup data from server.")
+            send_warning("Didn't receive any setup data from server.");
         }
     };
     http_request.send(null);
@@ -408,7 +408,7 @@ function process_message(data) {
                 const func = deserialize_js(data.payload);
             } catch (exception) {
                 send_error(
-                    "Error while evaling JS from Julia. Source:\n" + code,
+                    "Error while evaling JS from Julia. Source:\n" + String(data.payload.payload.source),
                     exception
                 );
             }
@@ -416,8 +416,8 @@ function process_message(data) {
         case JSCall:
             try {
                 var func = deserialize_js(data.func);
-                var arguments = deserialize_js(data.arguments);
-                call_js_func(func, arguments, data.needs_new, data.result);
+                var args = deserialize_js(data.arguments);
+                call_js_func(func, args, data.needs_new, data.result);
             } catch (exception) {
                 send_error(
                     "Error while calling JS function from Julia. Function:\n" +
@@ -521,7 +521,7 @@ function setup_connection() {
         websocket = new WebSocket(url);
         websocket.binaryType = 'arraybuffer';
         if (session_websocket.length != 0) {
-            throw "Inconsistent state. Already opened a websocket!"
+            throw "Inconsistent state. Already opened a websocket!";
         }
         session_websocket.push(websocket);
         websocket.onopen = function() {
@@ -529,8 +529,8 @@ function setup_connection() {
                 const binary = new Uint8Array(evt.data);
                 const data = msgpack.decode(binary);
                 process_message(data);
-            }
-        }
+            };
+        };
         websocket.onclose = function(evt) {
             session_websocket.length = 0;
             console.log("Wesocket close code: " + evt.code);
@@ -538,7 +538,7 @@ function setup_connection() {
                 // TODO handle this!?
                 //tryconnect(url)
             }
-        }
+        };
         websocket.onerror = function(event) {
             console.error("WebSocket error observed:", event);
             if (tries <= 5) {

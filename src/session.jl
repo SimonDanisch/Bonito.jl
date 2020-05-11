@@ -1,10 +1,6 @@
 
 function init_session(session::Session)
-    for msg in session.message_queue
-        for connection in session.connections
-            serialize_websocket(connection, msg)
-        end
-    end
+    send(session; msg_type=FusedMessage, payload=session.message_queue)
     empty!(session.message_queue)
     put!(session.js_fully_loaded, true)
 end
@@ -64,8 +60,8 @@ function queued_as_script(session::Session)
         window.__data_dependencies = data_dependencies;
     $(JSString(source))
         }
+        $(session.on_document_load)
         init_from_file(init_function, $(data_url));
-    $(session.on_document_load)
     """
 end
 
@@ -172,8 +168,8 @@ Evaluate a javascript script in `session`.
 """
 function evaljs(session::Session, jss::JSCode)
     register_resource!(session, jss)
-    source, data = serialize2string(jss)
-    send(session; msg_type=EvalJavascript, payload=JSString(source), data=data)
+    # source, data = serialize2string(jss)
+    send(session; msg_type=EvalJavascript, payload=jss)
 end
 
 function evaljs(has_session, jss::JSCode)
