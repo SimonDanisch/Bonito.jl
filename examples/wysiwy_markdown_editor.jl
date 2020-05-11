@@ -21,10 +21,10 @@ function JSServe.jsrender(dragitem::DragItem)
     return div
 end
 
-struct Test
+struct Draggable
 end
 
-function JSServe.jsrender(session::JSServe.Session, test::Test)
+function JSServe.jsrender(session::JSServe.Session, test::Draggable)
     div = DOM.div("henlo")
     JSServe.onload(session, div, js"""function (div){
         console.log("HEYY");
@@ -85,4 +85,3 @@ app = Application(dom_handler, "127.0.0.1", 8083)
 #     markdown = map(x-> string_to_markdown(x, context; eval_julia_code=Main), source)
 #     return DOM.div(stylesheet, markdown; class="page")
 # end
-1 + 1

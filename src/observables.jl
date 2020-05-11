@@ -39,7 +39,8 @@ function jsrender(session::Session, obs::Observable)
                 empty!(session.dependencies)
                 empty!(session.message_queue)
                 empty!(session.on_document_load)
-                return Dict(:dom => dom_with_deps, :javascript => serialize_js(source))
+                jss = JSCode([JSString(source)])
+                return Dict(:dom => dom_with_deps, :javascript => serialize_js(jss))
             end
         else
             return Dict(:dom => DOM.span(jsrender(session, data)))
@@ -50,7 +51,7 @@ function jsrender(session::Session, obs::Observable)
         const dom = materialize(deserialize_js(html.dom));
         const div = $(div);
         div.children[0].replaceWith(dom);
-        deserialize_js(html.javasript);
+        deserialize_js(html.javascript);
     }""")
     return div
 end
