@@ -101,6 +101,14 @@ end
 htmlinline(session::Session, x) = [jsrender(session, x)]
 md_html(session::Session, x) = [jsrender(session, x)]
 
+function render_result(result)
+    if Tables.istable(result)
+        return Table(result)
+    else
+        return DOM.span(result)
+    end
+end
+
 """
     contextual_eval(parent, expr)
 "Evals" expression without eval by only allowing getfield + getindex expressions
@@ -132,7 +140,8 @@ getindex/getfield expression that will index into `context`
 """
 function replace_expressions(markdown, context; eval_julia_code=false)
     if markdown isa Union{Expr, Symbol}
-        return contextual_eval(context, markdown)
+        result = contextual_eval(context, markdown)
+        return render_result(result)
     end
     if hasproperty(markdown, :content)
         markdown.content .= replace_expressions.(markdown.content, (context,); eval_julia_code=eval_julia_code)
@@ -142,12 +151,44 @@ function replace_expressions(markdown, context; eval_julia_code=false)
     return markdown
 end
 
+function parseall(str)
+    pos = firstindex(str)
+    exs = []
+    while pos <= lastindex(str)
+        ex, pos = Meta.parse(str, pos)
+        push!(exs, ex)
+    end
+    if length(exs) == 0
+        throw(ParseError("end of input"))
+    elseif length(exs) == 1
+        return exs[1]
+    else
+        return Expr(:block, exs...)
+    end
+end
+
+function replace_interpolation!(context, expr)
+    return expr
+end
+
+function replace_interpolation!(context, expr::Expr)
+    if expr.head == :$
+        return contextual_eval(context, expr.args[1])
+    else
+        expr.args .= replace_interpolation!.((context,), expr.args)
+        return expr
+    end
+end
+
 function replace_expressions(markdown::Markdown.Code, context; eval_julia_code=false)
     if markdown.language == "julia" && eval_julia_code isa Module
         run = Button(">")
         result = Observable{Any}(DOM.span(""))
         on(run) do click
-            result[] = include_string(eval_julia_code, markdown.code)
+            expr = parseall(markdown.code)
+            expr = replace_interpolation!(context, expr)
+            evaled = eval_julia_code.eval(expr)
+            result[] = render_result(evaled)
         end
         return md"""
             $(markdown)
@@ -158,6 +199,10 @@ function replace_expressions(markdown::Markdown.Code, context; eval_julia_code=f
         return markdown
     end
 end
+
+
+
+
 
 """
     string_to_markdown(source::String, context; eval_julia_code=false)

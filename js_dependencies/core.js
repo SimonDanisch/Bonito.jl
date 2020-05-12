@@ -51,6 +51,26 @@ function rand4hex() {
     return randhex() + randhex() + randhex() + randhex();
 }
 
+function load_javascript_sources(script_node_array, onload_callback) {
+    const head = document.getElementsByTagName('head')[0];
+    let loaded = 0;
+    const to_load = script_node_array.length;
+    for (let idx in script_node_array) {
+        const script = materialize(script_node_array[idx]);
+        function callback(){
+            loaded = loaded + 1;
+            if (loaded == to_load) {
+                console.log("IM last");
+                onload_callback();
+            }
+        }
+        script.onreadystatechange = callback;
+        script.onload = callback;
+         // fire the loading
+        head.appendChild(script);
+    }
+}
+
 const serializer_functions = {
     JSObject: get_heap_object,
 };
@@ -73,7 +93,11 @@ function materialize(data) {
             if (is_dict(child)) {
                 node.appendChild(materialize(child));
             } else {
-                node.innerText = child;
+                if(data.tag == "script"){
+                    node.text = child;
+                } else {
+                    node.innerText = child;
+                }
             }
         }
         return node;

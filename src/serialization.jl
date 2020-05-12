@@ -48,6 +48,17 @@ function serialize_js(jsc::Union{JSCode, JSString})
     return js_type(:js_code, Dict(:source => source, :data => serialize_js(data)))
 end
 
+function serialize_js(asset::Asset, serializer::UrlSerializer=UrlSerializer())
+    file_url = url(asset, serializer)
+    if mediatype(asset) == :js
+        return DOM.script(;src=file_url, type="text/javascript", charset="utf8")
+    elseif mediatype(asset) == :css
+        return DOM.link(;href=file_url, rel="stylesheet", type="text/css", charset="utf8")
+    else
+        error("Unrecognized asset media type: $(mediatype(asset))")
+    end
+end
+
 serialize_readable(@nospecialize(x)) = sprint(io-> serialize_readable(io, x))
 serialize_readable(io::IO, @nospecialize(object)) = JSON3.write(io, object)
 serialize_readable(io::IO, x::JSString) = print(io, x.source)

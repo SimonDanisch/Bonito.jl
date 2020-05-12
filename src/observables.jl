@@ -34,13 +34,13 @@ function jsrender(session::Session, obs::Observable)
                 codes = JSServe.serialize_message_readable.(session.message_queue)
                 all_javascript = [session.on_document_load..., codes...]
                 source, data = JSServe.serialize2string(all_javascript)
-                # sourc_scr = DOM.script(source, charset="utf8")
-                dom_with_deps = DOM.span(session.dependencies..., new_dom)
+                deps = serialize_js.(session.dependencies)
                 empty!(session.dependencies)
                 empty!(session.message_queue)
                 empty!(session.on_document_load)
-                jss = JSCode([JSString(source)])
-                return Dict(:dom => dom_with_deps, :javascript => serialize_js(jss))
+                script = DOM.script(source, charset="utf8", type="text/javascript")
+                return Dict(:dom => DOM.div(new_dom, script), :data => data,
+                            :depedencies => deps)
             end
         else
             return Dict(:dom => DOM.span(jsrender(session, data)))
@@ -48,10 +48,18 @@ function jsrender(session::Session, obs::Observable)
     end
     div = DOM.span(html[][:dom])
     onjs(session, html, js"""function (html){
-        const dom = materialize(deserialize_js(html.dom));
-        const div = $(div);
-        div.children[0].replaceWith(dom);
-        deserialize_js(html.javascript);
+        function load_dom(){
+            window.__data_dependencies = html.data;
+            const dom = materialize(deserialize_js(html.dom));
+            console.log(dom.children[1]);
+            const div = $(div);
+            div.children[0].replaceWith(dom);
+        }
+        if(html.depedencies.length > 0) {
+            load_javascript_sources(html.depedencies, load_dom);
+        } else {
+            load_dom();
+        }
     }""")
     return div
 end

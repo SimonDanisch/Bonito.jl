@@ -1,8 +1,17 @@
 using JSServe, Observables
 using JSServe.DOM
-
+using StatsMakie
 using JSServe: Application, evaljs, linkjs, CodeEditor
 using JSServe: @js_str, onjs, Dependency, with_session, string_to_markdown
+set_theme!(resolution=(600, 400))
+using JSServe: Slider
+using WGLMakie, AbstractPlotting
+using AbstractPlotting: Pixel
+using JSServe: Table
+using RDatasets
+# Some items we can show off:
+iris = RDatasets.dataset("datasets", "iris")
+img1 = DOM.img(src="https://i.ytimg.com/vi/lUaNo_L7AKU/hqdefault.jpg")
 
 # Javascript & CSS dependencies can be declared locally and
 # freely interpolated in the DOM / js string, and will make sure it loads
@@ -21,50 +30,54 @@ function JSServe.jsrender(dragitem::DragItem)
     return div
 end
 
-struct Draggable
-end
-
-function JSServe.jsrender(session::JSServe.Session, test::Draggable)
-    div = DOM.div("henlo")
-    JSServe.onload(session, div, js"""function (div){
-        console.log("HEYY");
-    }""")
-    JSServe.evaljs(session, js"console.log('yoooooooo');")
-    return div
-end
-
-
 initial_code = """
 # Markdown test
 
+# Try dragging any item of the list to the right here:
+
+
+# Or drag the iris dataset into the julia code
+
 ```julia
-scatter(1:4)
+iris =
+iris[1:3, :]
+```
+
+```julia
+scatter(Data(iris), Group(:Species), :SepalLength, :SepalWidth);
+```
+
+Sliders also work (although are completely unstyled at this point):
+
+```julia
+markersize = Slider(5:20)
+markersize_px = map(Pixel, markersize)
+markersize
+```
+
+```julia
+scatter(Data(iris), Group(:Species), :SepalLength, :SepalWidth, markersize=markersize_px);
 ```
 
 """
-using WGLMakie, AbstractPlotting
-
-observable = Observable(DOM.div("hi"))
-global sess
-function dom_handler(session, request)
-    return scatter(1:4)
-end
 
 function dom_handler(session, request)
     editor = CodeEditor("markdown"; initial_source=initial_code)
     context = (
-        drag_drop_list = DragItem.(["hey", "hoho"], 1:2, :drag_drop),
-        drag_drop = ["hey", "hoho"]
+        drag_drop_list = DragItem.(["picture", "some text", "iris dataset"], 1:3, :drag_drop),
+        drag_drop = [img1, "oh, this is text?!", iris]
     )
-    markdown = map(x-> string_to_markdown(x, context, eval_julia_code=Main), editor.onchange)
+    markdown = map(editor.onchange) do x
+        md = string_to_markdown(x, context, eval_julia_code=Main)
+        return md
+    end
     md_preview = DOM.div(markdown; class="page")
     list = DOM.div(context.drag_drop_list...; class="drag-list")
-    return DOM.div(JSServe.MarkdownCSS, stylesheet, editor, list, md_preview)
+    return DOM.div(WGLMakie.THREE, JSServe.MarkdownCSS, stylesheet, editor, list, md_preview)
 end
 
-set_theme!(resolution=(600, 400))
-
-app = Application(dom_handler, "127.0.0.1", 8083)
+# close(app)
+# app = Application(dom_handler, "127.0.0.1", 8083)
 
 
 # If you want to edit a template with your local editor, you can also do:

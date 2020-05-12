@@ -111,17 +111,6 @@ const MsgPackLib = Asset(dependency_path("msgpack.min.js"))
 
 const MarkdownCSS = Asset(dependency_path("markdown.css"))
 
-function serialize_js(asset::Asset, serializer::UrlSerializer=UrlSerializer())
-    file_url = url(asset, serializer)
-    if mediatype(asset) == :js
-        return DOM.script(;src=file_url)
-    elseif mediatype(asset) == :css
-        return DOM.link(;href=file_url, rel="stylesheet", type="text/css", charset="utf8")
-    else
-        error("Unrecognized asset media type: $(mediatype(asset))")
-    end
-end
-
 function include_asset(asset::Asset, serializer::UrlSerializer=UrlSerializer())
     file_url = repr(url(asset, serializer))
     if mediatype(asset) == :js
