@@ -155,12 +155,12 @@ function export_standalone(dom_handler, folder::String;
 end
 
 
-function Base.show(io::IOContext, ::MIME"application/vnd.jsserve.application+html", dom::DisplayInline)
+function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+html", dom::DisplayInline)
     if get(io, :use_offline_mode, false)
         export_folder = get(io, :export_folder, "/")
         absolute_urls = get(io, :absolute_urls, false)
         content_delivery_url = get(io, :content_delivery_url, "")
-        html = export_standalone(dom.handler, exported_folder; absolute_urls=absolute_urls,
+        html = export_standalone(dom.dom_function, export_folder; absolute_urls=absolute_urls,
                           content_delivery_url=content_delivery_url,
                           write_index_html=false)
         println(io, html)
