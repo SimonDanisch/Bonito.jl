@@ -168,3 +168,7 @@ function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+ht
         show(io.io, m, dom)
     end
 end
+
+function Base.show(io::IO, m::MIME"application/vnd.jsserve.application+html", dom::DisplayInline)
+    show(io.io, MIME"text/html"(), dom)
+end
