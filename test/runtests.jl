@@ -11,6 +11,7 @@ using URIParser
 using Random
 using Hyperscript: children
 using ElectronTests: TestSession
+using JSServe: Slider, on_js_update_observable
 
 function wait_on_test_observable()
     global test_observable

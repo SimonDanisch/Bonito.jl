@@ -45,6 +45,12 @@ serialize_js(jss::JSString) = jss.source
 
 function serialize_js(jsc::Union{JSCode, JSString})
     source, data = JSServe.serialize2string(jsc)
+    # We put the source inside a closure
+    # Which we then call via func.apply(data)
+    # To set this to our data dependencies!
+    source = "(function (){
+        $(source)
+    })"
     return js_type(:js_code, Dict(:source => source, :data => serialize_js(data)))
 end
 
@@ -54,6 +60,8 @@ function serialize_js(asset::Asset, serializer::UrlSerializer=UrlSerializer())
         return DOM.script(;src=file_url, type="text/javascript", charset="utf8")
     elseif mediatype(asset) == :css
         return DOM.link(;href=file_url, rel="stylesheet", type="text/css", charset="utf8")
+    elseif mediatype(asset) == :png
+        return url(asset)
     else
         error("Unrecognized asset media type: $(mediatype(asset))")
     end
@@ -155,7 +163,6 @@ MsgPack.msgpack_type(::Type{Float16}) = MsgPack.FloatType()
 MsgPack.to_msgpack(::MsgPack.FloatType, x::Float16) = Float32(x)
 JSON3.StructType(::Type{Hyperscript.Node{Hyperscript.HTMLSVG}}) = JSON3.ObjectType()
 MsgPack.msgpack_type(::Type{Hyperscript.Node{Hyperscript.HTMLSVG}}) = MsgPack.MapType()
-
 
 if isdefined(JSON3, :keyvaluepairs)
     import JSON3: keyvaluepairs

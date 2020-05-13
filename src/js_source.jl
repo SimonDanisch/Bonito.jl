@@ -108,8 +108,9 @@ function serialize2string(io::IO, data_dependencies::Vector{Any}, @nospecialize(
     else
         idx = length(data_dependencies) # idx before push --> JS is 0 indexed
         push!(data_dependencies, any)
-        # TODO how do we call this?
-        print(io, "deserialize_js(window.__data_dependencies[$(idx)])")
+        # We store all dependencies in the `this` context
+        # when calling the serialized code via a closure
+        print(io, "deserialize_js(this[$(idx)])")
     end
 end
 

@@ -1,3 +1,4 @@
+const on_update_observables_callbacks = [];
 const registered_observables = {};
 const observable_callbacks = {};
 const javascript_object_heap = {};
@@ -33,6 +34,7 @@ const JSSetIndex = '7';
 const JSDoneLoading = '8';
 const FusedMessage = '9';
 const DeleteObjects = '10';
+const OnUpdateObservable = '11';
 
 function is_list(value) {
     return value && typeof value === 'object' && value.constructor === Array;
@@ -60,7 +62,6 @@ function load_javascript_sources(script_node_array, onload_callback) {
         function callback(){
             loaded = loaded + 1;
             if (loaded == to_load) {
-                console.log("IM last");
                 onload_callback();
             }
         }
@@ -151,8 +152,10 @@ function deserialize_js(data) {
             } else if (data.__javascript_type__ == 'DomNode') {
                 return document.querySelector('[data-jscall-id="' + data.payload + '"]');
             } else if (data.__javascript_type__ == 'js_code') {
-                window.__data_dependencies = deserialize_js(data.payload.data);
-                return eval(data.payload.source);
+                // we wrap the js source in a closure,
+                // to get all data dependencies via the payload.data
+                // in packed binary format, instead of inline json inside the string
+                return eval(data.payload.source)(data.payload.data);
             } else {
                 send_error(
                     "Can't deserialize custom type: " + data.__javascript_type__,
@@ -361,7 +364,7 @@ function init_from_byte_array(init_func, data) {
     for (let obs_id in data.observables) {
         registered_observables[obs_id] = data.observables[obs_id];
     }
-    init_func(data.payload);
+    init_func.apply(data.payload);
     websocket_send({
         msg_type: JSDoneLoading
     });
@@ -499,8 +502,25 @@ function process_message(data) {
                 );
             }
             break;
+
+        case OnUpdateObservable:
+            try {
+                const func = deserialize_js(data.payload);
+                on_update_observables_callbacks.push(func);
+            } catch (exception) {
+                send_error(
+                    "Couldn't eval function:\n" +
+                    String(data.payload),
+                    exception
+                );
+            }
+            break;
+
         default:
             send_error("Unrecognized message type: " + data.msg_type + ".", null);
+    }
+    for (let idx in on_update_observables_callbacks){
+        on_update_observables_callbacks[idx](value);
     }
 }
 

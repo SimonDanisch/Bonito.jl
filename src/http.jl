@@ -11,6 +11,7 @@ const JSSetIndex = "7"
 const JSDoneLoading = "8"
 const FusedMessage = "9"
 const DeleteObjects = "10"
+const OnUpdateObservable = "11"
 
 """
     request_to_sessionid(request; throw = true)

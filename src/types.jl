@@ -111,6 +111,7 @@ struct Session
     js_fully_loaded::Channel{Bool}
     on_websocket_ready::Any
     url_serializer::UrlSerializer
+    on_sent_message::Vector{JSCode}
 end
 
 abstract type AbstractJSObject end

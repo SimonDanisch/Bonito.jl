@@ -200,10 +200,6 @@ function replace_expressions(markdown::Markdown.Code, context; eval_julia_code=f
     end
 end
 
-
-
-
-
 """
     string_to_markdown(source::String, context; eval_julia_code=false)
 

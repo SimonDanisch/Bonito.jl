@@ -299,7 +299,7 @@ end
         @test rslider[] == [10, 80]
         rslider_html = jsobject(app, js"document.getElementById('rslider')")
         @test evaljs(app, js"$(rslider_html).children.length") == 3
-        @test evaljs(app, js"$(rslider_html).children[1].innerText") == "10 "
+        @test evaljs(app, js"$(rslider_html).children[1].innerText") == "10"
         @test evaljs(app, js"$(rslider_html).children[2].innerText") == "80"
         rslider[] = [20, 70]
     end

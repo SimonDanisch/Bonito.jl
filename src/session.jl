@@ -1,8 +1,9 @@
 
 function init_session(session::Session)
-    send(session; msg_type=FusedMessage, payload=session.message_queue)
-    empty!(session.message_queue)
     put!(session.js_fully_loaded, true)
+    messages = copy(session.message_queue)
+    empty!(session.message_queue)
+    send(session; msg_type=FusedMessage, payload=messages)
 end
 
 function Session(connections::Vector{WebSocket}=WebSocket[]; url_serializer=UrlSerializer(), id=string(uuid4()))
@@ -17,7 +18,8 @@ function Session(connections::Vector{WebSocket}=WebSocket[]; url_serializer=UrlS
         id,
         Channel{Bool}(1),
         init_session,
-        url_serializer
+        url_serializer,
+        JSCode[]
     )
 end
 
@@ -45,10 +47,10 @@ function queued_as_script(session::Session)
     for (id, (registered, observable)) in session.observables
         observables[observable.id] = observable[]
     end
-    codes = JSServe.serialize_message_readable.(session.message_queue)
+    messages = copy(session.message_queue)
     empty!(session.message_queue)
+    codes = JSServe.serialize_message_readable.(messages)
     source, data = JSServe.serialize2string(codes)
-
     data = Dict("observables" => observables, "payload" => data)
     isdir(dependency_path("session_temp_data")) || mkdir(dependency_path("session_temp_data"))
     deps_path = dependency_path("session_temp_data", session.id * ".msgpack")
@@ -56,9 +58,8 @@ function queued_as_script(session::Session)
     open(io -> MsgPack.pack(io, serialize_js(data)), deps_path, "w")
     data_url = url(Asset(deps_path), session.url_serializer)
     return js"""
-    function init_function(data_dependencies) {
-        window.__data_dependencies = data_dependencies;
-    $(JSString(source))
+        function init_function() {
+            $(JSString(source))
         }
         $(session.on_document_load)
         init_from_file(init_function, $(data_url));
@@ -72,7 +73,10 @@ Send values to the frontend via JSON for now
 """
 Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
+global message_counter = Ref(0)
+
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
+    message_counter[] += 1
     if isopen(session) && !session.fusing[] && isready(session.js_fully_loaded)
         @assert isempty(session.message_queue)
         for connection in session.connections
@@ -114,7 +118,6 @@ entirely in javascript, without any communication with the Julia `session`.
 function onjs(session::Session, obs::Observable, func::JSCode)
     # register the callback with the JS session
     register_resource!(session, (obs, func))
-
     send(
         session;
         msg_type=OnjsCallback,
@@ -125,6 +128,10 @@ end
 
 function onjs(has_session, obs::Observable, func::JSCode)
     onjs(session(has_session), obs, func)
+end
+
+function on_js_update_observable(session::Session, func::JSCode)
+    send(session; msg_type=OnUpdateObservable, payload=func)
 end
 
 """
@@ -349,6 +356,13 @@ function serialize_message_readable(message)
         return JSCode(serialize_message_readable.(message[:payload]))
     elseif type == DeleteObjects
         return js"        delete_heap_objects($(message[:payload]));"
+    elseif type == OnUpdateObservable
+        return js"""        {
+                const func = $(message[:payload]);
+                on_update_observables_callbacks.push(func);
+                };
+        """
+
     else
         error("type not found: $(type)")
     end
