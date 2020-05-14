@@ -137,8 +137,6 @@ function export_standalone(dom_handler, folder::String;
     <script>
     function __on_document_load__(){
         $(queued_as_script(session))
-
-        $(serialize_readable(session.on_document_load))
     };
     </script>
     </head>
