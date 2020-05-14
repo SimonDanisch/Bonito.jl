@@ -122,9 +122,9 @@ function include_asset(asset::Asset, serializer::UrlSerializer=UrlSerializer())
     end
 end
 
-function include_asset(assets::Set{Asset}, serializer::UrlSerializer=UrlSerializer())
+function include_asset(assets::Dict{Asset, Bool}, serializer::UrlSerializer=UrlSerializer())
     return sprint() do io
-        for asset in assets
+        for (asset, loaded) in assets
             println(io, include_asset(asset, serializer))
         end
     end

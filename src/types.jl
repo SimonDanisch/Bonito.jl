@@ -105,13 +105,14 @@ struct Session
     # We need to keep track of any objects that is used on the js side, to not free it!
     objects::Vector{Any}
     message_queue::Vector{Dict{Symbol, Any}}
-    dependencies::Set{Asset}
+    # Asset and wheter they got loaded already in client!
+    dependencies::Dict{Asset, Bool}
     on_document_load::Vector{JSCode}
     id::String
     js_fully_loaded::Channel{Bool}
     on_websocket_ready::Any
     url_serializer::UrlSerializer
-    on_sent_message::Vector{JSCode}
+    init_error::Ref{Any}
 end
 
 abstract type AbstractJSObject end

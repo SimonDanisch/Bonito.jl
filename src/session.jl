@@ -13,13 +13,13 @@ function Session(connections::Vector{WebSocket}=WebSocket[]; url_serializer=UrlS
         Dict{String, Tuple{Bool, Observable}}(),
         Any[],
         Dict{Symbol, Any}[],
-        Set{Asset}(),
+        Dict{Asset, Bool}(),
         JSCode[],
         id,
         Channel{Bool}(1),
         init_session,
         url_serializer,
-        JSCode[]
+        Ref{Any}(nothing)
     )
 end
 
@@ -297,9 +297,11 @@ function Base.push!(session::Session, dependency::Dependency)
 end
 
 function Base.push!(session::Session, asset::Asset)
-    push!(session.dependencies, asset)
-    if asset.onload !== nothing
-        on_document_load(session, asset.onload)
+    if !haskey(session.dependencies, asset)
+        session.dependencies[asset] = false
+        if asset.onload !== nothing
+            on_document_load(session, asset.onload)
+        end
     end
     return asset
 end

@@ -363,12 +363,20 @@ function update_node_attribute(node, attribute, value) {
 }
 
 function init_from_byte_array(init_func, data) {
-    for (let obs_id in data.observables) {
-        registered_observables[obs_id] = data.observables[obs_id];
+    let exception = null;
+    try {
+        for (let obs_id in data.observables) {
+            registered_observables[obs_id] = data.observables[obs_id];
+        }
+        init_func.apply(data.payload);
+    } catch (e) {
+        exception = e;
     }
-    init_func.apply(data.payload);
     websocket_send({
-        msg_type: JSDoneLoading
+        msg_type: JSDoneLoading,
+        exception: String(exception),
+        message: exception == null ? "" : "Error during initialization",
+        stacktrace: exception == null ? "" : exception.stack
     });
 }
 
@@ -435,7 +443,6 @@ function process_message(data) {
         case EvalJavascript:
             try {
                 const f = deserialize_js(data.payload);
-                console.log(f);
                 f();
             } catch (exception) {
                 send_error(

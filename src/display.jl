@@ -64,7 +64,6 @@ function dom2html(session::Session, dom)
     register_resource!(session, js_dom)
     proxy_url = JSSERVE_CONFIGURATION.websocket_proxy[]
     html = repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
-    @show session.dependencies
     html_str = """
     <html>
     <head>
@@ -89,7 +88,9 @@ function dom2html(session::Session, dom)
     """
     # Empty on_document_load, so we can make a diff when things get dynamically loaded
     # into on_document_load
-    empty!(session.dependencies)
+    for (asset, loaded) in session.dependencies
+        session.dependencies[asset] = true
+    end
     empty!(session.on_document_load)
     return html_str
 end

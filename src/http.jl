@@ -56,6 +56,17 @@ end
 
 const ASSET_URL_REGEX = r"http://.*/assetserver/([a-z0-9]+-.*?):([\d]+):[\d]+"
 
+
+function show_js_error(data)
+    @error "Error in Javascript: $(data["message"])\n with exception:\n$(data["exception"])"
+    if data["stacktrace"] !== nothing
+        for line in split(data["stacktrace"], "\n")
+            line_with_local_path = replace(line, ASSET_URL_REGEX => replace_url)
+            println(stderr, line_with_local_path)
+        end
+    end
+end
+
 """
     handle_ws_message(session::Session, message)
 
@@ -72,17 +83,15 @@ function handle_ws_message(session::Session, message)
         # julia updating js, ...)
         Base.invokelatest(update_nocycle!, obs, data["payload"])
     elseif typ == JavascriptError
-        @error "Error in Javascript: $(data["message"])\n with exception:\n$(data["exception"])"
-        if data["stacktrace"] !== nothing
-            for line in split(data["stacktrace"], "\n")
-                line_with_local_path = replace(line, ASSET_URL_REGEX => replace_url)
-                println(stderr, line_with_local_path)
-            end
-        end
+        show_js_error(data)
     elseif typ == JavascriptWarning
         @warn "Error in Javascript: $(data["message"])\n)"
     elseif typ == JSDoneLoading
         session.on_websocket_ready(session)
+        if data["exception"] !== "null"
+            show_js_error(data)
+            session.init_error[] = data
+        end
     else
         @error "Unrecognized message: $(typ) with type: $(typeof(type))"
     end

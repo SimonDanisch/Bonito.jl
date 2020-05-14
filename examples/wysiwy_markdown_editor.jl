@@ -3,7 +3,6 @@ using JSServe.DOM
 using StatsMakie
 using JSServe: Application, evaljs, linkjs, CodeEditor
 using JSServe: @js_str, onjs, Dependency, with_session, string_to_markdown
-set_theme!(resolution=(600, 400))
 using JSServe: Slider
 using WGLMakie, AbstractPlotting
 using AbstractPlotting: Pixel
@@ -12,6 +11,8 @@ using RDatasets
 # Some items we can show off:
 iris = RDatasets.dataset("datasets", "iris")
 img1 = DOM.img(src="https://i.ytimg.com/vi/lUaNo_L7AKU/hqdefault.jpg")
+set_theme!(resolution=(600, 400))
+scatter(Data(iris), Group(:Species), :SepalLength, :SepalWidth); # precompile
 
 # Javascript & CSS dependencies can be declared locally and
 # freely interpolated in the DOM / js string, and will make sure it loads
@@ -77,7 +78,7 @@ function dom_handler(session, request)
 end
 
 # close(app)
-# app = Application(dom_handler, "127.0.0.1", 8083)
+app = Application(dom_handler, "127.0.0.1", 8083)
 
 
 # If you want to edit a template with your local editor, you can also do:

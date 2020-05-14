@@ -119,8 +119,8 @@ function serialize_readable(io::IO, jso::JSReference)
     serialize_readable(io, js_name(jso))
 end
 
-function serialize_readable(io::IO, assets::Set{Asset})
-    for asset in assets
+function serialize_readable(io::IO, assets::Dict{Asset, Bool})
+    for (asset, loaded) in assets
         serialize_readable(io, asset)
         println(io)
     end

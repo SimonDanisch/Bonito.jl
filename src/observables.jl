@@ -34,8 +34,12 @@ function jsrender(session::Session, obs::Observable)
             if isopen(session)
                 messages = copy(session.message_queue)
                 empty!(session.message_queue)
-                dependencies = serialize_js.(session.dependencies)
-                empty!(session.dependencies)
+                for (asset, loaded) in session.dependencies
+                    if !loaded
+                        session.dependencies[asset] = true
+                        push!(dependencies, serialize_js(asset))
+                    end
+                end
                 onload = copy(session.on_document_load)
                 empty!(session.on_document_load)
             end
