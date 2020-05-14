@@ -43,14 +43,12 @@ end
 
 serialize_js(jss::JSString) = jss.source
 
+
 function serialize_js(jsc::Union{JSCode, JSString})
     source, data = JSServe.serialize2string(jsc)
     # We put the source inside a closure
     # Which we then call via func.apply(data)
     # To set this to our data dependencies!
-    source = "(function (){
-        $(source)
-    })"
     return js_type(:js_code, Dict(:source => source, :data => serialize_js(data)))
 end
 

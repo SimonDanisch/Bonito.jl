@@ -64,6 +64,7 @@ function dom2html(session::Session, dom)
     register_resource!(session, js_dom)
     proxy_url = JSSERVE_CONFIGURATION.websocket_proxy[]
     html = repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
+    @show session.dependencies
     html_str = """
     <html>
     <head>

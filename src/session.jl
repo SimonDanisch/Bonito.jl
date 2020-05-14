@@ -122,7 +122,7 @@ function onjs(session::Session, obs::Observable, func::JSCode)
         session;
         msg_type=OnjsCallback,
         id=obs.id,
-        payload=js"($(func))"
+        payload=js"return ($(func))"
     )
 end
 
@@ -175,7 +175,6 @@ Evaluate a javascript script in `session`.
 """
 function evaljs(session::Session, jss::JSCode)
     register_resource!(session, jss)
-    # source, data = serialize2string(jss)
     send(session; msg_type=EvalJavascript, payload=jss)
 end
 
@@ -325,8 +324,10 @@ function serialize_message_readable(message)
                           run_js_callbacks($(message[:id]), value);}"
     elseif type == OnjsCallback
         return js"""        {
-                const func = $(message[:payload]);
-                register_onjs(func, $(message[:id]));
+                function func() {
+                    $(message[:payload])
+                }
+                register_onjs(func(), $(message[:id]));
                 }
         """
     elseif type == EvalJavascript

@@ -155,7 +155,9 @@ function deserialize_js(data) {
                 // we wrap the js source in a closure,
                 // to get all data dependencies via the payload.data
                 // in packed binary format, instead of inline json inside the string
-                return eval(data.payload.source)(data.payload.data);
+                func = new Function(data.payload.source);
+                // Bind the payload data as this!
+                return func.bind(data.payload.data);
             } else {
                 send_error(
                     "Can't deserialize custom type: " + data.__javascript_type__,
@@ -206,9 +208,9 @@ function send_warning(message) {
 
 function run_js_callbacks(id, value) {
     if (id in observable_callbacks) {
-        var callbacks = observable_callbacks[id];
-        var deregister_calls = [];
-        for (var i = 0; i < callbacks.length; i++) {
+        const callbacks = observable_callbacks[id];
+        const deregister_calls = [];
+        for (let i in callbacks) {
             // onjs can return false to deregister itself
             try {
                 var register = callbacks[i](value);
@@ -421,7 +423,7 @@ function process_message(data) {
                 // when observable updates
                 const id = data.id;
                 const f = deserialize_js(data.payload);
-                register_onjs(f, id);
+                register_onjs(f(), id);
             } catch (exception) {
                 send_error(
                     "Error while registering an onjs callback.\n" +
@@ -432,7 +434,9 @@ function process_message(data) {
             break;
         case EvalJavascript:
             try {
-                const func = deserialize_js(data.payload);
+                const f = deserialize_js(data.payload);
+                console.log(f);
+                f();
             } catch (exception) {
                 send_error(
                     "Error while evaling JS from Julia. Source:\n" + String(data.payload.payload.source),

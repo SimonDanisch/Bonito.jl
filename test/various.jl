@@ -14,7 +14,7 @@
         @test evaljs(app, js"$(hey).innerText") == "Data:\n2.0"
         float16_obs = children(children(app.dom)[1][])[2]
         float16_obs[] = Float16(77)
-        @test evaljs(app, js"$(hey).innerText") == "Data:\n77"
+        @wait_for evaljs(app, js"$(hey).innerText") == "Data:\n77"
     end
 end
 
@@ -41,8 +41,6 @@ end
     end
 end
 
-
-
 @testset "async messages" begin
     obs = Observable(0); counter = Observable(0)
     testing_started = Ref(false)
@@ -53,19 +51,19 @@ end
             var t = update_obs($(counter), get_observable($(counter)) + 1);
         }""")
 
-        for i in 1:1000
+        for i in 1:2
             obs[] += 1
         end
         @async begin
             yield()
-            for i in 1:1000
+            for i in 1:2
                 obs[] += 1
                 yield()
             end
         end
         @async begin
             yield()
-            for i in 1:1000
+            for i in 1:2
                 obs[] += 1
                 yield()
             end
