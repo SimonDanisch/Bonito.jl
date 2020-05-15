@@ -370,6 +370,7 @@ function init_from_byte_array(init_func, data) {
         }
         init_func.apply(data.payload);
     } catch (e) {
+        console.error(e);
         exception = e;
     }
     websocket_send({

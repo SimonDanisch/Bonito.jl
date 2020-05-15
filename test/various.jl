@@ -5,9 +5,10 @@
         return DOM.div(obs2)
     end
     xx = "hey"; some_js = js"var"; x = [1f0, 2f0]
-    @test string(js"console.log($xx); $x; $((2, 4)); $(some_js) hello = 1;") == "console.log(\"hey\"); [1.0,2.0]; [2,4]; var hello = 1;"
+
+    @test string(js"console.log($xx); $x; $((2, 4)); $(some_js) hello = 1;") == "console.log(\"hey\"); deserialize_js(this[0]); deserialize_js(this[1]); var hello = 1;"
     asset = JSServe.Asset("file.dun_exist"; check_isfile=false)
-    test_throw() = sprint(io->JSServe.serialize_readable(io, JSServe.Asset("file.dun_exist")))
+    test_throw() = JSServe.include_asset(JSServe.Asset("file.dun_exist"))
     Test.@test_throws ErrorException("Unrecognized asset media type: dun_exist") test_throw()
     testsession(test_handler, port=8666) do app
         hey = query_testid("hey")

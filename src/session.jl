@@ -49,7 +49,7 @@ function queued_as_script(session::Session)
     end
     messages = copy(session.message_queue)
     empty!(session.message_queue)
-    codes = JSServe.serialize_message_readable.(messages)
+    codes = [session.on_document_load; JSServe.serialize_message_readable.(messages);]
     source, data = JSServe.serialize2string(codes)
     data = Dict("observables" => observables, "payload" => data)
     isdir(dependency_path("session_temp_data")) || mkdir(dependency_path("session_temp_data"))
@@ -61,7 +61,6 @@ function queued_as_script(session::Session)
         function init_function() {
             $(JSString(source))
         }
-        $(session.on_document_load)
         init_from_file(init_function, $(data_url));
     """
 end
@@ -140,7 +139,7 @@ end
 calls javascript `func` with node, once node has been displayed.
 """
 function onload(session::Session, node::Node, func::JSCode)
-    on_document_load(session, js"($(func))($node);")
+    on_document_load(session, js"($(func)).apply(this, [$node]);")
 end
 
 """
@@ -325,11 +324,12 @@ function serialize_message_readable(message)
                           // update all onjs callbacks
                           run_js_callbacks($(message[:id]), value);}"
     elseif type == OnjsCallback
+        # we use apply to pass throught the data context
         return js"""        {
                 function func() {
                     $(message[:payload])
                 }
-                register_onjs(func(), $(message[:id]));
+                register_onjs(func.apply(this), $(message[:id]));
                 }
         """
     elseif type == EvalJavascript

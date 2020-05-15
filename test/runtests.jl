@@ -24,7 +24,6 @@ function wait_on_test_observable()
     return val
 end
 
-
 """
     test_value(app, statement)
 Executes statemen (js code, or julia function with 0 args),
