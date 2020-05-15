@@ -5,7 +5,7 @@ using ImageTransformations
 
 @testset "WGLMakie" begin
     function test_handler(session, req)
-        scene = AbstractPlotting.scatter([1, 2, 3, 4], resolution=(500,500), color=:red)
+        scene = AbstractPlotting.scatter(1:4, resolution=(500,500), color=:red)
         return DOM.div(scene)
     end
     testsession(test_handler, port=8555) do app

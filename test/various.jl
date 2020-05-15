@@ -1,4 +1,3 @@
-
 @testset "serialization" begin
     function test_handler(session, request)
         obs1 = Observable(Float16(2.0))
@@ -40,4 +39,63 @@ end
         @test evaljs(app, js"$(hello_div).children[1].tagName") == "STYLE"
         @test evaljs(app, js"$(hello_div).children[2].tagName") == "SCRIPT"
     end
+end
+@testset "async messages" begin
+    obs = Observable(0); counter = Observable(0)
+    testing_started = Ref(false)
+    function handler(session, request)
+        # Dont start this!
+        testing_started[] && return DOM.div()
+        onjs(session, obs, js"""function (v) {
+            var t = update_obs($(counter), get_observable($(counter)) + 1);
+        }""")
+
+        for i in 1:2
+            obs[] += 1
+        end
+        @async begin
+            yield()
+            for i in 1:2
+                obs[] += 1
+                yield()
+            end
+        end
+        @async begin
+            yield()
+            for i in 1:2
+                obs[] += 1
+                yield()
+            end
+        end
+        return DOM.div(obs, counter)
+    end
+    # Ugh, ElectronTests loads the handler multiple times to make sure it works
+    # and doesn't get stuck, so we need to do this manually
+    @isdefined(app) && close(app)
+    app = JSServe.Application(handler, "0.0.0.0", 8558)
+    try
+        eapp = Electron.Application()
+        window = Electron.Window(eapp)
+        try
+            @test obs[] == 0
+            @test counter[] == 0
+            testing_started[] = true
+            Electron.load(window, URI(string("http://localhost:", 8558)))
+            @wait_for counter[] == obs[]
+        finally
+            close(eapp)
+        end
+    finally
+        close(app)
+    end
+end
+
+@testset "Dependencies" begin
+    jss = js"""function (v) {
+        console.log($(ElectronTests.JSTest));
+    }"""
+    div = DOM.div(onclick=jss)
+    s = JSServe.Session()
+    JSServe.register_resource!(s, div)
+    @test ElectronTests.JSTest.assets[1] in s.dependencies
 end

@@ -2,6 +2,9 @@ struct Custom
 end
 JSServe.jsrender(custom::Custom) = DOM.div("i'm a custom struct")
 
+function test_handler(session, request)
+    return DOM.div(JSServe.DiffList([Custom(), md"jo", DOM.div("span span span")], dataTestId="difflist"))
+end
 
 stripnl(x) = strip(x, '\n')
 @testset "difflist" begin

@@ -100,6 +100,8 @@ end
 
 render_row_value(x) = x
 render_row_value(x::Missing) = "n/a"
+render_row_value(x::AbstractString) = string(x)
+render_row_value(x::String) = x
 
 function Table(table; class="", row_renderer=render_row_value)
     return Table(table, class, row_renderer)

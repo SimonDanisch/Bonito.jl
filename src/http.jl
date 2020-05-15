@@ -11,6 +11,7 @@ const JSSetIndex = "7"
 const JSDoneLoading = "8"
 const FusedMessage = "9"
 const DeleteObjects = "10"
+const OnUpdateObservable = "11"
 
 """
     request_to_sessionid(request; throw = true)
@@ -71,17 +72,16 @@ function handle_ws_message(session::Session, message)
         # julia updating js, ...)
         Base.invokelatest(update_nocycle!, obs, data["payload"])
     elseif typ == JavascriptError
-        @error "Error in Javascript: $(data["message"])\n with exception:\n$(data["exception"])"
-        if data["stacktrace"] !== nothing
-            for line in split(data["stacktrace"], "\n")
-                line_with_local_path = replace(line, ASSET_URL_REGEX => replace_url)
-                println(stderr, line_with_local_path)
-            end
-        end
+        show(stderr, JSException(data))
     elseif typ == JavascriptWarning
         @warn "Error in Javascript: $(data["message"])\n)"
     elseif typ == JSDoneLoading
         session.on_websocket_ready(session)
+        if data["exception"] !== "null"
+            exception = JSException(data)
+            show(stderr, exception)
+            session.init_error[] = exception
+        end
     else
         @error "Unrecognized message: $(typ) with type: $(typeof(type))"
     end

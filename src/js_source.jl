@@ -182,7 +182,7 @@ function serialize2string(io::IO, data_dependencies::Vector{Any}, jso::JSReferen
 end
 
 function serialize2string(io::IO, data_dependencies::Vector{Any}, observable::Observable)
-    print(io, "'", observable.id, "'")
+    print(io, "\"", observable.id, "\"")
 end
 
 # Handle interpolating into Javascript
