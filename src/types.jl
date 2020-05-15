@@ -93,6 +93,34 @@ function UrlSerializer()
     )
 end
 
+struct JSException <: Exception
+    exception::String
+    message::String
+    stacktrace::Vector{String}
+end
+
+"""
+Creates a Julia exception from data passed to us by the frondend!
+"""
+function JSException(js_data::AbstractDict)
+    stacktrace = String[]
+    if js_data["stacktrace"] !== nothing
+        for line in split(js_data["stacktrace"], "\n")
+            push!(stacktrace, replace(line, ASSET_URL_REGEX => replace_url))
+        end
+    end
+    return JSException(js_data["exception"], js_data["message"], stacktrace)
+end
+
+function Base.show(io::IO, exception::JSException)
+    println(io, "An exception was thrown in JS: $(exception.exception)")
+    println(io, "Additional message: $(exception.message)")
+    println(io, "Stack trace:")
+    for line in exception.stacktrace
+        println(io, "    ", line)
+    end
+end
+
 """
 A web session with a user
 """
@@ -112,7 +140,8 @@ struct Session
     js_fully_loaded::Channel{Bool}
     on_websocket_ready::Any
     url_serializer::UrlSerializer
-    init_error::Ref{Any}
+    # Should be checkd on js_fully_loaded to see if an error occured
+    init_error::Ref{Union{Nothing, JSException}}
 end
 
 abstract type AbstractJSObject end

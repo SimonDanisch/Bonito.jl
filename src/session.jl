@@ -19,7 +19,7 @@ function Session(connections::Vector{WebSocket}=WebSocket[]; url_serializer=UrlS
         Channel{Bool}(1),
         init_session,
         url_serializer,
-        Ref{Any}(nothing)
+        Ref{Union{Nothing, JSException}}(nothing)
     )
 end
 
