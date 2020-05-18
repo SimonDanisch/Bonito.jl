@@ -154,7 +154,6 @@ function export_standalone(dom_handler, folder::String;
     end
 end
 
-
 function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+html", dom::DisplayInline)
     if get(io, :use_offline_mode, false)
         export_folder = get(io, :export_folder, "/")

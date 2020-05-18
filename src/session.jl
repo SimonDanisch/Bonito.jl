@@ -72,7 +72,7 @@ Send values to the frontend via JSON for now
 """
 Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
-global message_counter = Ref(0)
+const message_counter = Ref(0)
 
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
     message_counter[] += 1
