@@ -11,7 +11,7 @@ end
 
 function (x::JSUpdateObservable)(value)
     # Sent an update event
-    send(x.session, payload = value, id = x.id, msg_type = UpdateObservable)
+    send(x.session, payload=value, id=x.id, msg_type=UpdateObservable)
 end
 
 """

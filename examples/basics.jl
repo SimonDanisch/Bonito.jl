@@ -1,5 +1,4 @@
 md"""
-
 # What is JSServe?
 
 * a connection between Julia & Javascript
@@ -62,7 +61,7 @@ end
 
 MUI = JSServe.Asset("//cdn.muicss.com/mui-0.10.1/css/mui.min.css")
 sliderstyle = JSServe.Asset(joinpath(@__DIR__, "sliderstyle.css"))
-image = JSServe.Asset(joinpath(@__DIR__, "julia.png"))
+image = JSServe.Asset(joinpath(@__DIR__, "assets", "julia.png"))
 
 function dom_handler(session, request)
     button = JSServe.Button("hi", class="mui-btn mui-btn--primary")
