@@ -1,3 +1,4 @@
+const on_update_observables_callbacks = [];
 const registered_observables = {};
 const observable_callbacks = {};
 const javascript_object_heap = {};
@@ -33,6 +34,7 @@ const JSSetIndex = '7';
 const JSDoneLoading = '8';
 const FusedMessage = '9';
 const DeleteObjects = '10';
+const OnUpdateObservable = '11';
 
 function is_list(value) {
     return value && typeof value === 'object' && value.constructor === Array;
@@ -60,7 +62,6 @@ function load_javascript_sources(script_node_array, onload_callback) {
         function callback(){
             loaded = loaded + 1;
             if (loaded == to_load) {
-                console.log("IM last");
                 onload_callback();
             }
         }
@@ -203,9 +204,9 @@ function send_warning(message) {
 
 function run_js_callbacks(id, value) {
     if (id in observable_callbacks) {
-        var callbacks = observable_callbacks[id];
-        var deregister_calls = [];
-        for (var i = 0; i < callbacks.length; i++) {
+        const callbacks = observable_callbacks[id];
+        const deregister_calls = [];
+        for (let i in callbacks) {
             // onjs can return false to deregister itself
             try {
                 var register = callbacks[i](value);
@@ -358,12 +359,21 @@ function update_node_attribute(node, attribute, value) {
 }
 
 function init_from_byte_array(init_func, data) {
-    for (let obs_id in data.observables) {
-        registered_observables[obs_id] = data.observables[obs_id];
+    let exception = null;
+    try {
+        for (let obs_id in data.observables) {
+            registered_observables[obs_id] = data.observables[obs_id];
+        }
+        init_func(data.payload);
+    } catch (e) {
+        console.error(e);
+        exception = e;
     }
-    init_func(data.payload);
     websocket_send({
-        msg_type: JSDoneLoading
+        msg_type: JSDoneLoading,
+        exception: String(exception),
+        message: exception == null ? "" : "Error during initialization",
+        stacktrace: exception == null ? "" : exception.stack
     });
 }
 
@@ -501,6 +511,9 @@ function process_message(data) {
             break;
         default:
             send_error("Unrecognized message type: " + data.msg_type + ".", null);
+    }
+    for (let idx in on_update_observables_callbacks){
+        on_update_observables_callbacks[idx](value);
     }
 }
 

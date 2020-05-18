@@ -1,8 +1,9 @@
 
 function init_session(session::Session)
-    send(session; msg_type=FusedMessage, payload=session.message_queue)
-    empty!(session.message_queue)
     put!(session.js_fully_loaded, true)
+    messages = copy(session.message_queue)
+    empty!(session.message_queue)
+    send(session; msg_type=FusedMessage, payload=messages)
 end
 
 function Session(connections::Vector{WebSocket}=WebSocket[]; url_serializer=UrlSerializer(), id=string(uuid4()))
@@ -17,7 +18,8 @@ function Session(connections::Vector{WebSocket}=WebSocket[]; url_serializer=UrlS
         id,
         Channel{Bool}(1),
         init_session,
-        url_serializer
+        url_serializer,
+        Ref{Union{Nothing, JSException}}(nothing)
     )
 end
 
@@ -72,7 +74,10 @@ Send values to the frontend via JSON for now
 """
 Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
+const message_counter = Ref(0)
+
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
+    message_counter[] += 1
     if isopen(session) && !session.fusing[] && isready(session.js_fully_loaded)
         @assert isempty(session.message_queue)
         for connection in session.connections
@@ -114,7 +119,6 @@ entirely in javascript, without any communication with the Julia `session`.
 function onjs(session::Session, obs::Observable, func::JSCode)
     # register the callback with the JS session
     register_resource!(session, (obs, func))
-
     send(
         session;
         msg_type=OnjsCallback,
@@ -168,7 +172,6 @@ Evaluate a javascript script in `session`.
 """
 function evaljs(session::Session, jss::JSCode)
     register_resource!(session, jss)
-    # source, data = serialize2string(jss)
     send(session; msg_type=EvalJavascript, payload=jss)
 end
 

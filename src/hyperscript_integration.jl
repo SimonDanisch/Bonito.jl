@@ -66,7 +66,7 @@ end
 
 function attribute_render(session::Session, parent, attribute::String, jss::JSCode)
     register_resource!(session, jss)
-    return serialize_readable(jss)
+    return string(jss)
 end
 
 

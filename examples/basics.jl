@@ -1,5 +1,4 @@
 md"""
-
 # What is JSServe?
 
 * a connection between Julia & Javascript

@@ -106,7 +106,7 @@ set `content_delivery_url` to your proxy url.
 If `clear_folder=true` all files in `folder` will get deleted before exporting again!
 """
 function export_standalone(dom_handler, folder::String;
-        clear_folder=false,
+        clear_folder=false, write_index_html=true,
         absolute_urls=false, content_delivery_url="file://" * folder * "/",
     )
     if clear_folder
@@ -122,31 +122,51 @@ function export_standalone(dom_handler, folder::String;
     # register resources (e.g. observables, assets)
     register_resource!(session, js_dom)
     html = repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
-
-    open(joinpath(folder, "index.html"), "w") do io
-        println(io, """
-        <html>
-        <head>
-        $(include_asset(session.dependencies, serializer))
-        <script>
-            window.js_call_session_id = null;
-            window.websocket_proxy_url = null;
-        </script>
-        $(include_asset(MsgPackLib, serializer))
-        $(include_asset(JSCallLibLocal, serializer))
-        <script>
-        function __on_document_load__(){
-            $(queued_as_script(session))
-
-            $(serialize_readable(session.on_document_load))
-        };
-        </script>
-        </head>
-        <body onload=__on_document_load__()>
-            $(html)
-        </body>
-        </html>
-        """)
+    html_str = """
+    <html>
+    <head>
+    $(include_asset(session.dependencies, serializer))
+    <script>
+        window.js_call_session_id = null;
+        window.websocket_proxy_url = null;
+    </script>
+    $(include_asset(MsgPackLib, serializer))
+    $(include_asset(JSCallLibLocal, serializer))
+    <script>
+    function __on_document_load__(){
+        $(queued_as_script(session))
+    };
+    </script>
+    </head>
+    <body onload=__on_document_load__()>
+        $(html)
+    </body>
+    </html>
+    """
+    if write_index_html
+        open(joinpath(folder, "index.html"), "w") do io
+            println(io, html_str)
+        end
+    else
+        return html_str
     end
-    return
+end
+
+
+function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+html", dom::DisplayInline)
+    if get(io, :use_offline_mode, false)
+        export_folder = get(io, :export_folder, "/")
+        absolute_urls = get(io, :absolute_urls, false)
+        content_delivery_url = get(io, :content_delivery_url, "")
+        html = export_standalone(dom.dom_function, export_folder; absolute_urls=absolute_urls,
+                          content_delivery_url=content_delivery_url,
+                          write_index_html=false)
+        println(io, html)
+    else
+        show(io.io, m, dom)
+    end
+end
+
+function Base.show(io::IO, m::MIME"application/vnd.jsserve.application+html", dom::DisplayInline)
+    show(io.io, MIME"text/html"(), dom)
 end
