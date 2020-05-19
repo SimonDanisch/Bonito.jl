@@ -76,12 +76,12 @@ function handle_ws_message(session::Session, message)
     elseif typ == JavascriptWarning
         @warn "Error in Javascript: $(data["message"])\n)"
     elseif typ == JSDoneLoading
-        session.on_websocket_ready(session)
         if data["exception"] !== "null"
             exception = JSException(data)
             show(stderr, exception)
             session.init_error[] = exception
         end
+        session.on_websocket_ready(session)
     else
         @error "Unrecognized message: $(typ) with type: $(typeof(type))"
     end
