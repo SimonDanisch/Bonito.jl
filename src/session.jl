@@ -58,11 +58,13 @@ function queued_as_script(session::Session)
     open(io -> MsgPack.pack(io, serialize_js(data)), deps_path, "w")
     data_url = url(Asset(deps_path), session.url_serializer)
     return js"""
-    function init_function(__data_dependencies) {
-    $(JSString(source))
-        }
-        init_from_file(init_function, $(data_url));
+
     $(session.on_document_load)
+
+    function init_function(__data_dependencies) {
+        $(JSString(source))
+    }
+    init_from_file(init_function, $(data_url));
     """
 end
 

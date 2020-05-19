@@ -64,21 +64,35 @@ function dom2html(session::Session, dom)
     register_resource!(session, js_dom)
     proxy_url = JSSERVE_CONFIGURATION.websocket_proxy[]
     html = repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
+    serializer = session.url_serializer
+    onload = js"""
+    function __on_document_load__(){
+        try {
+            $(queued_as_script(session))
+        } catch (e) {
+            websocket_send({
+                msg_type: JSDoneLoading,
+                exception: String(e),
+                message: "Error during initialization",
+                stacktrace: e.stack
+            });
+        }
+    };
+    """
+
     return """
     <html>
     <head>
     <meta charset="UTF-8">
-    $(include_asset(session.dependencies))
+    $(include_asset(session.dependencies, serializer))
     <script>
         window.js_call_session_id = '$(session.id)';
         window.websocket_proxy_url = '$(proxy_url)';
     </script>
-    $(include_asset(MsgPackLib))
-    $(include_asset(JSCallLibLocal))
+    $(include_asset(MsgPackLib, serializer))
+    $(include_asset(JSCallLibLocal, serializer))
     <script>
-    function __on_document_load__(){
-        $(queued_as_script(session))
-    };
+    $(onload)
     </script>
     </head>
     <body onload=__on_document_load__()>
@@ -113,31 +127,7 @@ function export_standalone(dom_handler, folder::String;
     # set id to "", since we dont needed, and like this we get nicer file names
     session = Session(url_serializer=serializer, id="standalone")
     html_dom = Base.invokelatest(dom_handler, session, (target="/",))
-    js_dom = DOM.div(jsrender(session, html_dom), id="application-dom")
-    # register resources (e.g. observables, assets)
-    register_resource!(session, js_dom)
-    html = repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
-    html_str = """
-    <html>
-    <head>
-    $(include_asset(session.dependencies, serializer))
-    <script>
-        window.js_call_session_id = null;
-        window.websocket_proxy_url = null;
-    </script>
-    $(include_asset(MsgPackLib, serializer))
-    $(include_asset(JSCallLibLocal, serializer))
-    <script>
-    function __on_document_load__(){
-        $(queued_as_script(session))
-    };
-    </script>
-    </head>
-    <body onload=__on_document_load__()>
-        $(html)
-    </body>
-    </html>
-    """
+    html_str = dom2html(session, html_dom)
     if write_index_html
         open(joinpath(folder, "index.html"), "w") do io
             println(io, html_str)
@@ -146,7 +136,6 @@ function export_standalone(dom_handler, folder::String;
         return html_str
     end
 end
-
 
 function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+html", dom::DisplayInline)
     if get(io, :use_offline_mode, false)
