@@ -273,8 +273,13 @@ function ensure_connection() {
         }
         popup.style;
         return false;
-    } else {
+    }
+    // lenght == 1
+    const websocket = session_websocket[0];
+    if (websocket.readyState == 1) {
         return true;
+    } else {
+
     }
 }
 
