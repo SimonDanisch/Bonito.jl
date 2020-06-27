@@ -226,7 +226,7 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=100.0
     comm, comm_channel = get_js_comm()
     js_with_result = js"""
     try{
-        var result = $(js);
+        const result = $(js);
         update_obs($(comm), {result: result});
     }catch(e){
         update_obs($(comm), {error: e.toString()});

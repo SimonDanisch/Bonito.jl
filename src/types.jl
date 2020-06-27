@@ -479,5 +479,5 @@ function route!(f, application::Application, pattern)
 end
 
 function websocket_route!(application::Application, pattern_f::Pair)
-    application.webscoket_routes[pattern_f[1]] = pattern_f[2]
+    application.websocket_routes[pattern_f[1]] = pattern_f[2]
 end
