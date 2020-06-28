@@ -74,20 +74,21 @@ for M in WebMimes
                 // to the parent iframe, for which we register an
                 // event handler via resize_iframe_event_handler, which then
                 // resizes the parent iframe accordingly
-                function iframe_resize(){
-                    const body = document.body;
-                    const html = document.documentElement;
-                    const height = Math.max(body.scrollHeight, body.offsetHeight,
-                                            html.clientHeight, html.scrollHeight,
-                                            html.offsetHeight);
-                    const width = Math.max(body.scrollWidth, body.offsetWidth,
-                                           html.clientWidth, html.scrollHeight,
-                                           html.offsetWidth);
-                    if (parent.postMessage) {
-                        parent.postMessage([$(session.id), width, height], "*");
-                    }
+                {
+                    (function (){
+                        const body = document.body;
+                        const html = document.documentElement;
+                        const height = Math.max(body.scrollHeight, body.offsetHeight,
+                                                html.clientHeight, html.scrollHeight,
+                                                html.offsetHeight);
+                        const width = Math.max(body.scrollWidth, body.offsetWidth,
+                                               html.clientWidth, html.scrollHeight,
+                                               html.offsetWidth);
+                        if (parent.postMessage) {
+                            parent.postMessage([$(session.id), width, height], "*");
+                        }
+                    })()
                 }
-                iframe_resize()
             """
             on_document_load(session, resize_script)
             return html(dom2html(session, html_dom))
@@ -111,11 +112,6 @@ for M in WebMimes
         end
     end
 end
-
-js"""
-
-"""
-
 
 function Base.show(io::IO, m::MIME"application/vnd.webio.application+html", dom::DisplayInline)
     application = get_global_app()
