@@ -57,6 +57,8 @@ function __init__()
     end
     JSSERVE_CONFIGURATION.websocket_proxy[] = url
     JSSERVE_CONFIGURATION.content_delivery_url[] = url
+    JSSERVE_CONFIGURATION.listen_port[] = parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081"))
+
     atexit() do
         # remove session folder, in which we store data dependencies temporary
         # TODO remove whenever a session is closed to not accumulate waste until julia
