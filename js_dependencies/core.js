@@ -279,12 +279,9 @@ function ensure_connection() {
 
 function websocket_send(data) {
     const has_conenction = ensure_connection();
-    console.log("HAS CONNECTION: " + has_conenction)
     if (has_conenction) {
         if (session_websocket[0]) {
-            console.log("READYSTATE: " + session_websocket[0].readyState)
             if (session_websocket[0].readyState == 1) {
-                console.log("SENDING!")
                 session_websocket[0].send(msgpack.encode(data));
             } else {
                 console.log("Websocket not in readystate!");
