@@ -285,9 +285,12 @@ function ensure_connection() {
 
 function websocket_send(data) {
     const has_conenction = ensure_connection();
+    console.log("HAS CONNECTION: " + has_conenction)
     if (has_conenction) {
         if (session_websocket[0]) {
+            console.log("READYSTATE: " + session_websocket[0].readyState)
             if (session_websocket[0].readyState == 1) {
+                console.log("SENDING!")
                 session_websocket[0].send(msgpack.encode(data));
             } else {
                 console.log("Websocket not in readystate!");
@@ -366,8 +369,9 @@ function init_from_byte_array(init_func, data) {
     for (let obs_id in data.observables) {
         registered_observables[obs_id] = data.observables[obs_id];
     }
-
+    console.log("DONE REGISTERING")
     init_func(data.payload);
+    console.log("DONE INITIALISING")
 
     websocket_send({
         msg_type: JSDoneLoading,
@@ -375,6 +379,8 @@ function init_from_byte_array(init_func, data) {
         message: "",
         stacktrace: ""
     });
+    console.log("SENT DONE LOADING")
+
 }
 
 function update_dom_node(dom, html) {
