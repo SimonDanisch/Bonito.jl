@@ -2,8 +2,9 @@ using JSServe, Observables, WGLMakie, AbstractPlotting
 using JSServe: @js_str, onjs, with_session, onload, Button, TextField, Slider, linkjs, serve_dom
 using JSServe.DOM
 using GeometryBasics
-using MakieGallery
+using MakieGallery, FileIO
 set_theme!(resolution=(1200, 800))
+
 
 function dom_handler(session, request)
     return hbox(
@@ -20,6 +21,8 @@ function dom_handler(session, request)
             scatter(1:4, marker="☼◒◑◐"),
             # scatter(1:4, marker=rand(RGBf0, 10, 10), markersize=20px),
             scatter(1:4, markersize=20px),
+            scatter(1:4, markersize=20, markerspace=Pixel),
+            scatter(1:4, markersize=LinRange(20, 60, 4), markerspace=Pixel),
             scatter(1:4, marker='▲', markersize=0.3, rotations=LinRange(0, pi, 4)),
             )
         )
@@ -78,11 +81,9 @@ function dom_handler(session, request)
     ))
 end
 
-using MakieGallery, FileIO
-
 function dom_handler(session, request)
     cat = FileIO.load(MakieGallery.assetpath("cat.obj"))
-    tex = FileIO.load(MakieGallery.assetpath("diffusemap.tga"))
+    tex = FileIO.load(MakieGallery.assetpath("diffusemap.png"))
     return hbox(vbox(
         AbstractPlotting.mesh(Circle(Point2f0(0), 1f0)),
         AbstractPlotting.poly(decompose(Point2f0, Circle(Point2f0(0), 1f0)))), vbox(
