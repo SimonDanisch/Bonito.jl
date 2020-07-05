@@ -195,8 +195,9 @@ function export_standalone(dom_handler, folder::String;
         open(joinpath(folder, "index.html"), "w") do io
             println(io, html_str)
         end
+        return html_str, session
     else
-        return html_str
+        return html_str, session
     end
 end
 
@@ -205,9 +206,16 @@ function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+ht
         export_folder = get(io, :export_folder, "/")
         absolute_urls = get(io, :absolute_urls, false)
         content_delivery_url = get(io, :content_delivery_url, "")
-        html = export_standalone(dom.dom_function, export_folder; absolute_urls=absolute_urls,
+
+        html, session = export_standalone(dom.dom_function, export_folder;
+                          absolute_urls=absolute_urls,
                           content_delivery_url=content_delivery_url,
                           write_index_html=false)
+        # We prepare for being offline, but we still start a server while things
+        # are online!
+        application = get_global_app()
+        application.sessions[session.id] = session
+
         println(io, html)
     else
         show(io.io, m, dom)
