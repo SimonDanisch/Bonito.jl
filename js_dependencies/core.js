@@ -274,13 +274,7 @@ function ensure_connection() {
         popup.style;
         return false;
     }
-    // lenght == 1
-    const websocket = session_websocket[0];
-    if (websocket.readyState == 1) {
-        return true;
-    } else {
-
-    }
+    return true
 }
 
 function websocket_send(data) {
@@ -366,8 +360,9 @@ function init_from_byte_array(init_func, data) {
     for (let obs_id in data.observables) {
         registered_observables[obs_id] = data.observables[obs_id];
     }
-
+    console.log("DONE REGISTERING")
     init_func(data.payload);
+    console.log("DONE INITIALISING")
 
     websocket_send({
         msg_type: JSDoneLoading,
@@ -375,6 +370,8 @@ function init_from_byte_array(init_func, data) {
         message: "",
         stacktrace: ""
     });
+    console.log("SENT DONE LOADING")
+
 }
 
 function update_dom_node(dom, html) {

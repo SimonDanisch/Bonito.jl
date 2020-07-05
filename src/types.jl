@@ -88,8 +88,9 @@ struct UrlSerializer
 end
 
 function UrlSerializer()
+    proxy = JSSERVE_CONFIGURATION.content_delivery_url[]
     return UrlSerializer(
-        true, nothing, false, JSSERVE_CONFIGURATION.content_delivery_url[]
+        true, nothing, proxy != "", proxy
     )
 end
 
