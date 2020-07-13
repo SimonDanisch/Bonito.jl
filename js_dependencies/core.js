@@ -437,8 +437,9 @@ function process_message(data) {
             }
             break;
         case EvalJavascript:
+            let code = ""
             try {
-                const code = deserialize_js(data.payload);
+                code = deserialize_js(data.payload);
                 eval(code);
             } catch (exception) {
                 send_error(
