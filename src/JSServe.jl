@@ -7,13 +7,13 @@ using Hyperscript: Node, children, tag
 using HTTP, Markdown
 using HTTP: Response, Request
 using HTTP.Streams: Stream
-using WebSockets
 using Base64
 using MsgPack
 using WidgetsBase
 using WidgetsBase: vertical, horizontal
 using SHA
 using Tables
+using HTTP.WebSockets: WebSocket
 
 include("types.jl")
 include("js_source.jl")

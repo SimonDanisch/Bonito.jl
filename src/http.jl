@@ -103,15 +103,13 @@ function wait_timeout(condition::Function, error_msg::String, timeout = 5.0)
 end
 
 function handle_ws_connection(session::Session, websocket::WebSocket)
-    # TODO, do we actually need to wait here?!
-    wait_timeout(()-> isopen(websocket), "Websocket not open after waiting 5s")
-    while isopen(websocket)
+    while !eof(websocket)
         try
             # TODO fuse all julia->js events triggered by an incoming message?
-            handle_ws_message(session, read(websocket))
+            handle_ws_message(session, readavailable(websocket))
         catch e
-            # IOErrors
-            if !(e isa WebSockets.WebSocketClosedError || e isa Base.IOError)
+            # IOErrors are normal when browser closes
+            if !(e isa Base.IOError)
                 err = CapturedException(e, Base.catch_backtrace())
                 @warn "error in websocket handler!" exception=err
             end

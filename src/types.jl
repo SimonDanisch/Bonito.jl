@@ -268,8 +268,6 @@ struct Application
 end
 local_url(application::Application, url) = string("http://", application.url, ":", application.port, url)
 
-WebSockets.getrawstream(io::IO) = io
-
 function websocket_request()
     headers = [
         "Host" => "127.0.0.1",
@@ -330,7 +328,7 @@ function warmup(application::Application)
     if Base.istaskdone(task)
         error("Webserver doesn't serve! Error: $(fetch(task))")
     end
-    resp = WebSockets.HTTP.get(asset_url, readtimeout=500, retries=1)
+    resp = HTTP.get(asset_url, readtimeout=500, retries=1)
     if resp.status != 200
         error("Webserver didn't start succesfully")
     end
@@ -338,10 +336,10 @@ function warmup(application::Application)
 end
 
 function stream_handler(application::Application, stream::Stream)
-    if WebSockets.is_upgrade(stream)
-        WebSockets.upgrade(stream) do request, websocket
+    if HTTP.WebSockets.is_upgrade(stream.message)
+        HTTP.WebSockets.upgrade(stream; binary=true) do websocket
             delegate(
-                application.websocket_routes, application, request, websocket
+                application.websocket_routes, application, stream.message, websocket
             )
         end
         return
@@ -360,6 +358,7 @@ function stream_handler(application::Application, stream::Stream)
             rethrow(e)
         end
     end
+    return
 end
 
 const MATCH_HEX = r"[\da-f]"
@@ -454,6 +453,7 @@ function Base.close(application::Application)
         @debug "Failed get request successfully after closing server!" exception=e
     end
     @assert !isrunning(application)
+    return
 end
 
 function start(application::Application; verbose=false)
@@ -473,6 +473,7 @@ end
 
 function route!(application::Application, pattern_f::Pair)
     application.routes[pattern_f[1]] = pattern_f[2]
+    return
 end
 
 function route!(f, application::Application, pattern)
