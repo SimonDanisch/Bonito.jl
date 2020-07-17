@@ -4,12 +4,10 @@ authors = ["SimonDanisch <sdanisch@gmail.com>"]
 version = "0.6.8"
 
 [deps]
-Atom = "c52e3926-4ff0-5f6e-af25-54175e0327b1"
 Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 Hyperscript = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
-Juno = "e5e0dc1b-0480-54bc-9374-aad01c23163d"
 Markdown = "d6f4376e-aef5-505a-96c1-9c027394607a"
 MsgPack = "99f44e22-a591-53d1-9472-aa23ef4bd671"
 Observables = "510215fc-4207-5dde-b226-833fc4488ee2"
