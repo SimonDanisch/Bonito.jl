@@ -1,24 +1,24 @@
 
-function walk_dom(f, session::Session, x::JSCode, visited = IdDict())
-    walk_dom(f, session, x.source, visited)
+function walk_dom(f, x::JSCode, visited = IdDict())
+    walk_dom(f, x.source, visited)
 end
 
-walk_dom(f, session::Session, x, visited = IdDict()) = f(x)
+walk_dom(f, x, visited = IdDict()) = f(x)
 
-function walk_dom(f, session::Session, x::Union{Tuple, AbstractVector, Pair}, visited = IdDict()) where T
+function walk_dom(f, x::Union{Tuple, AbstractVector, Pair}, visited = IdDict()) where T
     get!(visited, x, nothing) !== nothing && return
     for elem in x
-        walk_dom(f, session, elem, visited)
+        walk_dom(f, elem, visited)
     end
 end
 
-function walk_dom(f, session::Session, x::Node, visited = IdDict())
+function walk_dom(f, x::Node, visited = IdDict())
     get!(visited, x, nothing) !== nothing && return
     for elem in children(x)
-        walk_dom(f, session, elem, visited)
+        walk_dom(f, elem, visited)
     end
     for (name, elem) in Hyperscript.attrs(x)
-        walk_dom(f, session, elem, visited)
+        walk_dom(f, elem, visited)
     end
 end
 

@@ -20,7 +20,6 @@ function get_heap_object(id) {
     }
 }
 
-const session_websocket = [];
 
 // Save some bytes by using ints for switch variable
 const UpdateObservable = '0';
@@ -205,7 +204,7 @@ function run_js_callbacks(id, value) {
     if (id in observable_callbacks) {
         const callbacks = observable_callbacks[id];
         const deregister_calls = [];
-        for (let i in callbacks) {
+        for (const i in callbacks) {
             // onjs can return false to deregister itself
             try {
                 var register = callbacks[i](value);
@@ -251,8 +250,20 @@ function update_obs(id, value) {
     }
 }
 
+
+const session_websocket = [];
+
+function offline_forever() {
+    return (session_websocket.length == 1 && session_websocket[0] == null)
+}
+
 function ensure_connection() {
     // we lost the connection :(
+    if (offline_forever()) {
+        console.log("WE OFFLINE BRUH")
+        return false;
+    }
+
     if (session_websocket.length == 0) {
         console.log("Length of websocket 0");
         // try to connect again!
@@ -552,38 +563,56 @@ function websocket_url() {
 }
 
 function setup_connection() {
-    let tries = 0;
-
+    // we're in offline mode, dont even try!
+    if (offline_forever()){
+        return
+    }
+    var tries = 0;
     function tryconnect(url) {
-        console.log("URL " + url);
-        websocket = new WebSocket(url);
-        websocket.binaryType = 'arraybuffer';
+        if (offline_forever()){
+            return
+        }
         if (session_websocket.length != 0) {
             throw "Inconsistent state. Already opened a websocket!";
         }
-        session_websocket.push(websocket);
+        console.log("URL " + url);
+        websocket = new WebSocket(url);
+        websocket.binaryType = 'arraybuffer';
+
         websocket.onopen = function() {
             websocket.onmessage = function(evt) {
                 const binary = new Uint8Array(evt.data);
                 const data = msgpack.decode(binary);
                 process_message(data);
             };
+            session_websocket.push(websocket);
         };
+
         websocket.onclose = function(evt) {
-            session_websocket.length = 0;
-            console.log("Wesocket close code: " + evt.code);
-            if (evt.code === 1005) {
-                // TODO handle this!?
-                //tryconnect(url)
+            while (session_websocket.length > 0) {
+                session_websocket.pop();
             }
+            if (window.dont_even_try_to_reconnect) {
+                // ok, we cant even right now and just give up
+                session_websocket.push(null);
+                return
+            }
+            console.log("Wesocket close code: " + evt.code);
         };
         websocket.onerror = function(event) {
-            console.error("WebSocket error observed:", event);
-            if (tries <= 5) {
-                session_websocket.length = 0;
+            console.error("WebSocket error observed:" + event);
+            console.log("dont_even_try_to_reconnect: "  + window.dont_even_try_to_reconnect)
+
+            if (tries <= 1) {
+                while (session_websocket.length > 0) {
+                    session_websocket.pop();
+                }
                 tries = tries + 1;
                 console.log("Retrying to connect the " + tries + " time!");
                 setTimeout(() => tryconnect(websocket_url()), 1000);
+            } else {
+                // ok, we really cant connect and are offline!
+                session_websocket.push(null);
             }
         };
     }

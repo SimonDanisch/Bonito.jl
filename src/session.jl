@@ -267,7 +267,7 @@ function register_resource!(session::Session, asset::Union{Asset, Dependency, Ob
 end
 
 function register_resource!(session::Session, node::Node)
-    walk_dom(session, node) do x
+    walk_dom(node) do x
         register_resource!(session, x)
     end
 end

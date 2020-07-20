@@ -33,6 +33,7 @@ include("markdown_integration.jl")
 include("serialization.jl")
 include("diffing.jl")
 include("figma.jl")
+include("offline.jl")
 
 const JSSERVE_CONFIGURATION = (
     # The URL used to which the default server listens to
