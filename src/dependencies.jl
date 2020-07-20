@@ -105,12 +105,6 @@ function jsrender(session::Session, asset::Asset)
     return nothing
 end
 
-const JSCallLibLocal = Asset(dependency_path("core.js"))
-
-const MsgPackLib = Asset(dependency_path("msgpack.min.js"))
-
-const MarkdownCSS = Asset(dependency_path("markdown.css"))
-
 function include_asset(asset::Asset, serializer::UrlSerializer=UrlSerializer())
     file_url = repr(url(asset, serializer))
     if mediatype(asset) == :js
@@ -185,3 +179,12 @@ function url(asset::Asset, serializer::UrlSerializer=UrlSerializer())
         return asset.online_path
     end
 end
+
+
+const JSCallLibLocal = Asset(dependency_path("core.js"))
+
+const MsgPackLib = Asset(dependency_path("msgpack.min.js"))
+
+const MarkdownCSS = Asset(dependency_path("markdown.css"))
+
+const TailwindCSS = Asset(dependency_path("tailwind.min.css"))

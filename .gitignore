@@ -6,3 +6,6 @@
 /dev/
 /js_dependencies/session_temp_data/
 /examples/jsserve_demo/exported/*
+yarn.lock
+package.json
+node_modules

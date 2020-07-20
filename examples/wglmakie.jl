@@ -3,6 +3,8 @@ using JSServe: @js_str, onjs, with_session, onload, Button, TextField, Slider, l
 using JSServe.DOM
 using GeometryBasics
 using MakieGallery, FileIO
+using AbstractPlotting.MakieLayout
+
 set_theme!(resolution=(1200, 800))
 
 
@@ -127,6 +129,43 @@ function dom_handler(session, request)
         color = (:red, 0.5), markersize = 15px, marker = '■')
     return scene
 end
+
+function dom_handler(r, s)
+    scene = Scene(resolution = (1000, 1000));
+    screen = display(scene)
+    campixel!(scene);
+
+    maingl = GridLayout(scene, alignmode = Outside(30))
+
+    las = Array{LAxis, 2}(undef, 4, 4)
+
+    for i in 1:4, j in 1:4
+        las[i, j] = maingl[i, j] = LAxis(scene)
+    end
+
+    las[4, 1].attributes.aspect = AxisAspect(1)
+    las[4, 2].attributes.aspect = AxisAspect(2)
+    las[4, 3].attributes.aspect = AxisAspect(0.5)
+    las[4, 4].attributes.aspect = nothing
+    las[1, 1].attributes.maxsize = (Inf, Inf)
+    las[1, 2].attributes.aspect = nothing
+    las[1, 3].attributes.aspect = nothing
+
+    subgl = gridnest!(maingl, 1, 1)
+    cb1 = subgl[:, 2] = LColorbar(scene, width=30, height=Relative(0.66))
+
+    subgl2 = gridnest!(maingl, 1:2, 1:2)
+    cb2 = subgl2[:, 3] = LColorbar(scene, width=30, height=Relative(0.66))
+
+    subgl3 = gridnest!(maingl, 1:3, 1:3)
+    cb3 = subgl3[:, 4] = LColorbar(scene, width=30, height=Relative(0.66))
+
+    subgl4 = gridnest!(maingl, 1:4, 1:4)
+    cb4 = subgl4[:, 5] = LColorbar(scene, width=30, height=Relative(0.66))
+    return scene
+
+end
+
 
 isdefined(Main, :app) && close(app)
 app = JSServe.Application(dom_handler, "127.0.0.1", 8082)
