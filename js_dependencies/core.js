@@ -52,29 +52,6 @@ function rand4hex() {
     return randhex() + randhex() + randhex() + randhex();
 }
 
-function load_javascript_sources(script_node_array, onload_callback) {
-    const head = document.getElementsByTagName('head')[0];
-    let loaded = 0;
-    const to_load = script_node_array.length;
-    for (let idx in script_node_array) {
-        const script = materialize(script_node_array[idx]);
-        function callback(){
-            loaded = loaded + 1;
-            if (loaded == to_load) {
-                onload_callback();
-            }
-        }
-        script.onreadystatechange = callback;
-        script.onload = callback;
-         // fire the loading
-        head.appendChild(script);
-    }
-}
-
-const serializer_functions = {
-    JSObject: get_heap_object,
-};
-
 function materialize(data) {
     // if is a node attribute
     if (is_list(data)) {
@@ -152,6 +129,11 @@ function deserialize_js(data) {
                 return document.querySelector('[data-jscall-id="' + data.payload + '"]');
             } else if (data.__javascript_type__ == 'js_code') {
                 return data.payload;
+            } else if (data.__javascript_type__ == 'Observable') {
+                const value = deserialize_js(data.payload.value);
+                const id = data.payload.id;
+                registered_observables[id] = value;
+                return id;
             } else {
                 send_error(
                     "Can't deserialize custom type: " + data.__javascript_type__,
@@ -179,6 +161,10 @@ function get_observable(id) {
     } else {
         throw ("Can't find observable with id: " + id);
     }
+}
+
+function on_update(id, callback) {
+    register_onjs(callback, id);
 }
 
 function send_error(message, exception) {
@@ -416,117 +402,58 @@ function init_from_file(init_func, url) {
 }
 
 function process_message(data) {
-    switch (data.msg_type) {
-        case UpdateObservable:
-            try {
-                var value = data.payload;
-                registered_observables[data.id] = value;
+    try {
+        switch (data.msg_type) {
+            case UpdateObservable:
+                const value = data.payload;
+                registered_observables[data.id] = deserialize_js(value);
                 // update all onjs callbacks
                 run_js_callbacks(data.id, value);
-            } catch (exception) {
-                send_error(
-                    "Error while updating observable " + data.id + " from Julia!",
-                    exception
-                );
-            }
-            break;
-        case OnjsCallback:
-            let js_source = "";
-            try {
+                break;
+            case OnjsCallback:
                 // register a callback that will executed on js side
                 // when observable updates
                 const id = data.id;
                 js_source = deserialize_js(data.payload);
                 const f = eval(js_source);
                 register_onjs(f, id);
-            } catch (exception) {
-                send_error(
-                    "Error while registering an onjs callback.\n" +
-                    "onjs function source:\n" + js_source,
-                    exception
-                );
-            }
-            break;
-        case EvalJavascript:
-            let code = ""
-            try {
-                code = deserialize_js(data.payload);
-                eval(code);
-            } catch (exception) {
-                send_error(
-                    "Error while evaling JS from Julia. Source:\n" + code,
-                    exception
-                );
-            }
-            break;
-        case JSCall:
-            try {
-                var func = eval(deserialize_js(data.func));
-                var arguments = deserialize_js(data.arguments);
+                break;
+            case EvalJavascript:
+                eval(data.payload);
+                break;
+            case JSCall:
+                const func = eval(deserialize_js(data.func));
+                const arguments = deserialize_js(data.arguments);
                 call_js_func(func, arguments, data.needs_new, data.result);
-            } catch (exception) {
-                send_error(
-                    "Error while calling JS function from Julia. Function:\n" +
-                    String(func),
-                    exception
-                );
-            }
-            break;
-        case JSGetIndex:
-            try {
-                var obj = deserialize_js(data.object);
+                break;
+            case JSGetIndex:
+                const obj = deserialize_js(data.object);
                 put_js_getindex(obj, data.field, data.result);
-            } catch (exception) {
-                send_error(
-                    "Error while executing getting field " + data.field +
-                    " from:\n" + obj,
-                    exception
-                );
-            }
-            break;
-        case JSSetIndex:
-            try {
-                var obj = deserialize_js(data.object);
-                var val = deserialize_js(data.value);
-                obj[data.field] = val;
-            } catch (exception) {
-                send_error(
-                    "Error while executing setting field " + data.field +
-                    " from:\n" + String(obj) + " with value " + String(val),
-                    exception
-                );
-            }
-            break;
-        case FusedMessage:
-            try {
-                var messages = data.payload;
-                for (var i in messages) {
-                    process_message(messages[i]);
-                }
-            } catch (exception) {
-                send_error(
-                    "Error while executing setting field " + data.field +
-                    " from:\n" + String(obj) + " with value " + String(val),
-                    exception
-                );
-            }
-            break;
-        case DeleteObjects:
-            try {
+                break;
+            case JSSetIndex:
+                const object = deserialize_js(data.object);
+                const val = deserialize_js(data.value);
+                object[data.field] = val;
+                break;
+            case FusedMessage:
+                const messages = data.payload;
+                messages.forEach(process_message);
+                break;
+            case DeleteObjects:
                 delete_heap_objects(data.payload);
-            } catch (exception) {
-                send_error(
-                    "Error while deleting objects: " + objects_to_delete,
-                    exception
-                );
-            }
-            break;
-        default:
-            send_error("Unrecognized message type: " + data.msg_type + ".", null);
+                break;
+            default:
+                send_error("Unrecognized message type: " + data.msg_type + ".", null);
+        }
+        for (let idx in on_update_observables_callbacks){
+            on_update_observables_callbacks[idx](value);
+        }
+    } catch(e) {
+        console.log("Error while processing message!")
+        console.log(e)
+        console.log(data)
     }
-    for (let idx in on_update_observables_callbacks){
-        on_update_observables_callbacks[idx](value);
-    }
+
 }
 
 function get_session_id() {

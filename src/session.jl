@@ -258,6 +258,13 @@ function register_resource!(session::Session, list::Union{Tuple, AbstractVector,
     end
 end
 
+function register_resource!(session::Session, dict::Union{NamedTuple, AbstractDict})
+    for (k, v) in dict
+        register_resource!(session, v)
+        register_resource!(session, k)
+    end
+end
+
 function register_resource!(session::Session, jss::JSCode)
     register_resource!(session, jss.source)
 end

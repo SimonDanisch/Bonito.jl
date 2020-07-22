@@ -16,6 +16,8 @@ end
 
 serialize_js(@nospecialize(x)) = x
 
+serialize_js(x::Observable) = js_type(:Observable, Dict(:id=>x.id, :value=>serialize_js(x[])))
+
 function serialize_js(x::Vector{T}) where {T<:Number}
     return js_type(:typed_vector, x)
 end

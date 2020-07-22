@@ -9,39 +9,50 @@ function extract_inputs(dom_root)
     return result
 end
 
+global last_state_map
+
+
+
 function record_state_map(session::Session, handler)
-    dom = test_handler(session, nothing)
+    global last_state_map
+    dom = handler(session, nothing)
     rendered = JSServe.jsrender(session, dom)
     sliders = extract_inputs(dom)
-    global state = Dict{Any, Vector{Dict{Symbol,Any}}}()
+    state = Dict{Any, Dict{Symbol,Any}}()
+
+    window = JSObject(session, :window)
+    evaljs(session, js"put_on_heap($(uuidstr(window)), window); undefined;")
+    window.dont_even_try_to_reconnect = true
     session.fusing[] = true
     msgs = copy(session.message_queue)
     for slider in sliders
         for i in slider.range[]
-            slider.value[] = i
-            yield()
-            state[base64encode(JSServe.MsgPack.pack(i))] = filter(session.message_queue) do msg
-                # filter out the event that triggers updating the obs
-                # we actually update on js already
-                msg[:msg_type] == JSServe.UpdateObservable &&
-                    msg[:id] != slider.value.id
+            try
+                slider.value[] = i
+                yield()
+                messages = filter(session.message_queue) do msg
+                    # filter out the event that triggers updating the obs
+                    # we actually update on js already
+                    !(msg[:msg_type] == JSServe.UpdateObservable &&
+                        msg[:id] == slider.value.id)
+                end
+                state[i] = Dict(:msg_type => FusedMessage, :payload => messages)
+            catch e
+                Base.showerror(stderr, e)
+            finally
+                empty!(session.message_queue)
             end
-            empty!(session.message_queue)
         end
     end
     session.fusing[] = false
     append!(session.message_queue, msgs)
-    JSServe.evaljs(session, js"window.dont_even_try_to_reconnect = true")
+    window.offline_state = DontDeSerialize(state)
     for slider in sliders
         JSServe.onjs(session, slider.value, js"""function (val){
-            const smap = $(state)
-            const key =  msgpack.encode(val);
-            const key_str = btoa(String.fromCharCode.apply(null, key))
-            const messages = smap[key_str]
-            for(const mg in messages){
-                process_message(messages[mg]);
-            }
+            const smap = window.offline_state
+            process_message(smap[val])
         }""")
     end
+    last_state_map = state
     return rendered
 end
