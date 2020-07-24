@@ -165,7 +165,17 @@ function dom_handler(r, s)
     return scene
 
 end
-
+function handler(s, r)
+    sl = JSServe.Slider(1:10)
+    rect = FRect2D(0, -5, 1025, 10)
+    chars = [collect('a':'z'); 0:9;]
+    char2 = [collect('A':'Z'); 0:9;]
+    tex1 = map(x->map(j-> ("$(chars[rand(1:length(chars))])", Point2f0(j*30, 0)), 1:36), sl)
+    tex2 = map(x->map(j-> ("$(char2[rand(1:length(char2))])", Point2f0(j*30, 1)), 1:36), sl)
+    global scene = annotations(tex1, textsize=20, limits=rect, show_axis=false)
+    annotations!(scene, tex2, textsize=20, limits=rect, show_axis=false)
+    return DOM.div(sl, scene)
+end
 
 isdefined(Main, :app) && close(app)
 app = JSServe.Application(dom_handler, "127.0.0.1", 8082)

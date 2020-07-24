@@ -27,6 +27,7 @@ function record_state_map(session::Session, handler)
     msgs = copy(session.message_queue)
     for slider in sliders
         for i in slider.range[]
+            empty!(session.message_queue)
             try
                 slider.value[] = i
                 yield()
@@ -39,8 +40,6 @@ function record_state_map(session::Session, handler)
                 state[i] = Dict(:msg_type => FusedMessage, :payload => messages)
             catch e
                 Base.showerror(stderr, e)
-            finally
-                empty!(session.message_queue)
             end
         end
     end
@@ -49,8 +48,11 @@ function record_state_map(session::Session, handler)
     window.offline_state = DontDeSerialize(state)
     for slider in sliders
         JSServe.onjs(session, slider.value, js"""function (val){
-            const smap = window.offline_state
-            process_message(smap[val])
+            const messages = window.offline_state[val]
+            // not all states trigger events!
+            if (messages){
+                process_message(messages)
+            }
         }""")
     end
     last_state_map = state

@@ -236,7 +236,6 @@ function update_obs(id, value) {
     }
 }
 
-
 const session_websocket = [];
 
 function offline_forever() {
@@ -246,7 +245,6 @@ function offline_forever() {
 function ensure_connection() {
     // we lost the connection :(
     if (offline_forever()) {
-        console.log("WE OFFLINE BRUH")
         return false;
     }
 
