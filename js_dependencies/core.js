@@ -417,7 +417,8 @@ function process_message(data) {
                 register_onjs(f, id);
                 break;
             case EvalJavascript:
-                eval(data.payload.payload);
+                const scoped_eval = new Function(data.payload.payload);
+                scoped_eval();
                 break;
             case JSCall:
                 const func = eval(deserialize_js(data.func));
@@ -490,11 +491,13 @@ function websocket_url() {
 function setup_connection() {
     // we're in offline mode, dont even try!
     if (offline_forever()){
+        console.log("OFFLINE FOREVER")
         return
     }
     var tries = 0;
     function tryconnect(url) {
         if (offline_forever()){
+            console.log("OFFLINE FOREVER in tryconnect")
             return
         }
         if (session_websocket.length != 0) {
@@ -503,6 +506,7 @@ function setup_connection() {
         console.log("URL " + url);
         websocket = new WebSocket(url);
         websocket.binaryType = 'arraybuffer';
+        session_websocket.push(websocket);
 
         websocket.onopen = function() {
             websocket.onmessage = function(evt) {
@@ -510,10 +514,10 @@ function setup_connection() {
                 const data = msgpack.decode(binary);
                 process_message(data);
             };
-            session_websocket.push(websocket);
         };
 
         websocket.onclose = function(evt) {
+            console.log("closed websocket connection")
             while (session_websocket.length > 0) {
                 session_websocket.pop();
             }

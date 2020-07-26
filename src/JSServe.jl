@@ -14,7 +14,7 @@ using WidgetsBase
 using WidgetsBase: vertical, horizontal
 using SHA
 using Tables
-using AbstractTrees
+import AbstractTrees
 using Colors
 using LinearAlgebra
 
@@ -70,7 +70,7 @@ function __init__()
         # gets closed
         rm(dependency_path("session_temp_data"), recursive=true, force=true)
     end
-    # start_gc_task()
+    start_gc_task()
 end
 
 
