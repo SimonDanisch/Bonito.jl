@@ -49,10 +49,24 @@ function dom_handler(session, request)
         linesegments(1:4, linestyle=:dot),
         linesegments(1:4, linestyle=[0.0, 1.0, 2.0, 3.0, 4.0]),
         linesegments(1:4, color=1:4),
-        linesegments(1:4, color=rand(RGBf0, 4), linewidth=4),
+        linesegments(1:4, color=rand(RGBf0, 4), linewidth=10),
         linesegments(points)
     )
 end
+
+function dom_handler(session, request)
+    x = Point2f0[(1, 1), (2, 2), (3, 2), (4, 4)]
+    points = connect(x, LineFace{Int}[(1, 2), (2, 3), (3, 4)])
+    return DOM.div(
+        lines(1:4),
+        lines(1:4, linestyle=:dot),
+        lines(1:4, linestyle=[0.0, 1.0, 2.0, 3.0, 4.0]),
+        lines(1:4, color=1:4),
+        lines(1:4, color=rand(RGBf0, 4), linewidth=10),
+        lines(points)
+    )
+end
+
 
 function dom_handler(session, request)
     data = AbstractPlotting.peaks()
@@ -68,6 +82,10 @@ function dom_handler(session, request)
     return vbox(
         image(rand(10, 10)),
         heatmap(rand(10, 10)),
+        image(rand(RGBAf0, 10, 10)),
+        heatmap(rand(RGBAf0, 10, 10)),
+        image(rand(RGBf0, 10, 10)),
+        heatmap(rand(RGBf0, 10, 10)),
     )
 end
 
@@ -94,15 +112,50 @@ function dom_handler(session, request)
     ))
 end
 
-function dom_handler(session, request)
-    scene = scatter(rand(4) .* 4, color=1:4, limits=FRect2D(0, 0, 4, 4))
-    scatter_plot = scene[end]
-    @async begin
-        for i in 1:100
-            scatter_plot[1] = rand(4) .* 4
-            sleep(0.01)
+function n_times(f, n=10, interval=0.5)
+    obs = Observable(f(1))
+    @async for i in 2:n
+        try
+            obs[] = f(i)
+            sleep(interval)
+        catch e
+            @warn "Error!" exception=CapturedException(e, Base.catch_backtrace())
         end
     end
+    return obs
+end
+function n_times(f, n=10, interval=1)
+    obs = Observable(f(1))
+    @async for i in 2:n
+        try
+            obs[] = f(i)
+            sleep(interval)
+        catch e
+            @warn "Error!" exception=CapturedException(e, Base.catch_backtrace())
+        end
+    end
+    return obs
+end
+function dom_handler(session, request)
+    s1 = annotations(n_times(i-> map(j-> ("$j", Point2f0(j*30, 0)), 1:i)), textsize=20,
+                      limits=FRect2D(30, 0, 320, 50))
+    s2 = scatter(n_times(i-> Point2f0.((1:i).*30, 0)), markersize=20px,
+                  limits=FRect2D(30, 0, 320, 50))
+    s3 = linesegments(n_times(i-> Point2f0.((2:2:2i).*30, 0)), limits=FRect2D(30, 0, 620, 50))
+    s4 = lines(n_times(i-> Point2f0.((2:2:2i).*30, 0)), limits=FRect2D(30, 0, 620, 50))
+    return hbox(s1, s2, s3, s4)
+end
+using AbstractPlotting.MakieLayout
+function dom_handler(session, request)
+    outer_padding = 30
+    scene, layout = layoutscene(
+        outer_padding, resolution = (1200, 700),
+        backgroundcolor = RGBf0(0.98, 0.98, 0.98))
+    ax1 = layout[1, 1] = LAxis(scene, title = "Sine")
+    xx = 0:0.2:4pi
+    line1 = lines!(ax1, sin.(xx), xx, color = :red)
+    scat1 = scatter!(ax1, sin.(xx) .+ 0.2 .* randn.(), xx,
+        color = (:red, 0.5), markersize = 15px, marker = '■')
     return scene
 end
 
@@ -141,7 +194,17 @@ function dom_handler(r, s)
     return scene
 
 end
-
+function handler(s, r)
+    sl = JSServe.Slider(1:10)
+    rect = FRect2D(0, -5, 1025, 10)
+    chars = [collect('a':'z'); 0:9;]
+    char2 = [collect('A':'Z'); 0:9;]
+    tex1 = map(x->map(j-> ("$(chars[rand(1:length(chars))])", Point2f0(j*30, 0)), 1:36), sl)
+    tex2 = map(x->map(j-> ("$(char2[rand(1:length(char2))])", Point2f0(j*30, 1)), 1:36), sl)
+    global scene = annotations(tex1, textsize=20, limits=rect, show_axis=false)
+    annotations!(scene, tex2, textsize=20, limits=rect, show_axis=false)
+    return DOM.div(sl, scene)
+end
 
 isdefined(Main, :app) && close(app)
 app = JSServe.Application(dom_handler, "127.0.0.1", 8082)

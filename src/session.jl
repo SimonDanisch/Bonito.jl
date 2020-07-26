@@ -258,6 +258,13 @@ function register_resource!(session::Session, list::Union{Tuple, AbstractVector,
     end
 end
 
+function register_resource!(session::Session, dict::Union{NamedTuple, AbstractDict})
+    for (k, v) in dict
+        register_resource!(session, v)
+        register_resource!(session, k)
+    end
+end
+
 function register_resource!(session::Session, jss::JSCode)
     register_resource!(session, jss.source)
 end
@@ -267,7 +274,7 @@ function register_resource!(session::Session, asset::Union{Asset, Dependency, Ob
 end
 
 function register_resource!(session::Session, node::Node)
-    walk_dom(session, node) do x
+    walk_dom(node) do x
         register_resource!(session, x)
     end
 end

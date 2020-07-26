@@ -40,6 +40,7 @@ end
         @test evaljs(app, js"$(hello_div).children[2].tagName") == "SCRIPT"
     end
 end
+
 @testset "async messages" begin
     obs = Observable(0); counter = Observable(0)
     testing_started = Ref(false)

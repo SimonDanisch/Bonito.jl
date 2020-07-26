@@ -102,6 +102,18 @@ function serialize2string(@nospecialize(x))
     return source, data_dependencies
 end
 
+
+struct DontDeSerialize
+    object
+end
+
+function serialize2string(io::IO, data_dependencies::Vector{Any}, object::DontDeSerialize)
+    idx = length(data_dependencies) # idx before push --> JS is 0 indexed
+    push!(data_dependencies, object.object)
+    # TODO how do we call this?
+    print(io, "__data_dependencies[$(idx)]")
+end
+
 function serialize2string(io::IO, data_dependencies::Vector{Any}, @nospecialize(any))
     if is_small_data(any)
         # if small, we just inline the data in a readable form!

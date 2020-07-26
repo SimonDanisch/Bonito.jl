@@ -14,6 +14,9 @@ using WidgetsBase
 using WidgetsBase: vertical, horizontal
 using SHA
 using Tables
+import AbstractTrees
+using Colors
+using LinearAlgebra
 
 include("types.jl")
 include("js_source.jl")
@@ -29,6 +32,8 @@ include("jscall.jl")
 include("markdown_integration.jl")
 include("serialization.jl")
 include("diffing.jl")
+include("figma.jl")
+include("offline.jl")
 
 const JSSERVE_CONFIGURATION = (
     # The URL used to which the default server listens to
