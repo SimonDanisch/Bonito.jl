@@ -49,10 +49,24 @@ function dom_handler(session, request)
         linesegments(1:4, linestyle=:dot),
         linesegments(1:4, linestyle=[0.0, 1.0, 2.0, 3.0, 4.0]),
         linesegments(1:4, color=1:4),
-        linesegments(1:4, color=rand(RGBf0, 4), linewidth=4),
+        linesegments(1:4, color=rand(RGBf0, 4), linewidth=10),
         linesegments(points)
     )
 end
+
+function dom_handler(session, request)
+    x = Point2f0[(1, 1), (2, 2), (3, 2), (4, 4)]
+    points = connect(x, LineFace{Int}[(1, 2), (2, 3), (3, 4)])
+    return DOM.div(
+        lines(1:4),
+        lines(1:4, linestyle=:dot),
+        lines(1:4, linestyle=[0.0, 1.0, 2.0, 3.0, 4.0]),
+        lines(1:4, color=1:4),
+        lines(1:4, color=rand(RGBf0, 4), linewidth=10),
+        lines(points)
+    )
+end
+
 
 function dom_handler(session, request)
     data = AbstractPlotting.peaks()
@@ -68,6 +82,10 @@ function dom_handler(session, request)
     return vbox(
         image(rand(10, 10)),
         heatmap(rand(10, 10)),
+        image(rand(RGBAf0, 10, 10)),
+        heatmap(rand(RGBAf0, 10, 10)),
+        image(rand(RGBf0, 10, 10)),
+        heatmap(rand(RGBf0, 10, 10)),
     )
 end
 
@@ -106,7 +124,18 @@ function n_times(f, n=10, interval=0.5)
     end
     return obs
 end
-
+function n_times(f, n=10, interval=1)
+    obs = Observable(f(1))
+    @async for i in 2:n
+        try
+            obs[] = f(i)
+            sleep(interval)
+        catch e
+            @warn "Error!" exception=CapturedException(e, Base.catch_backtrace())
+        end
+    end
+    return obs
+end
 function dom_handler(session, request)
     s1 = annotations(n_times(i-> map(j-> ("$j", Point2f0(j*30, 0)), 1:i)), textsize=20,
                       limits=FRect2D(30, 0, 320, 50))

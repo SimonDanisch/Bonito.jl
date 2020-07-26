@@ -417,7 +417,7 @@ function process_message(data) {
                 register_onjs(f, id);
                 break;
             case EvalJavascript:
-                eval(data.payload);
+                eval(data.payload.payload);
                 break;
             case JSCall:
                 const func = eval(deserialize_js(data.func));
