@@ -188,3 +188,5 @@ const MsgPackLib = Asset(dependency_path("msgpack.min.js"))
 const MarkdownCSS = Asset(dependency_path("markdown.css"))
 
 const TailwindCSS = Asset(dependency_path("tailwind.min.css"))
+
+const Styling = Asset(dependency_path("styled.css"))

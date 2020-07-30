@@ -3,8 +3,7 @@ using JSServe, Observables
 using JSServe: Session, evaljs, linkjs
 using JSServe: @js_str, onjs, Button, Slider, Asset
 using WGLMakie, AbstractPlotting
-
-markdown_css = Asset(JSServe.dependency_path("markdown.css"))
+using JSServe.DOM
 
 function test_handler(session, req)
     cmap_button = Button("change colormap")
@@ -108,8 +107,8 @@ function test_handler(session, req)
 
     ---
     """
-    return JSServe.DOM.div(markdown_css, dom)
+    return JSServe.DOM.div(JSServe.MarkdownCSS, JSServe.Styling, dom)
 end
 
 isdefined(Main, :app) && close(app)
-app = JSServe.Application(test_handler, "0.0.0.0", 8081)
+app = JSServe.Application(test_handler, "0.0.0.0", 8082)
