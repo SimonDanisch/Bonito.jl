@@ -26,7 +26,7 @@ https://simondanisch.github.io/WGLDemos/oceananigans/
 ## Smarthome dashboard:
 
 https://github.com/SimonDanisch/SmartHomy/blob/master/web_app.jl
-![image](https://user-images.githubusercontent.com/1010467/88913990-34a3cf00-d262-11ea-9fd1-8cf3e33cd873.png)
+![image](https://user-images.githubusercontent.com/1010467/88916549-8d756680-d266-11ea-8d38-cd57640e1495.png)
 
 
 ## Interactive Notebook:
