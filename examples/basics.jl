@@ -46,7 +46,6 @@ md"""
 function dom_handler1(session, request)
     button = DOM.div("click me", onclick=js"update_obs($(color), 'blue')")
     onload(session, button, js"""function load(button){
-        console.log("button")
         window.alert('Hi from JavaScript');
     }""")
 
@@ -88,3 +87,24 @@ md"""
 """
 
 JSServe.route!(app, "/example1" => ctx-> serve_dom(ctx, dom_handler1))
+
+function dom_handler(session, request)
+    slider = JSServe.Slider(1:10, class="slider m-4")
+    squared = map(slider) do slidervalue
+        return slidervalue^2
+    end
+    class = "p-2 rounded border-2 border-gray-600 m-4"
+    v1 = DOM.div(slider.value, class=class)
+    v2 = DOM.div(squared, class=class)
+    dom = DOM.div(JSServe.TailwindCSS, slider, sliderstyle, v1, v2)
+    # statemap for static serving
+    return JSServe.record_state_map(session, (s, r)-> dom)
+end
+
+export_path = joinpath(@__DIR__, "demo")
+mkdir(export_path)
+JSServe.export_standalone(dom_handler, export_path, clear_folder=true)
+
+using LiveServer
+cd(export_path)
+LiveServer.serve()
