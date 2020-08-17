@@ -65,7 +65,8 @@ function handler(s, r)
     Simulation of instability of a horizontal density gradient in a rotating channel using 256x512x128 grid points running on a GPU. A similar process called baroclinic instability acting on basin-scale temperature gradients fills the oceans with eddies, especially in regions with large temperature gradients. These eddies are the primary way the ocean transports heat, carbon dioxide, organic matter, and nutrients on a large scale.
 
     Simulation created with [Oceananigans.jl](https://github.com/CliMA/Oceananigans.jl/) which is part of the [CliMA](https://github.com/CliMA) project.
-    [source code]()
+
+    [source code](https://github.com/SimonDanisch/JSServe.jl/blob/master/examples/oceananigans.jl)
 
     ---
 
