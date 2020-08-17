@@ -105,7 +105,7 @@ function handler(session, req)
     """
 
     dom = DOM.div(JSServe.MarkdownCSS, JSServe.TailwindCSS, JSServe.Styling, markdown)
-    return dom
+    # return dom
     return JSServe.record_state_map(session, dom).dom
 end
 

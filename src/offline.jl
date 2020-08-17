@@ -49,6 +49,7 @@ end
 function record_state_map(session::Session, handler::Function)
     return record_state_map(session, handler(session, nothing))
 end
+
 function record_state_map(session::Session, dom::Hyperscript.Node)
     rendered = JSServe.jsrender(session, dom)
     widgets = extract_widgets(dom)

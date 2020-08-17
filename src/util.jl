@@ -7,6 +7,7 @@ walk_dom(f, x, visited = IdDict()) = f(x)
 
 walk_dom(f, x::Markdown.MD, visited = IdDict()) = walk_dom(f, x.content, visited)
 walk_dom(f, x::Markdown.Header, visited = IdDict()) = walk_dom(f, x.text, visited)
+walk_dom(f, x::Markdown.Paragraph, visited = IdDict()) = walk_dom(f, x.content, visited)
 
 function walk_dom(f, x::Union{Tuple, AbstractVector, Pair}, visited = IdDict())
     get!(visited, x, nothing) !== nothing && return
