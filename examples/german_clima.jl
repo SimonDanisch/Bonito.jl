@@ -81,15 +81,8 @@ function handler(session, req)
 
     foreach(to_plot) do (i, title, data, cmap)
         colorrange = data_extrema(data)
-        ax = layout[1, i] = LAxis(scene;
-            title=title,
-            xlabelvisible=false,
-            ylabelvisible=false,
-            xticklabelsvisible=false,
-            yticklabelsvisible=false,
-            xticksvisible=false,
-            yticksvisible=false,
-        )
+        ax = layout[1, i] = LAxis(scene; title=title)
+        hidedecorations!(ax, grid = false)
         visualize_data(ax, data, cmap, colorrange, s)
         layout[2, i] = LColorbar(scene, colormap=cmap, limits=colorrange, vertical=false, height=30, flipaxisposition=false, labelvisible=false,
         ticklabelalign=(:center, :top), ticksize=5)
@@ -107,10 +100,12 @@ function handler(session, req)
     $(scene)
 
     [Quelle: Deutscher Wetterdienst](https://opendata.dwd.de/climate_environment/CDC/regional_averages_DE/annual/)
+
+    [Quellcode für Visualisierung](https://github.com/SimonDanisch/JSServe.jl/blob/master/examples/german_clima.jl)
     """
 
     dom = DOM.div(JSServe.MarkdownCSS, JSServe.TailwindCSS, JSServe.Styling, markdown)
-    # return dom
+    return dom
     return JSServe.record_state_map(session, dom).dom
 end
 
@@ -118,4 +113,4 @@ end
 JSServe.export_standalone(handler, "dev/WGLDemos/german_heat", clear_folder=true)
 
 # Or serve!
-app = JSServe.Application(handler, "0.0.0.0", 8082)
+# app = JSServe.Application(handler, "0.0.0.0", 8082)
