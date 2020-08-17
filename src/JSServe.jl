@@ -34,6 +34,7 @@ include("serialization.jl")
 include("diffing.jl")
 include("figma.jl")
 include("offline.jl")
+include("styling.jl")
 
 const JSSERVE_CONFIGURATION = (
     # The URL used to which the default server listens to

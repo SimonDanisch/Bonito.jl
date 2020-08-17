@@ -7,7 +7,7 @@ function update_value!(x, value) end
 
 function extract_widgets(dom_root)
     result = []
-    JSServe.walk_dom(dom_root) do x
+    walk_dom(dom_root) do x
         if is_widget(x)
             push!(result, x)
         end
@@ -37,7 +37,7 @@ function record_values(f, session, widget)
         messages = filter(session.message_queue) do msg
             # filter out the event that triggers updating the obs
             # we actually update on js already
-            !(msg[:msg_type] == JSServe.UpdateObservable &&
+            !(msg[:msg_type] == UpdateObservable &&
                 msg[:id] == observe(widget).id)
         end
         return Dict(:msg_type => FusedMessage, :payload => messages)
@@ -78,6 +78,7 @@ function record_state_map(session::Session, dom::Hyperscript.Node)
             }""")
         end
     end
+
     for widget in independent
         state = Dict{Any, Dict{Symbol,Any}}()
         for value in value_range(widget)
@@ -87,6 +88,7 @@ function record_state_map(session::Session, dom::Hyperscript.Node)
         end
         independent_states[observe(widget).id] = state
     end
+
     session.fusing[] = false
     append!(session.message_queue, msgs)
     for widget in independent

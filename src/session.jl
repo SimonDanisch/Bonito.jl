@@ -259,7 +259,7 @@ function register_resource!(session::Session, list::Union{Tuple, AbstractVector,
 end
 
 function register_resource!(session::Session, dict::Union{NamedTuple, AbstractDict})
-    for (k, v) in dict
+    for (k, v) in pairs(dict)
         register_resource!(session, v)
         register_resource!(session, k)
     end
