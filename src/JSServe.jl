@@ -38,9 +38,9 @@ include("styling.jl")
 
 const JSSERVE_CONFIGURATION = (
     # The URL used to which the default server listens to
-    listen_url = Ref("0.0.0.0"),
+    listen_url = Ref("127.0.0.1"),
     # The Port to which the default server listens to
-    listen_port = Ref(8081),
+    listen_port = Ref(9284),
     # The url Javascript uses to connect to the websocket.
     # if empty, it will use:
     # `window.location.protocol + "//" + window.location.host`
