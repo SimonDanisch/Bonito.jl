@@ -61,6 +61,7 @@ function __init__()
     if endswith(url, "/")
         url = url[1:end-1]
     end
+    JSSERVE_CONFIGURATION.listen_url[] = get(ENV, "JSSERVE_LISTEN_URL", "127.0.0.1")
     JSSERVE_CONFIGURATION.websocket_proxy[] = url
     JSSERVE_CONFIGURATION.content_delivery_url[] = url
     JSSERVE_CONFIGURATION.listen_port[] = parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081"))
