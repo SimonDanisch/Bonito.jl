@@ -1,6 +1,6 @@
-authors = ["SimonDanisch <sdanisch@gmail.com>"]
 name = "JSServe"
 uuid = "824d6782-a2ef-11e9-3a09-e5662e0c26f9"
+authors = ["SimonDanisch <sdanisch@gmail.com>"]
 version = "0.6.11"
 
 [deps]
@@ -25,7 +25,7 @@ WidgetsBase = "eead4739-05f7-45a1-878c-cee36b57321c"
 [compat]
 AbstractTrees = "0.3"
 Colors = "0.12"
-HTTP = "0.8"
+HTTP = "0.8, 0.9"
 Hyperscript = "0.0.3"
 JSON3 = "0.1, 1.0"
 MsgPack = "1.1.0"
