@@ -188,3 +188,12 @@ function jsrender(session::Session, editor::CodeEditor)
     """)
     return editor.element
 end
+
+function jsrender(fp::FilePicker)
+    return DOM.input(
+        type = "file",
+        value = fp.value,
+        onchange = js"update_obs($(fp.value),  this.value);";
+        fp.attributes...
+    )
+end
