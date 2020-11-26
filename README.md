@@ -33,3 +33,9 @@ https://github.com/SimonDanisch/SmartHomy/blob/master/web_app.jl
 
 https://nextjournal.com/Lobatto/FitzHugh-Nagumo
 ![simulation](https://user-images.githubusercontent.com/1010467/88912834-2f458500-d260-11ea-9a49-5e17f769ff53.gif)
+
+
+## Sponsors
+
+<img src="https://github.com/JuliaPlots/Makie.jl/blob/master/assets/BMBF_gefoerdert_2017_en.jpg?raw=true" width="300"/>
+Förderkennzeichen: 01IS10S27, 2020
