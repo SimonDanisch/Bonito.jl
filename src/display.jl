@@ -244,16 +244,24 @@ function openurl(url::String)
     @warn("Can't find a way to open a browser, open $(url) manually!")
 end
 
-function Base.display(d::BrowserDisplay, dom::DisplayInline)
+function Base.display(::BrowserDisplay, dom::DisplayInline)
     application = get_global_app()
     session = Session()
     session_url = "/browser-display"
-    route!(application, session_url) do context
+    route_was_present = route!(application, session_url) do context
         # Serve the actual content
         application = context.application
         application.sessions[session.id] = session
         html_dom = Base.invokelatest(dom.dom_function, session, context.request)
         return html(dom2html(session, html_dom))
     end
-    openurl(local_url(application, session_url))
+    # Only open url first time!
+    if isempty(application.sessions)
+        openurl(local_url(application, session_url))
+    else
+        for (id, session) in application.sessions
+            evaljs(session, js"location.reload(true)")
+        end
+    end
+    return session
 end
