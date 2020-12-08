@@ -18,7 +18,6 @@ end
 const WebMimes = (
     MIME"text/html",
     MIME"application/prs.juno.plotpane+html",
-    # MIME"application/vnd.webio.application+html"
 )
 
 function get_global_app()
@@ -113,7 +112,7 @@ for M in WebMimes
     end
 end
 
-function Base.show(io::IO, m::MIME"application/vnd.webio.application+html", dom::DisplayInline)
+function Base.show(io::IO, ::MIME"application/vnd.webio.application+html", dom::DisplayInline)
     application = get_global_app()
     session = Session()
     application.sessions[session.id] = session
@@ -222,6 +221,31 @@ function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+ht
     end
 end
 
-function Base.show(io::IO, m::MIME"application/vnd.jsserve.application+html", dom::DisplayInline)
+function Base.show(io::IO, ::MIME"application/vnd.jsserve.application+html", dom::DisplayInline)
     show(io.io, MIME"text/html"(), dom)
+end
+
+function Base.show(io::IO, ::MIME"juliavscode/html", dom::DisplayInline)
+    show(io.io, MIME"text/html"(), dom)
+end
+
+function openurl(url::String)
+    if Sys.isapple()
+        success(`open $url`) && return
+    elseif Sys.iswindows()
+        success(`powershell.exe start $url`) && return
+    elseif Sys.isunix()
+        success(`xdg-open $url`) && return
+        success(`gnome-open $url`) && return
+    end
+    success(`python -mwebbrowser $(url)`) && return
+    # our last hope
+    run(`python3 -mwebbrowser $(url)`)
+end
+
+struct BrowserDisplay <: Base.Multimedia.AbstractDisplay end
+
+function Base.display(d::BrowserDisplay, dom::DisplayInline)
+    three = backend_display(WGLBackend(), scene)
+    Base.show(io::IO, MIME"text/html"(), dom)
 end
