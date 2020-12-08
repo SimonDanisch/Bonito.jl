@@ -25,7 +25,7 @@ WidgetsBase = "eead4739-05f7-45a1-878c-cee36b57321c"
 [compat]
 AbstractTrees = "0.3"
 Colors = "0.12"
-HTTP = "0.8"
+HTTP = "0.8, 0.9"
 Hyperscript = "0.0.3, 0.0.4"
 JSON3 = "0.1, 1.0"
 MsgPack = "1.1.0"
