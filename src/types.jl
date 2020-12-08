@@ -210,7 +210,8 @@ function Base.setindex!(routes::Routes, f, pattern)
     end
     # Sort for priority so that exact string matches come first
     sort!(routes.table, by = pattern_priority)
-    return
+    # return if it was inside already!
+    return idx === nothing
 end
 
 function apply_handler(f, args...)
@@ -315,7 +316,6 @@ function warmup(application::Application)
     try
         @async stream_handler(application, stream)
         write(stream, "blaaa")
-
     catch e
         # TODO make it not error so we can test this properly
         # This will error, since its not a propper websocket request

@@ -102,7 +102,7 @@ function wait_timeout(condition::Function, error_msg::String, timeout = 5.0)
     return
 end
 
-function handle_ws_connection(session::Session, websocket::WebSocket)
+function handle_ws_connection(application::Application, session::Session, websocket::WebSocket)
     # TODO, do we actually need to wait here?!
     wait_timeout(()-> isopen(websocket), "Websocket not open after waiting 5s")
     while isopen(websocket)
@@ -118,6 +118,7 @@ function handle_ws_connection(session::Session, websocket::WebSocket)
         end
     end
     close(session)
+    delete!(application.sessions, session.id)
 end
 
 """
@@ -132,7 +133,7 @@ function websocket_handler(context, websocket::WebSocket)
         session = application.sessions[sessionid]
         # We can have multiple sessions for a client
         push!(session, websocket)
-        handle_ws_connection(session, websocket)
+        handle_ws_connection(application, session, websocket)
     else
         # This happens when an old session trys to reconnect to a new app
         # We somehow need to figure out better, how to recognize this
