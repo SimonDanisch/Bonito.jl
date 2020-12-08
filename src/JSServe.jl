@@ -18,6 +18,8 @@ import AbstractTrees
 using Colors
 using LinearAlgebra
 
+struct BrowserDisplay <: Base.Multimedia.AbstractDisplay end
+
 include("types.jl")
 include("js_source.jl")
 include("session.jl")
@@ -52,6 +54,16 @@ const JSSERVE_CONFIGURATION = (
     verbose = Ref(false)
 )
 
+function has_html_display()
+    for display in Base.Multimedia.displays
+        # Ugh, why would textdisplay say it supports HTML??
+        display isa TextDisplay && continue
+        displayable(display, MIME"text/html"()) && return true
+    end
+    return false
+end
+
+
 function __init__()
     url = if haskey(ENV, "JULIA_WEBIO_BASEURL")
         ENV["JULIA_WEBIO_BASEURL"]
@@ -72,7 +84,12 @@ function __init__()
         # gets closed
         rm(dependency_path("session_temp_data"), recursive=true, force=true)
     end
+
     start_gc_task()
+
+    if !has_html_display()
+        push!(Base.Multimedia.displays, BrowserDisplay())
+    end
 end
 
 

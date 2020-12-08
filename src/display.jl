@@ -240,12 +240,20 @@ function openurl(url::String)
     end
     success(`python -mwebbrowser $(url)`) && return
     # our last hope
-    run(`python3 -mwebbrowser $(url)`)
+    success(`python3 -mwebbrowser $(url)`) && return
+    @warn("Can't find a way to open a browser, open $(url) manually!")
 end
 
-struct BrowserDisplay <: Base.Multimedia.AbstractDisplay end
-
 function Base.display(d::BrowserDisplay, dom::DisplayInline)
-    three = backend_display(WGLBackend(), scene)
-    Base.show(io::IO, MIME"text/html"(), dom)
+    application = get_global_app()
+    session = Session()
+    session_url = "/browser-display"
+    route!(application, session_url) do context
+        # Serve the actual content
+        application = context.application
+        application.sessions[session.id] = session
+        html_dom = Base.invokelatest(dom.dom_function, session, context.request)
+        return html(dom2html(session, html_dom))
+    end
+    openurl(local_url(application, session_url))
 end
