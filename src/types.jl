@@ -126,13 +126,8 @@ end
 A web session with a user
 """
 struct Session
-    # indicates, whether session is in fuse mode, so it won't
-    # send any messages, until fuse ends and send them all at once
-    fusing::Base.RefValue{Bool}
     connections::Vector{WebSocket}
     observables::Dict{String, Tuple{Bool, Observable}} # Bool -> if already registered with Frontend
-    # We need to keep track of any objects that is used on the js side, to not free it!
-    objects::Vector{Any}
     message_queue::Vector{Dict{Symbol, Any}}
     dependencies::Set{Asset}
     on_document_load::Vector{JSCode}
@@ -142,50 +137,8 @@ struct Session
     url_serializer::UrlSerializer
     # Should be checkd on js_fully_loaded to see if an error occured
     init_error::Ref{Union{Nothing, JSException}}
+    js_comm::Observable{Union{Nothing, Dict{String, Any}}}
 end
-
-abstract type AbstractJSObject end
-
-const GLOBAL_UUID = Base.Threads.Atomic{UInt}(0)
-
-"""
-References objects stored in Javascript.
-Maps the following expressions to actual calls on the Javascript side:
-```julia
-jso = JSObject(name, scope, typ)
-# getfield:
-x = jso.property # returns a new JSObject
-# setfield
-jso.property = "newval" # Works with JSObjects or Julia objects as newval
-# call:
-result = jso.func(args...) # works with julia objects and other JSObjects as args
-
-# constructors are wrapped this way:
-scene = jso.new.Scene() # same as in JS: scene = new jso.Scene()
-```
-"""
-mutable struct JSObject <: AbstractJSObject
-    # fields are private and not accessible via jsobject.field
-    name::Symbol
-    session::Session
-    typ::Symbol
-    uuid::UInt
-
-    function JSObject(name::Symbol, scope::Session, typ::Symbol)
-        obj = new(name, scope, typ)
-        uuid = GLOBAL_UUID[] += 1
-        setfield!(obj, :uuid, uuid)
-        finalizer(remove_js_reference, obj)
-        return obj
-    end
-end
-
-struct JSReference <: AbstractJSObject
-    parent::AbstractJSObject
-    name::Symbol
-end
-
-session(reference::JSReference) = session(getfield(reference, :parent))
 
 struct Routes
     table::Vector{Pair{Any, Any}}
@@ -253,7 +206,6 @@ end
 function match_request(pattern::Tuple, request)
     return Matcha.matchat(pattern, request.target)
 end
-
 
 """
 The application one serves
@@ -337,13 +289,20 @@ end
 
 function stream_handler(application::Application, stream::Stream)
     if WebSockets.is_upgrade(stream.message)
-        WebSockets.upgrade(stream; binary=true) do websocket
-            request = stream.message
-            delegate(
-                application.websocket_routes, application, request, websocket
-            )
+        try
+            WebSockets.upgrade(stream; binary=true) do websocket
+                request = stream.message
+                delegate(
+                    application.websocket_routes, application, request, websocket
+                )
+            end
+            return
+        catch e
+            # When browser closes we may get an io error here!
+            if !(e isa Base.IOError)
+                rethrow(e)
+            end
         end
-        return
     end
     http_handler = HTTP.RequestHandlerFunction() do request
         delegate(
@@ -433,7 +392,7 @@ function Base.close(application::Application)
     if isassigned(application.server_task)
         try
             wait(application.server_task[])
-            @assert !isdone(application.server_connection[])
+            @assert !Base.isdone(application.server_connection[])
         catch e
             @debug "Server task failed with an (expected) exception on close" exception=e
         end

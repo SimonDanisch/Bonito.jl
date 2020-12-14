@@ -1,39 +1,14 @@
 const on_update_observables_callbacks = [];
 const registered_observables = {};
 const observable_callbacks = {};
-const javascript_object_heap = {};
-
-function put_on_heap(id, value) {
-    javascript_object_heap[id] = value;
-}
-
-function delete_from_heap(id) {
-    delete javascript_object_heap[id];
-}
-
-function get_heap_object(id) {
-    if (id in javascript_object_heap) {
-        return javascript_object_heap[id];
-    } else {
-        send_error("Could not find heap object: " + id, null);
-        throw "Could not find heap object: " + id;
-    }
-}
-
-
 // Save some bytes by using ints for switch variable
 const UpdateObservable = '0';
 const OnjsCallback = '1';
 const EvalJavascript = '2';
 const JavascriptError = '3';
 const JavascriptWarning = '4';
-const JSCall = '5';
-const JSGetIndex = '6';
-const JSSetIndex = '7';
 const JSDoneLoading = '8';
 const FusedMessage = '9';
-const DeleteObjects = '10';
-const OnUpdateObservable = '11';
 
 function is_list(value) {
     return value && typeof value === 'object' && value.constructor === Array;
@@ -83,47 +58,12 @@ function materialize(data) {
     }
 }
 
-function js_dereference_rec(parent, field_names) {
-    if (field_names.length == 0) {
-        // we're done, no more fields to index into
-        return parent;
-    }
-    const next_field = field_names.shift();
-    let next_parent;
-    // skip new, which sneaks into our reference due to how we handle new in Julia
-    if (next_field != 'new') {
-        next_parent = js_getindex(parent, next_field);
-    } else {
-        next_parent = parent;
-    }
-    return js_dereference_rec(next_parent, field_names);
-}
-
-function js_dereference(field_names) {
-    // see if the name is a Javascript Module
-    const parent_field = field_names.shift();
-    let parent = window[parent_field];
-    if (!parent) {
-        // if not a module, it must be on the heap!
-        parent = get_heap_object(parent_field);
-        if (!parent) {
-            // ok, we're out of options at this point!
-            send_error("Could not dereference " + parent_field + "." + field_names, null);
-        }
-    }
-    return js_dereference_rec(parent, field_names);
-}
-
 function deserialize_js(data) {
     if (is_list(data)) {
         return data.map(deserialize_js);
     } else if (is_dict(data)) {
         if ('__javascript_type__' in data) {
-            if (data.__javascript_type__ == 'JSObject') {
-                return get_heap_object(data.payload);
-            } else if (data.__javascript_type__ == 'JSReference') {
-                return js_dereference(data.payload);
-            } else if (data.__javascript_type__ == 'typed_vector') {
+            if (data.__javascript_type__ == 'typed_vector') {
                 return data.payload;
             } else if (data.__javascript_type__ == 'DomNode') {
                 return document.querySelector('[data-jscall-id="' + data.payload + '"]');
@@ -185,6 +125,15 @@ function send_warning(message) {
         message: message
     });
 }
+
+function sent_done_loading(){
+    websocket_send({
+        msg_type: JSDoneLoading,
+        exception: String(e),
+        message: "Error during initialization",
+        stacktrace: e.stack
+    });
+};
 
 function run_js_callbacks(id, value) {
     if (id in observable_callbacks) {
@@ -320,37 +269,6 @@ function call_js_func(func, args, needs_new, result_object) {
     put_on_heap(result_object, result);
 }
 
-function js_getindex(object, field) {
-    let result = object[field];
-    // if result is a class method, we need to bind it to the parent object
-    if (result.bind != undefined) {
-        result = result.bind(object);
-    }
-    return result;
-}
-
-function put_js_getindex(object, field, result_object) {
-    const result = js_getindex(object, field);
-    put_on_heap(result_object, result);
-}
-
-function delete_heap_objects(objects) {
-    for (var object in objects) {
-        delete_from_heap(objects[object]);
-    }
-}
-
-function update_node_attribute(node, attribute, value) {
-    if (node) {
-        if (node[attribute] != value) {
-            node[attribute] = value;
-        }
-        return true;
-    } else {
-        return false; //deregister
-    }
-}
-
 function init_from_byte_array(init_func, data) {
     for (let obs_id in data.observables) {
         registered_observables[obs_id] = data.observables[obs_id];
@@ -420,26 +338,9 @@ function process_message(data) {
                 const scoped_eval = new Function(data.payload.payload);
                 scoped_eval();
                 break;
-            case JSCall:
-                const func = eval(deserialize_js(data.func));
-                const arguments = deserialize_js(data.arguments);
-                call_js_func(func, arguments, data.needs_new, data.result);
-                break;
-            case JSGetIndex:
-                const obj = deserialize_js(data.object);
-                put_js_getindex(obj, data.field, data.result);
-                break;
-            case JSSetIndex:
-                const object = deserialize_js(data.object);
-                const val = deserialize_js(data.value);
-                object[data.field] = val;
-                break;
             case FusedMessage:
                 const messages = data.payload;
                 messages.forEach(process_message);
-                break;
-            case DeleteObjects:
-                delete_heap_objects(data.payload);
                 break;
             default:
                 send_error("Unrecognized message type: " + data.msg_type + ".", null);

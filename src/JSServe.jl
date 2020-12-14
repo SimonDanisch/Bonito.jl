@@ -16,11 +16,9 @@ using WidgetsBase
 using WidgetsBase: vertical, horizontal
 using SHA
 using Tables
-import AbstractTrees
 using Colors
 using LinearAlgebra
 
-struct BrowserDisplay <: Base.Multimedia.AbstractDisplay end
 
 include("types.jl")
 include("js_source.jl")
@@ -32,13 +30,10 @@ include("util.jl")
 include("widgets.jl")
 include("hyperscript_integration.jl")
 include("display.jl")
-include("jscall.jl")
 include("markdown_integration.jl")
 include("serialization.jl")
-include("diffing.jl")
-include("figma.jl")
 include("offline.jl")
-include("styling.jl")
+include("browser_display.jl")
 
 const JSSERVE_CONFIGURATION = (
     # The URL used to which the default server listens to
@@ -86,8 +81,6 @@ function __init__()
         # gets closed
         rm(dependency_path("session_temp_data"), recursive=true, force=true)
     end
-
-    start_gc_task()
 
     if !has_html_display()
         push!(Base.Multimedia.displays, BrowserDisplay())

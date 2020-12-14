@@ -127,20 +127,6 @@ function dom2html(session::Session, dom)
     proxy_url = JSSERVE_CONFIGURATION.websocket_proxy[]
     html = repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
     serializer = session.url_serializer
-    onload = js"""
-    function __on_document_load__(){
-        try {
-            $(queued_as_script(session))
-        } catch (e) {
-            websocket_send({
-                msg_type: JSDoneLoading,
-                exception: String(e),
-                message: "Error during initialization",
-                stacktrace: e.stack
-            });
-        }
-    };
-    """
 
     return """
     <html>
@@ -153,51 +139,12 @@ function dom2html(session::Session, dom)
     </script>
     $(include_asset(MsgPackLib, serializer))
     $(include_asset(JSCallLibLocal, serializer))
-    <script>
-    $(onload)
-    </script>
     </head>
-    <body onload=__on_document_load__()>
+    <body onload=sent_done_loading()>
         $(html)
     </body>
     </html>
     """
-end
-
-"""
-export_standalone(dom_handler, folder::String;
-        absolute_urls=false, content_delivery_url="file://" * folder * "/",
-    )
-
-Exports the app defined by `dom_handler` with all its assets to `folder`.
-Will write the main html out into `folder/index.html`.
-Overwrites all existing files!
-If this gets served behind a proxy, set `absolute_urls=true` and
-set `content_delivery_url` to your proxy url.
-If `clear_folder=true` all files in `folder` will get deleted before exporting again!
-"""
-function export_standalone(dom_handler, folder::String;
-        clear_folder=false, write_index_html=true,
-        absolute_urls=false, content_delivery_url="file://" * folder * "/",
-    )
-    if clear_folder
-        for file in readdir(folder)
-            rm(joinpath(folder, file), force=true, recursive=true)
-        end
-    end
-    serializer = UrlSerializer(false, folder, absolute_urls, content_delivery_url)
-    # set id to "", since we dont needed, and like this we get nicer file names
-    session = Session(url_serializer=serializer)
-    html_dom = Base.invokelatest(dom_handler, session, (target="/",))
-    html_str = dom2html(session, html_dom)
-    if write_index_html
-        open(joinpath(folder, "index.html"), "w") do io
-            println(io, html_str)
-        end
-        return html_str, session
-    else
-        return html_str, session
-    end
 end
 
 function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+html", dom::DisplayInline)
@@ -207,9 +154,9 @@ function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+ht
         content_delivery_url = get(io, :content_delivery_url, "")
 
         html, session = export_standalone(dom.dom_function, export_folder;
-                          absolute_urls=absolute_urls,
-                          content_delivery_url=content_delivery_url,
-                          write_index_html=false)
+            absolute_urls=absolute_urls,
+            content_delivery_url=content_delivery_url,
+            write_index_html=false)
         # We prepare for being offline, but we still start a server while things
         # are online!
         application = get_global_app()
@@ -227,41 +174,4 @@ end
 
 function Base.show(io::IO, ::MIME"juliavscode/html", dom::DisplayInline)
     show(IOContext(io), MIME"text/html"(), dom)
-end
-
-function openurl(url::String)
-    if Sys.isapple()
-        success(`open $url`) && return
-    elseif Sys.iswindows()
-        success(`powershell.exe start $url`) && return
-    elseif Sys.isunix()
-        success(`xdg-open $url`) && return
-        success(`gnome-open $url`) && return
-    end
-    success(`python -mwebbrowser $(url)`) && return
-    # our last hope
-    success(`python3 -mwebbrowser $(url)`) && return
-    @warn("Can't find a way to open a browser, open $(url) manually!")
-end
-
-function Base.display(::BrowserDisplay, dom::DisplayInline)
-    application = get_global_app()
-    session = Session()
-    session_url = "/browser-display"
-    route_was_present = route!(application, session_url) do context
-        # Serve the actual content
-        application = context.application
-        application.sessions[session.id] = session
-        html_dom = Base.invokelatest(dom.dom_function, session, context.request)
-        return html(dom2html(session, html_dom))
-    end
-    # Only open url first time!
-    if isempty(application.sessions)
-        openurl(local_url(application, session_url))
-    else
-        for (id, session) in application.sessions
-            evaljs(session, js"location.reload(true)")
-        end
-    end
-    return session
 end

@@ -4,14 +4,8 @@ const OnjsCallback = "1"
 const EvalJavascript = "2"
 const JavascriptError = "3"
 const JavascriptWarning = "4"
-
-const JSCall = "5"
-const JSGetIndex = "6"
-const JSSetIndex = "7"
 const JSDoneLoading = "8"
 const FusedMessage = "9"
-const DeleteObjects = "10"
-const OnUpdateObservable = "11"
 
 """
     request_to_sessionid(request; throw = true)
@@ -22,7 +16,7 @@ contains a valid session/browser id for a websocket connection.
 Will return nothing if request is invalid!
 """
 function request_to_sessionid(request; throw=true)
-    if length(request.target) >= 1 + 36 + 1 + 3 + 1 # for /36session_id/4browser_id/
+    if length(request.target) >= 42 # for /36session_id/4browser_id/
         session_browser = split(request.target, "/", keepempty=false)
         if length(session_browser) == 2
             sessionid, browserid = string.(session_browser)
@@ -87,25 +81,9 @@ function handle_ws_message(session::Session, message)
     end
 end
 
-"""
-    wait_timeout(condition, error_msg, timeout = 5.0)
-Wait until `condition` function returns true. If running out of time throws `error_msg`!
-"""
-function wait_timeout(condition::Function, error_msg::String, timeout=5.0)
-    start_time = time()
-    while !condition()
-        sleep(0.001)
-        if (time() - start_time) > timeout
-            error(error_msg)
-        end
-    end
-    return
-end
-
 function handle_ws_connection(application::Application, session::Session, websocket::WebSocket)
     while !eof(websocket)
         try
-            # TODO fuse all julia->js events triggered by an incoming message?
             handle_ws_message(session, readavailable(websocket))
         catch e
             # IOErrors
