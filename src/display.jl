@@ -222,11 +222,11 @@ function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+ht
 end
 
 function Base.show(io::IO, ::MIME"application/vnd.jsserve.application+html", dom::DisplayInline)
-    show(io.io, MIME"text/html"(), dom)
+    show(IOContext(io), MIME"text/html"(), dom)
 end
 
 function Base.show(io::IO, ::MIME"juliavscode/html", dom::DisplayInline)
-    show(io.io, MIME"text/html"(), dom)
+    show(IOContext(io), MIME"text/html"(), dom)
 end
 
 function openurl(url::String)

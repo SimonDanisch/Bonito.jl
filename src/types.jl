@@ -269,8 +269,6 @@ struct Application
 end
 local_url(application::Application, url) = string("http://", application.url, ":", application.port, url)
 
-WebSockets.getrawstream(io::IO) = io
-
 function websocket_request()
     headers = [
         "Host" => "127.0.0.1",
@@ -338,21 +336,22 @@ function warmup(application::Application)
 end
 
 function stream_handler(application::Application, stream::Stream)
-    if WebSockets.is_upgrade(stream)
-        WebSockets.upgrade(stream) do request, websocket
+    if WebSockets.is_upgrade(stream.message)
+        WebSockets.upgrade(stream; binary=true) do websocket
+            request = stream.message
             delegate(
                 application.websocket_routes, application, request, websocket
             )
         end
         return
     end
-    f = HTTP.RequestHandlerFunction() do request
+    http_handler = HTTP.RequestHandlerFunction() do request
         delegate(
             application.routes, application, request,
         )
     end
     try
-        HTTP.handle(f, stream)
+        HTTP.handle(http_handler, stream)
     catch e
         # we expect the IOError to happen, if either the page gets closed
         # or we close the server!

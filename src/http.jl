@@ -21,9 +21,9 @@ With throw = false, it can be used to check if a request
 contains a valid session/browser id for a websocket connection.
 Will return nothing if request is invalid!
 """
-function request_to_sessionid(request; throw = true)
+function request_to_sessionid(request; throw=true)
     if length(request.target) >= 1 + 36 + 1 + 3 + 1 # for /36session_id/4browser_id/
-        session_browser = split(request.target, "/", keepempty = false)
+        session_browser = split(request.target, "/", keepempty=false)
         if length(session_browser) == 2
             sessionid, browserid = string.(session_browser)
             if length(sessionid) == 36 && length(browserid) == 4
@@ -39,11 +39,11 @@ function request_to_sessionid(request; throw = true)
 end
 
 function html(body)
-    return HTTP.Response(200, ["Content-Type" => "text/html", "charset" => "utf-8"], body = body)
+    return HTTP.Response(200, ["Content-Type" => "text/html", "charset" => "utf-8"], body=body)
 end
 
-function response_404(body = "Not Found")
-    return HTTP.Response(404, ["Content-Type" => "text/html", "charset" => "utf-8"], body = body)
+function response_404(body="Not Found")
+    return HTTP.Response(404, ["Content-Type" => "text/html", "charset" => "utf-8"], body=body)
 end
 
 function replace_url(match_str)
@@ -91,7 +91,7 @@ end
     wait_timeout(condition, error_msg, timeout = 5.0)
 Wait until `condition` function returns true. If running out of time throws `error_msg`!
 """
-function wait_timeout(condition::Function, error_msg::String, timeout = 5.0)
+function wait_timeout(condition::Function, error_msg::String, timeout=5.0)
     start_time = time()
     while !condition()
         sleep(0.001)
@@ -103,15 +103,14 @@ function wait_timeout(condition::Function, error_msg::String, timeout = 5.0)
 end
 
 function handle_ws_connection(application::Application, session::Session, websocket::WebSocket)
-    # TODO, do we actually need to wait here?!
-    wait_timeout(()-> isopen(websocket), "Websocket not open after waiting 5s")
-    while isopen(websocket)
+    while !eof(websocket)
         try
             # TODO fuse all julia->js events triggered by an incoming message?
-            handle_ws_message(session, read(websocket))
+            handle_ws_message(session, readavailable(websocket))
         catch e
             # IOErrors
-            if !(e isa WebSockets.WebSocketClosedError || e isa Base.IOError)
+            ws_closed = (e isa HTTP.WebSockets.WebSocketError && e.status in (1001, 1000)) || e isa Base.IOError
+            if !ws_closed
                 err = CapturedException(e, Base.catch_backtrace())
                 @warn "error in websocket handler!" exception=err
             end

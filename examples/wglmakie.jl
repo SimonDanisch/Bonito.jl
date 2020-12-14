@@ -1,9 +1,8 @@
-using JSServe, Observables, WGLMakie, AbstractPlotting
+using JSServe, Observables, WGLMakie
 using JSServe: @js_str, onjs, with_session, onload, Button, TextField, Slider, linkjs, serve_dom
 using JSServe.DOM
 using GeometryBasics
-using MakieGallery, FileIO
-using AbstractPlotting.MakieLayout
+using FileIO
 
 set_theme!(resolution=(1200, 800))
 
@@ -149,24 +148,24 @@ using AbstractPlotting.MakieLayout
 function dom_handler(session, request)
     outer_padding = 30
     scene, layout = layoutscene(
-        outer_padding, resolution = (1200, 700),
-        backgroundcolor = RGBf0(0.98, 0.98, 0.98))
-    ax1 = layout[1, 1] = LAxis(scene, title = "Sine")
+        outer_padding, resolution=(1200, 700),
+        backgroundcolor=RGBf0(0.98, 0.98, 0.98))
+    ax1 = layout[1, 1] = LAxis(scene, title="Sine")
     xx = 0:0.2:4pi
-    line1 = lines!(ax1, sin.(xx), xx, color = :red)
+    line1 = lines!(ax1, sin.(xx), xx, color=:red)
     scat1 = scatter!(ax1, sin.(xx) .+ 0.2 .* randn.(), xx,
-        color = (:red, 0.5), markersize = 15px, marker = '■')
+        color=(:red, 0.5), markersize=15px, marker='■')
     return scene
 end
 
 function dom_handler(r, s)
-    scene = Scene(resolution = (1000, 1000));
+    scene = Scene(resolution=(1000, 1000));
     screen = display(scene)
     campixel!(scene);
 
-    maingl = GridLayout(scene, alignmode = Outside(30))
+    maingl = GridLayout(scene, alignmode=Outside(30))
 
-    las = Array{LAxis, 2}(undef, 4, 4)
+    las = Array{LAxis,2}(undef, 4, 4)
 
     for i in 1:4, j in 1:4
         las[i, j] = maingl[i, j] = LAxis(scene)

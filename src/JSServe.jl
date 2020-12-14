@@ -1,13 +1,15 @@
 module JSServe
 
 import Sockets
-using UUIDs, Hyperscript, Hyperscript, JSON3, Observables
+using UUIDs, Hyperscript, JSON3, Observables
 import Sockets: send, TCPServer
 using Hyperscript: Node, children, tag
 using HTTP, Markdown
 using HTTP: Response, Request
 using HTTP.Streams: Stream
-using WebSockets
+using HTTP.WebSockets
+using HTTP.WebSockets: WebSocket
+
 using Base64
 using MsgPack
 using WidgetsBase
