@@ -11,13 +11,14 @@ md"""
 using JSServe, Observables
 using JSServe: @js_str, onjs, with_session, onload, Button, TextField, Slider, linkjs, serve_dom
 using JSServe.DOM
+using JSServe: JSON3
 
 function dom_handler(session, request)
     return DOM.h1("Hello World")
 end
 
 isdefined(Main, :app) && close(app)
-app = JSServe.Application(dom_handler, "127.0.0.1", 8081)
+app = JSServe.Application(dom_handler, "127.0.0.1", 8323)
 
 md"""
 # Interaction with observables
@@ -29,7 +30,7 @@ function dom_handler(session, request)
     return DOM.h1("Hello World", style=map(x-> "color: $(x)", color))
 end
 
-color[] = "red"
+color[] = "green"
 
 
 function dom_handler(session, request)

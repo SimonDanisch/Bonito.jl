@@ -1,8 +1,10 @@
 
 function init_session(session::Session)
+    @info("INITIALIZING SESSION!!")
     put!(session.js_fully_loaded, true)
     messages = copy(session.message_queue)
     empty!(session.message_queue)
+    @show length(messages)
     send(session; msg_type=FusedMessage, payload=messages)
 end
 
@@ -69,7 +71,7 @@ function onjs(session::Session, obs::Observable, func::JSCode)
         session;
         msg_type=OnjsCallback,
         id=obs.id,
-        payload=js"($(func))"
+        payload=js"return ($(func))"
     )
 end
 

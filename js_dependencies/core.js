@@ -129,16 +129,26 @@ function send_warning(message) {
 function sent_done_loading(){
     websocket_send({
         msg_type: JSDoneLoading,
-        exception: String(e),
-        message: "Error during initialization",
-        stacktrace: e.stack
+        exception: "null",
     });
 };
+
+function update_node_attribute(node, attribute, value) {
+  if (node) {
+    if (node[attribute] != value) {
+      node[attribute] = value;
+    }
+    return true;
+  } else {
+    return false; //deregister
+  }
+}
 
 function run_js_callbacks(id, value) {
     if (id in observable_callbacks) {
         const callbacks = observable_callbacks[id];
         const deregister_calls = [];
+        console.log(callbacks);
         for (const i in callbacks) {
             // onjs can return false to deregister itself
             try {
@@ -246,47 +256,6 @@ function register_onjs(f, observable) {
     observable_callbacks[observable] = callbacks;
 }
 
-function call_js_func(func, args, needs_new, result_object) {
-    let result;
-    if (needs_new) {
-        // if argument list we need to use apply
-        if (is_list(args)) {
-            result = new func(...args);
-        } else {
-            // for dictionaries we use a normal call
-            result = new func(args);
-        }
-    } else {
-        // TODO remove code duplication here. I don't think new would propagate
-        // correctly if we'd use something like apply_func
-        if (is_list(args)) {
-            result = func(...args);
-        } else {
-            // for dictionaries we use a normal call
-            result = func(args);
-        }
-    }
-    put_on_heap(result_object, result);
-}
-
-function init_from_byte_array(init_func, data) {
-    for (let obs_id in data.observables) {
-        registered_observables[obs_id] = data.observables[obs_id];
-    }
-    console.log("DONE REGISTERING")
-    init_func(data.payload);
-    console.log("DONE INITIALISING")
-
-    websocket_send({
-        msg_type: JSDoneLoading,
-        exception: "null",
-        message: "",
-        stacktrace: ""
-    });
-    console.log("SENT DONE LOADING")
-
-}
-
 function update_dom_node(dom, html) {
     if (dom) {
         dom.innerHTML = html;
@@ -297,27 +266,9 @@ function update_dom_node(dom, html) {
     }
 }
 
-function init_from_file(init_func, url) {
-    var t0 = performance.now();
-    var http_request = new XMLHttpRequest();
-    http_request.open("GET", url, true);
-    http_request.responseType = "arraybuffer";
-    http_request.onload = function(event) {
-        var t1 = performance.now();
-        var arraybuffer = http_request.response; // Note: not oReq.responseText
-        if (arraybuffer) {
-            var bytes = new Uint8Array(arraybuffer);
-            var data = msgpack.decode(bytes);
-            init_from_byte_array(init_func, data);
-            console.log("Processing done!! " + (t1 - t0) + " milliseconds.");
-        } else {
-            send_warning("Didn't receive any setup data from server.");
-        }
-    };
-    http_request.send(null);
-}
-
 function process_message(data) {
+    console.log(data)
+    let error_message = ""
     try {
         switch (data.msg_type) {
             case UpdateObservable:
@@ -330,13 +281,20 @@ function process_message(data) {
                 // register a callback that will executed on js side
                 // when observable updates
                 const id = data.id;
-                js_source = deserialize_js(data.payload);
-                const f = eval(js_source);
+                const func_func = new Function(
+                  "__eval_context__",
+                  data.payload.payload.source
+                );
+                const func_context = deserialize_js(
+                  data.payload.payload.context
+                );
+                const f = func_func(func_context);
                 register_onjs(f, id);
                 break;
             case EvalJavascript:
-                const scoped_eval = new Function(data.payload.payload);
-                scoped_eval();
+                const eval_func = new Function("__eval_context__", data.payload.source);
+                const context = deserialize_js(data.payload.context);
+                eval_func(context);
                 break;
             case FusedMessage:
                 const messages = data.payload;
@@ -404,12 +362,12 @@ function setup_connection() {
         if (session_websocket.length != 0) {
             throw "Inconsistent state. Already opened a websocket!";
         }
-        console.log("URL " + url);
         websocket = new WebSocket(url);
         websocket.binaryType = 'arraybuffer';
         session_websocket.push(websocket);
 
         websocket.onopen = function() {
+            console.log("CONNECTED!!: ", url)
             websocket.onmessage = function(evt) {
                 const binary = new Uint8Array(evt.data);
                 const data = msgpack.decode(binary);

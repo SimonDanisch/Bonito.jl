@@ -325,6 +325,7 @@ const MATCH_UUID4 = MATCH_HEX^8 * r"-" * (MATCH_HEX^4 * r"-")^3 * MATCH_HEX^12
 const MATCH_SESSION_ID = MATCH_UUID4 * r"/" * MATCH_HEX^4
 
 function serve_dom(context, dom)
+    @show dom
     application = context.application
     session = Session()
     application.sessions[session.id] = session

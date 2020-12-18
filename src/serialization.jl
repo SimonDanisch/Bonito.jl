@@ -37,7 +37,9 @@ end
 serialize_js(jss::JSString) = jss.source
 
 function serialize_js(jsc::Union{JSCode, JSString})
-    return js_type(:js_code, serialize_readable(jsc))
+    context = []
+    js_string = sprint(io-> print_js_code(io, jsc, context))
+    return js_type(:js_code, Dict("source" => js_string, "context"=>context))
 end
 
 function serialize_js(asset::Asset)
@@ -47,7 +49,7 @@ end
 # TODO move to msgpack
 MsgPack.msgpack_type(::Type{Float16}) = MsgPack.FloatType()
 MsgPack.to_msgpack(::MsgPack.FloatType, x::Float16) = Float32(x)
-JSON3.StructType(::Type{Hyperscript.Node{Hyperscript.HTMLSVG}}) = JSON3.ObjectType()
+JSON3.StructType(::Type{Hyperscript.Node{Hyperscript.HTMLSVG}}) = JSON3.StructTypes.DictType()
 MsgPack.msgpack_type(::Type{Hyperscript.Node{Hyperscript.HTMLSVG}}) = MsgPack.MapType()
 
 import JSON3.StructTypes: keyvaluepairs

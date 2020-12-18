@@ -37,18 +37,38 @@ macro js_str(js_source)
 end
 
 function Base.show(io::IO, jsc::JSCode)
-    print_js_code(io, jsc)
+    print_js_code(io, jsc, nothing)
 end
 
-function print_js_code(io::IO, jsc::JSCode)
-    for elem in jsc.source
-        print_js_code(io, elem)
+function print_js_code(io::IO, jss::JSString, context)
+    print(io, jss.source)
+    return context
+end
+
+function print_js_code(io::IO, @nospecialize(object::Any), context)
+    if context === nothing
+        x = serialize_js(object)
+        json = JSON3.write(x)
+        print(io, "deserialize_js($(json))")
+    else
+        index = length(context) # 0 indexed
+        push!(context, serialize_js(object))
+        print(io, "__eval_context__[$(index)]")
     end
+    return context
 end
 
-function print_js_code(io::IO, jsss::AbstractVector{JSCode})
+function print_js_code(io::IO, jsc::JSCode, context)
+    for elem in jsc.source
+        print_js_code(io, elem, context)
+    end
+    return context
+end
+
+function print_js_code(io::IO, jsss::AbstractVector{JSCode}, context)
     for jss in jsss
-        print_js_code(io, jss)
+        print_js_code(io, jss, context)
         println(io)
     end
+    return context
 end
