@@ -148,7 +148,6 @@ function run_js_callbacks(id, value) {
     if (id in observable_callbacks) {
         const callbacks = observable_callbacks[id];
         const deregister_calls = [];
-        console.log(callbacks);
         for (const i in callbacks) {
             // onjs can return false to deregister itself
             try {
@@ -267,8 +266,6 @@ function update_dom_node(dom, html) {
 }
 
 function process_message(data) {
-    console.log(data)
-    let error_message = ""
     try {
         switch (data.msg_type) {
             case UpdateObservable:
@@ -307,9 +304,7 @@ function process_message(data) {
             on_update_observables_callbacks[idx](value);
         }
     } catch(e) {
-        console.log("Error while processing message!")
-        console.log(e)
-        console.log(data)
+        send_error(`Error while processing message ${data}`, e);
     }
 
 }
