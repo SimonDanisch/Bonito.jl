@@ -1,10 +1,11 @@
 
 function init_session(session::Session)
-    @info("INITIALIZING SESSION!!")
     put!(session.js_fully_loaded, true)
     messages = copy(session.message_queue)
     empty!(session.message_queue)
-    @show length(messages)
+    for js in session.on_document_load
+        push!(messages, Dict(:msg_type=>EvalJavascript, :payload=>js))
+    end
     send(session; msg_type=FusedMessage, payload=messages)
 end
 
@@ -84,7 +85,7 @@ end
 calls javascript `func` with node, once node has been displayed.
 """
 function onload(session::Session, node::Node, func::JSCode)
-    on_document_load(session, js"($(func))($node);")
+    on_document_load(session, js"($(func))($(selector(node)));")
 end
 
 """

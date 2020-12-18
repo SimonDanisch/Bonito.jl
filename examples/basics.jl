@@ -44,7 +44,7 @@ md"""
 # Other ways to execute Javascript
 """
 
-function dom_handler1(session, request)
+function dom_handler(session, request)
     button = DOM.div("click me", onclick=js"update_obs($(color), 'blue')")
     onload(session, button, js"""function load(button){
         window.alert('Hi from JavaScript');
@@ -87,6 +87,12 @@ md"""
 # ctx contains route, match,
 """
 
+function dom_handler1(session, request)
+    button = DOM.div("click me", onclick=js"update_obs($(color), 'blue')")
+    return DOM.div(
+        button, DOM.h1("Hello World", style=map(x-> "color: $(x)", color))
+    )
+end
 JSServe.route!(app, "/example1" => ctx-> serve_dom(ctx, dom_handler1))
 
 function dom_handler(session, request)

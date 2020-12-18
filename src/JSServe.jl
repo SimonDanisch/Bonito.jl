@@ -21,6 +21,7 @@ using LinearAlgebra
 
 
 include("types.jl")
+include("application.jl")
 include("js_source.jl")
 include("session.jl")
 include("observables.jl")
@@ -74,14 +75,8 @@ function __init__()
     JSSERVE_CONFIGURATION.websocket_proxy[] = url
     JSSERVE_CONFIGURATION.content_delivery_url[] = url
     JSSERVE_CONFIGURATION.listen_port[] = parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081"))
-
-    atexit() do
-        # remove session folder, in which we store data dependencies temporary
-        # TODO remove whenever a session is closed to not accumulate waste until julia
-        # gets closed
-        rm(dependency_path("session_temp_data"), recursive=true, force=true)
-    end
-
+    # If there is no html inline display in the IDE that JSServe is running
+    # we display things in the local browser
     if !has_html_display()
         push!(Base.Multimedia.displays, BrowserDisplay())
     end

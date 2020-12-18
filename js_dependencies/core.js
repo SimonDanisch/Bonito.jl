@@ -68,7 +68,13 @@ function deserialize_js(data) {
             } else if (data.__javascript_type__ == 'DomNode') {
                 return document.querySelector('[data-jscall-id="' + data.payload + '"]');
             } else if (data.__javascript_type__ == 'js_code') {
-                return data.payload;
+                const eval_func = new Function(
+                  "__eval_context__",
+                  data.payload.source
+                );
+                const context = deserialize_js(data.payload.context);
+                // return a closure, that when caleld evals runs the code!
+                return ()=> eval_func(context);
             } else if (data.__javascript_type__ == 'Observable') {
                 const value = deserialize_js(data.payload.value);
                 const id = data.payload.id;
@@ -278,20 +284,12 @@ function process_message(data) {
                 // register a callback that will executed on js side
                 // when observable updates
                 const id = data.id;
-                const func_func = new Function(
-                  "__eval_context__",
-                  data.payload.payload.source
-                );
-                const func_context = deserialize_js(
-                  data.payload.payload.context
-                );
-                const f = func_func(func_context);
+                const f = deserialize_js(data.payload)();
                 register_onjs(f, id);
                 break;
             case EvalJavascript:
-                const eval_func = new Function("__eval_context__", data.payload.source);
-                const context = deserialize_js(data.payload.context);
-                eval_func(context);
+                const eval_closure = deserialize_js(data.payload);
+                eval_closure();
                 break;
             case FusedMessage:
                 const messages = data.payload;
