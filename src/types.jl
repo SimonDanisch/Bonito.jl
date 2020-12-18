@@ -126,8 +126,9 @@ end
 A web session with a user
 """
 struct Session
-    connections::Vector{WebSocket}
-    observables::Dict{String, Tuple{Bool, Observable}} # Bool -> if already registered with Frontend
+    connection::Base.RefValue{WebSocket}
+    # Bool -> if already registered with Frontend
+    observables::Dict{String, Tuple{Bool, Observable}}
     message_queue::Vector{Dict{Symbol, Any}}
     dependencies::Set{Asset}
     on_document_load::Vector{JSCode}
@@ -138,6 +139,7 @@ struct Session
     # Should be checkd on js_fully_loaded to see if an error occured
     init_error::Ref{Union{Nothing, JSException}}
     js_comm::Observable{Union{Nothing, Dict{String, Any}}}
+    on_close::Observable{Bool}
 end
 
 struct Routes

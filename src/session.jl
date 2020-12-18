@@ -8,9 +8,9 @@ function init_session(session::Session)
     send(session; msg_type=FusedMessage, payload=messages)
 end
 
-function Session(connections::Vector{WebSocket}=WebSocket[]; url_serializer=UrlSerializer(), id=string(uuid4()))
+function Session(connection::Base.RefValue{WebSocket}=Base.RefValue{WebSocket}(); url_serializer=UrlSerializer(), id=string(uuid4()))
     return Session(
-        connections,
+        connection,
         Dict{String, Tuple{Bool, Observable}}(),
         Dict{Symbol, Any}[],
         Set{Asset}(),
@@ -20,15 +20,16 @@ function Session(connections::Vector{WebSocket}=WebSocket[]; url_serializer=UrlS
         init_session,
         url_serializer,
         Ref{Union{Nothing, JSException}}(nothing),
-        Observable{Union{Nothing, Dict{String, Any}}}(nothing)
+        Observable{Union{Nothing, Dict{String, Any}}}(nothing),
+        Observable(false)
     )
 end
 
 session(session::Session) = session
 
 function Base.close(session::Session)
-    foreach(close, session.connections)
-    empty!(session.connections)
+    close(session.connection[])
+    session.on_close[] = true
     empty!(session.observables)
     empty!(session.on_document_load)
     empty!(session.message_queue)
@@ -45,16 +46,14 @@ Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
     if isopen(session) && isready(session.js_fully_loaded)
         @assert isempty(session.message_queue)
-        for connection in session.connections
-            serialize_websocket(connection, message)
-        end
+        serialize_websocket(session.connection[], message)
     else
         push!(session.message_queue, message)
     end
 end
 
 function Base.isopen(session::Session)
-    return !isempty(session.connections) && any(isopen, session.connections)
+    return isassigned(session.connection) && isopen(session.connection[])
 end
 
 """
@@ -228,10 +227,4 @@ function Base.push!(session::Session, asset::Asset)
         on_document_load(session, asset.onload)
     end
     return asset
-end
-
-function Base.push!(session::Session, websocket::WebSocket)
-    push!(session.connections, websocket)
-    filter!(isopen, session.connections)
-    return session
 end

@@ -108,8 +108,12 @@ function websocket_handler(context, websocket::WebSocket)
     # Look up the connection in our sessions
     if haskey(application.sessions, sessionid)
         session = application.sessions[sessionid]
-        # We can have multiple sessions for a client
-        push!(session, websocket)
+        if isassigned(session.websocket) && isopen(session.websocket[])
+            # Would be nice to not error here - but I think this should never
+            # Happen, and if it happens, we need to debug it!
+            error("Session already has connection")
+        end
+        session.connection[] = websocket
         handle_ws_connection(application, session, websocket)
     else
         # This happens when an old session trys to reconnect to a new app
