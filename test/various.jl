@@ -73,9 +73,9 @@ end
     # Ugh, ElectronTests loads the handler multiple times to make sure it works
     # and doesn't get stuck, so we need to do this manually
     @isdefined(app) && close(app)
-    app = JSServe.Application(handler, "0.0.0.0", 8558)
+    app = JSServe.Server(handler, "0.0.0.0", 8558)
     try
-        eapp = Electron.Application()
+        eapp = Electron.Server()
         window = Electron.Window(eapp)
         try
             @test obs[] == 0

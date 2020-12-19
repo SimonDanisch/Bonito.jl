@@ -84,7 +84,7 @@ function handler(s, r)
 end
 
 # Either serve
-# app = JSServe.Application(handler, "0.0.0.0", 8083)
+# app = JSServe.Server(handler, "0.0.0.0", 8083)
 
 export_path = "dev/WGLDemos/oceananigans/"
 # or export to e.g. github IO

@@ -6,7 +6,7 @@ for i in 1:5
     save(joinpath(dir, "img$i.jpg"), rand(RGB{Colors.N0f8}, 200, 200))
 end
 
-function dom_handler(session, request)
+app = App() do
     files = JSServe.Asset.(joinpath.(dir, filter(x-> endswith(x, ".jpg"), readdir(dir))))
     slider = JSServe.Slider(1:length(files))
     image_obs = Observable(first(files))
@@ -17,5 +17,4 @@ function dom_handler(session, request)
     return DOM.div(slider, img)
 end
 
-isdefined(Main, :app) && close(app)
-app = JSServe.Application(dom_handler, "127.0.0.1", 8082)
+display(app)

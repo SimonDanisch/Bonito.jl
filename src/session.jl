@@ -33,7 +33,17 @@ end
 session(session::Session) = session
 
 function Base.close(session::Session)
-    close(session.connection[])
+    try
+        # https://github.com/JuliaWeb/HTTP.jl/issues/649
+        close(session.connection[])
+    catch e
+        if !(e isa Base.IOError)
+            @warn "error while closing websocket!" exception=e
+        end
+    finally
+        session.connection[].rxclosed = true
+    end
+
     session.on_close[] = true
     empty!(session.observables)
     empty!(session.on_document_load)

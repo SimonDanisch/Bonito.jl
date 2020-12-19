@@ -1,5 +1,19 @@
 struct BrowserDisplay <: Base.Multimedia.AbstractDisplay end
 
+function display_in_browser()
+    displays = Base.Multimedia.displays
+    if last(displays) isa BrowserDisplay
+        @info("already in there!")
+        return
+    end
+    # if browserdisplay is anywhere not at the last position
+    # remove it!
+    filter!(x-> !(x isa BrowserDisplay), displays)
+    # add it to end!
+    push!(displays, BrowserDisplay())
+    return
+end
+
 function openurl(url::String)
     if Sys.isapple()
         success(`open $url`) && return
@@ -15,15 +29,15 @@ function openurl(url::String)
     @warn("Can't find a way to open a browser, open $(url) manually!")
 end
 
-function Base.display(::BrowserDisplay, dom::DisplayInline)
-    application = get_global_app()
+function Base.display(::BrowserDisplay, dom::App)
+    application = get_server()
     session = Session()
     session_url = "/browser-display"
     route_was_present = route!(application, session_url) do context
         # Serve the actual content
         application = context.application
         application.sessions[session.id] = session
-        html_dom = Base.invokelatest(dom.dom_function, session, context.request)
+        html_dom = Base.invokelatest(dom.handler, session, context.request)
         return html(dom2html(session, html_dom))
     end
     # Only open url first time!

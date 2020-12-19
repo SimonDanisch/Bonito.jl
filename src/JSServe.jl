@@ -21,7 +21,7 @@ using LinearAlgebra
 
 
 include("types.jl")
-include("application.jl")
+include("server.jl")
 include("js_source.jl")
 include("session.jl")
 include("observables.jl")
@@ -78,7 +78,7 @@ function __init__()
     # If there is no html inline display in the IDE that JSServe is running
     # we display things in the local browser
     if !has_html_display()
-        push!(Base.Multimedia.displays, BrowserDisplay())
+        display_in_browser()
     end
 end
 

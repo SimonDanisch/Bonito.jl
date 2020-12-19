@@ -81,17 +81,17 @@ function handle_ws_message(session::Session, message)
     end
 end
 
-function handle_ws_connection(application::Application, session::Session, websocket::WebSocket)
-    while !eof(websocket)
-        try
+function handle_ws_connection(application::Server, session::Session, websocket::WebSocket)
+    try
+        while !eof(websocket)
             handle_ws_message(session, readavailable(websocket))
-        catch e
-            # IOErrors
-            ws_closed = (e isa HTTP.WebSockets.WebSocketError && e.status in (1001, 1000)) || e isa Base.IOError
-            if !ws_closed
-                err = CapturedException(e, Base.catch_backtrace())
-                @warn "error in websocket handler!" exception=err
-            end
+        end
+    catch e
+        # IOErrors
+        status_close = (e isa WebSockets.WebSocketError && e.status in (1001, 1000))
+        if !(status_close || e isa Base.IOError)
+            err = CapturedException(e, Base.catch_backtrace())
+            @warn "error in websocket handler!" exception=err
         end
     end
     close(session)

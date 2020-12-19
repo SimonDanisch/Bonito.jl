@@ -58,7 +58,7 @@ function match_request(pattern::Regex, request)
     return match(pattern, request.target)
 end
 
-local_url(application::Application, url) = string("http://", application.url, ":", application.port, url)
+local_url(application::Server, url) = string("http://", application.url, ":", application.port, url)
 
 function websocket_request()
     headers = [
@@ -90,11 +90,11 @@ end
 
 
 """
-warmup(application::Application)
+warmup(application::Server)
 
 Warms up the application, by sending a couple of request.
 """
-function warmup(application::Application)
+function warmup(application::Server)
     yield() # yield to server task to give it a chance to get started
     task = application.server_task[]
     if Base.istaskdone(task)
@@ -126,7 +126,7 @@ function warmup(application::Application)
     return
 end
 
-function stream_handler(application::Application, stream::Stream)
+function stream_handler(application::Server, stream::Stream)
     if WebSockets.is_upgrade(stream.message)
         try
             WebSockets.upgrade(stream; binary=true) do websocket
@@ -172,14 +172,14 @@ function serve_dom(context, dom)
 end
 
 """
-Application(
+Server(
         dom, url::String, port::Int;
         verbose = false
     )
 
 Creates an application that manages the global server state!
 """
-function Application(
+function Server(
         dom, url::String, port::Int;
         verbose = false,
         routes = Routes(
@@ -192,7 +192,7 @@ function Application(
         )
     )
 
-    application = Application(
+    application = Server(
         url, port, Dict{String, Dict{String, Session}}(),
         Ref{Task}(), Ref{TCPServer}(),
         routes,
@@ -210,14 +210,14 @@ function Application(
     return application
 end
 
-function isrunning(application::Application)
+function isrunning(application::Server)
     return (isassigned(application.server_task) &&
         isassigned(application.server_connection) &&
         !istaskdone(application.server_task[]) &&
         isopen(application.server_connection[]))
 end
 
-function Base.close(application::Application)
+function Base.close(application::Server)
     # Closing the io connection should shut down the HTTP listen loop
     for (id, session) in application.sessions
         close(session)
@@ -253,7 +253,7 @@ function Base.close(application::Application)
     @assert !isrunning(application)
 end
 
-function start(application::Application; verbose=false)
+function start(application::Server; verbose=false)
     isrunning(application) && return
     address = Sockets.InetAddr(parse(Sockets.IPAddr, application.url), application.port)
     ioserver = Sockets.listen(address)
@@ -268,14 +268,14 @@ function start(application::Application; verbose=false)
 end
 
 
-function route!(application::Application, pattern_f::Pair)
+function route!(application::Server, pattern_f::Pair)
     application.routes[pattern_f[1]] = pattern_f[2]
 end
 
-function route!(f, application::Application, pattern)
+function route!(f, application::Server, pattern)
     route!(application, pattern => f)
 end
 
-function websocket_route!(application::Application, pattern_f::Pair)
+function websocket_route!(application::Server, pattern_f::Pair)
     application.websocket_routes[pattern_f[1]] = pattern_f[2]
 end

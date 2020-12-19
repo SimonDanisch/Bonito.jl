@@ -33,5 +33,5 @@ mkdir("simple")
 JSServe.export_standalone(AppInteraktive, "simple")
 
 
-server = JSServe.Application(app, "0.0.0.0", 8081)
+server = JSServe.Server(app, "0.0.0.0", 8081)
 close(server)

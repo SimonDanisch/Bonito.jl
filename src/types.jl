@@ -150,7 +150,7 @@ end
 """
 The application one serves
 """
-struct Application
+struct Server
     url::String
     port::Int
     sessions::Dict{String, Session}

@@ -173,7 +173,7 @@ end;
 
 electron_disp = electrondisplay(inline_display);
 app = TestSession(URI("http://localhost:8555/show"),
-                  JSServe.global_application[], electron_disp, test_session)
+                  JSServe.GLOBAL_SERVER[], electron_disp, test_session)
 app.dom = dom
 
 @testset "electron inline display" begin

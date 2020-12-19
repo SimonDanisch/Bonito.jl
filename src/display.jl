@@ -1,18 +1,48 @@
+const GLOBAL_SERVER = Ref{Server}()
 
-const global_application = Ref{Application}()
-
-struct DisplayInline
-    dom_function
+function get_server()
+    if !isassigned(GLOBAL_SERVER) || istaskdone(GLOBAL_SERVER[].server_task[])
+        GLOBAL_SERVER[] = Server(
+            (ctx, request)-> "Nothing to see",
+            JSSERVE_CONFIGURATION.listen_url[],
+            JSSERVE_CONFIGURATION.listen_port[],
+            verbose=JSSERVE_CONFIGURATION.verbose[]
+        )
+    end
+    return GLOBAL_SERVER[]
 end
 
 """
-    with_session(f)::DisplayInline
+    App(handler)
 
-calls f with the session, that will become active when displaying the result
-of with_session. f is expected to return a valid DOM.
+calls handler with the session and the http request object.
+f is expected to return a valid DOM object,
+so something renderable by jsrender, e.g. `DOM.div`.
 """
-function with_session(f)
-    return DisplayInline(f)
+struct App
+    handler::Function
+    function App(handler::Function)
+        if hasmethod(handler, Tuple{Session, HTTP.Request})
+            return new(handler)
+        elseif hasmethod(handler, Tuple{Session})
+            return new((session, request) -> handler(session))
+        elseif hasmethod(handler, Tuple{HTTP.Request})
+            return new((session, request) -> handler(request))
+        elseif hasmethod(handler, Tuple{})
+           return new((session, request) -> handler())
+        else
+            error("""
+            Handler function must have the following signature:
+                handler() -> DOM
+                handler(session::Session) -> DOM
+                handler(request::Request) -> DOM
+                handler(session, request) -> DOM
+            """)
+        end
+    end
+    function App(dom_object)
+        return new((s, r)-> dom_object)
+    end
 end
 
 const WebMimes = (
@@ -20,17 +50,6 @@ const WebMimes = (
     MIME"application/prs.juno.plotpane+html",
 )
 
-function get_global_app()
-    if !isassigned(global_application) || istaskdone(global_application[].server_task[])
-        global_application[] = Application(
-            (ctx, request)-> "Nothing to see",
-            JSSERVE_CONFIGURATION.listen_url[],
-            JSSERVE_CONFIGURATION.listen_port[],
-            verbose=JSSERVE_CONFIGURATION.verbose[]
-        )
-    end
-    return global_application[]
-end
 
 function resize_iframe_event_handler(app)
     remote_origin = JSServe.local_url(app, "")
@@ -57,16 +76,16 @@ function resize_iframe_event_handler(app)
 end
 
 for M in WebMimes
-    @eval function Base.show(io::IO, m::$M, dom::DisplayInline)
-        is_this_first_time = isassigned(global_application)
-        application = get_global_app()
+    @eval function Base.show(io::IO, m::$M, dom::App)
+        is_this_first_time = isassigned(GLOBAL_SERVER)
+        application = get_server()
         session = Session()
         session_url = "/$(session.id)"
         route!(application, session_url) do context
             # Serve the actual content
             application = context.application
             application.sessions[session.id] = session
-            html_dom = Base.invokelatest(dom.dom_function, session, context.request)
+            html_dom = Base.invokelatest(dom.handler, session, context.request)
             resize_script = js"""
                 // we need to resize the iframe based on its content, which is a bit complicated
                 // because we can't directly access it. So we sent a message here
@@ -112,11 +131,11 @@ for M in WebMimes
     end
 end
 
-function Base.show(io::IO, ::MIME"application/vnd.webio.application+html", dom::DisplayInline)
-    application = get_global_app()
+function Base.show(io::IO, ::MIME"application/vnd.webio.application+html", dom::App)
+    application = get_server()
     session = Session()
     application.sessions[session.id] = session
-    dom = Base.invokelatest(dom.dom_function, session, (target = "/show",))
+    dom = Base.invokelatest(dom.handler, session, (target = "/show",))
     println(io, dom2html(session, dom))
 end
 
@@ -147,19 +166,19 @@ function dom2html(session::Session, dom)
     """
 end
 
-function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+html", dom::DisplayInline)
+function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+html", dom::App)
     if get(io, :use_offline_mode, false)
         export_folder = get(io, :export_folder, "/")
         absolute_urls = get(io, :absolute_urls, false)
         content_delivery_url = get(io, :content_delivery_url, "")
 
-        html, session = export_standalone(dom.dom_function, export_folder;
+        html, session = export_standalone(dom.handler, export_folder;
             absolute_urls=absolute_urls,
             content_delivery_url=content_delivery_url,
             write_index_html=false)
         # We prepare for being offline, but we still start a server while things
         # are online!
-        application = get_global_app()
+        application = get_server()
         application.sessions[session.id] = session
 
         println(io, html)
@@ -168,10 +187,10 @@ function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+ht
     end
 end
 
-function Base.show(io::IO, ::MIME"application/vnd.jsserve.application+html", dom::DisplayInline)
-    show(IOContext(io), MIME"text/html"(), dom)
+function Base.show(io::IO, ::MIME"application/vnd.jsserve.application+html", app::App)
+    show(IOContext(io), MIME"text/html"(), app)
 end
 
-function Base.show(io::IO, ::MIME"juliavscode/html", dom::DisplayInline)
-    show(IOContext(io), MIME"text/html"(), dom)
+function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
+    show(IOContext(io), MIME"text/html"(), app)
 end

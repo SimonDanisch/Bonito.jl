@@ -5,7 +5,7 @@ using JSServe: @js_str, onjs, Button, Slider, Asset
 using WGLMakie, AbstractPlotting
 using JSServe.DOM
 
-function test_handler(session, req)
+app = App() do
     cmap_button = Button("change colormap")
     algorithm_button = Button("change algorithm")
     algorithms = ["mip", "iso", "absorption"]
@@ -110,5 +110,4 @@ function test_handler(session, req)
     return JSServe.DOM.div(JSServe.MarkdownCSS, JSServe.Styling, dom)
 end
 
-isdefined(Main, :app) && close(app)
-app = JSServe.Application(test_handler, "0.0.0.0", 8082)
+display(app)
