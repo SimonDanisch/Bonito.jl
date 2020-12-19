@@ -275,8 +275,8 @@ function process_message(data) {
     try {
         switch (data.msg_type) {
             case UpdateObservable:
-                const value = data.payload;
-                registered_observables[data.id] = deserialize_js(value);
+                const value = deserialize_js(data.payload);
+                registered_observables[data.id] = value;
                 // update all onjs callbacks
                 run_js_callbacks(data.id, value);
                 break;

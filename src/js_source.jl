@@ -40,6 +40,16 @@ function Base.show(io::IO, jsc::JSCode)
     print_js_code(io, jsc, nothing)
 end
 
+function print_js_code(io::IO, dependency::Dependency, context)
+    print(io, dependency.name)
+    return context
+end
+
+function serialize2string(io::IO, x::Number, context)
+    print(io, x)
+    return context
+end
+
 function print_js_code(io::IO, jss::JSString, context)
     print(io, jss.source)
     return context
@@ -51,9 +61,14 @@ function print_js_code(io::IO, @nospecialize(object::Any), context)
         json = JSON3.write(x)
         print(io, "deserialize_js($(json))")
     else
-        index = length(context) # 0 indexed
-        push!(context, serialize_js(object))
-        print(io, "__eval_context__[$(index)]")
+        serialized = serialize_js(object)
+        if serialized isa String
+            print(io, repr(serialized))
+        else
+            index = length(context) # 0 indexed
+            push!(context, serialized)
+            print(io, "__eval_context__[$(index)]")
+        end
     end
     return context
 end

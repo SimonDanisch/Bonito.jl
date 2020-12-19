@@ -1,11 +1,15 @@
 
 function init_session(session::Session)
     put!(session.js_fully_loaded, true)
-    messages = copy(session.message_queue)
-    empty!(session.message_queue)
+    messages = []
+    for (id, (reg, obs)) in session.observables
+        push!(messages, Dict(:msg_type=>UpdateObservable, :payload=>obs[], :id=>obs.id))
+    end
+    append!(messages, session.message_queue)
     for js in session.on_document_load
         push!(messages, Dict(:msg_type=>EvalJavascript, :payload=>js))
     end
+    empty!(session.message_queue)
     send(session; msg_type=FusedMessage, payload=messages)
 end
 
@@ -71,7 +75,7 @@ function onjs(session::Session, obs::Observable, func::JSCode)
         session;
         msg_type=OnjsCallback,
         id=obs.id,
-        payload=js"return ($(func))"
+        payload=JSCode([JSString("return "), func])
     )
 end
 
