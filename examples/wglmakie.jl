@@ -6,7 +6,7 @@ using WGLMakie: px
 using JSServe: @js_str, onjs, App, Slider
 using JSServe.DOM
 
-JSServe.display_in_browser()
+JSServe.browser_display()
 
 set_theme!(resolution=(1200, 800))
 

@@ -1,6 +1,6 @@
 struct BrowserDisplay <: Base.Multimedia.AbstractDisplay end
 
-function display_in_browser()
+function browser_display()
     displays = Base.Multimedia.displays
     if last(displays) isa BrowserDisplay
         @info("already in there!")

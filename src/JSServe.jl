@@ -78,7 +78,7 @@ function __init__()
     # If there is no html inline display in the IDE that JSServe is running
     # we display things in the local browser
     if !has_html_display()
-        display_in_browser()
+        browser_display()
     end
 end
 
