@@ -22,14 +22,34 @@ function Base.setindex!(routes::Routes, f, pattern)
     return idx === nothing
 end
 
+function route!(application::Server, pattern_f::Pair)
+    application.routes[pattern_f[1]] = pattern_f[2]
+end
+
+function route!(f, application::Server, pattern)
+    route!(application, pattern => f)
+end
+
+function websocket_route!(application::Server, pattern_f::Pair)
+    application.websocket_routes[pattern_f[1]] = pattern_f[2]
+end
+
 function apply_handler(f, args...)
-    f(args...)
+    return f(args...)
 end
 
 function apply_handler(chain::Tuple, context, args...)
     f = first(chain)
     result = f(args...)
-    apply_handler(Base.tail(chain), context, result...)
+    return apply_handler(Base.tail(chain), context, result...)
+end
+
+function apply_handler(app::App, context)
+    application = context.application
+    session = Session()
+    application.sessions[session.id] = session
+    html_dom = Base.invokelatest(app.handler, session, context.request)
+    return html(dom2html(session, html_dom))
 end
 
 function delegate(routes::Routes, application, request::Request, args...)
@@ -163,14 +183,6 @@ const MATCH_HEX = r"[\da-f]"
 const MATCH_UUID4 = MATCH_HEX^8 * r"-" * (MATCH_HEX^4 * r"-")^3 * MATCH_HEX^12
 const MATCH_SESSION_ID = MATCH_UUID4 * r"/" * MATCH_HEX^4
 
-function serve_dom(context, dom)
-    application = context.application
-    session = Session()
-    application.sessions[session.id] = session
-    html_dom = Base.invokelatest(dom, session, context.request)
-    return html(dom2html(session, html_dom))
-end
-
 """
 Server(
         dom, url::String, port::Int;
@@ -180,10 +192,10 @@ Server(
 Creates an application that manages the global server state!
 """
 function Server(
-        dom, url::String, port::Int;
+        app::App, url::String, port::Int;
         verbose = false,
         routes = Routes(
-            "/" => ctx-> serve_dom(ctx, dom),
+            "/" => app,
             r"/assetserver/" * MATCH_HEX^40 * r"-.*" => file_server,
             r".*" => (context)-> response_404()
         ),
@@ -198,6 +210,7 @@ function Server(
         routes,
         websocket_routes
     )
+
     try
         start(application; verbose=verbose)
         # warmup server!
@@ -265,17 +278,4 @@ function start(application::Server; verbose=false)
         Base.invokelatest(stream_handler, application, stream)
     end
     return
-end
-
-
-function route!(application::Server, pattern_f::Pair)
-    application.routes[pattern_f[1]] = pattern_f[2]
-end
-
-function route!(f, application::Server, pattern)
-    route!(application, pattern => f)
-end
-
-function websocket_route!(application::Server, pattern_f::Pair)
-    application.websocket_routes[pattern_f[1]] = pattern_f[2]
 end

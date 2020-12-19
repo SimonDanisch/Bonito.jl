@@ -1,3 +1,37 @@
+
+"""
+    App(handler)
+
+calls handler with the session and the http request object.
+f is expected to return a valid DOM object,
+so something renderable by jsrender, e.g. `DOM.div`.
+"""
+struct App
+    handler::Function
+    function App(handler::Function)
+        if hasmethod(handler, Tuple{Session, HTTP.Request})
+            return new(handler)
+        elseif hasmethod(handler, Tuple{Session})
+            return new((session, request) -> handler(session))
+        elseif hasmethod(handler, Tuple{HTTP.Request})
+            return new((session, request) -> handler(request))
+        elseif hasmethod(handler, Tuple{})
+           return new((session, request) -> handler())
+        else
+            error("""
+            Handler function must have the following signature:
+                handler() -> DOM
+                handler(session::Session) -> DOM
+                handler(request::Request) -> DOM
+                handler(session, request) -> DOM
+            """)
+        end
+    end
+    function App(dom_object)
+        return new((s, r)-> dom_object)
+    end
+end
+
 """
 The string part of JSCode.
 """
@@ -140,6 +174,7 @@ struct Session
     init_error::Ref{Union{Nothing, JSException}}
     js_comm::Observable{Union{Nothing, Dict{String, Any}}}
     on_close::Observable{Bool}
+    deregister_callbacks::Vector{Observables.ObserverFunction}
 end
 
 struct Routes

@@ -19,7 +19,6 @@ using Tables
 using Colors
 using LinearAlgebra
 
-
 include("types.jl")
 include("server.jl")
 include("js_source.jl")
@@ -61,7 +60,6 @@ function has_html_display()
     return false
 end
 
-
 function __init__()
     url = if haskey(ENV, "JULIA_WEBIO_BASEURL")
         ENV["JULIA_WEBIO_BASEURL"]
@@ -81,6 +79,5 @@ function __init__()
         browser_display()
     end
 end
-
 
 end # module

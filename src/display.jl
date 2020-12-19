@@ -3,7 +3,7 @@ const GLOBAL_SERVER = Ref{Server}()
 function get_server()
     if !isassigned(GLOBAL_SERVER) || istaskdone(GLOBAL_SERVER[].server_task[])
         GLOBAL_SERVER[] = Server(
-            (ctx, request)-> "Nothing to see",
+            App("Nothing to see"),
             JSSERVE_CONFIGURATION.listen_url[],
             JSSERVE_CONFIGURATION.listen_port[],
             verbose=JSSERVE_CONFIGURATION.verbose[]
@@ -12,122 +12,70 @@ function get_server()
     return GLOBAL_SERVER[]
 end
 
-"""
-    App(handler)
-
-calls handler with the session and the http request object.
-f is expected to return a valid DOM object,
-so something renderable by jsrender, e.g. `DOM.div`.
-"""
-struct App
-    handler::Function
-    function App(handler::Function)
-        if hasmethod(handler, Tuple{Session, HTTP.Request})
-            return new(handler)
-        elseif hasmethod(handler, Tuple{Session})
-            return new((session, request) -> handler(session))
-        elseif hasmethod(handler, Tuple{HTTP.Request})
-            return new((session, request) -> handler(request))
-        elseif hasmethod(handler, Tuple{})
-           return new((session, request) -> handler())
-        else
-            error("""
-            Handler function must have the following signature:
-                handler() -> DOM
-                handler(session::Session) -> DOM
-                handler(request::Request) -> DOM
-                handler(session, request) -> DOM
-            """)
-        end
-    end
-    function App(dom_object)
-        return new((s, r)-> dom_object)
-    end
-end
-
 const WebMimes = (
     MIME"text/html",
     MIME"application/prs.juno.plotpane+html",
 )
 
-
-function resize_iframe_event_handler(app)
-    remote_origin = JSServe.local_url(app, "")
-    js"""
-    function resize_jsserve_iframe(event) {
-       if (event.origin !== $(remote_origin)) {
-           return;
-       }
-       const uuid = event.data[0];
-       const width = event.data[1];
-       const height = event.data[2];
-       const iframe = document.getElementById(uuid);
-       if (iframe) {
-           iframe.style.width = width + "px";
-           iframe.style.height = height + "px";
-       }
-    };
-    if (window.addEventListener) {
-       window.addEventListener("message", resize_jsserve_iframe, false);
-    } else if (window.attachEvent) {
-       window.attachEvent("onmessage", resize_jsserve_iframe);
-    }
+function iframe_html(server::Server, session::Session, route::String)
+    # Display the route we just added in an iframe inline:
+    url = repr(local_url(server, route))
+    remote_origin = local_url(server, "")
+    style = "position: relative; display: block; width: 100%; height: 100%; padding: 0; overflow: hidden; border: none"
+    return """
+    <script>
+        function register_resize_handler(remote_origin) {
+            function resize_callback(event) {
+                if (event.origin !== remote_origin) {
+                    return;
+                }
+                console.log("resizing")
+                const uuid = event.data[0];
+                const width = event.data[1];
+                const height = event.data[2];
+                console.log(width)
+                console.log(height)
+                console.log(uuid)
+                const iframe = document.getElementById(uuid);
+                if (iframe) {
+                    iframe.style.width = width + "px";
+                    iframe.style.height = height + "px";
+                }
+            }
+            if (window.addEventListener) {
+                window.addEventListener("message", resize_callback, false);
+            } else if (window.attachEvent) {
+                window.attachEvent("onmessage", resize_callback);
+            }
+        }
+        register_resize_handler($(repr(remote_origin)))
+    </script>
+    <iframe src=$(url) id="$(session.id)" style="$(style)" scrolling="no">
+    </iframe>
     """
 end
 
 for M in WebMimes
-    @eval function Base.show(io::IO, m::$M, dom::App)
-        is_this_first_time = isassigned(GLOBAL_SERVER)
-        application = get_server()
+    @eval function Base.show(io::IO, m::$M, app::App)
+        println("####################################################")
+        server = get_server()
         session = Session()
-        session_url = "/$(session.id)"
-        route!(application, session_url) do context
-            # Serve the actual content
+        session_route = "/$(session.id)"
+        # Our default is to display the app in an IFrame, which is a bit complicated
+        # we need to resize the iframe based on its content, which is a bit complicated
+        # because we can't directly access it. So we sent a message here
+        # to the parent iframe, for which we register an
+        # event handler via resize_iframe_parent, which then
+        # resizes the parent iframe accordingly
+        route!(server, session_route) do context
             application = context.application
+            request = context.request
             application.sessions[session.id] = session
-            html_dom = Base.invokelatest(dom.handler, session, context.request)
-            resize_script = js"""
-                // we need to resize the iframe based on its content, which is a bit complicated
-                // because we can't directly access it. So we sent a message here
-                // to the parent iframe, for which we register an
-                // event handler via resize_iframe_event_handler, which then
-                // resizes the parent iframe accordingly
-                {
-                    (function (){
-                        const body = document.body;
-                        const html = document.documentElement;
-                        const height = Math.max(body.scrollHeight, body.offsetHeight,
-                                                html.clientHeight, html.scrollHeight,
-                                                html.offsetHeight);
-                        const width = Math.max(body.scrollWidth, body.offsetWidth,
-                                               html.clientWidth, html.scrollHeight,
-                                               html.offsetWidth);
-                        if (parent.postMessage) {
-                            parent.postMessage([$(session.id), width, height], "*");
-                        }
-                    })()
-                }
-            """
-            on_document_load(session, resize_script)
+            on_document_load(session, js"resize_iframe_parent($(session.id))")
+            html_dom = Base.invokelatest(app.handler, session, request)
             return html(dom2html(session, html_dom))
         end
-        # Display the route we just added in an iframe inline:
-        url = repr(local_url(application, session_url))
-        style = "position: relative; display: block; width: 100%; height: 100%; padding: 0; overflow: hidden; border: none"
-        println(io, """
-        <iframe src=$(url) id="$(session.id)" style="$(style)" scrolling="no">
-        </iframe>
-        """)
-        # When this is called for the first time, we need to register
-        # a resize handler for the iframes
-        # This is global, so doesn't need to be done every time
-        if is_this_first_time
-            println(io, """
-            <script>
-            $(resize_iframe_event_handler(application))
-            </script>
-            """)
-        end
+        println(io, iframe_html(server, session, session_route))
     end
 end
 
@@ -139,14 +87,13 @@ function Base.show(io::IO, ::MIME"application/vnd.webio.application+html", dom::
     println(io, dom2html(session, dom))
 end
 
-function dom2html(session::Session, dom)
-    js_dom = DOM.div(jsrender(session, dom), id="application-dom")
+function dom2html(session::Session, app)
+    js_dom = DOM.div(jsrender(session, app), id="application-dom")
     # register resources (e.g. observables, assets)
     register_resource!(session, js_dom)
     proxy_url = JSSERVE_CONFIGURATION.websocket_proxy[]
     html = repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
     serializer = session.url_serializer
-
     return """
     <html>
     <head>
@@ -171,7 +118,6 @@ function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+ht
         export_folder = get(io, :export_folder, "/")
         absolute_urls = get(io, :absolute_urls, false)
         content_delivery_url = get(io, :content_delivery_url, "")
-
         html, session = export_standalone(dom.handler, export_folder;
             absolute_urls=absolute_urls,
             content_delivery_url=content_delivery_url,
@@ -180,7 +126,6 @@ function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+ht
         # are online!
         application = get_server()
         application.sessions[session.id] = session
-
         println(io, html)
     else
         show(io.io, m, dom)

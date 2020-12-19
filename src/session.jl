@@ -26,7 +26,8 @@ function Session(connection::Base.RefValue{WebSocket}=Base.RefValue{WebSocket}()
         url_serializer,
         Ref{Union{Nothing, JSException}}(nothing),
         Observable{Union{Nothing, Dict{String, Any}}}(nothing),
-        Observable(false)
+        Observable(false),
+        Observables.ObserverFunction[]
     )
 end
 
@@ -49,6 +50,8 @@ function Base.close(session::Session)
     empty!(session.on_document_load)
     empty!(session.message_queue)
     empty!(session.dependencies)
+    # remove all listeners that where created for this session
+    foreach(off, session.deregister_callbacks)
 end
 
 """
@@ -99,7 +102,7 @@ end
 calls javascript `func` with node, once node has been displayed.
 """
 function onload(session::Session, node::Node, func::JSCode)
-    on_document_load(session, js"($(func))($(selector(node)));")
+    on_document_load(session, js"($(func))($(node));")
 end
 
 """
@@ -185,7 +188,7 @@ end
 Walks dom like structures and registers all resources (Observables, Assets Depencies)
 with the session.
 """
-register_resource!(session::Session, @nospecialize(jss)) = nothing # do nothing for unknown type
+register_resource!(session::Session, @nospecialize(obj)) = nothing # do nothing for unknown type
 
 function register_resource!(session::Session, list::Union{Tuple, AbstractVector, Pair})
     for elem in list
@@ -220,12 +223,8 @@ function Base.push!(session::Session, observable::Observable)
         # Register on the JS side by sending the current value
         updater = JSUpdateObservable(session, observable.id)
         # Make sure we update the Javascript values!
-        on(updater, observable)
-        if isopen(session)
-            # If websockets are already open, we need to also update the value
-            # to register it with js
-            updater(observable[])
-        end
+        on(updater, session, observable)
+        updater(observable[])
     end
 end
 
