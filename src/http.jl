@@ -88,8 +88,7 @@ function handle_ws_connection(application::Server, session::Session, websocket::
         end
     catch e
         # IOErrors
-        status_close = (e isa WebSockets.WebSocketError && e.status in (1001, 1000))
-        if !(status_close || e isa Base.IOError)
+        if !(e isa WebSockets.WebSocketClosedError || e isa Base.IOError)
             err = CapturedException(e, Base.catch_backtrace())
             @warn "error in websocket handler!" exception=err
         end

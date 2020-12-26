@@ -147,10 +147,9 @@ function warmup(application::Server)
 end
 
 function stream_handler(application::Server, stream::Stream)
-    if WebSockets.is_upgrade(stream.message)
+    if WebSockets.is_upgrade(stream)
         try
-            WebSockets.upgrade(stream; binary=true) do websocket
-                request = stream.message
+            WebSockets.upgrade(stream) do request, websocket
                 delegate(
                     application.websocket_routes, application, request, websocket
                 )

@@ -264,7 +264,7 @@ function websocket_send(data) {
     if (has_conenction) {
         if (session_websocket[0]) {
             if (session_websocket[0].readyState == 1) {
-                session_websocket[0].send(msgpackr.pack(data));
+                session_websocket[0].send(msgpack.encode(data));
             } else {
                 console.log("Websocket not in readystate!");
                 // wait until in ready state
@@ -386,7 +386,7 @@ function setup_connection() {
             console.log("CONNECTED!!: ", url)
             websocket.onmessage = function(evt) {
                 const binary = new Uint8Array(evt.data);
-                const data = msgpackr.unpack(binary);
+                const data = msgpack.decode(binary);
                 process_message(data);
             };
         };

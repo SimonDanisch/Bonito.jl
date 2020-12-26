@@ -43,8 +43,6 @@ function Base.close(session::Session)
         if !(e isa Base.IOError)
             @warn "error while closing websocket!" exception=e
         end
-    finally
-        isassigned(session.connection) && (session.connection[].rxclosed = true)
     end
 
     session.on_close[] = true
