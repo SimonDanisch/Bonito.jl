@@ -1,9 +1,11 @@
+using JSServe
+using Observables
 using Hyperscript
-using JSServe, Observables
+
 using JSServe.DOM
 
-using JSServe: Application, evaljs, linkjs
-using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, with_session
+using JSServe: Server, evaljs, linkjs
+using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency
 
 struct Editor
     source::Observable{String}
@@ -18,7 +20,7 @@ const ace = JSServe.Dependency(
     ["https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"]
 )
 
-function dom_handler(session, request)
+app = App() do session::Session
     s = Style(css("div",
         position = "absolute",
         top = 0,
@@ -48,10 +50,9 @@ function dom_handler(session, request)
             });
             // use setOptions method
             editor.setOption("mergeUndoDeltas", "always");
-
         }
     """)
     return DOM.div(DOM.style(styles(s)), s(dom))
 end
 
-app = Application(dom_handler, "127.0.0.1", 8081)
+display(app)

@@ -191,10 +191,10 @@ function replace_expressions(markdown::Markdown.Code, context; eval_julia_code=f
             result[] = render_result(evaled)
         end
         return md"""
-            $(markdown)
-            $(run)
-            $(result)
-            """
+        $(markdown)
+        $(run)
+        $(result)
+        """
     else
         return markdown
     end

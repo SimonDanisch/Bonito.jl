@@ -23,10 +23,26 @@ function update_nocycle!(obs::Observable, value)
 end
 
 function jsrender(session::Session, obs::Observable)
-    html = map(obs) do data
+    html = map(session, obs) do data
         repr_richest(jsrender(session, data))
     end
     dom = DOM.m_unesc("span", html[])
     onjs(session, html, js"(html)=> update_dom_node($(dom), html)")
     return dom
+end
+
+# on & map versions that deregister when session closes!
+function Observables.on(f, session::Session, observable::Observable)
+    to_deregister = on(f, observable)
+    push!(session.deregister_callbacks, to_deregister)
+    return to_deregister
+end
+
+function Base.map(f, session::Session, observable::Observable; result=Observable{Any}())
+    # map guarantees to be run upfront!
+    result[] = f(observable[])
+    on(session, observable) do newval
+        result[] = f(newval)
+    end
+    return result
 end

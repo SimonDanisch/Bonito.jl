@@ -1,17 +1,22 @@
 
 function init_session(session::Session)
     put!(session.js_fully_loaded, true)
-    messages = copy(session.message_queue)
+    messages = []
+    for (id, (reg, obs)) in session.observables
+        push!(messages, Dict(:msg_type=>UpdateObservable, :payload=>obs[], :id=>obs.id))
+    end
+    append!(messages, session.message_queue)
+    for js in session.on_document_load
+        push!(messages, Dict(:msg_type=>EvalJavascript, :payload=>js))
+    end
     empty!(session.message_queue)
     send(session; msg_type=FusedMessage, payload=messages)
 end
 
-function Session(connections::Vector{WebSocket}=WebSocket[]; url_serializer=UrlSerializer(), id=string(uuid4()))
+function Session(connection::Base.RefValue{WebSocket}=Base.RefValue{WebSocket}(); url_serializer=UrlSerializer(), id=string(uuid4()))
     return Session(
-        Ref(false),
-        connections,
+        connection,
         Dict{String, Tuple{Bool, Observable}}(),
-        Any[],
         Dict{Symbol, Any}[],
         Set{Asset}(),
         JSCode[],
@@ -19,53 +24,34 @@ function Session(connections::Vector{WebSocket}=WebSocket[]; url_serializer=UrlS
         Channel{Bool}(1),
         init_session,
         url_serializer,
-        Ref{Union{Nothing, JSException}}(nothing)
+        Ref{Union{Nothing, JSException}}(nothing),
+        Observable{Union{Nothing, Dict{String, Any}}}(nothing),
+        Observable(false),
+        Observables.ObserverFunction[]
     )
 end
 
 session(session::Session) = session
 
 function Base.close(session::Session)
-    foreach(close, session.connections)
-    empty!(session.connections)
+    try
+        # https://github.com/JuliaWeb/HTTP.jl/issues/649
+        if isassigned(session.connection)
+            close(session.connection[])
+        end
+    catch e
+        if !(e isa Base.IOError)
+            @warn "error while closing websocket!" exception=e
+        end
+    end
+
+    session.on_close[] = true
     empty!(session.observables)
-    empty!(session.objects)
     empty!(session.on_document_load)
     empty!(session.message_queue)
     empty!(session.dependencies)
-end
-
-"""
-    queued_as_script(session::Session)
-
-Returns all queued messages as a script that can be included into html
-"""
-function queued_as_script(session::Session)
-    # send all queued messages
-    # # first register observables
-    observables = Dict{String, Any}()
-    for (id, (registered, observable)) in session.observables
-        observables[observable.id] = observable[]
-    end
-    codes = JSServe.serialize_message_readable.(session.message_queue)
-    empty!(session.message_queue)
-    source, data = JSServe.serialize2string(codes)
-
-    data = Dict("observables" => observables, "payload" => data)
-    isdir(dependency_path("session_temp_data")) || mkdir(dependency_path("session_temp_data"))
-    deps_path = dependency_path("session_temp_data", session.id * ".msgpack")
-
-    open(io -> MsgPack.pack(io, serialize_js(data)), deps_path, "w")
-    data_url = url(Asset(deps_path), session.url_serializer)
-    return js"""
-
-    $(session.on_document_load)
-
-    function init_function(__data_dependencies) {
-        $(JSString(source))
-    }
-    init_from_file(init_function, $(data_url));
-    """
+    # remove all listeners that where created for this session
+    foreach(off, session.deregister_callbacks)
 end
 
 """
@@ -75,39 +61,17 @@ Send values to the frontend via JSON for now
 """
 Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
-const message_counter = Ref(0)
-
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
-    message_counter[] += 1
-    if isopen(session) && !session.fusing[] && isready(session.js_fully_loaded)
+    if isopen(session) && isready(session.js_fully_loaded)
         @assert isempty(session.message_queue)
-        for connection in session.connections
-            serialize_websocket(connection, message)
-        end
+        serialize_websocket(session.connection[], message)
     else
         push!(session.message_queue, message)
     end
 end
 
-fuse(f, has_session) = fuse(f, session(has_session))
-function fuse(f, session::Session)
-    oldval = session.fusing[]
-    session.fusing[] = true
-    result = f()
-    session.fusing[] = oldval
-    if !isempty(session.message_queue)
-        # only sent when open!
-        if isopen(session)
-            fused = copy(session.message_queue)
-            empty!(session.message_queue)
-            send(session; msg_type=FusedMessage, payload=fused)
-        end
-    end
-    return result
-end
-
 function Base.isopen(session::Session)
-    return !isempty(session.connections) && any(isopen, session.connections)
+    return isassigned(session.connection) && isopen(session.connection[])
 end
 
 """
@@ -124,7 +88,7 @@ function onjs(session::Session, obs::Observable, func::JSCode)
         session;
         msg_type=OnjsCallback,
         id=obs.id,
-        payload=js"($(func))"
+        payload=JSCode([JSString("return "), func])
     )
 end
 
@@ -138,7 +102,7 @@ end
 calls javascript `func` with node, once node has been displayed.
 """
 function onload(session::Session, node::Node, func::JSCode)
-    on_document_load(session, js"($(func))($node);")
+    on_document_load(session, js"($(func))($(node));")
 end
 
 """
@@ -180,36 +144,6 @@ function evaljs(has_session, jss::JSCode)
     evaljs(session(has_session), jss)
 end
 
-function delete_objects(session::Session, objects::Vector{String})
-    send(session; msg_type=DeleteObjects, payload=objects)
-end
-
-const JS_COMM_CHANNEL = Channel{Dict{String, Any}}(1)
-const JS_COMM_OBSERVABLE = Observable(Dict{String, Any}())
-
-"""
-    get_js_comm()
-
-Gets the JS communication channels and asserts, that they're in the right state!
-"""
-function get_js_comm()
-    # on first run, we need to register our listener
-    if isempty(JS_COMM_OBSERVABLE.listeners)
-        # whenever we get a new value, put it in the channel
-        on(JS_COMM_OBSERVABLE) do value
-            put!(JS_COMM_CHANNEL, value)
-        end
-    end
-
-    @assert length(JS_COMM_OBSERVABLE.listeners) >= 1
-    js_listeners = @view JS_COMM_OBSERVABLE.listeners[2:end]
-    # There should be only the listeners needed to forward values to the Frontend!
-    @assert all(x-> x isa JSUpdateObservable, js_listeners) "Someone else registered to the comm channel. Nobody should do this!!"
-    @assert isopen(JS_COMM_CHANNEL)
-    @assert !isready(JS_COMM_CHANNEL) "Channel is still containing a value from another run!"
-    return JS_COMM_OBSERVABLE, JS_COMM_CHANNEL
-end
-
 """
     evaljs_value(session::Session, js::JSCode)
 
@@ -223,7 +157,9 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=100.0
         It may unblock, if the browser is still connecting and opening the session later on. If this is expected,
         you may try setting `error_on_closed=false`")
     end
-    comm, comm_channel = get_js_comm()
+
+    comm = session.js_comm
+    comm.val = nothing
     js_with_result = js"""
     try{
         const result = $(js);
@@ -232,16 +168,22 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=100.0
         update_obs($(comm), {error: e.toString()});
     }
     """
+
     evaljs(session, js_with_result)
     # TODO, have an on error callback, that triggers when evaljs goes wrong
     # (e.g. because of syntax error that isn't caught by the above try catch!)
-    wait_timeout(()-> isready(comm_channel), "Waited for $(time_out) seconds for JS to return, but it didn't!", time_out)
-    value = take!(comm_channel)
+    result = Base.timedwait(()-> comm[] !== nothing, time_out)
+    result == :time_out && error("Waited for $(time_out) seconds for JS to return, but it didn't!")
+    value = comm[]
     if haskey(value, "error")
         error(value["error"])
     else
         return value["result"]
     end
+end
+
+function evaljs_value(with_session, js; error_on_closed=true, time_out=100.0)
+    evaljs_value(session(with_session), js)
 end
 
 """
@@ -250,7 +192,7 @@ end
 Walks dom like structures and registers all resources (Observables, Assets Depencies)
 with the session.
 """
-register_resource!(session::Session, @nospecialize(jss)) = nothing # do nothing for unknown type
+register_resource!(session::Session, @nospecialize(obj)) = nothing # do nothing for unknown type
 
 function register_resource!(session::Session, list::Union{Tuple, AbstractVector, Pair})
     for elem in list
@@ -269,7 +211,7 @@ function register_resource!(session::Session, jss::JSCode)
     register_resource!(session, jss.source)
 end
 
-function register_resource!(session::Session, asset::Union{Asset, Dependency, Observable, JSObject})
+function register_resource!(session::Session, asset::Union{Asset, Dependency, Observable})
     push!(session, asset)
 end
 
@@ -285,12 +227,8 @@ function Base.push!(session::Session, observable::Observable)
         # Register on the JS side by sending the current value
         updater = JSUpdateObservable(session, observable.id)
         # Make sure we update the Javascript values!
-        on(updater, observable)
-        if isopen(session)
-            # If websockets are already open, we need to also update the value
-            # to register it with js
-            updater(observable[])
-        end
+        on(updater, session, observable)
+        updater(observable[])
     end
 end
 
@@ -307,60 +245,4 @@ function Base.push!(session::Session, asset::Asset)
         on_document_load(session, asset.onload)
     end
     return asset
-end
-
-function Base.push!(session::Session, websocket::WebSocket)
-    push!(session.connections, websocket)
-    filter!(isopen, session.connections)
-    return session
-end
-
-function Base.push!(session::Session, object::JSObject)
-    push!(session.objects, object)
-    return object
-end
-
-function serialize_message_readable(message)
-    type = message[:msg_type]
-    if type == UpdateObservable
-        return js"        {const value = $(message[:payload]);
-                          registered_observables[$(message[:id])] = value;
-                          // update all onjs callbacks
-                          run_js_callbacks($(message[:id]), value);}"
-    elseif type == OnjsCallback
-        return js"""        {
-                const func = $(message[:payload]);
-                register_onjs(func, $(message[:id]));
-                }
-        """
-    elseif type == EvalJavascript
-        return js"        {$(message[:payload])}"
-    elseif type == JSCall
-        args = if message[:arguments] isa Tuple
-            if isempty(message[:arguments])
-                JSString("")
-            else
-                args = []
-                for arg in message[:arguments][1:end-1]
-                    push!(args, arg)
-                    push!(args, JSString(", "))
-                end
-                push!(args, message[:arguments][end])
-                JSCode(args)
-            end
-        else
-            message[:arguments]
-        end
-        return js"        put_on_heap($(message[:result]), $(message[:func])($(args)));"
-    elseif type == JSGetIndex
-        return js"        get_js_index($(message[:object]), $(message[:field]), $(message[:result]));"
-    elseif type == JSSetIndex
-        return js"        $(message[:object])[$(message[:field])] = $(message[:value]);"
-    elseif type == FusedMessage
-        return serialize_message_readable.(message[:payload])
-    elseif type == DeleteObjects
-        return js"        delete_heap_objects($(message[:payload]));"
-    else
-        error("type not found: $(type)")
-    end
 end

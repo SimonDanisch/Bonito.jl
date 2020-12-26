@@ -1,14 +1,16 @@
-using JSServe, Observables, WGLMakie, AbstractPlotting
-using JSServe: @js_str, onjs, with_session, onload, Button, TextField, Slider, linkjs, serve_dom
-using JSServe.DOM
+using JSServe
+using WGLMakie
 using GeometryBasics
-using MakieGallery, FileIO
-using AbstractPlotting.MakieLayout
+using FileIO
+using WGLMakie: px
+using JSServe: @js_str, onjs, App, Slider
+using JSServe.DOM
+
+JSServe.browser_display()
 
 set_theme!(resolution=(1200, 800))
 
-
-function dom_handler(session, request)
+app = App() do
     return hbox(
         vbox(
             scatter(1:4, color=1:4),
@@ -18,19 +20,21 @@ function dom_handler(session, request)
             scatter(1:4)
         ),
         vbox(
-            scatter(1:4, marker='☼'),
-            scatter(1:4, marker=['☼', '◒', '◑', '◐']),
-            scatter(1:4, marker="☼◒◑◐"),
-            # scatter(1:4, marker=rand(RGBf0, 10, 10), markersize=20px),
-            scatter(1:4, markersize=20px),
-            scatter(1:4, markersize=20, markerspace=Pixel),
-            scatter(1:4, markersize=LinRange(20, 60, 4), markerspace=Pixel),
-            scatter(1:4, marker='▲', markersize=0.3, rotations=LinRange(0, pi, 4)),
-            )
+        scatter(1:4, marker='☼'),
+        scatter(1:4, marker=['☼', '◒', '◑', '◐']),
+        scatter(1:4, marker="☼◒◑◐"),
+        # scatter(1:4, marker=rand(RGBf0, 10, 10), markersize=20px),
+        scatter(1:4, markersize=20px),
+        scatter(1:4, markersize=20, markerspace=Pixel),
+        scatter(1:4, markersize=LinRange(20, 60, 4), markerspace=Pixel),
+        scatter(1:4, marker='▲', markersize=0.3, rotations=LinRange(0, pi, 4)),
         )
+    )
 end
 
-function dom_handler(session, request)
+display(app)
+
+app = App() do
     return DOM.div(
         meshscatter(1:4, color=1:4),
         meshscatter(1:4, color=rand(RGBAf0, 4)),
@@ -41,7 +45,10 @@ function dom_handler(session, request)
     )
 end
 
-function dom_handler(session, request)
+display(app)
+
+
+app = App() do
     x = Point2f0[(1, 1), (2, 2), (3, 2), (4, 4)]
     points = connect(x, LineFace{Int}[(1, 2), (2, 3), (3, 4)])
     return DOM.div(
@@ -54,7 +61,9 @@ function dom_handler(session, request)
     )
 end
 
-function dom_handler(session, request)
+display(app)
+
+app = App() do
     x = Point2f0[(1, 1), (2, 2), (3, 2), (4, 4)]
     points = connect(x, LineFace{Int}[(1, 2), (2, 3), (3, 4)])
     return DOM.div(
@@ -67,8 +76,9 @@ function dom_handler(session, request)
     )
 end
 
+display(app)
 
-function dom_handler(session, request)
+app = App() do
     data = AbstractPlotting.peaks()
     return hbox(vbox(
         surface(-10..10, -10..10, data, show_axis=false),
@@ -78,7 +88,9 @@ function dom_handler(session, request)
     ))
 end
 
-function dom_handler(session, request)
+display(app)
+
+app = App() do
     return vbox(
         image(rand(10, 10)),
         heatmap(rand(10, 10)),
@@ -89,7 +101,9 @@ function dom_handler(session, request)
     )
 end
 
-function dom_handler(session, request)
+display(app)
+
+app = App() do
     return hbox(vbox(
         volume(rand(4, 4, 4), isovalue=0.5, isorange=0.01, algorithm=:iso),
         volume(rand(4, 4, 4), algorithm=:mip),
@@ -101,7 +115,10 @@ function dom_handler(session, request)
     ))
 end
 
-function dom_handler(session, request)
+display(app)
+
+
+app = App() do
     cat = FileIO.load(MakieGallery.assetpath("cat.obj"))
     tex = FileIO.load(MakieGallery.assetpath("diffusemap.png"))
     return hbox(vbox(
@@ -111,6 +128,8 @@ function dom_handler(session, request)
         AbstractPlotting.mesh([(0.0, 0.0), (0.5, 1.0), (1.0, 0.0)]; color=[:red, :green, :blue], shading=false)
     ))
 end
+
+display(app)
 
 function n_times(f, n=10, interval=0.5)
     obs = Observable(f(1))
@@ -124,6 +143,8 @@ function n_times(f, n=10, interval=0.5)
     end
     return obs
 end
+
+
 function n_times(f, n=10, interval=1)
     obs = Observable(f(1))
     @async for i in 2:n
@@ -136,7 +157,8 @@ function n_times(f, n=10, interval=1)
     end
     return obs
 end
-function dom_handler(session, request)
+
+app = App() do
     s1 = annotations(n_times(i-> map(j-> ("$j", Point2f0(j*30, 0)), 1:i)), textsize=20,
                       limits=FRect2D(30, 0, 320, 50))
     s2 = scatter(n_times(i-> Point2f0.((1:i).*30, 0)), markersize=20px,
@@ -145,28 +167,34 @@ function dom_handler(session, request)
     s4 = lines(n_times(i-> Point2f0.((2:2:2i).*30, 0)), limits=FRect2D(30, 0, 620, 50))
     return hbox(s1, s2, s3, s4)
 end
-using AbstractPlotting.MakieLayout
-function dom_handler(session, request)
+
+display(app)
+
+
+app = App() do
     outer_padding = 30
     scene, layout = layoutscene(
-        outer_padding, resolution = (1200, 700),
-        backgroundcolor = RGBf0(0.98, 0.98, 0.98))
-    ax1 = layout[1, 1] = LAxis(scene, title = "Sine")
+        outer_padding, resolution=(1200, 700),
+        backgroundcolor=RGBf0(0.98, 0.98, 0.98)
+    )
+    ax1 = layout[1, 1] = LAxis(scene, title="Sine")
     xx = 0:0.2:4pi
-    line1 = lines!(ax1, sin.(xx), xx, color = :red)
+    line1 = lines!(ax1, sin.(xx), xx, color=:red)
     scat1 = scatter!(ax1, sin.(xx) .+ 0.2 .* randn.(), xx,
-        color = (:red, 0.5), markersize = 15px, marker = '■')
+        color=(:red, 0.5), markersize=15px, marker='■')
     return scene
 end
 
-function dom_handler(r, s)
-    scene = Scene(resolution = (1000, 1000));
-    screen = display(scene)
+display(app)
+
+
+app = App() do
+    scene = Scene(resolution=(1000, 1000));
     campixel!(scene);
 
-    maingl = GridLayout(scene, alignmode = Outside(30))
+    maingl = GridLayout(scene, alignmode=Outside(30))
 
-    las = Array{LAxis, 2}(undef, 4, 4)
+    las = Array{LAxis,2}(undef, 4, 4)
 
     for i in 1:4, j in 1:4
         las[i, j] = maingl[i, j] = LAxis(scene)
@@ -194,17 +222,20 @@ function dom_handler(r, s)
     return scene
 
 end
-function handler(s, r)
+
+display(app)
+
+
+app = App() do
     sl = JSServe.Slider(1:10)
     rect = FRect2D(0, -5, 1025, 10)
     chars = [collect('a':'z'); 0:9;]
     char2 = [collect('A':'Z'); 0:9;]
     tex1 = map(x->map(j-> ("$(chars[rand(1:length(chars))])", Point2f0(j*30, 0)), 1:36), sl)
     tex2 = map(x->map(j-> ("$(char2[rand(1:length(char2))])", Point2f0(j*30, 1)), 1:36), sl)
-    global scene = annotations(tex1, textsize=20, limits=rect, show_axis=false)
+    scene = annotations(tex1, textsize=20, limits=rect, show_axis=false)
     annotations!(scene, tex2, textsize=20, limits=rect, show_axis=false)
     return DOM.div(sl, scene)
 end
 
-isdefined(Main, :app) && close(app)
-app = JSServe.Application(dom_handler, "127.0.0.1", 8082)
+display(app)

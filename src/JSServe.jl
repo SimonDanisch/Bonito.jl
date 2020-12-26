@@ -1,26 +1,26 @@
 module JSServe
 
 import Sockets
-using UUIDs, Hyperscript, Hyperscript, JSON3, Observables
+using UUIDs, Hyperscript, JSON3, Observables
 import Sockets: send, TCPServer
 using Hyperscript: Node, children, tag
 using HTTP, Markdown
 using HTTP: Response, Request
 using HTTP.Streams: Stream
 using WebSockets
+using WebSockets: WebSocket
+
 using Base64
 using MsgPack
 using WidgetsBase
 using WidgetsBase: vertical, horizontal
 using SHA
 using Tables
-import AbstractTrees
 using Colors
 using LinearAlgebra
 
-struct BrowserDisplay <: Base.Multimedia.AbstractDisplay end
-
 include("types.jl")
+include("server.jl")
 include("js_source.jl")
 include("session.jl")
 include("observables.jl")
@@ -30,13 +30,10 @@ include("util.jl")
 include("widgets.jl")
 include("hyperscript_integration.jl")
 include("display.jl")
-include("jscall.jl")
 include("markdown_integration.jl")
 include("serialization.jl")
-include("diffing.jl")
-include("figma.jl")
 include("offline.jl")
-include("styling.jl")
+include("browser_display.jl")
 
 const JSSERVE_CONFIGURATION = (
     # The URL used to which the default server listens to
@@ -63,7 +60,6 @@ function has_html_display()
     return false
 end
 
-
 function __init__()
     url = if haskey(ENV, "JULIA_WEBIO_BASEURL")
         ENV["JULIA_WEBIO_BASEURL"]
@@ -77,20 +73,11 @@ function __init__()
     JSSERVE_CONFIGURATION.websocket_proxy[] = url
     JSSERVE_CONFIGURATION.content_delivery_url[] = url
     JSSERVE_CONFIGURATION.listen_port[] = parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081"))
-
-    atexit() do
-        # remove session folder, in which we store data dependencies temporary
-        # TODO remove whenever a session is closed to not accumulate waste until julia
-        # gets closed
-        rm(dependency_path("session_temp_data"), recursive=true, force=true)
-    end
-
-    start_gc_task()
-
+    # If there is no html inline display in the IDE that JSServe is running
+    # we display things in the local browser
     if !has_html_display()
-        push!(Base.Multimedia.displays, BrowserDisplay())
+        browser_display()
     end
 end
-
 
 end # module

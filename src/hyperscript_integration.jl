@@ -54,6 +54,11 @@ end
 
 using .DOM
 
+function selector(node)
+    query_string = "[data-jscall-id=$(repr(uuid(node)))]"
+    return js"(document.querySelector($(query_string)))"
+end
+
 # default turn attributes into strings
 attribute_render(session::Session, parent, attribute::String, x) = string(x)
 attribute_render(session::Session, parent, attribute::String, x::Nothing) = x

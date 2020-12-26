@@ -4,14 +4,8 @@ const OnjsCallback = "1"
 const EvalJavascript = "2"
 const JavascriptError = "3"
 const JavascriptWarning = "4"
-
-const JSCall = "5"
-const JSGetIndex = "6"
-const JSSetIndex = "7"
 const JSDoneLoading = "8"
 const FusedMessage = "9"
-const DeleteObjects = "10"
-const OnUpdateObservable = "11"
 
 """
     request_to_sessionid(request; throw = true)
@@ -21,9 +15,9 @@ With throw = false, it can be used to check if a request
 contains a valid session/browser id for a websocket connection.
 Will return nothing if request is invalid!
 """
-function request_to_sessionid(request; throw = true)
-    if length(request.target) >= 1 + 36 + 1 + 3 + 1 # for /36session_id/4browser_id/
-        session_browser = split(request.target, "/", keepempty = false)
+function request_to_sessionid(request; throw=true)
+    if length(request.target) >= 42 # for /36session_id/4browser_id/
+        session_browser = split(request.target, "/", keepempty=false)
         if length(session_browser) == 2
             sessionid, browserid = string.(session_browser)
             if length(sessionid) == 36 && length(browserid) == 4
@@ -39,11 +33,11 @@ function request_to_sessionid(request; throw = true)
 end
 
 function html(body)
-    return HTTP.Response(200, ["Content-Type" => "text/html", "charset" => "utf-8"], body = body)
+    return HTTP.Response(200, ["Content-Type" => "text/html", "charset" => "utf-8"], body=body)
 end
 
-function response_404(body = "Not Found")
-    return HTTP.Response(404, ["Content-Type" => "text/html", "charset" => "utf-8"], body = body)
+function response_404(body="Not Found")
+    return HTTP.Response(404, ["Content-Type" => "text/html", "charset" => "utf-8"], body=body)
 end
 
 function replace_url(match_str)
@@ -87,34 +81,16 @@ function handle_ws_message(session::Session, message)
     end
 end
 
-"""
-    wait_timeout(condition, error_msg, timeout = 5.0)
-Wait until `condition` function returns true. If running out of time throws `error_msg`!
-"""
-function wait_timeout(condition::Function, error_msg::String, timeout = 5.0)
-    start_time = time()
-    while !condition()
-        sleep(0.001)
-        if (time() - start_time) > timeout
-            error(error_msg)
-        end
-    end
-    return
-end
-
-function handle_ws_connection(application::Application, session::Session, websocket::WebSocket)
-    # TODO, do we actually need to wait here?!
-    wait_timeout(()-> isopen(websocket), "Websocket not open after waiting 5s")
-    while isopen(websocket)
-        try
-            # TODO fuse all julia->js events triggered by an incoming message?
+function handle_ws_connection(application::Server, session::Session, websocket::WebSocket)
+    try
+        while isopen(websocket)
             handle_ws_message(session, read(websocket))
-        catch e
-            # IOErrors
-            if !(e isa WebSockets.WebSocketClosedError || e isa Base.IOError)
-                err = CapturedException(e, Base.catch_backtrace())
-                @warn "error in websocket handler!" exception=err
-            end
+        end
+    catch e
+        # IOErrors
+        if !(e isa WebSockets.WebSocketClosedError || e isa Base.IOError)
+            err = CapturedException(e, Base.catch_backtrace())
+            @warn "error in websocket handler!" exception=err
         end
     end
     close(session)
@@ -131,8 +107,12 @@ function websocket_handler(context, websocket::WebSocket)
     # Look up the connection in our sessions
     if haskey(application.sessions, sessionid)
         session = application.sessions[sessionid]
-        # We can have multiple sessions for a client
-        push!(session, websocket)
+        if isassigned(session.connection) && isopen(session.connection[])
+            # Would be nice to not error here - but I think this should never
+            # Happen, and if it happens, we need to debug it!
+            error("Session already has connection")
+        end
+        session.connection[] = websocket
         handle_ws_connection(application, session, websocket)
     else
         # This happens when an old session trys to reconnect to a new app

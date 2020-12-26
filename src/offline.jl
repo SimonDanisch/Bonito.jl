@@ -53,7 +53,7 @@ end
 function record_state_map(session::Session, dom::Hyperscript.Node)
     rendered = JSServe.jsrender(session, dom)
     widgets = extract_widgets(dom)
-    window = JSObject(session, :window)
+    window = Observable(:window)
     evaljs(session, js"put_on_heap($(uuidstr(window)), window); undefined;")
     window.dont_even_try_to_reconnect = true
     session.fusing[] = true
@@ -104,4 +104,40 @@ function record_state_map(session::Session, dom::Hyperscript.Node)
     window.independent_states = DontDeSerialize(independent_states)
     window.dependent_states = DontDeSerialize(dependent_states)
     return (dom=rendered, independent_states=independent_states, dependent_states=dependent_states)
+end
+
+"""
+export_standalone(dom_handler, folder::String;
+        absolute_urls=false, content_delivery_url="file://" * folder * "/",
+    )
+
+Exports the app defined by `dom_handler` with all its assets to `folder`.
+Will write the main html out into `folder/index.html`.
+Overwrites all existing files!
+If this gets served behind a proxy, set `absolute_urls=true` and
+set `content_delivery_url` to your proxy url.
+If `clear_folder=true` all files in `folder` will get deleted before exporting again!
+"""
+function export_standalone(dom_handler, folder::String;
+        clear_folder=false, write_index_html=true,
+        absolute_urls=false, content_delivery_url="file://" * folder * "/",
+    )
+    if clear_folder
+        for file in readdir(folder)
+            rm(joinpath(folder, file), force=true, recursive=true)
+        end
+    end
+    serializer = UrlSerializer(false, folder, absolute_urls, content_delivery_url)
+    # set id to "", since we dont needed, and like this we get nicer file names
+    session = Session(url_serializer=serializer)
+    html_dom = Base.invokelatest(dom_handler, session, (target="/",))
+    html_str = dom2html(session, html_dom)
+    if write_index_html
+        open(joinpath(folder, "index.html"), "w") do io
+            println(io, html_str)
+        end
+        return html_str, session
+    else
+        return html_str, session
+    end
 end

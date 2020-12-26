@@ -113,4 +113,4 @@ end
 JSServe.export_standalone(handler, "dev/WGLDemos/german_heat", clear_folder=true)
 
 # Or serve!
-# app = JSServe.Application(handler, "0.0.0.0", 8082)
+# app = JSServe.Server(handler, "0.0.0.0", 8082)

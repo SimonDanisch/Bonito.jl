@@ -1,16 +1,17 @@
 using Hyperscript, Markdown, Test
 using JSServe, Observables
 using JSServe: Session, evaljs, linkjs, div
-using JSServe: @js_str, onjs, JSString, Dependency, with_session, jsobject
+using JSServe: @js_str, onjs, JSString, Dependency
 using JSServe.DOM
 using JSServe.HTTP
 using Electron
 using ElectronDisplay
-using ElectronTests
 using URIParser
 using Random
 using Hyperscript: children
-using ElectronTests: TestSession
+using Test
+
+include("ElectronTests.jl")
 
 function wait_on_test_observable()
     global test_observable
@@ -22,7 +23,6 @@ function wait_on_test_observable()
     off(test_observable, f)
     return val
 end
-
 
 """
     test_value(app, statement)
@@ -45,15 +45,10 @@ function test_value(app, statement)
     fetch(val_t) # fetch the value!
 end
 
-function JSServe.evaljs(testsession::ElectronTests.TestSession, js::JSServe.JSReference)
-    JSServe.evaljs_value(testsession.session, js)
-end
-
 JSServe.JSSERVE_CONFIGURATION.listen_port[] = 8555
 
 @testset "JSServe" begin
     @testset "checkbox" begin; include("checkbox.jl"); end
     @testset "various" begin; include("various.jl"); end
     @testset "markdown" begin; include("markdown.jl"); end
-    @testset "diffing" begin; include("diffing.jl"); end
 end

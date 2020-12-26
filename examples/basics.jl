@@ -9,15 +9,13 @@ md"""
 """
 
 using JSServe, Observables
-using JSServe: @js_str, onjs, with_session, onload, Button, TextField, Slider, linkjs, serve_dom
+using JSServe: @js_str, Session, App, onjs, onload, Button
+using JSServe: TextField, Slider, linkjs, get_server
 using JSServe.DOM
+using JSServe: JSON3
 
-function dom_handler(session, request)
-    return DOM.h1("Hello World")
-end
-
-isdefined(Main, :app) && close(app)
-app = JSServe.Application(dom_handler, "127.0.0.1", 8081)
+app = App(DOM.h1("Hello World"))
+display(app)
 
 md"""
 # Interaction with observables
@@ -25,25 +23,28 @@ md"""
 
 color = Observable("red")
 color_css = map(x-> "color: $(x)", color)
-function dom_handler(session, request)
+
+app = App() do
     return DOM.h1("Hello World", style=map(x-> "color: $(x)", color))
 end
+display(app)
 
-color[] = "red"
+color[] = "green"
 
 
-function dom_handler(session, request)
+app = App() do
     button = DOM.div("click me", onclick=js"update_obs($(color), 'blue')")
     return DOM.div(
         button, DOM.h1("Hello World", style=map(x-> "color: $(x)", color))
     )
 end
+display(app)
 
 md"""
 # Other ways to execute Javascript
 """
 
-function dom_handler1(session, request)
+app = App() do session::Session
     button = DOM.div("click me", onclick=js"update_obs($(color), 'blue')")
     onload(session, button, js"""function load(button){
         window.alert('Hi from JavaScript');
@@ -58,6 +59,7 @@ function dom_handler1(session, request)
         button, DOM.h1("Hello World", style=map(x-> "color: $(x)", color))
     )
 end
+display(app)
 
 md"""
 # Including assets & Widgets
@@ -67,7 +69,7 @@ MUI = JSServe.Asset("//cdn.muicss.com/mui-0.10.1/css/mui.min.css")
 sliderstyle = JSServe.Asset(joinpath(@__DIR__, "sliderstyle.css"))
 image = JSServe.Asset(joinpath(@__DIR__, "assets", "julia.png"))
 
-function dom_handler(session, request)
+app = App() do
     button = JSServe.Button("hi", class="mui-btn mui-btn--primary")
     slider = JSServe.Slider(1:10, class="slider")
 
@@ -81,14 +83,24 @@ function dom_handler(session, request)
     link = DOM.a(href="/example1", "GO TO ANOTHER WORLD")
     return DOM.div(MUI, sliderstyle, link, button, slider, DOM.img(src=image))
 end
+display(app)
+
 md"""
 # Can also use regex here!
 # ctx contains route, match,
 """
 
-JSServe.route!(app, "/example1" => ctx-> serve_dom(ctx, dom_handler1))
+app = App() do
+    button = DOM.div("click me", onclick=js"update_obs($(color), 'blue')")
+    return DOM.div(
+        button, DOM.h1("Hello World", style=map(x-> "color: $(x)", color))
+    )
+end
+display(app)
 
-function dom_handler(session, request)
+JSServe.route!(get_server(), "/example1" => app)
+
+app = App() do session::Session
     slider = JSServe.Slider(1:10, class="slider m-4")
     squared = map(slider) do slidervalue
         return slidervalue^2
@@ -103,7 +115,7 @@ end
 
 export_path = joinpath(@__DIR__, "demo")
 mkdir(export_path)
-JSServe.export_standalone(dom_handler, export_path, clear_folder=true)
+JSServe.export_standalone(app, export_path, clear_folder=true)
 
 using LiveServer
 cd(export_path)

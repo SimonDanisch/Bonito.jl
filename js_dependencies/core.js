@@ -1,39 +1,37 @@
 const on_update_observables_callbacks = [];
 const registered_observables = {};
 const observable_callbacks = {};
-const javascript_object_heap = {};
-
-function put_on_heap(id, value) {
-    javascript_object_heap[id] = value;
-}
-
-function delete_from_heap(id) {
-    delete javascript_object_heap[id];
-}
-
-function get_heap_object(id) {
-    if (id in javascript_object_heap) {
-        return javascript_object_heap[id];
-    } else {
-        send_error("Could not find heap object: " + id, null);
-        throw "Could not find heap object: " + id;
-    }
-}
-
-
 // Save some bytes by using ints for switch variable
 const UpdateObservable = '0';
 const OnjsCallback = '1';
 const EvalJavascript = '2';
 const JavascriptError = '3';
 const JavascriptWarning = '4';
-const JSCall = '5';
-const JSGetIndex = '6';
-const JSSetIndex = '7';
 const JSDoneLoading = '8';
 const FusedMessage = '9';
-const DeleteObjects = '10';
-const OnUpdateObservable = '11';
+
+
+function resize_iframe_parent(session_id) {
+    const body = document.body;
+    const html = document.documentElement;
+    const height = Math.max(
+        body.scrollHeight,
+        body.offsetHeight,
+        html.clientHeight,
+        html.scrollHeight,
+        html.offsetHeight
+    );
+    const width = Math.max(
+        body.scrollWidth,
+        body.offsetWidth,
+        html.clientWidth,
+        html.scrollHeight,
+        html.offsetWidth
+    );
+    if (parent.postMessage) {
+        parent.postMessage([session_id, width, height], "*");
+    }
+}
 
 function is_list(value) {
     return value && typeof value === 'object' && value.constructor === Array;
@@ -83,52 +81,23 @@ function materialize(data) {
     }
 }
 
-function js_dereference_rec(parent, field_names) {
-    if (field_names.length == 0) {
-        // we're done, no more fields to index into
-        return parent;
-    }
-    const next_field = field_names.shift();
-    let next_parent;
-    // skip new, which sneaks into our reference due to how we handle new in Julia
-    if (next_field != 'new') {
-        next_parent = js_getindex(parent, next_field);
-    } else {
-        next_parent = parent;
-    }
-    return js_dereference_rec(next_parent, field_names);
-}
-
-function js_dereference(field_names) {
-    // see if the name is a Javascript Module
-    const parent_field = field_names.shift();
-    let parent = window[parent_field];
-    if (!parent) {
-        // if not a module, it must be on the heap!
-        parent = get_heap_object(parent_field);
-        if (!parent) {
-            // ok, we're out of options at this point!
-            send_error("Could not dereference " + parent_field + "." + field_names, null);
-        }
-    }
-    return js_dereference_rec(parent, field_names);
-}
-
 function deserialize_js(data) {
     if (is_list(data)) {
         return data.map(deserialize_js);
     } else if (is_dict(data)) {
         if ('__javascript_type__' in data) {
-            if (data.__javascript_type__ == 'JSObject') {
-                return get_heap_object(data.payload);
-            } else if (data.__javascript_type__ == 'JSReference') {
-                return js_dereference(data.payload);
-            } else if (data.__javascript_type__ == 'typed_vector') {
+            if (data.__javascript_type__ == 'typed_vector') {
                 return data.payload;
             } else if (data.__javascript_type__ == 'DomNode') {
                 return document.querySelector('[data-jscall-id="' + data.payload + '"]');
             } else if (data.__javascript_type__ == 'js_code') {
-                return data.payload;
+                const eval_func = new Function(
+                  "__eval_context__",
+                  data.payload.source
+                );
+                const context = deserialize_js(data.payload.context);
+                // return a closure, that when caleld evals runs the code!
+                return ()=> eval_func(context);
             } else if (data.__javascript_type__ == 'Observable') {
                 const value = deserialize_js(data.payload.value);
                 const id = data.payload.id;
@@ -184,6 +153,24 @@ function send_warning(message) {
         msg_type: JavascriptWarning,
         message: message
     });
+}
+
+function sent_done_loading(){
+    websocket_send({
+        msg_type: JSDoneLoading,
+        exception: "null",
+    });
+};
+
+function update_node_attribute(node, attribute, value) {
+  if (node) {
+    if (node[attribute] != value) {
+      node[attribute] = value;
+    }
+    return true;
+  } else {
+    return false; //deregister
+  }
 }
 
 function run_js_callbacks(id, value) {
@@ -297,78 +284,6 @@ function register_onjs(f, observable) {
     observable_callbacks[observable] = callbacks;
 }
 
-function call_js_func(func, args, needs_new, result_object) {
-    let result;
-    if (needs_new) {
-        // if argument list we need to use apply
-        if (is_list(args)) {
-            result = new func(...args);
-        } else {
-            // for dictionaries we use a normal call
-            result = new func(args);
-        }
-    } else {
-        // TODO remove code duplication here. I don't think new would propagate
-        // correctly if we'd use something like apply_func
-        if (is_list(args)) {
-            result = func(...args);
-        } else {
-            // for dictionaries we use a normal call
-            result = func(args);
-        }
-    }
-    put_on_heap(result_object, result);
-}
-
-function js_getindex(object, field) {
-    let result = object[field];
-    // if result is a class method, we need to bind it to the parent object
-    if (result.bind != undefined) {
-        result = result.bind(object);
-    }
-    return result;
-}
-
-function put_js_getindex(object, field, result_object) {
-    const result = js_getindex(object, field);
-    put_on_heap(result_object, result);
-}
-
-function delete_heap_objects(objects) {
-    for (var object in objects) {
-        delete_from_heap(objects[object]);
-    }
-}
-
-function update_node_attribute(node, attribute, value) {
-    if (node) {
-        if (node[attribute] != value) {
-            node[attribute] = value;
-        }
-        return true;
-    } else {
-        return false; //deregister
-    }
-}
-
-function init_from_byte_array(init_func, data) {
-    for (let obs_id in data.observables) {
-        registered_observables[obs_id] = data.observables[obs_id];
-    }
-    console.log("DONE REGISTERING")
-    init_func(data.payload);
-    console.log("DONE INITIALISING")
-
-    websocket_send({
-        msg_type: JSDoneLoading,
-        exception: "null",
-        message: "",
-        stacktrace: ""
-    });
-    console.log("SENT DONE LOADING")
-
-}
-
 function update_dom_node(dom, html) {
     if (dom) {
         dom.innerHTML = html;
@@ -379,32 +294,12 @@ function update_dom_node(dom, html) {
     }
 }
 
-function init_from_file(init_func, url) {
-    var t0 = performance.now();
-    var http_request = new XMLHttpRequest();
-    http_request.open("GET", url, true);
-    http_request.responseType = "arraybuffer";
-    http_request.onload = function(event) {
-        var t1 = performance.now();
-        var arraybuffer = http_request.response; // Note: not oReq.responseText
-        if (arraybuffer) {
-            var bytes = new Uint8Array(arraybuffer);
-            var data = msgpack.decode(bytes);
-            init_from_byte_array(init_func, data);
-            console.log("Processing done!! " + (t1 - t0) + " milliseconds.");
-        } else {
-            send_warning("Didn't receive any setup data from server.");
-        }
-    };
-    http_request.send(null);
-}
-
 function process_message(data) {
     try {
         switch (data.msg_type) {
             case UpdateObservable:
-                const value = data.payload;
-                registered_observables[data.id] = deserialize_js(value);
+                const value = deserialize_js(data.payload);
+                registered_observables[data.id] = value;
                 // update all onjs callbacks
                 run_js_callbacks(data.id, value);
                 break;
@@ -412,34 +307,16 @@ function process_message(data) {
                 // register a callback that will executed on js side
                 // when observable updates
                 const id = data.id;
-                js_source = deserialize_js(data.payload);
-                const f = eval(js_source);
+                const f = deserialize_js(data.payload)();
                 register_onjs(f, id);
                 break;
             case EvalJavascript:
-                const scoped_eval = new Function(data.payload.payload);
-                scoped_eval();
-                break;
-            case JSCall:
-                const func = eval(deserialize_js(data.func));
-                const arguments = deserialize_js(data.arguments);
-                call_js_func(func, arguments, data.needs_new, data.result);
-                break;
-            case JSGetIndex:
-                const obj = deserialize_js(data.object);
-                put_js_getindex(obj, data.field, data.result);
-                break;
-            case JSSetIndex:
-                const object = deserialize_js(data.object);
-                const val = deserialize_js(data.value);
-                object[data.field] = val;
+                const eval_closure = deserialize_js(data.payload);
+                eval_closure();
                 break;
             case FusedMessage:
                 const messages = data.payload;
                 messages.forEach(process_message);
-                break;
-            case DeleteObjects:
-                delete_heap_objects(data.payload);
                 break;
             default:
                 send_error("Unrecognized message type: " + data.msg_type + ".", null);
@@ -448,9 +325,7 @@ function process_message(data) {
             on_update_observables_callbacks[idx](value);
         }
     } catch(e) {
-        console.log("Error while processing message!")
-        console.log(e)
-        console.log(data)
+        send_error(`Error while processing message ${data}`, e);
     }
 
 }
@@ -503,12 +378,12 @@ function setup_connection() {
         if (session_websocket.length != 0) {
             throw "Inconsistent state. Already opened a websocket!";
         }
-        console.log("URL " + url);
         websocket = new WebSocket(url);
         websocket.binaryType = 'arraybuffer';
         session_websocket.push(websocket);
 
         websocket.onopen = function() {
+            console.log("CONNECTED!!: ", url)
             websocket.onmessage = function(evt) {
                 const binary = new Uint8Array(evt.data);
                 const data = msgpack.decode(binary);
