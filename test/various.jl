@@ -101,10 +101,10 @@ end
 
 @testset "Dependencies" begin
     jss = js"""function (v) {
-        console.log($(ElectronTests.JSTest));
+        console.log($(JSTest));
     }"""
     div = DOM.div(onclick=jss)
     s = JSServe.Session()
     JSServe.register_resource!(s, div)
-    @test ElectronTests.JSTest.assets[1] in s.dependencies
+    @test JSTest.assets[1] in s.dependencies
 end

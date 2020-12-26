@@ -153,7 +153,7 @@ global dom = nothing
 inline_display = JSServe.App() do session, req
     global test_session = session
     global dom = test_handler(session, req)
-    return DOM.div(ElectronTests.JSTest, dom)
+    return DOM.div(JSTest, dom)
 end;
 
 electron_disp = electrondisplay(inline_display);
@@ -180,7 +180,7 @@ close(app)
     html_webio = sprint(io-> show(io, MIME"application/vnd.webio.application+html"(), inline_display))
     # We open the display server with the above TestSession
     # TODO electrontests should do this!
-    ElectronTests.check_and_close_display()
+    check_and_close_display()
 end
 
 @testset "Electron standalone" begin

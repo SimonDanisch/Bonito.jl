@@ -6,11 +6,12 @@ using JSServe.DOM
 using JSServe.HTTP
 using Electron
 using ElectronDisplay
-using ElectronTests
 using URIParser
 using Random
 using Hyperscript: children
-using ElectronTests: TestSession
+using Test
+
+include("ElectronTests.jl")
 
 function wait_on_test_observable()
     global test_observable
