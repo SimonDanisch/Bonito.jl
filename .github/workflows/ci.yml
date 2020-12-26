@@ -31,7 +31,8 @@ jobs:
       - name: Run headless test
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: julia --project=@. -e 'using Pkg; Pkg.add(PackageSpec(name=\"ElectronTests\", rev=\"master\")); Pkg.test(coverage=true)'
+          run: >
+            julia --project=@. -e 'using Pkg; Pkg.add(PackageSpec(name=\"ElectronTests\", rev=\"master\")); Pkg.test(coverage=true)'
       - uses: actions/cache@v1
         env:
           cache-name: cache-artifacts
