@@ -14,7 +14,7 @@ function handler(session, request)
     return DOM.div(checkbox1, checkbox2)
 end
 
-testsession(handler, port=8555) do app
+testsession(handler, port=8558) do app
     checkbox1_jl = children(app.dom)[1]
     checkbox2_jl = children(app.dom)[2]
     @test evaljs(app, js"document.querySelectorAll('input[type=\"checkbox\"]').length") == 2

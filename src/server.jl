@@ -223,6 +223,13 @@ function Server(
     return application
 end
 
+function Server(
+        app, url::String, port::Int; kw...
+    )
+    Server(App(app), url, port; kw...)
+end
+
+
 function isrunning(application::Server)
     return (isassigned(application.server_task) &&
         isassigned(application.server_connection) &&

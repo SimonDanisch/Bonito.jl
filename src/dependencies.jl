@@ -94,6 +94,43 @@ function Dependency(name::Symbol, urls::AbstractVector)
     return Dependency(name, Asset.(urls), Dict{Symbol, JSCode}())
 end
 
+"""
+    construct_arguments(args, keyword_arguments)
+Constructs the arguments for a JS call.
+Can only use either keyword arguments or positional arguments.
+"""
+function construct_arguments(args, keyword_arguments)
+    if isempty(keyword_arguments)
+        return args
+    elseif isempty(args)
+        # tojs isn't recursive bug:
+        return keyword_arguments
+    else
+        # TODO: I'm not actually sure about this :D
+        error("""
+        Javascript only supports keyword arguments OR arguments.
+        Found posititional arguments and keyword arguments
+        """)
+    end
+end
+
+"""
+Implement to call functions in a Dependency:
+const Three = Dependency(...)
+Three.camera(session, args...; kw...)
+"""
+function Base.getproperty(dependency::Dependency, func_name::Symbol)
+    func_name in (:name, :assets, :function) && return getfield(dependency, func_name)
+    func_name_js = JSString(string(func_name))
+    return function (session::Session, args...; kw...)
+        args = construct_arguments(args, kw)
+        evaljs_value(session, js"""
+            const arguments = $(args)
+            $(dependency).$(func_name_js)(...arguments)
+        """)
+    end
+end
+
 # With this, one can just put a dependency anywhere in the dom to get loaded
 function jsrender(session::Session, x::Dependency)
     push!(session, x)

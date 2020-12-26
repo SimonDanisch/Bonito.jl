@@ -14,7 +14,7 @@ function browser_display()
     # remove it!
     filter!(x-> !(x isa BrowserDisplay), displays)
     # add it to end!
-    push!(displays, BrowserDisplay())
+    Base.pushdisplay(BrowserDisplay())
     return
 end
 

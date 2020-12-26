@@ -36,13 +36,15 @@ session(session::Session) = session
 function Base.close(session::Session)
     try
         # https://github.com/JuliaWeb/HTTP.jl/issues/649
-        close(session.connection[])
+        if isassigned(session.connection)
+            close(session.connection[])
+        end
     catch e
         if !(e isa Base.IOError)
             @warn "error while closing websocket!" exception=e
         end
     finally
-        session.connection[].rxclosed = true
+        isassigned(session.connection) && (session.connection[].rxclosed = true)
     end
 
     session.on_close[] = true
@@ -159,7 +161,7 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=100.0
     end
 
     comm = session.js_comm
-    comm.value = nothing
+    comm.val = nothing
     js_with_result = js"""
     try{
         const result = $(js);
@@ -180,6 +182,10 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=100.0
     else
         return value["result"]
     end
+end
+
+function evaljs_value(with_session, js; error_on_closed=true, time_out=100.0)
+    evaljs_value(session(with_session), js)
 end
 
 """

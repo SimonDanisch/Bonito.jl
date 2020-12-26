@@ -45,8 +45,13 @@ function print_js_code(io::IO, dependency::Dependency, context)
     return context
 end
 
-function serialize2string(io::IO, x::Number, context)
+function print_js_code(io::IO, x::Number, context)
     print(io, x)
+    return context
+end
+
+function print_js_code(io::IO, x::String, context)
+    print(io, repr(x))
     return context
 end
 
@@ -56,12 +61,11 @@ function print_js_code(io::IO, jss::JSString, context)
 end
 
 function print_js_code(io::IO, @nospecialize(object::Any), context)
+    serialized = serialize_js(object)
     if context === nothing
-        x = serialize_js(object)
-        json = JSON3.write(x)
+        json = JSON3.write(serialized)
         print(io, "deserialize_js($(json))")
     else
-        serialized = serialize_js(object)
         if serialized isa String
             print(io, repr(serialized))
         else

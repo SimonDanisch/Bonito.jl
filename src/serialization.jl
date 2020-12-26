@@ -4,6 +4,7 @@ end
 
 function serialize_binary(io, @nospecialize(obj))
     data = serialize_js(obj) # apply custom, overloadable transformation
+    @show isopen(io)
     write(io, MsgPack.pack(data))
 end
 

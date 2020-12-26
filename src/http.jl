@@ -83,8 +83,8 @@ end
 
 function handle_ws_connection(application::Server, session::Session, websocket::WebSocket)
     try
-        while !eof(websocket)
-            handle_ws_message(session, readavailable(websocket))
+        while isopen(websocket)
+            handle_ws_message(session, read(websocket))
         end
     catch e
         # IOErrors

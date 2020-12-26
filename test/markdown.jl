@@ -72,10 +72,10 @@ function test_current_session(app)
     @testset "button" begin
         # It's in the dom!
         @test evaljs(app, js"document.querySelectorAll('input[type=\"button\"]').length") == 1
-        button = query_testid(app, "hi_button")
+        bquery = query_testid("hi_button")
         # Spam the button press on the JS side a bit, to make sure we're not loosing events!
         for i in 1:100
-            val = test_value(app, ()-> button.click())
+            val = test_value(app, js"$(bquery).click()")
             @test val["button"] == true
         end
         button = query_testid("button_clicks")
@@ -129,43 +129,28 @@ function test_current_session(app)
         # We test with JSCall this time, to test it as well ;)
         slider1 = dom.content[2].content[2]
         slider2 = dom.content[3].content[2]
-        slider1_js = jsobject(app, js"document.querySelectorAll('input[type=\"range\"]')[0]")
-        slider2_js = jsobject(app, js"document.querySelectorAll('input[type=\"range\"]')[1]")
+        slider1_js = js"document.querySelectorAll('input[type=\"range\"]')[0]"
+        slider2_js = js"document.querySelectorAll('input[type=\"range\"]')[1]"
         sliderresult = query_testid("slider_result")
-        @testset "set via jscall" begin
-            for i in 1:100
-                slider1_js.value = i
-                slider1_js.oninput()
-                @test evaljs(app, slider1_js.value) == "$i"
-                # Test linkjs
-                @test evaljs(app, slider2_js.value) == "$i"
-                @test slider1[] == i
-                @test slider2[] == i
-                evaljs(app, js"$(sliderresult).innerText") == "$i"
-            end
-        end
+
         @testset "set via julia" begin
             for i in 1:100
                 slider1[] = i
-                @test evaljs(app, slider1_js.value) == "$i"
+                @test evaljs(app, js"$(slider1_js).value") == "$i"
                 # Test linkjs
-                @test evaljs(app, slider2_js.value) == "$i"
+                @test evaljs(app, js"$(slider2_js).value") == "$i"
                 @test slider2[] == i
                 evaljs(app, js"$(sliderresult).innerText") == "$i"
             end
         end
     end
 
-    @testset "number input" begin
-        number_input = jsobject(app, js"document.querySelector('input[type=\"number\"]')")
-        number_input.value = "10.0"
-        number_input.onchange()
-    end
+
 end
 
 global test_session = nothing
 global dom = nothing
-inline_display = with_session() do session, req
+inline_display = JSServe.App() do session, req
     global test_session = session
     global dom = test_handler(session, req)
     return DOM.div(ElectronTests.JSTest, dom)
@@ -276,10 +261,10 @@ end
 
     testsession(test_handler, port=8555) do app
         # Lets not be too porcelainy about this ...
-        md_js_dom = jsobject(app, js"document.getElementById('application-dom').children[0]")
-        @test evaljs(app, md_js_dom.children.length) == 1
-        md_children = jsobject(app, js"$(md_js_dom.children)[0].children[0].children")
-        @test evaljs(app, md_children.length) == 23
+        md_js_dom = js"document.getElementById('application-dom').children[0]"
+        @test evaljs(app, js"$(md_js_dom).children.length") == 1
+        md_children = js"$(md_js_dom).children[0].children[0].children"
+        @test evaljs(app, js"$(md_children).length") == 23
         @test occursin("This is the first footnote.", evaljs(app, js"$(md_children)[22].innerText"))
         @test evaljs(app, js"$(md_children)[2].children[0].children[0].tagName") == "IMG"
     end
@@ -296,7 +281,7 @@ end
         # Lets not be too porcelainy about this ...
         rslider = getfield(app.dom, :children)[1]
         @test rslider[] == [10, 80]
-        rslider_html = jsobject(app, js"document.getElementById('rslider')")
+        rslider_html = js"document.getElementById('rslider')"
         @test evaljs(app, js"$(rslider_html).children.length") == 3
         @test evaljs(app, js"$(rslider_html).children[1].innerText") == "10"
         @test evaljs(app, js"$(rslider_html).children[2].innerText") == "80"

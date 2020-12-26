@@ -1,7 +1,7 @@
 using Hyperscript, Markdown, Test
 using JSServe, Observables
 using JSServe: Session, evaljs, linkjs, div
-using JSServe: @js_str, onjs, JSString, Dependency, with_session, jsobject
+using JSServe: @js_str, onjs, JSString, Dependency
 using JSServe.DOM
 using JSServe.HTTP
 using Electron
@@ -22,7 +22,6 @@ function wait_on_test_observable()
     off(test_observable, f)
     return val
 end
-
 
 """
     test_value(app, statement)
