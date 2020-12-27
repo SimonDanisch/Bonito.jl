@@ -18,6 +18,7 @@ using SHA
 using Tables
 using Colors
 using LinearAlgebra
+using CodecZlib
 
 include("types.jl")
 include("server.jl")

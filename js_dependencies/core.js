@@ -325,7 +325,7 @@ function process_message(data) {
             on_update_observables_callbacks[idx](value);
         }
     } catch(e) {
-        send_error(`Error while processing message ${data}`, e);
+        send_error(`Error while processing message ${JSON.stringify(data)}`, e);
     }
 
 }
@@ -386,7 +386,7 @@ function setup_connection() {
             console.log("CONNECTED!!: ", url)
             websocket.onmessage = function(evt) {
                 const binary = new Uint8Array(evt.data);
-                const data = msgpack.decode(binary);
+                const data = msgpack.decode(pako.inflate(binary));
                 process_message(data);
             };
         };

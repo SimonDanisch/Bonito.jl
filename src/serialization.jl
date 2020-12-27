@@ -4,7 +4,9 @@ end
 
 function serialize_binary(io, @nospecialize(obj))
     data = serialize_js(obj) # apply custom, overloadable transformation
-    write(io, MsgPack.pack(data))
+    bytes = MsgPack.pack(data)
+    zipped = transcode(GzipCompressor, bytes)
+    write(io, zipped)
 end
 
 function js_type(type::Symbol, @nospecialize(x))
