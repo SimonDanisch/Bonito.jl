@@ -35,9 +35,9 @@ end
 
 function Base.display(::BrowserDisplay, dom::App)
     application = get_server()
-    session = Session()
     session_url = "/browser-display"
     route_was_present = route!(application, session_url) do context
+        session = Session()
         # Serve the actual content
         application = context.application
         application.sessions[session.id] = session
@@ -52,5 +52,5 @@ function Base.display(::BrowserDisplay, dom::App)
             evaljs(session, js"location.reload(true)")
         end
     end
-    return session
+    return
 end
