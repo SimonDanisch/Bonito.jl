@@ -103,6 +103,7 @@ function dom2html(session::Session, app)
         window.js_call_session_id = '$(session.id)';
         window.websocket_proxy_url = '$(proxy_url)';
     </script>
+    $(include_asset(PakoLib, serializer))
     $(include_asset(MsgPackLib, serializer))
     $(include_asset(JSCallLibLocal, serializer))
     </head>

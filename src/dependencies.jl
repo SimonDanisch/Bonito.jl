@@ -125,8 +125,7 @@ function Base.getproperty(dependency::Dependency, func_name::Symbol)
     return function (session::Session, args...; kw...)
         args = construct_arguments(args, kw)
         evaljs_value(session, js"""
-            const arguments = $(args)
-            $(dependency).$(func_name_js)(...arguments)
+            $(dependency).$(func_name_js)(...$(args))
         """)
     end
 end
@@ -221,6 +220,7 @@ end
 const JSCallLibLocal = Asset(dependency_path("core.js"))
 
 const MsgPackLib = Asset(dependency_path("msgpack.min.js"))
+const PakoLib = Asset(dependency_path("pako_inflate.min.js"))
 
 const MarkdownCSS = Asset(dependency_path("markdown.css"))
 

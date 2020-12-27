@@ -4,7 +4,9 @@ end
 
 function serialize_binary(io, @nospecialize(obj))
     data = serialize_js(obj) # apply custom, overloadable transformation
-    write(io, MsgPack.pack(data))
+    bytes = MsgPack.pack(data)
+    zipped = transcode(GzipCompressor, bytes)
+    write(io, zipped)
 end
 
 function js_type(type::Symbol, @nospecialize(x))
@@ -68,4 +70,51 @@ function keyvaluepairs(node::Hyperscript.Node{Hyperscript.HTMLSVG})
         :children => getfield(node, :children),
         getfield(node, :attrs)...
     ]
+end
+
+const BasicTypes = Union{Array{<:Number},Number,Bool, Nothing}
+
+recurse_object(f, x::BasicTypes) = x
+recurse_object(f, x::String) = x
+recurse_object(f, x) = x
+
+function recurse_object(f, object::AbstractDict)
+    # we only search for duplicates in objects, not keys
+    # if you put big objects in keys - well so be it :D
+    return Dict((k => f(v) for (k, v) in object))
+end
+
+function recurse_object(f, object::Union{Tuple,AbstractVector,Pair})
+    return map(f, object)
+end
+
+_replace_dublicates(object::BasicTypes, objects=IdDict(), duplicates=[]) = object
+
+function _replace_dublicates(object, objects=IdDict(), duplicates=[])
+    if object isa String && length(object) < 30
+        return object
+    end
+    if object isa StaticArray
+        return object
+    end
+    return if haskey(objects, object)
+        idx = objects[object]
+        if idx === nothing
+            push!(duplicates, object)
+            idx = length(duplicates)
+            objects[object] = idx
+        end
+        return Dict(:type => "Reference", :index => idx)
+    else
+        objects[object] = nothing
+        # we only search for duplicates in objects, not keys
+        # if you put big objects in keys - well so be it :D
+        return recurse_object(x -> _replace_dublicates(x, objects, duplicates), object)
+    end
+end
+
+function replace_dublicates(object)
+    duplicates = []
+    result = _replace_dublicates(object, IdDict(), duplicates)
+    return [result, duplicates]
 end
