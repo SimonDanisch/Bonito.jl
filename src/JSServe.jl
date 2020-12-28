@@ -52,6 +52,35 @@ const JSSERVE_CONFIGURATION = (
     verbose = Ref(false)
 )
 
+"""
+configure_server!(external_url="";
+        listen_port=JSSERVE_CONFIGURATION.listen_port[],
+        external_port=listen_port)
+Configure JSServe server to be reachable from outside.
+This should be used when displaying JSServe based Apps in e.g. Pluto!
+`configure_server!("http://192.168.178.21")`
+Will set the server to:
+`external_url = "http://192.168.178.21:\$(external_port)"`
+If you're using some domain, where the port doesn't need to be attached use:
+`configure_server!("http://my-domain.com", external_port=nothing)`
+
+If you set `listen_port` to something, it will also change the port the server is listening on when started!
+"""
+function configure_server!(external_url="";
+        listen_port=JSSERVE_CONFIGURATION.listen_port[],
+        external_port=listen_port)
+
+    JSSERVE_CONFIGURATION.listen_port[] = listen_port
+    if isempty(external_url)
+        external_url = "http://localhost"
+    end
+    if external_port !== nothing
+        external_url = "$(external_url):$(external_port)"
+    end
+    JSSERVE_CONFIGURATION.listen_url[] = "0.0.0.0"
+    JSSERVE_CONFIGURATION.external_url[] = external_url
+end
+
 function has_html_display()
     for display in Base.Multimedia.displays
         # Ugh, why would textdisplay say it supports HTML??
