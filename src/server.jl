@@ -96,7 +96,7 @@ function online_url(server::Server, url)
     if isempty(base_url)
         local_url(server, url)
     else
-        base_url * "/" * url
+        base_url * url
     end
 end
 
