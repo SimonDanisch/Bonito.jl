@@ -44,7 +44,7 @@ const JSSERVE_CONFIGURATION = (
     # The url Javascript uses to connect to the websocket.
     # if empty, it will use:
     # `window.location.protocol + "//" + window.location.host`
-    websocket_proxy = Ref(""),
+    external_url = Ref(""),
     # The url prepended to assets when served!
     # if `""`, urls are inserted into HTML in relative form!
     content_delivery_url = Ref(""),
@@ -71,9 +71,10 @@ function __init__()
         url = url[1:end-1]
     end
     JSSERVE_CONFIGURATION.listen_url[] = get(ENV, "JSSERVE_LISTEN_URL", "127.0.0.1")
-    JSSERVE_CONFIGURATION.websocket_proxy[] = url
+    JSSERVE_CONFIGURATION.external_url[] = url
     JSSERVE_CONFIGURATION.content_delivery_url[] = url
     JSSERVE_CONFIGURATION.listen_port[] = parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081"))
+
     # If there is no html inline display in the IDE that JSServe is running
     # we display things in the local browser
     if !has_html_display()

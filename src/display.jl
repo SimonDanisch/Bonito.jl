@@ -19,8 +19,8 @@ const WebMimes = (
 
 function iframe_html(server::Server, session::Session, route::String)
     # Display the route we just added in an iframe inline:
-    url = repr(local_url(server, route))
-    remote_origin = local_url(server, "")
+    url = repr(online_url(server, route))
+    remote_origin = online_url(server, "")
     style = "position: relative; display: block; width: 100%; height: 100%; padding: 0; overflow: hidden; border: none"
     return """
     <script>
@@ -91,7 +91,7 @@ function dom2html(session::Session, app)
     js_dom = DOM.div(jsrender(session, app), id="application-dom")
     # register resources (e.g. observables, assets)
     register_resource!(session, js_dom)
-    proxy_url = JSSERVE_CONFIGURATION.websocket_proxy[]
+    proxy_url = JSSERVE_CONFIGURATION.external_url[]
     html = repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
     serializer = session.url_serializer
     return """

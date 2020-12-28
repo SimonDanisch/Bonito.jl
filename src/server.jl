@@ -78,7 +78,27 @@ function match_request(pattern::Regex, request)
     return match(pattern, request.target)
 end
 
-local_url(application::Server, url) = string("http://", application.url, ":", application.port, url)
+"""
+    local_url(server::Server, url)
+The local url to reach the server, on the server
+"""
+function local_url(server::Server, url)
+    return string("http://", server.url, ":", server.port, url)
+end
+
+"""
+    online_url(server::Server, url)
+The url to connect to the server from the internet.
+Needs to have `JSSERVE_CONFIGURATION.external_url` set to the IP or dns route of the server
+"""
+function online_url(server::Server, url)
+    base_url = JSSERVE_CONFIGURATION.external_url
+    if isempty(base_url)
+        local_url(server, url)
+    else
+        joinpath(base_url, url)
+    end
+end
 
 function websocket_request()
     headers = [
@@ -260,7 +280,7 @@ function Base.close(application::Server)
     # We need to make sure, that we are the ones making this request,
     # So that a newly opened connection won't get a faulty response from this server!
     try
-        app_url = JSServe.local_url(application, "/")
+        app_url = local_url(application, "/")
         while true
             x = HTTP.get(app_url, readtimeout=1, retries=1)
             x.status != 200 && break # we got a bad request, maining server is closed!

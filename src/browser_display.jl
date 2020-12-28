@@ -46,7 +46,7 @@ function Base.display(::BrowserDisplay, dom::App)
     end
     # Only open url first time!
     if isempty(application.sessions)
-        openurl(local_url(application, session_url))
+        openurl(online_url(application, session_url))
     else
         for (id, session) in application.sessions
             evaljs(session, js"location.reload(true)")
