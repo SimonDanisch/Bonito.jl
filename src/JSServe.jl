@@ -102,7 +102,10 @@ function __init__()
     JSSERVE_CONFIGURATION.listen_url[] = get(ENV, "JSSERVE_LISTEN_URL", "127.0.0.1")
     JSSERVE_CONFIGURATION.external_url[] = url
     JSSERVE_CONFIGURATION.content_delivery_url[] = url
-    JSSERVE_CONFIGURATION.listen_port[] = parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081"))
+
+    if haskey(ENV, "WEBIO_HTTP_PORT")
+        JSSERVE_CONFIGURATION.listen_port[] = parse(Int, ENV["WEBIO_HTTP_PORT"])
+    end
 
     # If there is no html inline display in the IDE that JSServe is running
     # we display things in the local browser
