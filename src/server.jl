@@ -92,11 +92,11 @@ The url to connect to the server from the internet.
 Needs to have `JSSERVE_CONFIGURATION.external_url` set to the IP or dns route of the server
 """
 function online_url(server::Server, url)
-    base_url = JSSERVE_CONFIGURATION.external_url
+    base_url = JSSERVE_CONFIGURATION.external_url[]
     if isempty(base_url)
         local_url(server, url)
     else
-        joinpath(base_url, url)
+        base_url * "/" * url
     end
 end
 
