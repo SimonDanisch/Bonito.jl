@@ -68,7 +68,8 @@ If you set `listen_port` to something, it will also change the port the server i
 """
 function configure_server!(external_url="";
         listen_port=JSSERVE_CONFIGURATION.listen_port[],
-        external_port=listen_port)
+        external_port=listen_port,
+        content_delivery_url=nothing)
 
     JSSERVE_CONFIGURATION.listen_port[] = listen_port
     if isempty(external_url)
@@ -79,6 +80,12 @@ function configure_server!(external_url="";
     end
     JSSERVE_CONFIGURATION.listen_url[] = "0.0.0.0"
     JSSERVE_CONFIGURATION.external_url[] = external_url
+    if content_delivery_url === nothing
+        JSSERVE_CONFIGURATION.content_delivery_url[] = external_url
+    else
+        JSSERVE_CONFIGURATION.content_delivery_url[] = content_delivery_url
+    end
+    return
 end
 
 function has_html_display()
