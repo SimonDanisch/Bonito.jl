@@ -69,7 +69,7 @@ function record_state_map(session::Session, dom::Hyperscript.Node)
                 update_value!.(dependent, dependent_state)
             end
             JSServe.onjs(session, observe(widget), js"""function (val){
-                const state = $(dependent_observables).map(get_observable);
+                const state = $(dependent_observables).map(JSServe.get_observable);
 
                 const messages = window.dependent_states[state]
                 // not all states trigger events!

@@ -107,7 +107,7 @@ function websocket_handler(context, websocket::WebSocket)
     # Look up the connection in our sessions
     if haskey(application.sessions, sessionid)
         session = application.sessions[sessionid]
-        if isassigned(session.connection) && isopen(session.connection[])
+        if isopen(session)
             # Would be nice to not error here - but I think this should never
             # Happen, and if it happens, we need to debug it!
             error("Session already has connection")

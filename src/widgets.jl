@@ -4,7 +4,7 @@ function jsrender(button::Button)
     return DOM.input(
         type = "button",
         value = button.content,
-        onclick = js"update_obs($(button.value), true);";
+        onclick = js"JSServe.update_obs($(button.value), true);";
         button.attributes...
     )
 end
@@ -13,7 +13,7 @@ function jsrender(tf::TextField)
     return DOM.input(
         type = "textfield",
         value = tf.value,
-        onchange = js"update_obs($(tf.value),  this.value);";
+        onchange = js"JSServe.update_obs($(tf.value),  this.value);";
         tf.attributes...
     )
 end
@@ -22,7 +22,7 @@ function jsrender(ni::NumberInput)
     return DOM.input(
         type = "number",
         value = ni.value,
-        onchange = js"update_obs($(ni.value), parseFloat(this.value));";
+        onchange = js"JSServe.update_obs($(ni.value), parseFloat(this.value));";
         ni.attributes...
     )
 end
@@ -34,7 +34,7 @@ function jsrender(slider::Slider)
         max = map(last, slider.range),
         value = slider.value,
         step = map(step, slider.range),
-        oninput = js"update_obs($(slider.value), parseFloat(value))";
+        oninput = js"JSServe.update_obs($(slider.value), parseFloat(value))";
         slider.attributes...
     )
 end
@@ -66,13 +66,13 @@ function jsrender(session::Session, slider::RangeSlider)
     rangediv = DOM.div()
     create_slider = js"""function create_slider(style){
         var range = $(rangediv);
-        range.noUiSlider.updateOptions(deserialize_js(style), true);
+        range.noUiSlider.updateOptions(JSServe.deserialize_js(style), true);
     }"""
     onload(session, rangediv, js"""function onload(range){
         var style = $(style[]);
         $(noUiSlider).create(range, style);
         range.noUiSlider.on('update', function (values, handle, unencoded, tap, positions){
-            update_obs($(slider.value), [parseFloat(values[0]), parseFloat(values[1])]);
+            JSServe.update_obs($(slider.value), [parseFloat(values[0]), parseFloat(values[1])]);
         });
     }""")
     onjs(session, style, create_slider)
@@ -83,7 +83,7 @@ function JSServe.jsrender(tb::Checkbox)
     return DOM.input(
         type = "checkbox",
         checked = tb.value,
-        onchange = js"update_obs($(tb.value), this.checked);";
+        onchange = js"JSServe.update_obs($(tb.value), this.checked);";
         tb.attributes...
     )
 end
@@ -180,7 +180,7 @@ function jsrender(session::Session, editor::CodeEditor)
             editor.setOptions($(editor.options));
 
             editor.session.on('change', function(delta) {
-                update_obs($(editor.onchange), editor.getValue());
+                JSServe.update_obs($(editor.onchange), editor.getValue());
             });
 
             editor.session.setValue($(editor.onchange[]));

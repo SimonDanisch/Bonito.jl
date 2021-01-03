@@ -150,7 +150,7 @@ function warmup(application::Server)
         # This will error, since its not a propper websocket request
         @debug "Error in stream_handler" exception=e
     end
-    target = register_local_file(JSCallLibLocal.local_path) # http target part
+    target = register_local_file(JSServeLib.local_path) # http target part
     asset_url = local_url(application, target)
     request = Request("GET", target)
 
@@ -304,4 +304,18 @@ function start(application::Server; verbose=false)
         Base.invokelatest(stream_handler, application, stream)
     end
     return
+end
+
+const GLOBAL_SERVER = Ref{Server}()
+
+function get_server()
+    if !isassigned(GLOBAL_SERVER) || istaskdone(GLOBAL_SERVER[].server_task[])
+        GLOBAL_SERVER[] = Server(
+            App("Nothing to see"),
+            JSSERVE_CONFIGURATION.listen_url[],
+            JSSERVE_CONFIGURATION.listen_port[],
+            verbose=JSSERVE_CONFIGURATION.verbose[]
+        )
+    end
+    return GLOBAL_SERVER[]
 end

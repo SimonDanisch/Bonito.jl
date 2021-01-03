@@ -1,6 +1,5 @@
 
-function init_session(session::Session)
-    put!(session.js_fully_loaded, true)
+function fused_messages(session::Session)
     messages = []
     for (id, (reg, obs)) in session.observables
         push!(messages, Dict(:msg_type=>UpdateObservable, :payload=>obs[], :id=>obs.id))
@@ -9,11 +8,17 @@ function init_session(session::Session)
     for js in session.on_document_load
         push!(messages, Dict(:msg_type=>EvalJavascript, :payload=>js))
     end
-    empty!(session.message_queue)
-    send(session; msg_type=FusedMessage, payload=messages)
+    return Dict(:msg_type=>FusedMessage, :payload=>messages)
 end
 
-function Session(connection::Base.RefValue{WebSocket}=Base.RefValue{WebSocket}(); url_serializer=UrlSerializer(), id=string(uuid4()))
+function init_session(session::Session)
+    put!(session.js_fully_loaded, true)
+    messages = fused_messages(session)
+    empty!(session.message_queue)
+    send(session, messages)
+end
+
+function Session(connection=Base.RefValue{Union{WebSocket, Nothing}}(nothing); url_serializer=UrlSerializer(), id=string(uuid4()))
     return Session(
         connection,
         Dict{String, Tuple{Bool, Observable}}(),
@@ -31,12 +36,44 @@ function Session(connection::Base.RefValue{WebSocket}=Base.RefValue{WebSocket}()
     )
 end
 
+function Session(session::Session;
+                connection=session.connection,
+                observables=session.observables,
+                message_queue=session.message_queue,
+                dependencies=session.dependencies,
+                on_document_load=session.on_document_load,
+                id=session.id,
+                js_fully_loaded=session.js_fully_loaded,
+                on_websocket_ready=session.on_websocket_ready,
+                url_serializer=session.url_serializer,
+                init_error=session.init_error,
+                js_comm=session.js_comm,
+                on_close=session.on_close,
+                deregister_callbacks=session.deregister_callbacks,
+            )
+    return Session(
+        connection,
+        observables,
+        message_queue,
+        dependencies,
+        on_document_load,
+        id,
+        js_fully_loaded,
+        on_websocket_ready,
+        url_serializer,
+        init_error,
+        js_comm,
+        on_close,
+        deregister_callbacks,
+    )
+end
+
 session(session::Session) = session
 
 function Base.close(session::Session)
     try
         # https://github.com/JuliaWeb/HTTP.jl/issues/649
-        if isassigned(session.connection)
+        if isassigned(session.connection) && !isnothing(session.connection[])
             close(session.connection[])
         end
     catch e
@@ -71,7 +108,7 @@ function Sockets.send(session::Session, message::Dict{Symbol, Any})
 end
 
 function Base.isopen(session::Session)
-    return isassigned(session.connection) && isopen(session.connection[])
+    return isassigned(session.connection) && !isnothing(session.connection[]) && isopen(session.connection[])
 end
 
 """
@@ -123,7 +160,7 @@ Link the observables in Julia, but only as long as the session is active.
 """
 function linkjs(session::Session, a::Observable, b::Observable)
     # register the callback with the JS session
-    onjs(session, a, js"(v) => update_obs($b, v)")
+    onjs(session, a, js"(v) => JSServe.update_obs($b, v)")
 end
 
 function linkjs(has_session, a::Observable, b::Observable)
@@ -163,9 +200,9 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=100.0
     js_with_result = js"""
     try{
         const result = $(js);
-        update_obs($(comm), {result: result});
+        JSServe.update_obs($(comm), {result: result});
     }catch(e){
-        update_obs($(comm), {error: e.toString()});
+        JSServe.update_obs($(comm), {error: e.toString()});
     }
     """
 

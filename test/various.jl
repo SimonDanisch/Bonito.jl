@@ -56,7 +56,7 @@ end
         # Dont start this!
         testing_started[] && return DOM.div()
         onjs(session, obs, js"""function (v) {
-            var t = update_obs($(counter), get_observable($(counter)) + 1);
+            var t = update_obs($(counter), JSServe.get_observable($(counter)) + 1);
         }""")
 
         for i in 1:2

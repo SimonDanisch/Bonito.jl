@@ -64,7 +64,7 @@ function print_js_code(io::IO, @nospecialize(object::Any), context)
     serialized = serialize_js(object)
     if context === nothing
         json = JSON3.write(serialized)
-        print(io, "deserialize_js($(json))")
+        print(io, "JSServe.deserialize_js($(json))")
     else
         if serialized isa String
             print(io, repr(serialized))
@@ -90,4 +90,13 @@ function print_js_code(io::IO, jsss::AbstractVector{JSCode}, context)
         println(io)
     end
     return context
+end
+
+function jsrender(session::Session, js::JSCode)
+    register_resource!(session, js)
+    source = sprint() do io
+        println(io)
+        println(io, js)
+    end
+    return DOM.script(source, type="text/javascript")
 end
