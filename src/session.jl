@@ -188,7 +188,7 @@ Evals `js` code and returns the jsonified value.
 Blocks until value is returned. May block indefinitely, when called with a session
 that doesn't have a connection to the browser.
 """
-function evaljs_value(session::Session, js; error_on_closed=true, time_out=100.0)
+function evaljs_value(session::Session, js; error_on_closed=true, time_out=5.0)
     if error_on_closed && !isopen(session)
         error("Session is not open and would result in this function to indefinitely block.
         It may unblock, if the browser is still connecting and opening the session later on. If this is expected,
@@ -197,9 +197,12 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=100.0
 
     comm = session.js_comm
     comm.val = nothing
+    @assert haskey(session.observables, comm.id)
     js_with_result = js"""
     try{
+        console.log("LOLOLOL")
         const result = $(js);
+        console.log(result)
         JSServe.update_obs($(comm), {result: result});
     }catch(e){
         JSServe.update_obs($(comm), {error: e.toString()});
@@ -210,7 +213,7 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=100.0
     # TODO, have an on error callback, that triggers when evaljs goes wrong
     # (e.g. because of syntax error that isn't caught by the above try catch!)
     result = Base.timedwait(()-> comm[] !== nothing, time_out)
-    result == :time_out && error("Waited for $(time_out) seconds for JS to return, but it didn't!")
+    result == :timed_out && error("Waited for $(time_out) seconds for JS to return, but it didn't!")
     value = comm[]
     if haskey(value, "error")
         error(value["error"])

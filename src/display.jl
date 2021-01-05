@@ -1,4 +1,3 @@
-
 struct Page
     serializer::UrlSerializer
     with_julia_server::Bool
@@ -20,6 +19,8 @@ function Base.show(io::IO, ::MIME"text/html", page::Page)
     serializer = page.serializer
     websocket_url = JSSERVE_CONFIGURATION.external_url[]
     delete_session = Observable("")
+
+    push!(page.session, page.session.js_comm)
 
     on(delete_session) do session_id
         println("DELETING SESSION: $(session_id)")
@@ -59,7 +60,6 @@ function Base.show(io::IO, ::MIME"text/html", page::Page)
                         }
                     })
                 }
-                console.log(to_delete)
                 to_delete.forEach(id=>{
                     window.session_dom_nodes.delete(id)
                     JSServe.update_obs($(delete_session), id)
@@ -114,9 +114,6 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
     js_dom = jsrender(session, html_dom)
     register_resource!(session, js_dom)
 
-    messages = fused_messages(session)
-    empty!(session.message_queue)
-
     obs_shared_with_parent = intersect(keys(session.observables), keys(page_session.observables))
     # Those obs are managed by page session, so we don't need to have them in here!
     for obs in obs_shared_with_parent
@@ -144,13 +141,20 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
 
     html = repr(MIME"text/html"(), Hyperscript.Pretty(final_dom))
 
+    messages = fused_messages(session)
+    empty!(session.message_queue)
+
     session.connection[] = page_session.connection[]
+    push!(session, page_session.js_comm)
 
     on(on_init) do is_init
-        if is_init
-            send(page_session, messages)
+        @info("Initialized, sending $(length(messages)) messages")
+        if !is_init
+            error("The html didn't initialize correctly")
         end
+        send(page_session, messages)
     end
+
     println(io, html)
 end
 
