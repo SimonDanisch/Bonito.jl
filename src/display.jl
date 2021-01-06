@@ -32,7 +32,7 @@ function Base.show(io::IO, ::MIME"text/html", page::Page)
         close(child)
         delete!(page.child_sessions, session_id)
     end
-
+    @info("Page session: $(page.session.id)")
     page_init_dom = DOM.div(
         include_asset(PakoLib, serializer),
         include_asset(MsgPackLib, serializer),
@@ -90,7 +90,8 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
         id=string(uuid4()),
         observables=Dict{String, Tuple{Bool, Observable}}(),
         on_close=Observable(false),
-        message_queue=Dict{Symbol, Any}[]
+        message_queue=Dict{Symbol, Any}[],
+        deregister_callbacks=Observables.ObserverFunction[]
     )
     # register with page session for proper clean up!
     page.child_sessions[session.id] = session

@@ -64,7 +64,6 @@ function handle_ws_message(session::Session, message)
         @assert registered # must have been registered to come from frontend
         # update observable without running into cycles (e.g. js updating obs
         # julia updating js, ...)
-        @show data["payload"]
         Base.invokelatest(update_nocycle!, obs, data["payload"])
     elseif typ == JavascriptError
         show(stderr, JSException(data))
@@ -84,8 +83,8 @@ end
 
 function handle_ws_error(e)
     if !(e isa WebSockets.WebSocketClosedError || e isa Base.IOError)
-        err = CapturedException(e, Base.catch_backtrace())
-        @warn "error in websocket handler!" exception=err
+        @warn "error in websocket handler!"
+        Base.showerror(stderr, e, Base.catch_backtrace())
     end
 end
 
@@ -97,7 +96,8 @@ function handle_ws_connection(application::Server, session::Session, websocket::
     try
         while isopen(websocket)
             try
-                handle_ws_message(session, read(websocket))
+                bytes = read(websocket)
+                handle_ws_message(session, bytes)
             catch e
                 handle_ws_error(e)
             end

@@ -124,7 +124,7 @@ function Base.getproperty(dependency::Dependency, func_name::Symbol)
     func_name_js = JSString(string(func_name))
     return function (session::Session, args...; kw...)
         args = construct_arguments(args, kw)
-        evaljs_value(session, js"""
+        evaljs(session, js"""
             $(dependency).$(func_name_js)(...$(args))
         """)
     end

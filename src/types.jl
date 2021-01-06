@@ -178,7 +178,10 @@ struct Session
     js_comm::Observable{Union{Nothing, Dict{String, Any}}}
     on_close::Observable{Bool}
     deregister_callbacks::Vector{Observables.ObserverFunction}
+    unique_object_cache::Dict{String, WeakRef}
 end
+
+
 
 struct Routes
     table::Vector{Pair{Any, Any}}

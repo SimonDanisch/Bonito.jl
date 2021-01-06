@@ -54,16 +54,15 @@ const JSServe = (function (){
         if (is_list(data)) {
             return data.map(materialize_node);
         } else if (data.tag) {
-            var node = document.createElement(data.tag);
-            for (var key in data) {
+            const node = document.createElement(data.tag);
+            Object.keys(data).forEach((key) => {
                 if (key == "class") {
                     node.className = data[key];
                 } else if (key != "children" && key != "tag") {
                     node.setAttribute(key, data[key]);
                 }
-            }
-            for (var idx in data.children) {
-                var child = data.children[idx];
+            })
+            data.children.forEach((child) => {
                 if (is_dict(child)) {
                     node.appendChild(materialize_node(child));
                 } else {
@@ -73,12 +72,24 @@ const JSServe = (function (){
                         node.innerText = child;
                     }
                 }
-            }
+            })
             return node;
         } else {
             // anything else is used as is!
             return data;
         }
+    }
+
+    const session_object_cache = {}
+
+    function update_cache({ to_remove, to_register }) {
+        to_remove.forEach((x) => {
+            delete session_object_cache[x];
+        });
+        Object.keys(to_register).forEach(k=>{
+            session_object_cache[k] = deserialize_js(to_register[k])
+        })
+        return;
     }
 
     function deserialize_js(data) {
@@ -87,14 +98,21 @@ const JSServe = (function (){
         } else if (is_dict(data)) {
             if ("__javascript_type__" in data) {
                 if (data.__javascript_type__ == "typed_vector") {
+
                     return data.payload;
+
                 } else if (data.__javascript_type__ == "DomNode") {
+
                     return document.querySelector(
                         '[data-jscall-id="' + data.payload + '"]'
                     );
+
                 } else if (data.__javascript_type__ == "DomNodeFull") {
+
                     return materialize_node(data.payload);
-                } else if (data.__javascript_type__ == "js_code") {
+
+                } else if (data.__javascript_type__ == "JSCode") {
+
                     const eval_func = new Function(
                         "__eval_context__",
                         data.payload.source
@@ -102,11 +120,22 @@ const JSServe = (function (){
                     const context = deserialize_js(data.payload.context);
                     // return a closure, that when caleld evals runs the code!
                     return () => eval_func(context);
+
                 } else if (data.__javascript_type__ == "Observable") {
+
                     const value = deserialize_js(data.payload.value);
                     const id = data.payload.id;
                     registered_observables[id] = value;
                     return id;
+
+                } else if (data.__javascript_type__ == "Reference") {
+
+                    const ref = session_object_cache[data.payload];
+                    if (!ref) {
+                        throw new Error(`Could not dereference ${data.payload}!`)
+                    }
+                    return ref
+
                 } else {
                     send_error(
                         "Can't deserialize custom type: " +
@@ -299,6 +328,13 @@ const JSServe = (function (){
 
     function process_message(data) {
         try {
+            if (data.update_cache) {
+                // the message comes with new cached variables, which we need to update
+                // before processing any messages
+                update_cache(data.update_cache);
+                process_message(data.data);
+                return
+            }
             switch (data.msg_type) {
                 case UpdateObservable:
                     const value = deserialize_js(data.payload);
@@ -322,10 +358,7 @@ const JSServe = (function (){
                     messages.forEach(process_message);
                     break;
                 default:
-                    send_error(
-                        "Unrecognized message type: " + data.msg_type + ".",
-                        null
-                    );
+                    throw new Error("Unrecognized message type: " + data.msg_type + ".")
             }
         } catch (e) {
             send_error(`Error while processing message ${JSON.stringify(data)}`, e);
@@ -369,8 +402,10 @@ const JSServe = (function (){
         const url = websocket_url(session_id, proxy_url);
         let tries = 0;
         function tryconnect(url) {
+
             if (session_websocket.length != 0) {
-                throw "Inconsistent state. Already opened a websocket!";
+                const old_ws = session_websocket.pop();
+                old_ws.close()
             }
             websocket = new WebSocket(url);
             websocket.binaryType = "arraybuffer";

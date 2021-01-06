@@ -37,7 +37,7 @@ macro js_str(js_source)
 end
 
 function Base.show(io::IO, jsc::JSCode)
-    print_js_code(io, jsc, nothing)
+    print_js_code(io, jsc, SerializationContext(nothing))
 end
 
 function print_js_code(io::IO, dependency::Dependency, context)
@@ -61,18 +61,14 @@ function print_js_code(io::IO, jss::JSString, context)
 end
 
 function print_js_code(io::IO, @nospecialize(object::Any), context)
-    serialized = serialize_js(object)
-    if context === nothing
+    serialized = serialize_js(context, object)
+    if isnothing(context.interpolated)
         json = JSON3.write(serialized)
         print(io, "JSServe.deserialize_js($(json))")
     else
-        if serialized isa String
-            print(io, repr(serialized))
-        else
-            index = length(context) # 0 indexed
-            push!(context, serialized)
-            print(io, "__eval_context__[$(index)]")
-        end
+        index = length(context.interpolated) # 0 indexed
+        push!(context.interpolated, serialized)
+        print(io, "__eval_context__[$(index)]")
     end
     return context
 end

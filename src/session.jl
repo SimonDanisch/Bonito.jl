@@ -1,4 +1,3 @@
-
 function fused_messages(session::Session)
     messages = []
     for (id, (reg, obs)) in session.observables
@@ -32,7 +31,8 @@ function Session(connection=Base.RefValue{Union{WebSocket, Nothing}}(nothing); u
         Ref{Union{Nothing, JSException}}(nothing),
         Observable{Union{Nothing, Dict{String, Any}}}(nothing),
         Observable(false),
-        Observables.ObserverFunction[]
+        Observables.ObserverFunction[],
+        Dict{String, WeakRef}()
     )
 end
 
@@ -50,6 +50,7 @@ function Session(session::Session;
                 js_comm=session.js_comm,
                 on_close=session.on_close,
                 deregister_callbacks=session.deregister_callbacks,
+                unique_object_cache=session.unique_object_cache,
             )
     return Session(
         connection,
@@ -65,6 +66,7 @@ function Session(session::Session;
         js_comm,
         on_close,
         deregister_callbacks,
+        unique_object_cache
     )
 end
 
@@ -101,7 +103,8 @@ Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
     if isopen(session) && isready(session.js_fully_loaded)
         @assert isempty(session.message_queue)
-        serialize_websocket(session.connection[], message)
+        binary = serialize_binary(session, message)
+        write(session.connection[], binary)
     else
         push!(session.message_queue, message)
     end
@@ -188,7 +191,8 @@ Evals `js` code and returns the jsonified value.
 Blocks until value is returned. May block indefinitely, when called with a session
 that doesn't have a connection to the browser.
 """
-function evaljs_value(session::Session, js; error_on_closed=true, time_out=5.0)
+function evaljs_value(session::Session, js; error_on_closed=true, time_out=10.0)
+    @info("evaljs_value for $(session.id)")
     if error_on_closed && !isopen(session)
         error("Session is not open and would result in this function to indefinitely block.
         It may unblock, if the browser is still connecting and opening the session later on. If this is expected,
@@ -200,7 +204,7 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=5.0)
     @assert haskey(session.observables, comm.id)
     js_with_result = js"""
     try{
-        console.log("LOLOLOL")
+
         const result = $(js);
         console.log(result)
         JSServe.update_obs($(comm), {result: result});
@@ -212,9 +216,17 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=5.0)
     evaljs(session, js_with_result)
     # TODO, have an on error callback, that triggers when evaljs goes wrong
     # (e.g. because of syntax error that isn't caught by the above try catch!)
-    result = Base.timedwait(()-> comm[] !== nothing, time_out)
-    result == :timed_out && error("Waited for $(time_out) seconds for JS to return, but it didn't!")
-    value = comm[]
+    task = @async begin
+        tstart = time()
+        while (time() - tstart < time_out) && isnothing(comm[])
+            sleep(0.5)
+        end
+        comm[]
+    end
+    value = fetch(task)
+    if isnothing(value)
+        error("Timed out")
+    end
     if haskey(value, "error")
         error(value["error"])
     else
