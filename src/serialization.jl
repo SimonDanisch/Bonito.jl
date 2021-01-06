@@ -14,6 +14,7 @@ end
 function SerializationContext(serialized_objects::Nothing, interpolated=nothing)
     return SerializationContext(nothing, serialized_objects, interpolated, Set{String}())
 end
+
 function pointer_identity(@nospecialize(x::Union{AbstractString, AbstractArray}))
     # hate on strings - but JS loves this shit
     return string(UInt64(pointer(x)))
@@ -24,14 +25,15 @@ function pointer_identity(@nospecialize(x))
     return string(UInt64(pointer_from_objref(x)))
 end
 
+should_cache(@nospecialize(x)) = false
+should_cache(x::Array) = x isa Matrix{Float16}
+
 function add_to_cache!(context::SerializationContext, @nospecialize(object))
     isnothing(context.serialized_objects) && return # we don't want to cache ANYTHING
-    isbits(object) && return # dont cache value types
-    Base.summarysize(object) / 10^6 < 0.01 && return # only cache largish objects
+    should_cache(object) || return # only cache values we can cache!
     ref = pointer_identity(object)
     # if object is in global cache, insert it locally
     if !isnothing(context.global_objects) && haskey(context.global_objects, ref)
-        @info("$(typeof(object)) with $(ref) already in global cache")
         # We can assume that this is already globally available
         # so no need to push it to duplicates!
         return ref
@@ -54,7 +56,7 @@ function update_cache!(session::Session, objects::Dict{String, Any}, duplicates:
     to_register = Dict{String, Any}()
     to_remove = String[]
     uoc = session.unique_object_cache
-    duplicate_ser_context = SerializationContext(nothing, nothing)
+    duplicate_ser_context = SerializationContext(nothing)
     for k in duplicates
         o = objects[k]
         # handle expired WeakRefs + non existing keys in one go:
@@ -80,14 +82,15 @@ end
 function serialize_binary(session::Session, @nospecialize(obj))
     context = SerializationContext(session.unique_object_cache)
     data = serialize_js(context, obj) # apply custom, overloadable transformation
+    debug_size(data, 0)
     if !isempty(context.duplicates)
-        @info("WE DO HAVE DUPLICATES!")
         message = update_cache!(session, context.serialized_objects, context.duplicates)
-        @info("Duplicates: $(keys(message["to_register"]))")
         data = Dict(
             "update_cache" => message,
             "data" => data
         )
+        @info("data: $(Base.format_bytes(Base.summarysize(data)))")
+        @info("update_cache: $(Base.format_bytes(Base.summarysize(message)))")
     end
     bytes = MsgPack.pack(data)
     @info(Base.format_bytes(sizeof(bytes)))
@@ -169,7 +172,8 @@ serialize_js(context::SerializationContext, jss::JSString) = jss.source
 function serialize_js(context::SerializationContext, jsc::Union{JSCode, JSString})
     isnothing(context.interpolated) || empty!(context.interpolated)
     js_string = sprint(io-> print_js_code(io, jsc, context))
-    data = Dict("source" => js_string, "context" => copy(context.interpolated))
+    ctx = isnothing(context.interpolated) ? [] : copy(context.interpolated)
+    data = Dict("source" => js_string, "context" => ctx)
     return js_type("JSCode", data)
 end
 
