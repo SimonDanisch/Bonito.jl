@@ -150,7 +150,7 @@ function warmup(application::Server)
         # This will error, since its not a propper websocket request
         @debug "Error in stream_handler" exception=e
     end
-    target = register_local_file(JSServeLib.local_path) # http target part
+    target = register_local_file(JSServeLib.assets[1].local_path) # http target part
     asset_url = local_url(application, target)
     request = Request("GET", target)
 

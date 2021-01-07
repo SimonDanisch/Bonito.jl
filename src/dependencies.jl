@@ -215,7 +215,7 @@ end
 
 const MsgPackLib = Asset(dependency_path("msgpack.min.js"))
 const PakoLib = Asset(dependency_path("pako_inflate.min.js"))
-const JSServeLib = Asset(dependency_path("core.js"))
+const JSServeLib = Dependency(:JSServe, [dependency_path("core.js")])
 
 const MarkdownCSS = Asset(dependency_path("markdown.css"))
 const TailwindCSS = Asset(dependency_path("tailwind.min.css"))

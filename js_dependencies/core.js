@@ -1,12 +1,69 @@
 const JSServe = (function (){
     const registered_observables = {};
     const observable_callbacks = {};
+    const session_object_cache = {};
+
+    function update_cache({ to_remove, to_register }) {
+        to_remove.forEach((x) => {
+            delete session_object_cache[x];
+        });
+        Object.keys(to_register).forEach((k) => {
+            session_object_cache[k] = deserialize_js(to_register[k]);
+        });
+        return;
+    }
+
+    function get_observable(id) {
+        if (id in registered_observables) {
+            return registered_observables[id];
+        } else {
+            throw "Can't find observable with id: " + id;
+        }
+    }
+
+    function delete_observables(ids) {
+        ids.forEach(id=>{
+            delete registered_observables[id]
+            delete observable_callbacks[id];
+        })
+    }
+
+    function update_obs(id, value) {
+        if (id in registered_observables) {
+            try {
+                registered_observables[id] = value;
+                // call onjs callbacks
+                run_js_callbacks(id, value);
+                // update Julia side!
+                websocket_send({
+                    msg_type: UpdateObservable,
+                    id: id,
+                    payload: value,
+                });
+            } catch (exception) {
+                send_error(
+                    "Error during update_obs with observable " + id,
+                    exception
+                );
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    function on_update(observable_id, callback) {
+        const callbacks = observable_callbacks[observable_id] || [];
+        callbacks.push(callback);
+        observable_callbacks[observable_id] = callbacks;
+    }
     // Save some bytes by using ints for switch variable
     const UpdateObservable = "0";
     const OnjsCallback = "1";
     const EvalJavascript = "2";
     const JavascriptError = "3";
     const JavascriptWarning = "4";
+    const RegisterObservable = "5";
     const JSDoneLoading = "8";
     const FusedMessage = "9";
 
@@ -80,18 +137,6 @@ const JSServe = (function (){
         }
     }
 
-    const session_object_cache = {}
-
-    function update_cache({ to_remove, to_register }) {
-        to_remove.forEach((x) => {
-            delete session_object_cache[x];
-        });
-        Object.keys(to_register).forEach(k=>{
-            session_object_cache[k] = deserialize_js(to_register[k])
-        })
-        return;
-    }
-
     function deserialize_js(data) {
         if (is_list(data)) {
             return data.map(deserialize_js);
@@ -158,19 +203,6 @@ const JSServe = (function (){
         }
     }
 
-    function get_observable(id) {
-        if (id in registered_observables) {
-            return registered_observables[id];
-        } else {
-            throw "Can't find observable with id: " + id;
-        }
-    }
-
-    function on_update(observable_id, callback) {
-        const callbacks = observable_callbacks[observable_id] || [];
-        callbacks.push(callback);
-        observable_callbacks[observable_id] = callbacks;
-    }
 
     function send_error(message, exception) {
         console.error(message);
@@ -232,30 +264,6 @@ const JSServe = (function (){
             for (var i = 0; i < deregister_calls.length; i++) {
                 callbacks.splice(deregister_calls[i], 1);
             }
-        }
-    }
-
-    function update_obs(id, value) {
-        if (id in registered_observables) {
-            try {
-                registered_observables[id] = value;
-                // call onjs callbacks
-                run_js_callbacks(id, value);
-                // update Julia side!
-                websocket_send({
-                    msg_type: UpdateObservable,
-                    id: id,
-                    payload: value,
-                });
-            } catch (exception) {
-                send_error(
-                    "Error during update_obs with observable " + id,
-                    exception
-                );
-            }
-            return true;
-        } else {
-            return false;
         }
     }
 
@@ -329,6 +337,7 @@ const JSServe = (function (){
     function process_message(data) {
         try {
             if (data.update_cache) {
+                console.log("UPDATING CACHE")
                 // the message comes with new cached variables, which we need to update
                 // before processing any messages
                 update_cache(data.update_cache);
@@ -341,6 +350,9 @@ const JSServe = (function (){
                     registered_observables[data.id] = value;
                     // update all onjs callbacks
                     run_js_callbacks(data.id, value);
+                    break;
+                case RegisterObservable:
+                    registered_observables[data.id] = deserialize_js(data.payload);
                     break;
                 case OnjsCallback:
                     // register a callback that will executed on js side
@@ -358,7 +370,9 @@ const JSServe = (function (){
                     messages.forEach(process_message);
                     break;
                 default:
-                    throw new Error("Unrecognized message type: " + data.msg_type + ".")
+                    throw new Error(
+                        "Unrecognized message type: " + data.msg_type + "."
+                    );
             }
         } catch (e) {
             send_error(`Error while processing message ${JSON.stringify(data)}`, e);
@@ -464,6 +478,7 @@ const JSServe = (function (){
         deserialize_js,
         get_observable,
         on_update,
+        delete_observables,
         send_warning,
         send_error,
         setup_connection,
@@ -471,5 +486,8 @@ const JSServe = (function (){
         update_obs,
         update_node_attribute,
         is_list,
+        registered_observables,
+        observable_callbacks,
+        session_object_cache,
     };
 })()

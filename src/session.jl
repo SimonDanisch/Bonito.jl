@@ -1,20 +1,20 @@
-function fused_messages(session::Session)
+function fused_messages!(session::Session)
     messages = []
     for (id, (reg, obs)) in session.observables
-        push!(messages, Dict(:msg_type=>UpdateObservable, :payload=>obs[], :id=>obs.id))
+        @assert reg
     end
     append!(messages, session.message_queue)
     for js in session.on_document_load
         push!(messages, Dict(:msg_type=>EvalJavascript, :payload=>js))
     end
+    empty!(session.on_document_load)
+    empty!(session.message_queue)
     return Dict(:msg_type=>FusedMessage, :payload=>messages)
 end
 
 function init_session(session::Session)
     put!(session.js_fully_loaded, true)
-    messages = fused_messages(session)
-    empty!(session.message_queue)
-    send(session, messages)
+    send(session, fused_messages!(session))
 end
 
 function Session(connection=Base.RefValue{Union{WebSocket, Nothing}}(nothing); url_serializer=UrlSerializer(), id=string(uuid4()))
@@ -73,6 +73,8 @@ end
 session(session::Session) = session
 
 function Base.close(session::Session)
+    @info("###########################################")
+    @info("CLOSING SESSION: $(session.id)")
     try
         # https://github.com/JuliaWeb/HTTP.jl/issues/649
         if isassigned(session.connection) && !isnothing(session.connection[])
@@ -83,14 +85,21 @@ function Base.close(session::Session)
             @warn "error while closing websocket!" exception=e
         end
     end
-
-    session.on_close[] = true
+    @info("Allright, tried closing ws, triggering on_close!")
+    try
+        session.on_close[] = true
+    catch e
+        @warn "error while setting on_close" exception=e
+    end
+    @info("onclose is so triggered right now")
     empty!(session.observables)
     empty!(session.on_document_load)
     empty!(session.message_queue)
     empty!(session.dependencies)
     # remove all listeners that where created for this session
     foreach(off, session.deregister_callbacks)
+    @info("DONE CLOSING SESSION: $(session.id)")
+    @info("###########################################")
 end
 
 """
@@ -106,6 +115,9 @@ function Sockets.send(session::Session, message::Dict{Symbol, Any})
         binary = serialize_binary(session, message)
         write(session.connection[], binary)
     else
+        if isassigned(CURRENT_PAGE) && session.id == CURRENT_PAGE[].session.id
+            @warn("session $(isopen(session) ? "" : "closed") and $(isready(session.js_fully_loaded) ? "isready" : "not ready")")
+        end
         push!(session.message_queue, message)
     end
 end
@@ -278,9 +290,9 @@ function Base.push!(session::Session, observable::Observable)
         session.observables[observable.id] = (true, observable)
         # Register on the JS side by sending the current value
         updater = JSUpdateObservable(session, observable.id)
-        # Make sure we update the Javascript values!
         on(updater, session, observable)
-        updater(observable[])
+        # Make sure we register on the js side
+        send(session, payload=observable[], id=observable.id, msg_type=RegisterObservable)
     end
 end
 

@@ -36,7 +36,7 @@ function Base.show(io::IO, ::MIME"text/html", page::Page)
     page_init_dom = DOM.div(
         include_asset(PakoLib, serializer),
         include_asset(MsgPackLib, serializer),
-        include_asset(JSServeLib, serializer),
+        include_asset(JSServeLib.assets[1], serializer),
         js"""
 
             window.session_dom_nodes = new Set()
@@ -80,8 +80,8 @@ function assure_ready(session)
     Base.timedwait(30.0) do
         isopen(session) && isready(session.js_fully_loaded)
     end
-    messages = fused_messages(session)
-    empty!(session.message_queue)
+    messages = fused_messages!(session)
+    @info("Sending fused messages: $(length(messages))")
     send(session, messages)
 end
 
@@ -119,6 +119,7 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
 
     obs_shared_with_parent = intersect(keys(session.observables), keys(page_session.observables))
     # Those obs are managed by page session, so we don't need to have them in here!
+    @info("Length of shared: $(length(obs_shared_with_parent))")
     for obs in obs_shared_with_parent
         delete!(session.observables, obs)
     end
@@ -144,8 +145,7 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
 
     html = repr(MIME"text/html"(), Hyperscript.Pretty(final_dom))
 
-    messages = fused_messages(session)
-    empty!(session.message_queue)
+    messages = fused_messages!(session)
 
     session.connection[] = page_session.connection[]
     push!(session, page_session.js_comm)
@@ -157,7 +157,14 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
         end
         send(page_session, messages)
     end
-
+    on(session.on_close) do closed
+        # remove the sub-session specific js resources
+        if closed
+            obs_ids = collect(keys(session.observables))
+            @info("Deleting all them observables: $(length(obs_ids))")
+            JSServeLib.delete_observables(page_session, obs_ids)
+        end
+    end
     println(io, html)
 end
 

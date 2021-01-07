@@ -159,7 +159,7 @@ function parseall(str)
         push!(exs, ex)
     end
     if length(exs) == 0
-        throw(ParseError("end of input"))
+        throw(Base.ParseError("end of input"))
     elseif length(exs) == 1
         return exs[1]
     else
