@@ -1,15 +1,14 @@
 # Render the widgets from WidgetsBase.jl
-
-function jsrender(button::Button)
-    return DOM.input(
+function jsrender(session::Session, button::Button)
+    return jsrender(session, DOM.input(
         type = "button",
         value = button.content,
         onclick = js"JSServe.update_obs($(button.value), true);";
         button.attributes...
-    )
+    ))
 end
 
-function jsrender(tf::TextField)
+function jsrender(session::Session, tf::TextField)
     return DOM.input(
         type = "textfield",
         value = tf.value,
@@ -18,17 +17,17 @@ function jsrender(tf::TextField)
     )
 end
 
-function jsrender(ni::NumberInput)
-    return DOM.input(
+function jsrender(session::Session, ni::NumberInput)
+    return jsrender(session, DOM.input(
         type = "number",
         value = ni.value,
         onchange = js"JSServe.update_obs($(ni.value), parseFloat(this.value));";
         ni.attributes...
-    )
+    ))
 end
 
-function jsrender(slider::Slider)
-    return DOM.input(
+function jsrender(session::Session, slider::Slider)
+    return jsrender(session, DOM.input(
         type = "range",
         min = map(first, slider.range),
         max = map(last, slider.range),
@@ -36,7 +35,16 @@ function jsrender(slider::Slider)
         step = map(step, slider.range),
         oninput = js"JSServe.update_obs($(slider.value), parseFloat(value))";
         slider.attributes...
-    )
+    ))
+end
+
+function JSServe.jsrender(session::Session, tb::Checkbox)
+    return jsrender(session, DOM.input(
+        type = "checkbox",
+        checked = tb.value,
+        onchange = js"JSServe.update_obs($(tb.value), this.checked);";
+        tb.attributes...
+    ))
 end
 
 const noUiSlider = Dependency(
@@ -79,14 +87,6 @@ function jsrender(session::Session, slider::RangeSlider)
     return rangediv
 end
 
-function JSServe.jsrender(tb::Checkbox)
-    return DOM.input(
-        type = "checkbox",
-        checked = tb.value,
-        onchange = js"JSServe.update_obs($(tb.value), this.checked);";
-        tb.attributes...
-    )
-end
 
 """
 A simple wrapper for types that conform to the Tables.jl Table interface,
@@ -107,7 +107,7 @@ function Table(table; class="", row_renderer=render_row_value)
     return Table(table, class, row_renderer)
 end
 
-function JSServe.jsrender(table::Table)
+function JSServe.jsrender(session::Session, table::Table)
     names = string.(Tables.schema(table.table).names)
     header = DOM.thead(DOM.tr(DOM.th.(names)...))
     rows = []
@@ -187,4 +187,9 @@ function jsrender(session::Session, editor::CodeEditor)
         }
     """)
     return editor.element
+end
+
+# Ok, this is bad piracy, but I donno how else to make the display nice for now!
+function Base.show(io::IO, m::MIME"text/html", widget::WidgetsBase.AbstractWidget)
+    show(io, m, App(widget))
 end

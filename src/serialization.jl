@@ -8,9 +8,10 @@ struct SerializationContext
     duplicates::Set{String}
 end
 
-function SerializationContext(global_objects=nothing)
+function SerializationContext(global_objects)
     return SerializationContext(global_objects, Dict{String, Any}(), [], Set{String}())
 end
+
 function SerializationContext(serialized_objects::Nothing, interpolated=nothing)
     return SerializationContext(nothing, serialized_objects, interpolated, Set{String}())
 end
@@ -26,7 +27,10 @@ function pointer_identity(@nospecialize(x))
 end
 
 should_cache(@nospecialize(x)) = false
-should_cache(x::Array) = x isa Matrix{Float16}
+
+# For now, we only cache arrays bigger 0.01mb
+# Which makes a huge impact already for WGLMakie
+should_cache(x::Array) = sizeof(x) / 10^6 > 0.01
 
 function add_to_cache!(context::SerializationContext, @nospecialize(object))
     isnothing(context.serialized_objects) && return # we don't want to cache ANYTHING
@@ -82,18 +86,17 @@ end
 function serialize_binary(session::Session, @nospecialize(obj))
     context = SerializationContext(session.unique_object_cache)
     data = serialize_js(context, obj) # apply custom, overloadable transformation
-    debug_size(data, 0)
+    # If we found duplicates, store them to the cache!
     if !isempty(context.duplicates)
         message = update_cache!(session, context.serialized_objects, context.duplicates)
+        # we store to the cache by modifying the original message
+        # which will then be handled by the JS side
         data = Dict(
             "update_cache" => message,
             "data" => data
         )
-        @info("data: $(Base.format_bytes(Base.summarysize(data)))")
-        @info("update_cache: $(Base.format_bytes(Base.summarysize(message)))")
     end
     bytes = MsgPack.pack(data)
-    @info(Base.format_bytes(sizeof(bytes)))
     return transcode(GzipCompressor, bytes)
 end
 
@@ -116,7 +119,7 @@ js"console.log(\$(observable))"
 ```
 """
 function by_value(x::Observable)
-    obs_val = Dict(:id=>x.id, :value=> x[])
+    obs_val = Dict(:id=> x.id, :value=> x[])
     js_type("Observable", obs_val)
 end
 
@@ -147,7 +150,7 @@ end
 
 function serialize_js(context::SerializationContext, x::Vector{T}) where {T<:Number}
     return ref_or(context, x) do
-        return js_type("typed_vector", x)
+        return js_type("TypedVector", x)
     end
 end
 

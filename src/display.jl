@@ -76,6 +76,15 @@ function Base.show(io::IO, ::MIME"text/html", page::Page)
     println(io, node_html(page.session, page_init_dom))
 end
 
+function assure_ready(session)
+    Base.timedwait(30.0) do
+        isopen(session) && isready(session.js_fully_loaded)
+    end
+    messages = fused_messages(session)
+    empty!(session.message_queue)
+    send(session, messages)
+end
+
 function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
     if !isassigned(CURRENT_PAGE)
         error("Please initialize Page rendering by running JSServe.Page()")
@@ -96,17 +105,10 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
     # register with page session for proper clean up!
     page.child_sessions[session.id] = session
 
-    on(session.on_close) do isclosed
-        @show isclosed
-    end
     # The page session must be ready to display anything!
     # Since the page display is rendered async in the browser and we have no
     # idea when it's done on the Julia side, so we need to wait here!
-    Base.timedwait(30.0) do
-        isopen(page_session) && isready(page_session.js_fully_loaded)
-    end
-
-    @assert isempty(page_session.message_queue)
+    assure_ready(page_session)
 
     on_init = Observable(false)
     push!(page_session, on_init)
@@ -259,8 +261,6 @@ end
 #     session = Session()
 #     println(io, show_in_iframe(server, session, app))
 # end
-
-
 
 function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+html", dom::App)
     if get(io, :use_offline_mode, false)

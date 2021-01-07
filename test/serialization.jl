@@ -45,3 +45,21 @@ bytes2 = serialize_binary(session, data)
 data_unpacked = MsgPack.unpack(transcode(GzipDecompressor, bytes2))
 @test data_unpacked["double"]["__javascript_type__"] == "Reference"
 @test data_unpacked["nested"]["moah_nesting"]["__javascript_type__"] == "Reference"
+
+
+x = [rand(100) for i in 1:50]
+data = [x[(i+1)÷2] for i in 1:100]
+sum(sizeof, data)
+xx = Base.summarysize(data)
+session = Session()
+bytes2 = serialize_binary(session, data)
+bytes2
+
+ctx = SerializationContext(Dict{String, WeakRef}())
+xxx = serialize_js(ctx, data)
+
+Base.summarysize(xxx)
+
+
+MsgPack.pack(xxx) |> sizeof
+MsgPack.pack(data) |> sizeof

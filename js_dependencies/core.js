@@ -97,7 +97,7 @@ const JSServe = (function (){
             return data.map(deserialize_js);
         } else if (is_dict(data)) {
             if ("__javascript_type__" in data) {
-                if (data.__javascript_type__ == "typed_vector") {
+                if (data.__javascript_type__ == "TypedVector") {
 
                     return data.payload;
 
