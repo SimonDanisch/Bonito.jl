@@ -4,7 +4,7 @@
 
     js_str = js"console.log($xx); $x; $((2, 4)); $(some_js) hello = 1;"
 
-    expect = "console.log(\"hey\"); deserialize_js({\"__javascript_type__\":\"TypedVector\",\"payload\":[1.0,2.0]}); deserialize_js([2,4]); var hello = 1;"
+    expect = "console.log(\"hey\"); JSServe.deserialize_js({\"__javascript_type__\":\"TypedVector\",\"payload\":[1.0,2.0]}); JSServe.deserialize_js([2,4]); var hello = 1;"
     @test string(js_str) == expect
 
     asset = JSServe.Asset("file.dun_exist"; check_isfile=false)
@@ -56,7 +56,7 @@ end
         # Dont start this!
         testing_started[] && return DOM.div()
         onjs(session, obs, js"""function (v) {
-            var t = update_obs($(counter), JSServe.get_observable($(counter)) + 1);
+            var t = JSServe.update_obs($(counter), JSServe.get_observable($(counter)) + 1);
         }""")
 
         for i in 1:2

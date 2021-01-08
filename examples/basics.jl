@@ -33,7 +33,7 @@ color[] = "green"
 
 
 app = App() do
-    button = DOM.div("click me", onclick=js"update_obs($(color), 'blue')")
+    button = DOM.div("click me", onclick=js"JSServe.update_obs($(color), 'blue')")
     return DOM.div(
         button, DOM.h1("Hello World", style=map(x-> "color: $(x)", color))
     )
@@ -45,7 +45,7 @@ md"""
 """
 
 app = App() do session::Session
-    button = DOM.div("click me", onclick=js"update_obs($(color), 'blue')")
+    button = DOM.div("click me", onclick=js"JSServe.update_obs($(color), 'blue')")
     onload(session, button, js"""function load(button){
         window.alert('Hi from JavaScript');
     }""")
@@ -91,7 +91,7 @@ md"""
 """
 
 app = App() do
-    button = DOM.div("click me", onclick=js"update_obs($(color), 'blue')")
+    button = DOM.div("click me", onclick=js"JSServe.update_obs($(color), 'blue')")
     return DOM.div(
         button, DOM.h1("Hello World", style=map(x-> "color: $(x)", color))
     )

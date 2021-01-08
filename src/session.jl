@@ -1,8 +1,5 @@
 function fused_messages!(session::Session)
     messages = []
-    for (id, (reg, obs)) in session.observables
-        @assert reg
-    end
     append!(messages, session.message_queue)
     for js in session.on_document_load
         push!(messages, Dict(:msg_type=>EvalJavascript, :payload=>js))
@@ -73,8 +70,6 @@ end
 session(session::Session) = session
 
 function Base.close(session::Session)
-    @info("###########################################")
-    @info("CLOSING SESSION: $(session.id)")
     try
         # https://github.com/JuliaWeb/HTTP.jl/issues/649
         if isassigned(session.connection) && !isnothing(session.connection[])
@@ -85,21 +80,18 @@ function Base.close(session::Session)
             @warn "error while closing websocket!" exception=e
         end
     end
-    @info("Allright, tried closing ws, triggering on_close!")
     try
+        # Errors in `on_close` should not disrupt closing!
         session.on_close[] = true
     catch e
         @warn "error while setting on_close" exception=e
     end
-    @info("onclose is so triggered right now")
     empty!(session.observables)
     empty!(session.on_document_load)
     empty!(session.message_queue)
     empty!(session.dependencies)
     # remove all listeners that where created for this session
     foreach(off, session.deregister_callbacks)
-    @info("DONE CLOSING SESSION: $(session.id)")
-    @info("###########################################")
 end
 
 """
@@ -204,7 +196,6 @@ Blocks until value is returned. May block indefinitely, when called with a sessi
 that doesn't have a connection to the browser.
 """
 function evaljs_value(session::Session, js; error_on_closed=true, time_out=10.0)
-    @info("evaljs_value for $(session.id)")
     if error_on_closed && !isopen(session)
         error("Session is not open and would result in this function to indefinitely block.
         It may unblock, if the browser is still connecting and opening the session later on. If this is expected,
@@ -213,10 +204,8 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=10.0)
 
     comm = session.js_comm
     comm.val = nothing
-    @assert haskey(session.observables, comm.id)
     js_with_result = js"""
     try{
-
         const result = $(js);
         console.log(result)
         JSServe.update_obs($(comm), {result: result});
@@ -228,14 +217,12 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=10.0)
     evaljs(session, js_with_result)
     # TODO, have an on error callback, that triggers when evaljs goes wrong
     # (e.g. because of syntax error that isn't caught by the above try catch!)
-    task = @async begin
-        tstart = time()
-        while (time() - tstart < time_out) && isnothing(comm[])
-            sleep(0.5)
-        end
-        comm[]
+
+    tstart = time()
+    while (time() - tstart < time_out) && isnothing(comm[])
+        yield()
     end
-    value = fetch(task)
+    value = comm[]
     if isnothing(value)
         error("Timed out")
     end

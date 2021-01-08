@@ -17,7 +17,7 @@ function test_handler(session, req)
     linkjs(session, s1.value, s2.value)
 
     onjs(session, s1.value, js"""function (v){
-        var updated = update_obs($(test_observable), {onjs: v});
+        var updated = JSServe.update_obs($(test_observable), {onjs: v});
         console.log(updated);
     }""")
 
@@ -134,7 +134,7 @@ function test_current_session(app)
         sliderresult = query_testid("slider_result")
 
         @testset "set via julia" begin
-            for i in 1:100
+            for i in 1:10
                 slider1[] = i
                 @test evaljs(app, js"$(slider1_js).value") == "$i"
                 # Test linkjs
@@ -144,8 +144,6 @@ function test_current_session(app)
             end
         end
     end
-
-
 end
 
 global test_session = nothing
@@ -155,8 +153,8 @@ inline_display = JSServe.App() do session, req
     global dom = test_handler(session, req)
     return DOM.div(JSTest, dom)
 end;
-
 electron_disp = electrondisplay(inline_display);
+Electron.toggle_devtools(electron_disp)
 app = TestSession(URI("http://localhost:8555/show"),
                   JSServe.GLOBAL_SERVER[], electron_disp, test_session)
 app.dom = dom
@@ -171,13 +169,13 @@ close(app)
     JSServe.__init__()
     @test JSServe.JSSERVE_CONFIGURATION.external_url[] == "https://google.de"
     @test JSServe.JSSERVE_CONFIGURATION.content_delivery_url[] == "https://google.de"
-    html_webio = sprint(io-> show(io, MIME"application/vnd.webio.application+html"(), inline_display))
-    @test occursin("window.websocket_proxy_url = 'https://google.de';", html_webio)
+    html_webio = sprint(io-> show(io, MIME"application/vnd.jsserve.application+html"(), inline_display))
+    #@test occursin("proxy_url = 'https://google.de';", html_webio)
     # @test JSServe.url("/test") == "https://google.de/test"
     JSServe.JSSERVE_CONFIGURATION.external_url[] = ""
     JSServe.JSSERVE_CONFIGURATION.content_delivery_url[] = ""
     # @test JSServe.url("/test") == "/test" # back to relative urls
-    html_webio = sprint(io-> show(io, MIME"application/vnd.webio.application+html"(), inline_display))
+    html_webio = sprint(io-> show(io, MIME"application/vnd.jsserve.application+html"(), inline_display))
     # We open the display server with the above TestSession
     # TODO electrontests should do this!
     check_and_close_display()

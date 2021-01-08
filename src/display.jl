@@ -23,11 +23,13 @@ function Base.show(io::IO, ::MIME"text/html", page::Page)
     push!(page.session, page.session.js_comm)
 
     on(delete_session) do session_id
-        println("DELETING SESSION: $(session_id)")
         if !haskey(page.child_sessions, session_id)
             error("Session to delete not found ($(session_id)), please open an issue with JSServe.jl")
         end
         child = page.child_sessions[session_id]
+        # Set connection to nothing,
+        # so that no clean up happens over the active websocket connection
+        # (e.g. close will try to close the ws connection)
         child.connection[] = nothing
         close(child)
         delete!(page.child_sessions, session_id)
@@ -36,39 +38,12 @@ function Base.show(io::IO, ::MIME"text/html", page::Page)
     page_init_dom = DOM.div(
         include_asset(PakoLib, serializer),
         include_asset(MsgPackLib, serializer),
-        include_asset(JSServeLib.assets[1], serializer),
+        include_asset(JSServeLib, serializer),
         js"""
-
-            window.session_dom_nodes = new Set()
-            const observer = new MutationObserver(function(mutations) {
-                let removal_occured = false
-                const to_delete = new Set()
-                mutations.forEach(mutation=>{
-                    mutation.removedNodes.forEach(x=> {
-                        if (x.id && session_dom_nodes.has(x.id)) {
-                            to_delete.add(x.id)
-                        } else {
-                            removal_occured = true
-                        }
-                    })
-                })
-                // removal occured from elements not matching the id!
-                if (removal_occured) {
-                    window.session_dom_nodes.forEach(id=>{
-                        if (!document.getElementById(id)) {
-                            to_delete.add(id)
-                        }
-                    })
-                }
-                to_delete.forEach(id=>{
-                    window.session_dom_nodes.delete(id)
-                    JSServe.update_obs($(delete_session), id)
-                })
-            });
-
-            observer.observe(document, {attributes: false, childList: true, characterData: false, subtree: true});
             const proxy_url = $(websocket_url)
             const session_id = $(page.session.id)
+            // track if our child session doms get removed from the document (dom)
+            JSServe.track_deleted_sessions($(delete_session))
             JSServe.setup_connection({proxy_url, session_id})
             JSServe.sent_done_loading()
         """
@@ -85,14 +60,9 @@ function assure_ready(session)
     send(session, messages)
 end
 
-function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
-    if !isassigned(CURRENT_PAGE)
-        error("Please initialize Page rendering by running JSServe.Page()")
-    end
-
-    page = CURRENT_PAGE[]
+function show_in_page(page::Page, app::App)
     page_session = page.session
-
+    # Create a child session, to track the per app resources
     session = Session(page_session;
         connection=Base.RefValue{Union{Nothing, WebSocket}}(nothing),
         dependencies=Set{Asset}(),
@@ -104,27 +74,31 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
     )
     # register with page session for proper clean up!
     page.child_sessions[session.id] = session
-
     # The page session must be ready to display anything!
     # Since the page display is rendered async in the browser and we have no
     # idea when it's done on the Julia side, so we need to wait here!
     assure_ready(page_session)
 
     on_init = Observable(false)
-    push!(page_session, on_init)
-
-    html_dom = Base.invokelatest(app.handler, session, (; show="/show"))
+    push!(page_session, on_init) # register manually, since we don't call register anymore on this
+    # Render the app and register all the resources with the session
+    # Note, since we set the connection to nothing, nothing gets sent yet
+    # This is important, since we can only sent the messages after the HTML has been rendered
+    # since we must assume the messages / js contains references to HTML elements
+    html_dom = Base.invokelatest(app.handler, session, (; show="/show_inline"))
     js_dom = jsrender(session, html_dom)
     register_resource!(session, js_dom)
 
     obs_shared_with_parent = intersect(keys(session.observables), keys(page_session.observables))
     # Those obs are managed by page session, so we don't need to have them in here!
-    @info("Length of shared: $(length(obs_shared_with_parent))")
+    # This is important when we clean them up, since a child session shouldn't
+    # delete any observable already managed by the parent session
     for obs in obs_shared_with_parent
         delete!(session.observables, obs)
     end
 
-    # no
+    # but in the end, all observables need to be registered
+    # with the page session, since that's where javascript will sent all the events
     merge!(page_session.observables, session.observables)
 
     new_deps = setdiff(session.dependencies, page_session.dependencies)
@@ -132,8 +106,8 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
 
     init_script = js"""
         JSServe.update_obs($(on_init), true)
-        console.log(session_dom_nodes)
-        window.session_dom_nodes.add($(session.id))
+        // register this session so it gets deleted when it gets removed from dom
+        JSServe.register_sub_session($(session.id))
     """
 
     final_dom = DOM.div(
@@ -144,7 +118,7 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
     )
 
     html = repr(MIME"text/html"(), Hyperscript.Pretty(final_dom))
-
+    # We take all
     messages = fused_messages!(session)
 
     session.connection[] = page_session.connection[]
@@ -157,20 +131,58 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
         end
         send(page_session, messages)
     end
+
     on(session.on_close) do closed
         # remove the sub-session specific js resources
         if closed
             obs_ids = collect(keys(session.observables))
-            @info("Deleting all them observables: $(length(obs_ids))")
             JSServeLib.delete_observables(page_session, obs_ids)
+            # since we deleted all obs shared with the parent session,
+            # we can delete savely delete all of them from there
+            # Note, that we previously added them all here!
+            for (k, o) in session.observables
+                delete!(page_session.observables, k)
+            end
         end
     end
-    println(io, html)
+
+    return html
+end
+
+function show_in_iframe(server, session, app)
+    session_route = "/$(session.id)"
+    # Our default is to display the app in an IFrame, which is a bit complicated
+    # we need to resize the iframe based on its content, which is a bit complicated
+    # because we can't directly access it. So we sent a message here
+    # to the parent iframe, for which we register an
+    # event handler via resize_iframe_parent, which then
+    # resizes the parent iframe accordingly
+    route!(server, session_route) do context
+        application = context.application
+        request = context.request
+        application.sessions[session.id] = session
+        on_document_load(session, js"JSServe.resize_iframe_parent($(session.id))")
+        html_dom = Base.invokelatest(app.handler, session, request)
+        return html(page_html(session, html_dom))
+    end
+    return jsrender(session, iframe_html(server, session, session_route))
+end
+
+function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
+    if isassigned(CURRENT_PAGE)
+        # We are in Page rendering mode!
+        page = CURRENT_PAGE[]
+        println(io, show_in_page(page, app))
+    else
+        server = get_server()
+        session = Session()
+        println(io, show_in_iframe(server, session, app))
+    end
 end
 
 function iframe_html(server::Server, session::Session, route::String)
     # Display the route we just added in an iframe inline:
-    url = repr(online_url(server, route))
+    url = online_url(server, route)
     remote_origin = online_url(server, "")
     style = "position: relative; display: block; width: 100%; height: 100%; padding: 0; overflow: hidden; border: none"
     return DOM.div(
@@ -201,30 +213,6 @@ function iframe_html(server::Server, session::Session, route::String)
     )
 end
 
-function page_html(session::Session, app::App)
-    proxy_url = JSSERVE_CONFIGURATION.external_url[]
-    html = app_html(session, app)
-    serializer = session.url_serializer
-    return """
-    <html>
-    <head>
-    <meta charset="UTF-8">
-    $(include_asset(session.dependencies, serializer))
-    <script>
-        window.js_call_session_id = '$(session.id)';
-        window.websocket_proxy_url = '$(proxy_url)';
-    </script>
-    $(include_asset(PakoLib, serializer))
-    $(include_asset(MsgPackLib, serializer))
-    $(include_asset(JSServeLib, serializer))
-    </head>
-    <body onload=sent_done_loading()>
-        $(html)
-    </body>
-    </html>
-    """
-end
-
 function node_html(session::Session, node::Hyperscript.Node)
     js_dom = DOM.div(jsrender(session, node), id="application-dom")
     # register resources (e.g. observables, assets)
@@ -232,42 +220,37 @@ function node_html(session::Session, node::Hyperscript.Node)
     return repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
 end
 
-function app_html(session::Session, app::App)
-    js_dom = DOM.div(jsrender(session, app), id="application-dom")
-    # register resources (e.g. observables, assets)
-    register_resource!(session, js_dom)
-    return repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
-end
 
-function show_in_iframe(server, session, app)
-    session_route = "/$(session.id)"
-    # Our default is to display the app in an IFrame, which is a bit complicated
-    # we need to resize the iframe based on its content, which is a bit complicated
-    # because we can't directly access it. So we sent a message here
-    # to the parent iframe, for which we register an
-    # event handler via resize_iframe_parent, which then
-    # resizes the parent iframe accordingly
-    route!(server, session_route) do context
-        application = context.application
-        request = context.request
-        application.sessions[session.id] = session
-        on_document_load(session, js"JSServe.resize_iframe_parent($(session.id))")
-        html_dom = Base.invokelatest(app.handler, session, request)
-        return html(page_html(session, html_dom))
-    end
-    return iframe_html(server, session, session_route)
-end
+"""
+    page_html(session::Session, html_body)
+Embedds the html_body in a standalone html document!
+"""
+function page_html(session::Session, html_body)
+    proxy_url = JSSERVE_CONFIGURATION.external_url[]
 
-function show_inline(session::Session, app::App)
-    dom = Base.invokelatest(app.handler, session, (target = "/show_inline",))
-    return app_html(session, dom)
+    serializer = session.url_serializer
+    session_deps = include_asset.(session.dependencies, (serializer,))
+    html_body = DOM.html(
+        DOM.head(
+            DOM.meta(charset="UTF-8"),
+            include_asset(session.dependencies, serializer),
+            include_asset(PakoLib, serializer),
+            include_asset(MsgPackLib, serializer),
+            include_asset(JSServeLib, serializer),
+            session_deps...
+        ),
+        DOM.body(
+            DOM.div(html_body, id="application-dom"),
+            onload=js"""
+                const proxy_url = $(proxy_url)
+                const session_id = $(session.id)
+                JSServe.setup_connection({proxy_url, session_id})
+                JSServe.sent_done_loading()
+            """
+        )
+    )
+    return node_html(session, html_body)
 end
-
-# function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
-#     server = get_server()
-#     session = Session()
-#     println(io, show_in_iframe(server, session, app))
-# end
 
 function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+html", dom::App)
     if get(io, :use_offline_mode, false)
@@ -284,12 +267,12 @@ function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+ht
         application.sessions[session.id] = session
         println(io, html)
     else
-        show(io.io, m, dom)
+        show(io.io, MIME"text/html"(), dom)
     end
 end
 
-function Base.show(io::IO, ::MIME"application/vnd.jsserve.application+html", app::App)
-    show(IOContext(io), MIME"text/html"(), app)
+function Base.show(io::IO, m::MIME"application/vnd.jsserve.application+html", app::App)
+    show(IOContext(io), m, app)
 end
 
 function Base.show(io::IO, ::MIME"juliavscode/html", app::App)

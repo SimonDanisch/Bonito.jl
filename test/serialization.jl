@@ -1,9 +1,9 @@
 
-@testset "Serialization format"
+@testset "Serialization format" begin
     session = Session()
     test = "heyyyy"
     doms = [DOM.div("hey"), DOM.h1("heydude")]
-    dublicate = Dict("x" => rand(100, 100))
+    dublicate = rand(1000, 1000)
     duplicate_id = pointer_identity(dublicate)
     data = Dict(
         "array" => [1,2,3,4,5],
@@ -33,11 +33,10 @@
     @test data_unpacked["data"]["nested"]["jscode"]["payload"]["source"] == "heyy($(repr(test)))"
     @test data_unpacked["data"]["nested"]["moah_nesting"]["__javascript_type__"] == "Reference"
     @test data_unpacked["data"]["nested"]["moah_nesting"]["payload"] == duplicate_id
-    @test haskey(data_unpacked["data"]["double"], "x")
+    @test data_unpacked["data"]["double"] isa Vector
 
     bytes2 = serialize_binary(session, data)
     data_unpacked = MsgPack.unpack(transcode(GzipDecompressor, bytes2))
     @test data_unpacked["double"]["__javascript_type__"] == "Reference"
     @test data_unpacked["nested"]["moah_nesting"]["__javascript_type__"] == "Reference"
-
 end

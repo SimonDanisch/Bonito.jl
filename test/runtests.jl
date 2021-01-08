@@ -56,3 +56,11 @@ JSServe.JSSERVE_CONFIGURATION.listen_port[] = 8555
     @testset "various" begin; include("various.jl"); end
     @testset "markdown" begin; include("markdown.jl"); end
 end
+
+
+html = inline_display
+
+html_dom = Base.invokelatest(inline_display.handler, Session(), (target="/inline",))
+JSServe.page_html(Session(), html_dom)
+
+remote_origin = JSServe.online_url(JSServe.get_server(), "")

@@ -10,7 +10,7 @@ app = App() do
     algorithm_button = Button("change algorithm")
     algorithms = ["mip", "iso", "absorption"]
     algorithm = Observable(first(algorithms))
-    dropdown_onchange = js"update_obs($algorithm, this.options[this.selectedIndex].text);"
+    dropdown_onchange = js"JSServe.update_obs($algorithm, this.options[this.selectedIndex].text);"
     algorithm_drop = DOM.select(DOM.option.(algorithms); class="bandpass-dropdown", onclick=dropdown_onchange)
 
     data_slider = Slider(LinRange(1f0, 10f0, 100))

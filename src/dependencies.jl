@@ -152,8 +152,12 @@ function include_asset(asset::Asset, serializer::UrlSerializer=UrlSerializer())
     end
 end
 
-function include_asset(assets::Set{Asset}, serializer::UrlSerializer=UrlSerializer())
-    return include_asset.(assets, (serializer,))
+function include_asset(dep::Dependency, serializer::UrlSerializer=UrlSerializer())
+    return include_asset(dep.assets, serializer)
+end
+
+function include_asset(assets::Union{Vector{Asset}, Set{Asset}}, serializer::UrlSerializer=UrlSerializer())
+    return DOM.div(include_asset.(assets, (serializer,))...)
 end
 
 function url(str::String, serializer::UrlSerializer=UrlSerializer())

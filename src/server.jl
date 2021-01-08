@@ -49,7 +49,7 @@ function apply_handler(app::App, context)
     session = Session()
     application.sessions[session.id] = session
     html_dom = Base.invokelatest(app.handler, session, context.request)
-    return html(dom2html(session, html_dom))
+    return html(page_html(session, html_dom))
 end
 
 function delegate(routes::Routes, application, request::Request, args...)
