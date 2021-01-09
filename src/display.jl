@@ -15,7 +15,7 @@ end
 
 function Base.show(io::IO, ::MIME"text/html", page::Page)
     server = get_server()
-    server.sessions[page.session.id] = page.session
+    insert_session!(server, page.session)
     serializer = page.serializer
     websocket_url = JSSERVE_CONFIGURATION.external_url[]
     delete_session = Observable("")
@@ -155,9 +155,9 @@ function show_in_iframe(server, session, app)
     # event handler via resize_iframe_parent, which then
     # resizes the parent iframe accordingly
     route!(server, session_route) do context
-        application = context.application
+        server = context.application
         request = context.request
-        application.sessions[session.id] = session
+        insert_session!(server, session)
         on_document_load(session, js"JSServe.resize_iframe_parent($(session.id))")
         html_dom = Base.invokelatest(app.handler, session, request)
         return html(page_html(session, html_dom))

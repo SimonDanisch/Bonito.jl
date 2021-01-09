@@ -37,10 +37,8 @@ function Base.display(::BrowserDisplay, dom::App)
     application = get_server()
     session_url = "/browser-display"
     route_was_present = route!(application, session_url) do context
-        session = Session()
         # Serve the actual content
-        application = context.application
-        application.sessions[session.id] = session
+        session = insert_session!(context.application)
         html_dom = Base.invokelatest(dom.handler, session, context.request)
         return html(page_html(session, html_dom))
     end

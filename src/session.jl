@@ -47,8 +47,7 @@ function Session(session::Session;
                 js_comm=session.js_comm,
                 on_close=session.on_close,
                 deregister_callbacks=session.deregister_callbacks,
-                unique_object_cache=session.unique_object_cache,
-            )
+                unique_object_cache=session.unique_object_cache)
     return Session(
         connection,
         observables,

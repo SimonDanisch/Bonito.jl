@@ -1,5 +1,3 @@
-
-
 @testset "basic session rendering" begin
     session = Session()
     obs1 = Observable(1)

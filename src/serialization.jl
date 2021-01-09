@@ -126,7 +126,7 @@ js"console.log(\$(observable))"
 ```
 """
 function by_value(x::Observable)
-    obs_val = Dict(:id=> x.id, :value=> x[])
+    obs_val = Dict(:id => x.id, :value => x[])
     js_type("Observable", obs_val)
 end
 

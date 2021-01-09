@@ -92,6 +92,7 @@ function handle_ws_connection(application::Server, session::Session, websocket::
     # Second, we need the finally to guruantee to delete + close the session
     # The inner try is of course to not break the loop on error
     try
+        @debug("opening ws connection for session: $(session.id)")
         while isopen(websocket)
             try
                 bytes = read(websocket)
@@ -104,6 +105,7 @@ function handle_ws_connection(application::Server, session::Session, websocket::
         handle_ws_error(e)
     finally
         # This always needs to happen, which is why we need a try catch!
+        @debug("Closing: $(session.id)")
         close(session)
         delete!(application.sessions, session.id)
     end

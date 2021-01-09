@@ -45,9 +45,8 @@ function apply_handler(chain::Tuple, context, args...)
 end
 
 function apply_handler(app::App, context)
-    application = context.application
-    session = Session()
-    application.sessions[session.id] = session
+    server = context.application
+    session = insert_session!(server)
     html_dom = Base.invokelatest(app.handler, session, context.request)
     return html(page_html(session, html_dom))
 end
@@ -127,7 +126,6 @@ function websocket_request()
     )
     return Stream(msg, IOBuffer())
 end
-
 
 """
 warmup(application::Server)
@@ -318,4 +316,9 @@ function get_server()
         )
     end
     return GLOBAL_SERVER[]
+end
+
+function insert_session!(server::Server, session=Session())
+    server.sessions[session.id] = session
+    return session
 end
