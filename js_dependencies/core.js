@@ -13,6 +13,10 @@ const JSServe = (function (){
         return;
     }
 
+    function update_cached_value(id, new_value) {
+        session_object_cache[id] = new_value;
+    }
+
     function get_observable(id) {
         if (id in registered_observables) {
             return registered_observables[id];
@@ -48,7 +52,9 @@ const JSServe = (function (){
             }
             return true;
         } else {
-            return false;
+            send_error(`
+                Observable with id ${id} can't be updated because it's not registered.
+            `)
         }
     }
 
@@ -535,6 +541,7 @@ const JSServe = (function (){
         track_deleted_sessions,
         register_sub_session,
         update_dom_node,
-        resize_iframe_parent
+        resize_iframe_parent,
+        update_cached_value,
     };
 })()

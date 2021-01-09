@@ -84,6 +84,11 @@ function update_cache!(session::Session, objects::Dict{String, Any}, duplicates:
     )
 end
 
+function update_cached_value!(session::Session, object)
+    ref = JSServe.pointer_identity(object)
+    JSServe.JSServeLib.update_cached_value(session, ref, object)
+end
+
 function serialize_binary(session::Session, @nospecialize(obj))
     context = SerializationContext(session.unique_object_cache)
     data = serialize_js(context, obj) # apply custom, overloadable transformation

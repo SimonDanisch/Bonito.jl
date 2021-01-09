@@ -34,7 +34,6 @@ function Base.show(io::IO, ::MIME"text/html", page::Page)
         close(child)
         delete!(page.child_sessions, session_id)
     end
-    @info("Page session: $(page.session.id)")
     page_init_dom = DOM.div(
         include_asset(PakoLib, serializer),
         include_asset(MsgPackLib, serializer),
@@ -79,7 +78,11 @@ function show_in_page(page::Page, app::App)
     assure_ready(page_session)
 
     on_init = Observable(false)
-
+    # Manually register on_init - this is a bit fragile, but
+    # we need to normally register on_init with `session`, BUT
+    # it already needs to be registered upfront with JSServe in the browser
+    # so that it can properly trigger the observable early in the loaded html/js
+    send(page_session, payload=on_init[], id=on_init.id, msg_type=RegisterObservable)
     # Render the app and register all the resources with the session
     # Note, since we set the connection to nothing, nothing gets sent yet
     # This is important, since we can only sent the messages after the HTML has been rendered
@@ -96,6 +99,7 @@ function show_in_page(page::Page, app::App)
         // register this session so it gets deleted when it gets removed from dom
         JSServe.register_sub_session($(session.id))
     """
+
     final_dom = DOM.div(
         js_dom,
         include_asset.(new_deps, (page_session.url_serializer,))...,
@@ -118,9 +122,6 @@ function show_in_page(page::Page, app::App)
     messages = fused_messages!(session)
 
     session.connection[] = page_session.connection[]
-
-    push!(page_session, on_init) # register manually, since we don't call register anymore on this
-
     on(session, on_init) do is_init
         if !is_init
             error("The html didn't initialize correctly")
@@ -165,7 +166,6 @@ function show_in_iframe(server, session, app)
 end
 
 function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
-    println("JOOOO SHOWING IN HTML $(isassigned(CURRENT_PAGE))")
     if isassigned(CURRENT_PAGE)
         # We are in Page rendering mode!
         page = CURRENT_PAGE[]

@@ -134,7 +134,7 @@ function test_current_session(app)
         sliderresult = query_testid("slider_result")
 
         @testset "set via julia" begin
-            for i in 1:10
+            for i in 1:2:100
                 slider1[] = i
                 @test evaljs(app, js"$(slider1_js).value") == "$i"
                 # Test linkjs

@@ -9,12 +9,12 @@ function jsrender(session::Session, button::Button)
 end
 
 function jsrender(session::Session, tf::TextField)
-    return DOM.input(
+    return jsrender(session, DOM.input(
         type = "textfield",
         value = tf.value,
         onchange = js"JSServe.update_obs($(tf.value),  this.value);";
         tf.attributes...
-    )
+    ))
 end
 
 function jsrender(session::Session, ni::NumberInput)

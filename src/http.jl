@@ -62,9 +62,6 @@ function handle_ws_message(session::Session, message)
     typ = data["msg_type"]
     if typ == UpdateObservable
         registered, obs = session.observables[data["id"]]
-        @assert registered # must have been registered to come from frontend
-        # update observable without running into cycles (e.g. js updating obs
-        # julia updating js, ...)
         Base.invokelatest(update_nocycle!, obs, data["payload"])
     elseif typ == JavascriptError
         show(stderr, JSException(data))
