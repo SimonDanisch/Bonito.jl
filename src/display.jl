@@ -7,8 +7,8 @@ end
 
 const CURRENT_PAGE = Ref{Page}()
 
-function Page()
-    p = Page(UrlSerializer(), true, Session(), Dict{String, Session}())
+function Page(;session = Session())
+    p = Page(UrlSerializer(), true, session, Dict{String, Session}())
     CURRENT_PAGE[] = p
     return p
 end
@@ -56,7 +56,6 @@ function assure_ready(session)
         isopen(session) && isready(session.js_fully_loaded)
     end
     messages = fused_messages!(session)
-    @info("Sending fused messages: $(length(messages))")
     send(session, messages)
 end
 
@@ -64,7 +63,7 @@ function show_in_page(page::Page, app::App)
     page_session = page.session
     # Create a child session, to track the per app resources
     session = Session(page_session;
-        connection=Base.RefValue{Union{Nothing, WebSocket}}(nothing),
+        connection=Base.RefValue{Union{Nothing, WebSocket, IOBuffer}}(nothing),
         dependencies=Set{Asset}(),
         id=string(uuid4()),
         observables=Dict{String, Tuple{Bool, Observable}}(),
@@ -80,7 +79,7 @@ function show_in_page(page::Page, app::App)
     assure_ready(page_session)
 
     on_init = Observable(false)
-    push!(page_session, on_init) # register manually, since we don't call register anymore on this
+
     # Render the app and register all the resources with the session
     # Note, since we set the connection to nothing, nothing gets sent yet
     # This is important, since we can only sent the messages after the HTML has been rendered
@@ -88,18 +87,6 @@ function show_in_page(page::Page, app::App)
     html_dom = Base.invokelatest(app.handler, session, (; show="/show_inline"))
     js_dom = jsrender(session, html_dom)
     register_resource!(session, js_dom)
-
-    obs_shared_with_parent = intersect(keys(session.observables), keys(page_session.observables))
-    # Those obs are managed by page session, so we don't need to have them in here!
-    # This is important when we clean them up, since a child session shouldn't
-    # delete any observable already managed by the parent session
-    for obs in obs_shared_with_parent
-        delete!(session.observables, obs)
-    end
-
-    # but in the end, all observables need to be registered
-    # with the page session, since that's where javascript will sent all the events
-    merge!(page_session.observables, session.observables)
 
     new_deps = setdiff(session.dependencies, page_session.dependencies)
     union!(page_session.dependencies, new_deps)
@@ -109,7 +96,6 @@ function show_in_page(page::Page, app::App)
         // register this session so it gets deleted when it gets removed from dom
         JSServe.register_sub_session($(session.id))
     """
-
     final_dom = DOM.div(
         js_dom,
         include_asset.(new_deps, (page_session.url_serializer,))...,
@@ -117,22 +103,32 @@ function show_in_page(page::Page, app::App)
         id=session.id
     )
 
-    html = repr(MIME"text/html"(), Hyperscript.Pretty(final_dom))
+    obs_shared_with_parent = intersect(keys(session.observables), keys(page_session.observables))
+    # Those obs are managed by page session, so we don't need to have them in here!
+    # This is important when we clean them up, since a child session shouldn't
+    # delete any observable already managed by the parent session
+    for obs in obs_shared_with_parent
+        delete!(session.observables, obs)
+    end
+    # but in the end, all observables need to be registered
+    # with the page session, since that's where javascript will sent all the events
+    merge!(page_session.observables, session.observables)
+
     # We take all
     messages = fused_messages!(session)
 
     session.connection[] = page_session.connection[]
-    push!(session, page_session.js_comm)
 
-    on(on_init) do is_init
-        @info("Initialized, sending $(length(messages)) messages")
+    push!(page_session, on_init) # register manually, since we don't call register anymore on this
+
+    on(session, on_init) do is_init
         if !is_init
             error("The html didn't initialize correctly")
         end
-        send(page_session, messages)
+        send(session, messages)
     end
 
-    on(session.on_close) do closed
+    on(session, session.on_close) do closed
         # remove the sub-session specific js resources
         if closed
             obs_ids = collect(keys(session.observables))
@@ -146,7 +142,7 @@ function show_in_page(page::Page, app::App)
         end
     end
 
-    return html
+    return repr(MIME"text/html"(), Hyperscript.Pretty(final_dom))
 end
 
 function show_in_iframe(server, session, app)
@@ -169,6 +165,7 @@ function show_in_iframe(server, session, app)
 end
 
 function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
+    println("JOOOO SHOWING IN HTML $(isassigned(CURRENT_PAGE))")
     if isassigned(CURRENT_PAGE)
         # We are in Page rendering mode!
         page = CURRENT_PAGE[]
@@ -225,11 +222,13 @@ end
     page_html(session::Session, html_body)
 Embedds the html_body in a standalone html document!
 """
-function page_html(session::Session, html_body)
+function page_html(session::Session, html)
     proxy_url = JSSERVE_CONFIGURATION.external_url[]
 
     serializer = session.url_serializer
     session_deps = include_asset.(session.dependencies, (serializer,))
+    rendered = jsrender(session, html)
+    register_resource!(session, rendered)
     html_body = DOM.html(
         DOM.head(
             DOM.meta(charset="UTF-8"),
@@ -240,16 +239,16 @@ function page_html(session::Session, html_body)
             session_deps...
         ),
         DOM.body(
-            DOM.div(html_body, id="application-dom"),
-            onload=js"""
-                const proxy_url = $(proxy_url)
-                const session_id = $(session.id)
+            DOM.div(rendered, id="application-dom"),
+            onload=DontEscape("""
+                const proxy_url = '$(proxy_url)'
+                const session_id = '$(session.id)'
                 JSServe.setup_connection({proxy_url, session_id})
                 JSServe.sent_done_loading()
-            """
+            """)
         )
     )
-    return node_html(session, html_body)
+    return repr(MIME"text/html"(), Hyperscript.Pretty(html_body))
 end
 
 function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+html", dom::App)

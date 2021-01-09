@@ -271,7 +271,8 @@ end
 Returns a js string, that queries for `id`.
 """
 function query_testid(id::String)
-    js"document.querySelector('[data-test-id=$(id)]')"
+    query_str = "[data-test-id=$(repr(id))]"
+    js"document.querySelector($(query_str))"
 end
 
 """

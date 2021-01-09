@@ -154,7 +154,6 @@ inline_display = JSServe.App() do session, req
     return DOM.div(JSTest, dom)
 end;
 electron_disp = electrondisplay(inline_display);
-Electron.toggle_devtools(electron_disp)
 app = TestSession(URI("http://localhost:8555/show"),
                   JSServe.GLOBAL_SERVER[], electron_disp, test_session)
 app.dom = dom

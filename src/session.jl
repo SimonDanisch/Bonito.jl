@@ -14,7 +14,7 @@ function init_session(session::Session)
     send(session, fused_messages!(session))
 end
 
-function Session(connection=Base.RefValue{Union{WebSocket, Nothing}}(nothing); url_serializer=UrlSerializer(), id=string(uuid4()))
+function Session(connection=Base.RefValue{Union{WebSocket, Nothing, IOBuffer}}(nothing); url_serializer=UrlSerializer(), id=string(uuid4()))
     return Session(
         connection,
         Dict{String, Tuple{Bool, Observable}}(),
@@ -92,6 +92,8 @@ function Base.close(session::Session)
     empty!(session.dependencies)
     # remove all listeners that where created for this session
     foreach(off, session.deregister_callbacks)
+    empty!(session.deregister_callbacks)
+    return
 end
 
 """

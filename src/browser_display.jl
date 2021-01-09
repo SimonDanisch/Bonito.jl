@@ -42,7 +42,7 @@ function Base.display(::BrowserDisplay, dom::App)
         application = context.application
         application.sessions[session.id] = session
         html_dom = Base.invokelatest(dom.handler, session, context.request)
-        return html(dom2html(session, html_dom))
+        return html(page_html(session, html_dom))
     end
     # Only open url first time!
     if isempty(application.sessions)

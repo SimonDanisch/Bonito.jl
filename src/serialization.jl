@@ -6,14 +6,15 @@ struct SerializationContext
     serialized_objects::Union{Nothing, Dict{String, Any}}
     interpolated::Union{Nothing, Vector{Any}}
     duplicates::Set{String}
+    url_serializer::UrlSerializer
 end
 
-function SerializationContext(global_objects)
-    return SerializationContext(global_objects, Dict{String, Any}(), [], Set{String}())
+function SerializationContext(global_objects; url_serializer=UrlSerializer())
+    return SerializationContext(global_objects, Dict{String, Any}(), [], Set{String}(), url_serializer)
 end
 
-function SerializationContext(serialized_objects::Nothing, interpolated=nothing)
-    return SerializationContext(nothing, serialized_objects, interpolated, Set{String}())
+function SerializationContext(serialized_objects::Nothing, interpolated=nothing; url_serializer=UrlSerializer())
+    return SerializationContext(nothing, serialized_objects, interpolated, Set{String}(), url_serializer)
 end
 
 function pointer_identity(@nospecialize(x::Union{AbstractString, AbstractArray}))
@@ -60,7 +61,7 @@ function update_cache!(session::Session, objects::Dict{String, Any}, duplicates:
     to_register = Dict{String, Any}()
     to_remove = String[]
     uoc = session.unique_object_cache
-    duplicate_ser_context = SerializationContext(nothing)
+    duplicate_ser_context = SerializationContext(nothing; url_serializer=session.url_serializer)
     for k in duplicates
         o = objects[k]
         # handle expired WeakRefs + non existing keys in one go:
@@ -87,7 +88,8 @@ function serialize_binary(session::Session, @nospecialize(obj))
     context = SerializationContext(session.unique_object_cache)
     data = serialize_js(context, obj) # apply custom, overloadable transformation
     # If we found duplicates, store them to the cache!
-    if !isempty(context.duplicates)
+    # or if some balue was gc'ed, we need to clean up the cache
+    if !isempty(context.duplicates) || any(((key, ref),)-> isnothing(ref.value), session.unique_object_cache)
         message = update_cache!(session, context.serialized_objects, context.duplicates)
         # we store to the cache by modifying the original message
         # which will then be handled by the JS side
@@ -181,7 +183,7 @@ function serialize_js(context::SerializationContext, jsc::Union{JSCode, JSString
 end
 
 function serialize_js(context::SerializationContext, asset::Asset)
-    return url(asset, session.url_serializer)
+    return url(asset, context.url_serializer)
 end
 
 # MsgPack doesn't natively support Float16

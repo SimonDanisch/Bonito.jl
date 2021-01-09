@@ -163,7 +163,8 @@ end
 A web session with a user
 """
 struct Session
-    connection::Base.RefValue{Union{Nothing, WebSocket}}
+    # IOBuffer for testing
+    connection::Base.RefValue{Union{Nothing, WebSocket, IOBuffer}}
     # Bool -> if already registered with Frontend
     observables::Dict{String, Tuple{Bool, Observable}}
     message_queue::Vector{Dict{Symbol, Any}}
@@ -180,8 +181,6 @@ struct Session
     deregister_callbacks::Vector{Observables.ObserverFunction}
     unique_object_cache::Dict{String, WeakRef}
 end
-
-
 
 struct Routes
     table::Vector{Pair{Any, Any}}

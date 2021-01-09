@@ -34,3 +34,5 @@ testsession(handler, port=8558) do app
     checkbox2_jl[] = false
     @test evaljs(app, js"$(checkbox2).checked") == false
 end
+
+Hyperscript.attrs(DOM.body(onload="kasdlasdk"))

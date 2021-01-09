@@ -1,7 +1,7 @@
 using Hyperscript, Markdown, Test
 using JSServe, Observables
 using JSServe: Session, evaljs, linkjs, div
-using JSServe: @js_str, onjs, JSString, Dependency
+using JSServe: onjs, JSString, Dependency, jsrender
 using JSServe: @js_str, js_type, pointer_identity, uuid, serialize_js, SerializationContext, serialize_binary
 using JSServe.DOM
 using JSServe.HTTP
@@ -13,6 +13,7 @@ using Hyperscript: children
 using JSServe.MsgPack
 using JSServe.CodecZlib
 using Test
+using JSServe: jsrender
 
 include("ElectronTests.jl")
 
@@ -55,12 +56,5 @@ JSServe.JSSERVE_CONFIGURATION.listen_port[] = 8555
     @testset "checkbox" begin; include("checkbox.jl"); end
     @testset "various" begin; include("various.jl"); end
     @testset "markdown" begin; include("markdown.jl"); end
+    @testset "basics" begin; include("basics.jl"); end
 end
-
-
-html = inline_display
-
-html_dom = Base.invokelatest(inline_display.handler, Session(), (target="/inline",))
-JSServe.page_html(Session(), html_dom)
-
-remote_origin = JSServe.online_url(JSServe.get_server(), "")

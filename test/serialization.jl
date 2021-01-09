@@ -26,11 +26,11 @@
     @test length(data_unpacked["update_cache"]["to_register"]) == 1
     @test first(keys(data_unpacked["update_cache"]["to_register"])) == duplicate_id
 
-    @test data_unpacked["data"]["nested"]["jscode"]["payload"]["source"] == "heyy($(repr(test)))"
+    @test data_unpacked["data"]["nested"]["jscode"]["payload"]["source"] == "heyy('$(test)')"
     @test data_unpacked["data"]["nested"]["unicode"] == "πϕ♋"
     @test data_unpacked["data"]["nested"]["node_array"][1] == js_type("DomNode", uuid(doms[1]))
     @test data_unpacked["data"]["nested"]["node_array"][2] == js_type("DomNode", uuid(doms[2]))
-    @test data_unpacked["data"]["nested"]["jscode"]["payload"]["source"] == "heyy($(repr(test)))"
+    @test data_unpacked["data"]["nested"]["jscode"]["payload"]["source"] == "heyy('$(test)')"
     @test data_unpacked["data"]["nested"]["moah_nesting"]["__javascript_type__"] == "Reference"
     @test data_unpacked["data"]["nested"]["moah_nesting"]["payload"] == duplicate_id
     @test data_unpacked["data"]["double"] isa Vector

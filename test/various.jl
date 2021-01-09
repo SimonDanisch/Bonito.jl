@@ -4,7 +4,7 @@
 
     js_str = js"console.log($xx); $x; $((2, 4)); $(some_js) hello = 1;"
 
-    expect = "console.log(\"hey\"); JSServe.deserialize_js({\"__javascript_type__\":\"TypedVector\",\"payload\":[1.0,2.0]}); JSServe.deserialize_js([2,4]); var hello = 1;"
+    expect = "console.log('hey'); JSServe.deserialize_js({\"__javascript_type__\":\"TypedVector\",\"payload\":[1.0,2.0]}); JSServe.deserialize_js([2,4]); var hello = 1;"
     @test string(js_str) == expect
 
     asset = JSServe.Asset("file.dun_exist"; check_isfile=false)

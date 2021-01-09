@@ -13,6 +13,7 @@ using JSServe: @js_str, Session, App, onjs, onload, Button
 using JSServe: TextField, Slider, linkjs, get_server
 using JSServe.DOM
 using JSServe: JSON3
+JSServe.browser_display()
 
 app = App(DOM.h1("Hello World"))
 display(app)

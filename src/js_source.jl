@@ -40,28 +40,11 @@ function Base.show(io::IO, jsc::JSCode)
     print_js_code(io, jsc, SerializationContext(nothing))
 end
 
-function print_js_code(io::IO, dependency::Dependency, context)
-    print(io, dependency.name)
-    return context
-end
-
-function print_js_code(io::IO, x::Number, context)
-    print(io, x)
-    return context
-end
-
-function print_js_code(io::IO, x::String, context)
-    print(io, repr(x))
-    return context
-end
-
-function print_js_code(io::IO, jss::JSString, context)
-    print(io, jss.source)
-    return context
-end
-
-function print_js_code(io::IO, @nospecialize(object::Any), context)
+function print_js_code(io::IO, @nospecialize(object), context)
     serialized = serialize_js(context, object)
+    if serialized isa Union{Number, String}
+        return print_js_code(io, serialized, context)
+    end
     if isnothing(context.interpolated)
         json = JSON3.write(serialized)
         print(io, "JSServe.deserialize_js($(json))")
@@ -70,6 +53,25 @@ function print_js_code(io::IO, @nospecialize(object::Any), context)
         push!(context.interpolated, serialized)
         print(io, "__eval_context__[$(index)]")
     end
+end
+
+function print_js_code(io::IO, x::Number, context)
+    print(io, x)
+    return context
+end
+
+function print_js_code(io::IO, x::String, context)
+    print(io, "'", x, "'")
+    return context
+end
+
+function print_js_code(io::IO, jss::JSString, context)
+    print(io, jss.source)
+    return context
+end
+
+function print_js_code(io::IO, dep::Dependency, context)
+    print(io, dep.name)
     return context
 end
 

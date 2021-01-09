@@ -69,11 +69,18 @@ function attribute_render(session::Session, parent, attribute::String, obs::Obse
     return attribute_render(session, parent, attribute, obs[])
 end
 
+struct DontEscape
+    x::Any
+end
+
+function Hyperscript.printescaped(io::IO, x::DontEscape, escapes)
+    print(io, x.x)
+end
+
 function attribute_render(session::Session, parent, attribute::String, jss::JSCode)
     register_resource!(session, jss)
     return string(jss)
 end
-
 
 function attribute_render(session::Session, parent, attribute::String, jss::Asset)
     if parent isa Hyperscript.Node{Hyperscript.CSS}
@@ -120,14 +127,7 @@ function render_node(session::Session, node::Node)
     # give each node a unique id inside the dom
     new_attributes = Dict{String, Any}()
     newchildren = map(children(node)) do elem
-        childnode = jsrender(session, elem)
-        # if a transform elem::Any -> ::Node happens, we need to
-        # render the resulting node again, since the attr/children won't be
-        # lowered yet!
-        if !(elem isa Node)
-            childnode = render_node(session, childnode)
-        end
-        return childnode
+        return jsrender(session, elem)
     end
     for (k, v) in Hyperscript.attrs(node)
         rendered = attribute_render(session, node, k, v)

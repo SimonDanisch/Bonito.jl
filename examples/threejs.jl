@@ -1,5 +1,5 @@
 using JSServe
-using JSServe: @js_str
+using JSServe: @js_str, App
 using JSServe.DOM
 
 # Javascript & CSS dependencies can be declared locally and
@@ -10,7 +10,7 @@ const THREE = JSServe.Dependency(
     ["https://cdn.jsdelivr.net/gh/mrdoob/three.js/build/three.min.js"]
 )
 
-function dom_handler(session, request)
+app = App() do session, request
     width = 500; height = 500
     dom = DOM.div(width = width, height = height)
     JSServe.onload(session, dom, js"""
@@ -37,4 +37,4 @@ function dom_handler(session, request)
     return dom
 end
 
-display(JSServe.with_session(dom_handler))
+display(app)
