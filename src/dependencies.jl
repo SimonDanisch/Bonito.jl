@@ -124,7 +124,7 @@ function Base.getproperty(dependency::Dependency, func_name::Symbol)
     func_name_js = JSString(string(func_name))
     return function (session::Session, args...; kw...)
         args = construct_arguments(args, kw)
-        evaljs_value(session, js"""
+        evaljs(session, js"""
             $(dependency).$(func_name_js)(...$(args))
         """)
     end
@@ -142,22 +142,22 @@ function jsrender(session::Session, asset::Asset)
 end
 
 function include_asset(asset::Asset, serializer::UrlSerializer=UrlSerializer())
-    file_url = repr(url(asset, serializer))
+    file_url = url(asset, serializer)
     if mediatype(asset) == :js
-        return "<script src=$(file_url)></script>"
+        return DOM.script(src=file_url)
     elseif mediatype(asset) == :css
-        return "<link href=$(file_url) rel=\"stylesheet\" type=\"text/css\">"
+        return DOM.link(href=file_url, rel="stylesheet", type="text/css")
     else
         error("Unrecognized asset media type: $(mediatype(asset))")
     end
 end
 
-function include_asset(assets::Set{Asset}, serializer::UrlSerializer=UrlSerializer())
-    return sprint() do io
-        for asset in assets
-            println(io, include_asset(asset, serializer))
-        end
-    end
+function include_asset(dep::Dependency, serializer::UrlSerializer=UrlSerializer())
+    return include_asset(dep.assets, serializer)
+end
+
+function include_asset(assets::Union{Vector{Asset}, Set{Asset}}, serializer::UrlSerializer=UrlSerializer())
+    return DOM.div(include_asset.(assets, (serializer,))...)
 end
 
 function url(str::String, serializer::UrlSerializer=UrlSerializer())
@@ -217,13 +217,10 @@ function url(asset::Asset, serializer::UrlSerializer=UrlSerializer())
 end
 
 
-const JSCallLibLocal = Asset(dependency_path("core.js"))
-
 const MsgPackLib = Asset(dependency_path("msgpack.min.js"))
 const PakoLib = Asset(dependency_path("pako_inflate.min.js"))
+const JSServeLib = Dependency(:JSServe, [dependency_path("core.js")])
 
 const MarkdownCSS = Asset(dependency_path("markdown.css"))
-
 const TailwindCSS = Asset(dependency_path("tailwind.min.css"))
-
 const Styling = Asset(dependency_path("styled.css"))

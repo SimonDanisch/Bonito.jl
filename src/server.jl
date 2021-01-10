@@ -45,11 +45,10 @@ function apply_handler(chain::Tuple, context, args...)
 end
 
 function apply_handler(app::App, context)
-    application = context.application
-    session = Session()
-    application.sessions[session.id] = session
+    server = context.application
+    session = insert_session!(server)
     html_dom = Base.invokelatest(app.handler, session, context.request)
-    return html(dom2html(session, html_dom))
+    return html(page_html(session, html_dom))
 end
 
 function delegate(routes::Routes, application, request::Request, args...)
@@ -78,7 +77,27 @@ function match_request(pattern::Regex, request)
     return match(pattern, request.target)
 end
 
-local_url(application::Server, url) = string("http://", application.url, ":", application.port, url)
+"""
+    local_url(server::Server, url)
+The local url to reach the server, on the server
+"""
+function local_url(server::Server, url)
+    return string("http://", server.url, ":", server.port, url)
+end
+
+"""
+    online_url(server::Server, url)
+The url to connect to the server from the internet.
+Needs to have `JSSERVE_CONFIGURATION.external_url` set to the IP or dns route of the server
+"""
+function online_url(server::Server, url)
+    base_url = JSSERVE_CONFIGURATION.external_url[]
+    if isempty(base_url)
+        local_url(server, url)
+    else
+        base_url * url
+    end
+end
 
 function websocket_request()
     headers = [
@@ -108,7 +127,6 @@ function websocket_request()
     return Stream(msg, IOBuffer())
 end
 
-
 """
 warmup(application::Server)
 
@@ -130,7 +148,7 @@ function warmup(application::Server)
         # This will error, since its not a propper websocket request
         @debug "Error in stream_handler" exception=e
     end
-    target = register_local_file(JSCallLibLocal.local_path) # http target part
+    target = register_local_file(JSServeLib.assets[1].local_path) # http target part
     asset_url = local_url(application, target)
     request = Request("GET", target)
 
@@ -260,7 +278,7 @@ function Base.close(application::Server)
     # We need to make sure, that we are the ones making this request,
     # So that a newly opened connection won't get a faulty response from this server!
     try
-        app_url = JSServe.local_url(application, "/")
+        app_url = local_url(application, "/")
         while true
             x = HTTP.get(app_url, readtimeout=1, retries=1)
             x.status != 200 && break # we got a bad request, maining server is closed!
@@ -284,4 +302,23 @@ function start(application::Server; verbose=false)
         Base.invokelatest(stream_handler, application, stream)
     end
     return
+end
+
+const GLOBAL_SERVER = Ref{Server}()
+
+function get_server()
+    if !isassigned(GLOBAL_SERVER) || istaskdone(GLOBAL_SERVER[].server_task[])
+        GLOBAL_SERVER[] = Server(
+            App("Nothing to see"),
+            JSSERVE_CONFIGURATION.listen_url[],
+            JSSERVE_CONFIGURATION.listen_port[],
+            verbose=JSSERVE_CONFIGURATION.verbose[]
+        )
+    end
+    return GLOBAL_SERVER[]
+end
+
+function insert_session!(server::Server, session=Session())
+    server.sessions[session.id] = session
+    return session
 end

@@ -20,14 +20,14 @@ app = App() do
             scatter(1:4)
         ),
         vbox(
-        scatter(1:4, marker='☼'),
-        scatter(1:4, marker=['☼', '◒', '◑', '◐']),
-        scatter(1:4, marker="☼◒◑◐"),
-        # scatter(1:4, marker=rand(RGBf0, 10, 10), markersize=20px),
-        scatter(1:4, markersize=20px),
-        scatter(1:4, markersize=20, markerspace=Pixel),
-        scatter(1:4, markersize=LinRange(20, 60, 4), markerspace=Pixel),
-        scatter(1:4, marker='▲', markersize=0.3, rotations=LinRange(0, pi, 4)),
+            scatter(1:4, marker='☼'),
+            scatter(1:4, marker=['☼', '◒', '◑', '◐']),
+            scatter(1:4, marker="☼◒◑◐"),
+            # scatter(1:4, marker=rand(RGBf0, 10, 10), markersize=20px),
+            scatter(1:4, markersize=20px),
+            scatter(1:4, markersize=20, markerspace=Pixel),
+            scatter(1:4, markersize=LinRange(20, 60, 4), markerspace=Pixel),
+            scatter(1:4, marker='▲', markersize=0.3, rotations=LinRange(0, pi, 4)),
         )
     )
 end

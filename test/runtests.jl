@@ -1,7 +1,8 @@
 using Hyperscript, Markdown, Test
 using JSServe, Observables
 using JSServe: Session, evaljs, linkjs, div
-using JSServe: @js_str, onjs, JSString, Dependency
+using JSServe: onjs, JSString, Dependency, jsrender
+using JSServe: @js_str, js_type, pointer_identity, uuid, serialize_js, SerializationContext, serialize_binary
 using JSServe.DOM
 using JSServe.HTTP
 using Electron
@@ -9,7 +10,10 @@ using ElectronDisplay
 using URIParser
 using Random
 using Hyperscript: children
+using JSServe.MsgPack
+using JSServe.CodecZlib
 using Test
+using JSServe: jsrender
 
 include("ElectronTests.jl")
 
@@ -48,7 +52,9 @@ end
 JSServe.JSSERVE_CONFIGURATION.listen_port[] = 8555
 
 @testset "JSServe" begin
+    @testset "serialization" begin; include("serialization.jl"); end
     @testset "checkbox" begin; include("checkbox.jl"); end
     @testset "various" begin; include("various.jl"); end
     @testset "markdown" begin; include("markdown.jl"); end
+    @testset "basics" begin; include("basics.jl"); end
 end

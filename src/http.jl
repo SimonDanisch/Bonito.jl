@@ -4,6 +4,7 @@ const OnjsCallback = "1"
 const EvalJavascript = "2"
 const JavascriptError = "3"
 const JavascriptWarning = "4"
+const RegisterObservable = "5"
 const JSDoneLoading = "8"
 const FusedMessage = "9"
 
@@ -61,9 +62,6 @@ function handle_ws_message(session::Session, message)
     typ = data["msg_type"]
     if typ == UpdateObservable
         registered, obs = session.observables[data["id"]]
-        @assert registered # must have been registered to come from frontend
-        # update observable without running into cycles (e.g. js updating obs
-        # julia updating js, ...)
         Base.invokelatest(update_nocycle!, obs, data["payload"])
     elseif typ == JavascriptError
         show(stderr, JSException(data))
@@ -81,20 +79,36 @@ function handle_ws_message(session::Session, message)
     end
 end
 
+function handle_ws_error(e)
+    if !(e isa WebSockets.WebSocketClosedError || e isa Base.IOError)
+        @warn "error in websocket handler!"
+        Base.showerror(stderr, e, Base.catch_backtrace())
+    end
+end
+
 function handle_ws_connection(application::Server, session::Session, websocket::WebSocket)
+    # We need two tries here
+    # First, isopen may throw -.-...
+    # Second, we need the finally to guruantee to delete + close the session
+    # The inner try is of course to not break the loop on error
     try
+        @debug("opening ws connection for session: $(session.id)")
         while isopen(websocket)
-            handle_ws_message(session, read(websocket))
+            try
+                bytes = read(websocket)
+                handle_ws_message(session, bytes)
+            catch e
+                handle_ws_error(e)
+            end
         end
     catch e
-        # IOErrors
-        if !(e isa WebSockets.WebSocketClosedError || e isa Base.IOError)
-            err = CapturedException(e, Base.catch_backtrace())
-            @warn "error in websocket handler!" exception=err
-        end
+        handle_ws_error(e)
+    finally
+        # This always needs to happen, which is why we need a try catch!
+        @debug("Closing: $(session.id)")
+        close(session)
+        delete!(application.sessions, session.id)
     end
-    close(session)
-    delete!(application.sessions, session.id)
 end
 
 """
@@ -107,7 +121,7 @@ function websocket_handler(context, websocket::WebSocket)
     # Look up the connection in our sessions
     if haskey(application.sessions, sessionid)
         session = application.sessions[sessionid]
-        if isassigned(session.connection) && isopen(session.connection[])
+        if isopen(session)
             # Would be nice to not error here - but I think this should never
             # Happen, and if it happens, we need to debug it!
             error("Session already has connection")

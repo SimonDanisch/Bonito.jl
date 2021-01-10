@@ -1,19 +1,20 @@
-
-function init_session(session::Session)
-    put!(session.js_fully_loaded, true)
+function fused_messages!(session::Session)
     messages = []
-    for (id, (reg, obs)) in session.observables
-        push!(messages, Dict(:msg_type=>UpdateObservable, :payload=>obs[], :id=>obs.id))
-    end
     append!(messages, session.message_queue)
     for js in session.on_document_load
         push!(messages, Dict(:msg_type=>EvalJavascript, :payload=>js))
     end
+    empty!(session.on_document_load)
     empty!(session.message_queue)
-    send(session; msg_type=FusedMessage, payload=messages)
+    return Dict(:msg_type=>FusedMessage, :payload=>messages)
 end
 
-function Session(connection::Base.RefValue{WebSocket}=Base.RefValue{WebSocket}(); url_serializer=UrlSerializer(), id=string(uuid4()))
+function init_session(session::Session)
+    put!(session.js_fully_loaded, true)
+    send(session, fused_messages!(session))
+end
+
+function Session(connection=Base.RefValue{Union{WebSocket, Nothing, IOBuffer}}(nothing); url_serializer=UrlSerializer(), id=string(uuid4()))
     return Session(
         connection,
         Dict{String, Tuple{Bool, Observable}}(),
@@ -27,7 +28,41 @@ function Session(connection::Base.RefValue{WebSocket}=Base.RefValue{WebSocket}()
         Ref{Union{Nothing, JSException}}(nothing),
         Observable{Union{Nothing, Dict{String, Any}}}(nothing),
         Observable(false),
-        Observables.ObserverFunction[]
+        Observables.ObserverFunction[],
+        Dict{String, WeakRef}()
+    )
+end
+
+function Session(session::Session;
+                connection=session.connection,
+                observables=session.observables,
+                message_queue=session.message_queue,
+                dependencies=session.dependencies,
+                on_document_load=session.on_document_load,
+                id=session.id,
+                js_fully_loaded=session.js_fully_loaded,
+                on_websocket_ready=session.on_websocket_ready,
+                url_serializer=session.url_serializer,
+                init_error=session.init_error,
+                js_comm=session.js_comm,
+                on_close=session.on_close,
+                deregister_callbacks=session.deregister_callbacks,
+                unique_object_cache=session.unique_object_cache)
+    return Session(
+        connection,
+        observables,
+        message_queue,
+        dependencies,
+        on_document_load,
+        id,
+        js_fully_loaded,
+        on_websocket_ready,
+        url_serializer,
+        init_error,
+        js_comm,
+        on_close,
+        deregister_callbacks,
+        unique_object_cache
     )
 end
 
@@ -36,7 +71,7 @@ session(session::Session) = session
 function Base.close(session::Session)
     try
         # https://github.com/JuliaWeb/HTTP.jl/issues/649
-        if isassigned(session.connection)
+        if isassigned(session.connection) && !isnothing(session.connection[])
             close(session.connection[])
         end
     catch e
@@ -44,14 +79,20 @@ function Base.close(session::Session)
             @warn "error while closing websocket!" exception=e
         end
     end
-
-    session.on_close[] = true
+    try
+        # Errors in `on_close` should not disrupt closing!
+        session.on_close[] = true
+    catch e
+        @warn "error while setting on_close" exception=e
+    end
     empty!(session.observables)
     empty!(session.on_document_load)
     empty!(session.message_queue)
     empty!(session.dependencies)
     # remove all listeners that where created for this session
     foreach(off, session.deregister_callbacks)
+    empty!(session.deregister_callbacks)
+    return
 end
 
 """
@@ -64,14 +105,22 @@ Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
     if isopen(session) && isready(session.js_fully_loaded)
         @assert isempty(session.message_queue)
-        serialize_websocket(session.connection[], message)
+        binary = serialize_binary(session, message)
+        write(session.connection[], binary)
     else
+        if isassigned(CURRENT_PAGE) && session.id == CURRENT_PAGE[].session.id
+            @warn("session $(isopen(session) ? "" : "closed") and $(isready(session.js_fully_loaded) ? "isready" : "not ready")")
+        end
         push!(session.message_queue, message)
     end
 end
 
+function Base.isready(session::Session)
+    return isready(session.js_fully_loaded) && isopen(session)
+end
+
 function Base.isopen(session::Session)
-    return isassigned(session.connection) && isopen(session.connection[])
+    return isassigned(session.connection) && !isnothing(session.connection[]) && isopen(session.connection[])
 end
 
 """
@@ -123,7 +172,7 @@ Link the observables in Julia, but only as long as the session is active.
 """
 function linkjs(session::Session, a::Observable, b::Observable)
     # register the callback with the JS session
-    onjs(session, a, js"(v) => update_obs($b, v)")
+    onjs(session, a, js"(v) => JSServe.update_obs($b, v)")
 end
 
 function linkjs(has_session, a::Observable, b::Observable)
@@ -151,7 +200,7 @@ Evals `js` code and returns the jsonified value.
 Blocks until value is returned. May block indefinitely, when called with a session
 that doesn't have a connection to the browser.
 """
-function evaljs_value(session::Session, js; error_on_closed=true, time_out=100.0)
+function evaljs_value(session::Session, js; error_on_closed=true, time_out=10.0)
     if error_on_closed && !isopen(session)
         error("Session is not open and would result in this function to indefinitely block.
         It may unblock, if the browser is still connecting and opening the session later on. If this is expected,
@@ -163,18 +212,25 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=100.0
     js_with_result = js"""
     try{
         const result = $(js);
-        update_obs($(comm), {result: result});
+        console.log(result)
+        JSServe.update_obs($(comm), {result: result});
     }catch(e){
-        update_obs($(comm), {error: e.toString()});
+        JSServe.update_obs($(comm), {error: e.toString()});
     }
     """
 
     evaljs(session, js_with_result)
     # TODO, have an on error callback, that triggers when evaljs goes wrong
     # (e.g. because of syntax error that isn't caught by the above try catch!)
-    result = Base.timedwait(()-> comm[] !== nothing, time_out)
-    result == :time_out && error("Waited for $(time_out) seconds for JS to return, but it didn't!")
+
+    tstart = time()
+    while (time() - tstart < time_out) && isnothing(comm[])
+        yield()
+    end
     value = comm[]
+    if isnothing(value)
+        error("Timed out")
+    end
     if haskey(value, "error")
         error(value["error"])
     else
@@ -226,9 +282,9 @@ function Base.push!(session::Session, observable::Observable)
         session.observables[observable.id] = (true, observable)
         # Register on the JS side by sending the current value
         updater = JSUpdateObservable(session, observable.id)
-        # Make sure we update the Javascript values!
         on(updater, session, observable)
-        updater(observable[])
+        # Make sure we register on the js side
+        send(session, payload=observable[], id=observable.id, msg_type=RegisterObservable)
     end
 end
 

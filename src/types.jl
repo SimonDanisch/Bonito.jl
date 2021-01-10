@@ -119,12 +119,15 @@ struct UrlSerializer
     absolute::Bool
     # Used to prepend if absolute == true
     content_delivery_url::String
+    # Inlines all content directly into the html
+    # Makes all above options obsolete
+    inline_all::Bool
 end
 
 function UrlSerializer()
     proxy = JSSERVE_CONFIGURATION.content_delivery_url[]
     return UrlSerializer(
-        true, nothing, proxy != "", proxy
+        true, nothing, proxy != "", proxy, false
     )
 end
 
@@ -160,7 +163,8 @@ end
 A web session with a user
 """
 struct Session
-    connection::Base.RefValue{WebSocket}
+    # IOBuffer for testing
+    connection::Base.RefValue{Union{Nothing, WebSocket, IOBuffer}}
     # Bool -> if already registered with Frontend
     observables::Dict{String, Tuple{Bool, Observable}}
     message_queue::Vector{Dict{Symbol, Any}}
@@ -175,6 +179,7 @@ struct Session
     js_comm::Observable{Union{Nothing, Dict{String, Any}}}
     on_close::Observable{Bool}
     deregister_callbacks::Vector{Observables.ObserverFunction}
+    unique_object_cache::Dict{String, WeakRef}
 end
 
 struct Routes

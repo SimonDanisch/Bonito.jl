@@ -1,6 +1,7 @@
 using JSServe, FileIO, Colors, Observables
 using JSServe.DOM
-
+using JSServe: App
+JSServe.browser_display()
 dir = mktempdir()
 for i in 1:5
     save(joinpath(dir, "img$i.jpg"), rand(RGB{Colors.N0f8}, 200, 200))

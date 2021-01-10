@@ -1,42 +1,50 @@
 # Render the widgets from WidgetsBase.jl
-
-function jsrender(button::Button)
-    return DOM.input(
+function jsrender(session::Session, button::Button)
+    return jsrender(session, DOM.input(
         type = "button",
         value = button.content,
-        onclick = js"update_obs($(button.value), true);";
+        onclick = js"JSServe.update_obs($(button.value), true);";
         button.attributes...
-    )
+    ))
 end
 
-function jsrender(tf::TextField)
-    return DOM.input(
+function jsrender(session::Session, tf::TextField)
+    return jsrender(session, DOM.input(
         type = "textfield",
         value = tf.value,
-        onchange = js"update_obs($(tf.value),  this.value);";
+        onchange = js"JSServe.update_obs($(tf.value),  this.value);";
         tf.attributes...
-    )
+    ))
 end
 
-function jsrender(ni::NumberInput)
-    return DOM.input(
+function jsrender(session::Session, ni::NumberInput)
+    return jsrender(session, DOM.input(
         type = "number",
         value = ni.value,
-        onchange = js"update_obs($(ni.value), parseFloat(this.value));";
+        onchange = js"JSServe.update_obs($(ni.value), parseFloat(this.value));";
         ni.attributes...
-    )
+    ))
 end
 
-function jsrender(slider::Slider)
-    return DOM.input(
+function jsrender(session::Session, slider::Slider)
+    return jsrender(session, DOM.input(
         type = "range",
         min = map(first, slider.range),
         max = map(last, slider.range),
         value = slider.value,
         step = map(step, slider.range),
-        oninput = js"update_obs($(slider.value), parseFloat(value))";
+        oninput = js"JSServe.update_obs($(slider.value), parseFloat(value))";
         slider.attributes...
-    )
+    ))
+end
+
+function JSServe.jsrender(session::Session, tb::Checkbox)
+    return jsrender(session, DOM.input(
+        type = "checkbox",
+        checked = tb.value,
+        onchange = js"JSServe.update_obs($(tb.value), this.checked);";
+        tb.attributes...
+    ))
 end
 
 const noUiSlider = Dependency(
@@ -47,7 +55,7 @@ const noUiSlider = Dependency(
 function jsrender(session::Session, slider::RangeSlider)
     args = (slider.range, slider.connect, slider.orientation,
             slider.tooltips, slider.ticks)
-    style = map(args...) do range, connect, orientation, tooltips, ticks
+    style = map(session, args...) do range, connect, orientation, tooltips, ticks
         value = slider.value[]
         return Dict(
             "range" => Dict(
@@ -66,27 +74,19 @@ function jsrender(session::Session, slider::RangeSlider)
     rangediv = DOM.div()
     create_slider = js"""function create_slider(style){
         var range = $(rangediv);
-        range.noUiSlider.updateOptions(deserialize_js(style), true);
+        range.noUiSlider.updateOptions(JSServe.deserialize_js(style), true);
     }"""
     onload(session, rangediv, js"""function onload(range){
         var style = $(style[]);
         $(noUiSlider).create(range, style);
         range.noUiSlider.on('update', function (values, handle, unencoded, tap, positions){
-            update_obs($(slider.value), [parseFloat(values[0]), parseFloat(values[1])]);
+            JSServe.update_obs($(slider.value), [parseFloat(values[0]), parseFloat(values[1])]);
         });
     }""")
     onjs(session, style, create_slider)
     return rangediv
 end
 
-function JSServe.jsrender(tb::Checkbox)
-    return DOM.input(
-        type = "checkbox",
-        checked = tb.value,
-        onchange = js"update_obs($(tb.value), this.checked);";
-        tb.attributes...
-    )
-end
 
 """
 A simple wrapper for types that conform to the Tables.jl Table interface,
@@ -107,7 +107,7 @@ function Table(table; class="", row_renderer=render_row_value)
     return Table(table, class, row_renderer)
 end
 
-function JSServe.jsrender(table::Table)
+function JSServe.jsrender(session::Session, table::Table)
     names = string.(Tables.schema(table.table).names)
     header = DOM.thead(DOM.tr(DOM.th.(names)...))
     rows = []
@@ -180,11 +180,16 @@ function jsrender(session::Session, editor::CodeEditor)
             editor.setOptions($(editor.options));
 
             editor.session.on('change', function(delta) {
-                update_obs($(editor.onchange), editor.getValue());
+                JSServe.update_obs($(editor.onchange), editor.getValue());
             });
 
             editor.session.setValue($(editor.onchange[]));
         }
     """)
     return editor.element
+end
+
+# Ok, this is bad piracy, but I donno how else to make the display nice for now!
+function Base.show(io::IO, m::MIME"text/html", widget::WidgetsBase.AbstractWidget)
+    show(io, m, App(widget))
 end

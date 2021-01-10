@@ -10,7 +10,7 @@ app = App() do
     algorithm_button = Button("change algorithm")
     algorithms = ["mip", "iso", "absorption"]
     algorithm = Observable(first(algorithms))
-    dropdown_onchange = js"update_obs($algorithm, this.options[this.selectedIndex].text);"
+    dropdown_onchange = js"JSServe.update_obs($algorithm, this.options[this.selectedIndex].text);"
     algorithm_drop = DOM.select(DOM.option.(algorithms); class="bandpass-dropdown", onclick=dropdown_onchange)
 
     data_slider = Slider(LinRange(1f0, 10f0, 100))
@@ -29,17 +29,16 @@ app = App() do
     slice = map(signal, slice_idx) do x, idx
         view(x, :, idx, :)
     end
+    fig = Figure()
 
-    vol = volume(signal; algorithm=map(Symbol, algorithm), ambient=Vec3f0(0.8),
-                 isovalue=iso_value)
+    vol = volume(fig[1,1], signal; algorithm=map(Symbol, algorithm), ambient=Vec3f0(0.8), isovalue=iso_value)
 
     colormaps = collect(AbstractPlotting.all_gradient_names)
     cmap = map(cmap_button) do click
         return colormaps[rand(1:length(colormaps))]
     end
 
-    heat = heatmap(slice, colormap=cmap)
-    scene = vbox(vol, heat)
+    heat = heatmap(fig[1, 2], slice, colormap=cmap)
 
     dom = md"""
     # More MD
@@ -103,7 +102,7 @@ app = App() do
 
     ---
 
-    $(scene)
+    $(fig.scene)
 
     ---
     """

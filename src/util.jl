@@ -44,6 +44,11 @@ repr_richest(x::String) = x
 columns(args...; class="") = DOM.div(args..., class=class * " flex flex-col")
 rows(args...; class="") = DOM.div(args..., class=class * " flex flex-row")
 
+function grid(args...; cols=4, rows=4, class="")
+    class *= " grid auto-cols-max grid-cols-$(cols) grid-rows-$(rows) gap-4"
+    return DOM.div(args..., class=class)
+end
+
 function styled_slider(slider, value; class="")
     return rows(slider,
                 DOM.span(value, class="p-1");

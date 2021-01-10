@@ -27,7 +27,7 @@ function jsrender(session::Session, obs::Observable)
         repr_richest(jsrender(session, data))
     end
     dom = DOM.m_unesc("span", html[])
-    onjs(session, html, js"(html)=> update_dom_node($(dom), html)")
+    onjs(session, html, js"(html)=> JSServe.update_dom_node($(dom), html)")
     return dom
 end
 
@@ -38,11 +38,17 @@ function Observables.on(f, session::Session, observable::Observable)
     return to_deregister
 end
 
-function Base.map(f, session::Session, observable::Observable; result=Observable{Any}())
+function Observables.onany(f, session::Session, observables::Observable...)
+    to_deregister = onany(f, observables...)
+    append!(session.deregister_callbacks, to_deregister)
+    return to_deregister
+end
+
+function Base.map(f, session::Session, observables::Observable...; result=Observable{Any}())
     # map guarantees to be run upfront!
-    result[] = f(observable[])
-    on(session, observable) do newval
-        result[] = f(newval)
+    result[] = f(Observables.to_value.(observables)...)
+    onany(session, observables...) do newvals...
+        result[] = f(newvals...)
     end
     return result
 end

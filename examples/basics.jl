@@ -13,6 +13,7 @@ using JSServe: @js_str, Session, App, onjs, onload, Button
 using JSServe: TextField, Slider, linkjs, get_server
 using JSServe.DOM
 using JSServe: JSON3
+JSServe.browser_display()
 
 app = App(DOM.h1("Hello World"))
 display(app)
@@ -33,7 +34,7 @@ color[] = "green"
 
 
 app = App() do
-    button = DOM.div("click me", onclick=js"update_obs($(color), 'blue')")
+    button = DOM.div("click me", onclick=js"JSServe.update_obs($(color), 'blue')")
     return DOM.div(
         button, DOM.h1("Hello World", style=map(x-> "color: $(x)", color))
     )
@@ -45,7 +46,7 @@ md"""
 """
 
 app = App() do session::Session
-    button = DOM.div("click me", onclick=js"update_obs($(color), 'blue')")
+    button = DOM.div("click me", onclick=js"JSServe.update_obs($(color), 'blue')")
     onload(session, button, js"""function load(button){
         window.alert('Hi from JavaScript');
     }""")
@@ -91,7 +92,7 @@ md"""
 """
 
 app = App() do
-    button = DOM.div("click me", onclick=js"update_obs($(color), 'blue')")
+    button = DOM.div("click me", onclick=js"JSServe.update_obs($(color), 'blue')")
     return DOM.div(
         button, DOM.h1("Hello World", style=map(x-> "color: $(x)", color))
     )

@@ -137,7 +137,7 @@ function wait(testsession::TestSession; timeout=300)
         # But if we don't do this, on an error in serving, we'd wait indefinitely
         # even if the window gets closed...And since Julia can't deal with interrupting
         # Wait, that'd mean killing Julia completely
-        sleep(0.01)
+        yield()
     end
     if !isopen(testsession.session)
         error("Window closed before getting a message from serving request")
@@ -209,12 +209,14 @@ Close the testsession and clean up the state!
 """
 function Base.close(testsession::TestSession)
     if isdefined(testsession, :server)
-        Electron.close(testsession.server)
+        close(testsession.server)
     end
+
     if isdefined(testsession, :window)
         # testsession.window.app.exists && close(testsession.window.app)
         testsession.window.exists && close(testsession.window)
     end
+
     testsession.initialized = false
 end
 
@@ -271,7 +273,8 @@ end
 Returns a js string, that queries for `id`.
 """
 function query_testid(id::String)
-    js"document.querySelector('[data-test-id=$(id)]')"
+    query_str = "[data-test-id=$(repr(id))]"
+    js"document.querySelector($(query_str))"
 end
 
 """
