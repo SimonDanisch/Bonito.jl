@@ -31,7 +31,12 @@ should_cache(@nospecialize(x)) = false
 
 # For now, we only cache arrays bigger 0.01mb
 # Which makes a huge impact already for WGLMakie
-should_cache(x::Array) = sizeof(x) / 10^6 > 0.01
+
+const CACHE_DUPLIACTES = Ref(true)
+
+function should_cache(x::Array)
+    return CACHE_DUPLIACTES[] && sizeof(x) / 10^6 > 0.01
+end
 
 function add_to_cache!(context::SerializationContext, @nospecialize(object))
     isnothing(context.serialized_objects) && return # we don't want to cache ANYTHING
@@ -85,26 +90,37 @@ function update_cache!(session::Session, objects::Dict{String, Any}, duplicates:
 end
 
 function update_cached_value!(session::Session, object)
+    # If we cache while sending the message to update the object
+    # it will just send a reference to the already cached value! :D
+    ctx = SerializationContext(nothing)
     ref = JSServe.pointer_identity(object)
-    JSServe.JSServeLib.update_cached_value(session, ref, object)
+    message = Dict(
+        :dont_serialize => true,
+        :update_cache => Dict("to_remove" => [], "to_register" => Dict(ref => serialize_js(ctx, object)))
+    )
+    send(session, message)
 end
 
 function serialize_binary(session::Session, @nospecialize(obj))
-    context = SerializationContext(session.unique_object_cache)
-    data = serialize_js(context, obj) # apply custom, overloadable transformation
-    # If we found duplicates, store them to the cache!
-    # or if some balue was gc'ed, we need to clean up the cache
-    if !isempty(context.duplicates) || any(((key, ref),)-> isnothing(ref.value), session.unique_object_cache)
-        message = update_cache!(session, context.serialized_objects, context.duplicates)
-        # we store to the cache by modifying the original message
-        # which will then be handled by the JS side
-        data = Dict(
-            "update_cache" => message,
-            "data" => data
-        )
+    data = obj
+    # We need a way to not serialize messages, e.g. in `update_cached_value`
+    if !get(obj, :dont_serialize, false)
+        context = SerializationContext(session.unique_object_cache)
+        data = serialize_js(context, obj) # apply custom, overloadable transformation
+        # If we found duplicates, store them to the cache!
+        # or if some balue was gc'ed, we need to clean up the cache
+        has_dups, refs_deleted = !isempty(context.duplicates), any(((key, ref),)-> isnothing(ref.value), session.unique_object_cache)
+        if has_dups || refs_deleted
+            message = update_cache!(session, context.serialized_objects, context.duplicates)
+            # we store to the cache by modifying the original message
+            # which will then be handled by the JS side
+            data = Dict(
+                "update_cache" => message,
+                "data" => data
+            )
+        end
     end
-    bytes = MsgPack.pack(data)
-    return transcode(GzipCompressor, bytes)
+    return transcode(GzipCompressor, MsgPack.pack(data))
 end
 
 function js_type(type::String, @nospecialize(x))

@@ -180,7 +180,7 @@ const JSServe = (function (){
                     return id;
 
                 } else if (data.__javascript_type__ == "Reference") {
-
+                    console.log(`loading reference: ${data.payload}`);
                     const ref = session_object_cache[data.payload];
                     if (!ref) {
                         throw new Error(`Could not dereference ${data.payload}!`)
@@ -299,8 +299,8 @@ const JSServe = (function (){
             // Display a warning, that we lost conenction!
             var popup = document.getElementById("WEBSOCKET_CONNECTION_WARNING");
             if (!popup) {
-                var doc_root = document.getElementById("application-dom");
-                var popup = document.createElement("div");
+                const doc_root = document.getElementById("application-dom");
+                const popup = document.createElement("div");
                 popup.id = "WEBSOCKET_CONNECTION_WARNING";
                 popup.innerText = "Lost connection to server!";
                 doc_root.appendChild(popup);
@@ -343,11 +343,16 @@ const JSServe = (function (){
     function process_message(data) {
         try {
             if (data.update_cache) {
-                console.log("UPDATING CACHE")
                 // the message comes with new cached variables, which we need to update
                 // before processing any messages
                 update_cache(data.update_cache);
-                process_message(data.data);
+                if (!data.data) {
+                    console.log(data.update_cache)
+                }
+                // we allow to send empty messages, that only update the cache!
+                if (data.data) {
+                    process_message(data.data);
+                }
                 return
             }
             switch (data.msg_type) {

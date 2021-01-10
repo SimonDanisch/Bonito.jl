@@ -115,6 +115,10 @@ function Sockets.send(session::Session, message::Dict{Symbol, Any})
     end
 end
 
+function Base.isready(session::Session)
+    return isready(session.js_fully_loaded) && isopen(session)
+end
+
 function Base.isopen(session::Session)
     return isassigned(session.connection) && !isnothing(session.connection[]) && isopen(session.connection[])
 end

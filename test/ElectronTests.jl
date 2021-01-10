@@ -208,13 +208,15 @@ end
 Close the testsession and clean up the state!
 """
 function Base.close(testsession::TestSession)
+    if isdefined(testsession, :server)
+        close(testsession.server)
+    end
+
     if isdefined(testsession, :window)
         # testsession.window.app.exists && close(testsession.window.app)
         testsession.window.exists && close(testsession.window)
     end
-    if isdefined(testsession, :server)
-        close(testsession.server)
-    end
+
     testsession.initialized = false
 end
 

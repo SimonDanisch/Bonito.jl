@@ -26,14 +26,18 @@ function Base.show(io::IO, ::MIME"text/html", page::Page)
         if !haskey(page.child_sessions, session_id)
             error("Session to delete not found ($(session_id)), please open an issue with JSServe.jl")
         end
+
+        @debug("deleting child session: $(session_id)")
         child = page.child_sessions[session_id]
         # Set connection to nothing,
         # so that no clean up happens over the active websocket connection
         # (e.g. close will try to close the ws connection)
+        child.on_close[] = true
         child.connection[] = nothing
         close(child)
         delete!(page.child_sessions, session_id)
     end
+
     page_init_dom = DOM.div(
         include_asset(PakoLib, serializer),
         include_asset(MsgPackLib, serializer),
@@ -50,16 +54,29 @@ function Base.show(io::IO, ::MIME"text/html", page::Page)
     println(io, node_html(page.session, page_init_dom))
 end
 
-function assure_ready(session)
-    Base.timedwait(30.0) do
-        isopen(session) && isready(session.js_fully_loaded)
+function assure_ready(page::Page)
+    session = page.session
+    filter!(page.child_sessions) do (id, session)
+        never_opened = isnothing(session.connection[])
+        if never_opened
+            @warn("Removing unopened Session: $(id)")
+            close(session)
+        end
+        return !never_opened
     end
-    messages = fused_messages!(session)
-    send(session, messages)
+    Base.timedwait(30.0) do
+        return isready(session) && all(((id, s),)-> isready(s), page.child_sessions)
+    end
+    send(session, fused_messages!(session))
 end
 
 function show_in_page(page::Page, app::App)
     page_session = page.session
+    # The page session must be ready to display anything!
+    # Since the page display is rendered async in the browser and we have no
+    # idea when it's done on the Julia side, so we need to wait here!
+    assure_ready(page)
+
     # Create a child session, to track the per app resources
     session = Session(page_session;
         connection=Base.RefValue{Union{Nothing, WebSocket, IOBuffer}}(nothing),
@@ -68,14 +85,13 @@ function show_in_page(page::Page, app::App)
         observables=Dict{String, Tuple{Bool, Observable}}(),
         on_close=Observable(false),
         message_queue=Dict{Symbol, Any}[],
+        js_fully_loaded=Channel{Bool}(1),
         deregister_callbacks=Observables.ObserverFunction[]
     )
     # register with page session for proper clean up!
     page.child_sessions[session.id] = session
-    # The page session must be ready to display anything!
-    # Since the page display is rendered async in the browser and we have no
-    # idea when it's done on the Julia side, so we need to wait here!
-    assure_ready(page_session)
+
+
 
     on_init = Observable(false)
     # Manually register on_init - this is a bit fragile, but
@@ -126,6 +142,8 @@ function show_in_page(page::Page, app::App)
         if !is_init
             error("The html didn't initialize correctly")
         end
+        put!(session.js_fully_loaded, true)
+        @debug("initializing child session: $(session.id)")
         send(session, messages)
     end
 
