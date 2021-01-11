@@ -218,7 +218,6 @@ function page_html(session::Session, html)
     html_body = DOM.html(
         DOM.head(
             DOM.meta(charset="UTF-8"),
-            include_asset(session.dependencies, serializer),
             include_asset(PakoLib, serializer),
             include_asset(MsgPackLib, serializer),
             include_asset(JSServeLib, serializer),
