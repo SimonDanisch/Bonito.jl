@@ -210,11 +210,10 @@ Embedds the html_body in a standalone html document!
 """
 function page_html(session::Session, html)
     proxy_url = JSSERVE_CONFIGURATION.external_url[]
-
     serializer = session.url_serializer
-    session_deps = include_asset.(session.dependencies, (serializer,))
     rendered = jsrender(session, html)
     register_resource!(session, rendered)
+    session_deps = include_asset.(session.dependencies, (serializer,))
     html_body = DOM.html(
         DOM.head(
             DOM.meta(charset="UTF-8"),
