@@ -142,18 +142,32 @@ function jsrender(session::Session, asset::Asset)
 end
 
 function include_asset(asset::Asset, serializer::UrlSerializer=UrlSerializer())
-    file_url = url(asset, serializer)
+    function to_url(mime)
+        # In case we don't rely on a running server,
+        # we base64 encode the content in a data url
+        # This isn't needed, if the asset is already hosted online (!isempty(asset.online_path))
+        if serializer.inline_all && isempty(asset.online_path)
+            data_str = base64encode(read(asset.local_path))
+            return "data:$(mime);base64," * data_str
+        else
+            return url(asset, serializer)
+        end
+    end
     if mediatype(asset) == :js
-        return DOM.script(src=file_url)
+        return DOM.script(src=to_url("text/javascript"))
     elseif mediatype(asset) == :css
-        return DOM.link(href=file_url, rel="stylesheet", type="text/css")
+        return DOM.link(href=to_url("text/css"), rel="stylesheet", type="text/css")
     else
         error("Unrecognized asset media type: $(mediatype(asset))")
     end
 end
 
 function include_asset(dep::Dependency, serializer::UrlSerializer=UrlSerializer())
-    return include_asset(dep.assets, serializer)
+    if length(dep.assets) == 1
+        include_asset(dep.assets[1], serializer)
+    else
+        return include_asset(dep.assets, serializer)
+    end
 end
 
 function include_asset(assets::Union{Vector{Asset}, Set{Asset}}, serializer::UrlSerializer=UrlSerializer())
@@ -219,7 +233,8 @@ end
 
 const MsgPackLib = Asset(dependency_path("msgpack.min.js"))
 const PakoLib = Asset(dependency_path("pako_inflate.min.js"))
-const JSServeLib = Dependency(:JSServe, [dependency_path("core.js")])
+const JSServeLib = Dependency(:JSServe, [dependency_path("JSServe.js")])
+const Base64Lib = Dependency(:Base64, [dependency_path("Base64.js")])
 
 const MarkdownCSS = Asset(dependency_path("markdown.css"))
 const TailwindCSS = Asset(dependency_path("tailwind.min.css"))

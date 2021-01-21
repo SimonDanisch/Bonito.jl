@@ -20,6 +20,7 @@ function normalize_names(x)
 end
 
 data_dir = joinpath(@__DIR__, "data")
+mkdir(data_dir)
 data_temp_path = joinpath(data_dir, "temperature.txt")
 data_prec_path = joinpath(data_dir, "precipitation.txt")
 download("https://opendata.dwd.de/climate_environment/CDC/regional_averages_DE/annual/air_temperature_mean/regional_averages_tm_year.txt", data_temp_path)
@@ -70,6 +71,24 @@ function visualize_data(scene, data, cmap, colorrange, s)
     end
     return scene
 end
+fig = Figure()
+ax = fig[1,1] = Axis(fig)
+
+fig = Figure(resolution = (900, 700))
+to_plot = (
+    (1, "Temperatur", temp_data, :heat),
+    (2, "Regen", prec_data, :blues))
+s = Observable(1)
+foreach(to_plot) do (i, title, data, cmap)
+    colorrange = data_extrema(data)
+    ax = fig[1, i] = Axis(fig; title=title)
+    hidedecorations!(ax, grid = false)
+    visualize_data(ax, data, cmap, colorrange, s)
+    layout[2, i] = Colorbar(fig, colormap=cmap, limits=colorrange, vertical=false, height=30, flipaxisposition=false, labelvisible=false,
+    ticklabelalign=(:center, :top), ticksize=5)
+    return
+end
+display(fig)
 
 function handler(session, req)
     s = JSServe.Slider(1:length(temp_data))

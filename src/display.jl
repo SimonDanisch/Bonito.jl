@@ -1,22 +1,95 @@
 struct Page
-    serializer::UrlSerializer
-    with_julia_server::Bool
     session::Session
     child_sessions::Dict{String, Session}
+
+    # Inlines all CSS & JS dependencies, and doesn't use websocket connection
+    # to load initial data. This makes JSServe a bit slower, but allows you do
+    # export the Page to static HTML e.g. in Pluto
+    exportable::Bool
+    # Doesn't even try to connect to a julia process
+    offline::Bool
 end
 
 const CURRENT_PAGE = Ref{Page}()
 
-function Page(;session = Session())
-    p = Page(UrlSerializer(), true, session, Dict{String, Session}())
+"""
+    Page(;
+        session=nothing,
+        exportable=false,
+        offline=false,
+        server_config...
+    )
+
+
+A Page should be used for anything that displays multiple outputs, like Pluto/IJulia/Documenter.
+It activates a special html mime show mode, which is more efficient in that scenario.
+
+A Page creates a single entry point, to connect to the Julia process and load dependencies.
+For Documenter, the page needs to be set to `exportable=true, offline=true`.
+Exportable has the effect of inlining all data & js dependencies, so that everything can be loaded in a single HTML object.
+`offline=true` will make the Page not even try to connect to a running Julia
+process, which makes sense for the kind of static export we do in Documenter.
+
+For convenience, one can also pass additional server configurations, which will directly
+get put into `configure_server!(;server_config...)`.
+Have a look at the docs for `configure_server!` to see the parameters.
+"""
+function Page(;
+        session=nothing,
+        exportable=false,
+        offline=false,
+        server_config...
+    )
+    configure_server!(;server_config...)
+    if session === nothing
+        serializer = UrlSerializer(inline_all=exportable)
+        session = Session(url_serializer=serializer)
+    end
+
+    p = Page(
+        session, Dict{String, Session}(),
+        exportable,
+        offline,
+    )
     CURRENT_PAGE[] = p
     return p
 end
 
+function Base.close(page::Page)
+    for (k, s) in page.child_sessions
+        close(s)
+    end
+    empty!(page.child_sessions)
+    close(page.session)
+    empty!(page.session.unique_object_cache)
+end
+
+function include_all_assets(session, assets)
+    # protect against require being loaded by someone else
+    # (e.g. Documenter.jl)
+    return [
+        jsrender(session, js"""
+            window.__define = window.define;
+            window.__require = window.require;
+            window.define = undefined;
+            window.require = undefined;
+        """),
+        include_asset.(assets, (session.url_serializer,))...,
+        jsrender(session, js"""
+            window.define = window.__define;
+            window.require = window.__require;
+            window.__define = undefined;
+            window.__require = undefined;
+        """)
+    ]
+end
+
 function Base.show(io::IO, ::MIME"text/html", page::Page)
-    server = get_server()
-    insert_session!(server, page.session)
-    serializer = page.serializer
+    if !(page.offline)
+        server = get_server()
+        insert_session!(server, page.session)
+    end
+    serializer = page.session.url_serializer
     websocket_url = JSSERVE_CONFIGURATION.external_url[]
     delete_session = Observable("")
 
@@ -38,10 +111,9 @@ function Base.show(io::IO, ::MIME"text/html", page::Page)
         delete!(page.child_sessions, session_id)
     end
 
-    page_init_dom = DOM.div(
-        include_asset(PakoLib, serializer),
-        include_asset(MsgPackLib, serializer),
-        include_asset(JSServeLib, serializer),
+    init = if page.offline
+        js"JSServe.setup_connection({offline: true})"
+    else
         js"""
             const proxy_url = $(websocket_url)
             const session_id = $(page.session.id)
@@ -50,11 +122,23 @@ function Base.show(io::IO, ::MIME"text/html", page::Page)
             JSServe.setup_connection({proxy_url, session_id})
             JSServe.sent_done_loading()
         """
+    end
+    deps = [
+        MsgPackLib,
+        PakoLib,
+        Base64Lib,
+        JSServeLib,
+    ]
+    page_init_dom = DOM.div(
+        include_all_assets(page.session, deps)...,
+        init
     )
     println(io, node_html(page.session, page_init_dom))
 end
 
 function assure_ready(page::Page)
+    # Nothing to wait for when offline
+    page.offline && return
     session = page.session
     filter!(page.child_sessions) do (id, session)
         never_opened = isnothing(session.connection[])
@@ -64,14 +148,23 @@ function assure_ready(page::Page)
         end
         return !never_opened
     end
-    Base.timedwait(30.0) do
-        return isready(session) && all(((id, s),)-> isready(s), page.child_sessions)
+    tstart = time()
+    warned = false
+    while time() - tstart < 10
+        children_loaded = all(isready, values(page.child_sessions))
+        isready(session) && children_loaded && break
+        if (time() - tstart) > 1 && !warned
+            warned = true
+            @warn("Waiting for page sessions to load.
+                This can happen for the first cells to run, or is indicative of faulty state")
+        end
     end
     send(session, fused_messages!(session))
 end
 
 function show_in_page(page::Page, app::App)
     page_session = page.session
+    is_offline = page.offline
     # The page session must be ready to display anything!
     # Since the page display is rendered async in the browser and we have no
     # idea when it's done on the Julia side, so we need to wait here!
@@ -91,8 +184,6 @@ function show_in_page(page::Page, app::App)
     # register with page session for proper clean up!
     page.child_sessions[session.id] = session
 
-
-
     on_init = Observable(false)
     # Manually register on_init - this is a bit fragile, but
     # we need to normally register on_init with `session`, BUT
@@ -110,17 +201,39 @@ function show_in_page(page::Page, app::App)
     new_deps = setdiff(session.dependencies, page_session.dependencies)
     union!(page_session.dependencies, new_deps)
 
-    init_script = js"""
-        JSServe.update_obs($(on_init), true)
-        // register this session so it gets deleted when it gets removed from dom
-        JSServe.register_sub_session($(session.id))
-    """
+    exportable = page.exportable
+
+    on(session, on_init) do is_init
+        if !is_init
+            error("The html didn't initialize correctly")
+        end
+        init_session(session)
+    end
+
+    init = if exportable
+        # We take all messages and serialize them directly into the init js
+        messages = fused_messages!(session)
+        js"""(()=> {
+            JSServe.register_sub_session($(session.id))
+            const init_data_b64 = $(serialize_string(session, messages))
+            JSServe.init_from_b64(init_data_b64)
+            if (!$(is_offline)){
+                JSServe.update_obs($(on_init), true)
+            }
+        })()"""
+    else
+        js"""
+            // register this session so it gets deleted when it gets removed from dom
+            JSServe.register_sub_session($(session.id))
+            JSServe.update_obs($(on_init), true)
+        """
+    end
 
     final_dom = DOM.div(
         js_dom,
-        include_asset.(new_deps, (page_session.url_serializer,))...,
-        jsrender(session, init_script),
-        id=session.id
+        include_all_assets(page_session, new_deps)...,
+        jsrender(session, init),
+        id=session.id,
     )
 
     obs_shared_with_parent = intersect(keys(session.observables), keys(page_session.observables))
@@ -133,19 +246,6 @@ function show_in_page(page::Page, app::App)
     # but in the end, all observables need to be registered
     # with the page session, since that's where javascript will sent all the events
     merge!(page_session.observables, session.observables)
-
-    # We take all
-    messages = fused_messages!(session)
-
-    session.connection[] = page_session.connection[]
-    on(session, on_init) do is_init
-        if !is_init
-            error("The html didn't initialize correctly")
-        end
-        put!(session.js_fully_loaded, true)
-        @debug("initializing child session: $(session.id)")
-        send(session, messages)
-    end
 
     on(session, session.on_close) do closed
         # remove the sub-session specific js resources
@@ -160,6 +260,9 @@ function show_in_page(page::Page, app::App)
             end
         end
     end
+
+    # finally give page a connection! :)
+    session.connection[] = page_session.connection[]
 
     return repr(MIME"text/html"(), Hyperscript.Pretty(final_dom))
 end
@@ -220,6 +323,7 @@ function page_html(session::Session, html)
             include_asset(PakoLib, serializer),
             include_asset(MsgPackLib, serializer),
             include_asset(JSServeLib, serializer),
+            include_asset(Base64Lib, serializer),
             session_deps...
         ),
         DOM.body(

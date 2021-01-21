@@ -1,4 +1,4 @@
-const JSServe = (function (){
+const JSServe = (function () {
     const registered_observables = {};
     const observable_callbacks = {};
     const session_object_cache = {};
@@ -26,10 +26,10 @@ const JSServe = (function (){
     }
 
     function delete_observables(ids) {
-        ids.forEach(id=>{
-            delete registered_observables[id]
+        ids.forEach((id) => {
+            delete registered_observables[id];
             delete observable_callbacks[id];
-        })
+        });
     }
 
     function update_obs(id, value) {
@@ -54,7 +54,7 @@ const JSServe = (function (){
         } else {
             send_error(`
                 Observable with id ${id} can't be updated because it's not registered.
-            `)
+            `);
         }
     }
 
@@ -96,7 +96,9 @@ const JSServe = (function (){
     }
 
     function is_list(value) {
-        return value && typeof value === "object" && value.constructor === Array;
+        return (
+            value && typeof value === "object" && value.constructor === Array
+        );
     }
 
     function is_dict(value) {
@@ -124,7 +126,7 @@ const JSServe = (function (){
                 } else if (key != "children" && key != "tag") {
                     node.setAttribute(key, data[key]);
                 }
-            })
+            });
             data.children.forEach((child) => {
                 if (is_dict(child)) {
                     node.appendChild(materialize_node(child));
@@ -135,7 +137,7 @@ const JSServe = (function (){
                         node.innerText = child;
                     }
                 }
-            })
+            });
             return node;
         } else {
             // anything else is used as is!
@@ -149,21 +151,14 @@ const JSServe = (function (){
         } else if (is_dict(data)) {
             if ("__javascript_type__" in data) {
                 if (data.__javascript_type__ == "TypedVector") {
-
                     return data.payload;
-
                 } else if (data.__javascript_type__ == "DomNode") {
-
                     return document.querySelector(
                         '[data-jscall-id="' + data.payload + '"]'
                     );
-
                 } else if (data.__javascript_type__ == "DomNodeFull") {
-
                     return materialize_node(data.payload);
-
                 } else if (data.__javascript_type__ == "JSCode") {
-
                     const eval_func = new Function(
                         "__eval_context__",
                         data.payload.source
@@ -171,22 +166,19 @@ const JSServe = (function (){
                     const context = deserialize_js(data.payload.context);
                     // return a closure, that when caleld evals runs the code!
                     return () => eval_func(context);
-
                 } else if (data.__javascript_type__ == "Observable") {
-
                     const value = deserialize_js(data.payload.value);
                     const id = data.payload.id;
                     registered_observables[id] = value;
                     return id;
-
                 } else if (data.__javascript_type__ == "Reference") {
-                    console.log(`loading reference: ${data.payload}`);
                     const ref = session_object_cache[data.payload];
                     if (!ref) {
-                        throw new Error(`Could not dereference ${data.payload}!`)
+                        throw new Error(
+                            `Could not dereference ${data.payload}!`
+                        );
                     }
-                    return ref
-
+                    return ref;
                 } else {
                     send_error(
                         "Can't deserialize custom type: " +
@@ -208,7 +200,6 @@ const JSServe = (function (){
             return data;
         }
     }
-
 
     function send_error(message, exception) {
         console.error(message);
@@ -275,10 +266,6 @@ const JSServe = (function (){
 
     const session_websocket = [];
 
-    function offline_forever() {
-        return session_websocket.length == 1 && session_websocket[0] == null;
-    }
-
     function ensure_connection() {
         // we lost the connection :(
         if (offline_forever()) {
@@ -305,7 +292,6 @@ const JSServe = (function (){
                 popup.innerText = "Lost connection to server!";
                 doc_root.appendChild(popup);
             }
-            popup.style;
             return false;
         }
         return true;
@@ -347,13 +333,13 @@ const JSServe = (function (){
                 // before processing any messages
                 update_cache(data.update_cache);
                 if (!data.data) {
-                    console.log(data.update_cache)
+                    console.log(data.update_cache);
                 }
                 // we allow to send empty messages, that only update the cache!
                 if (data.data) {
                     process_message(data.data);
                 }
-                return
+                return;
             }
             switch (data.msg_type) {
                 case UpdateObservable:
@@ -363,7 +349,9 @@ const JSServe = (function (){
                     run_js_callbacks(data.id, value);
                     break;
                 case RegisterObservable:
-                    registered_observables[data.id] = deserialize_js(data.payload);
+                    registered_observables[data.id] = deserialize_js(
+                        data.payload
+                    );
                     break;
                 case OnjsCallback:
                     // register a callback that will executed on js side
@@ -386,7 +374,10 @@ const JSServe = (function (){
                     );
             }
         } catch (e) {
-            send_error(`Error while processing message ${JSON.stringify(data)}`, e);
+            send_error(
+                `Error while processing message ${JSON.stringify(data)}`,
+                e
+            );
         }
     }
 
@@ -406,19 +397,36 @@ const JSServe = (function (){
         return ws_url;
     }
 
-    let websocket_config = undefined
+    function decode_binary(binary) {
+        return msgpack.decode(pako.inflate(binary));
+    }
+
+    function decode_string(string) {
+        const binary = Base64.decode(string);
+        return decode_binary(binary);
+    }
+
+    function init_from_b64(data_str_b64) {
+        const message = decode_string(data_str_b64);
+        process_message(message)
+    }
+
+    let websocket_config = undefined;
+
+    function offline_forever() {
+        return websocket_config && websocket_config.offline;
+    }
 
     function setup_connection(config_input) {
-
         let config = config_input;
 
         if (!config) {
             config = websocket_config;
         } else {
-            websocket_config = config_input
+            websocket_config = config_input;
         }
 
-        const {offline, proxy_url, session_id} = config
+        const { offline, proxy_url, session_id } = config;
         // we're in offline mode, dont even try!
         if (offline) {
             console.log("OFFLINE FOREVER");
@@ -427,10 +435,9 @@ const JSServe = (function (){
         const url = websocket_url(session_id, proxy_url);
         let tries = 0;
         function tryconnect(url) {
-
             if (session_websocket.length != 0) {
                 const old_ws = session_websocket.pop();
-                old_ws.close()
+                old_ws.close();
             }
             websocket = new WebSocket(url);
             websocket.binaryType = "arraybuffer";
@@ -440,7 +447,7 @@ const JSServe = (function (){
                 console.log("CONNECTED!!: ", url);
                 websocket.onmessage = function (evt) {
                     const binary = new Uint8Array(evt.data);
-                    const data = msgpack.decode(pako.inflate(binary));
+                    const data = decode_binary(binary);
                     process_message(data);
                 };
             };
@@ -548,5 +555,7 @@ const JSServe = (function (){
         update_dom_node,
         resize_iframe_parent,
         update_cached_value,
+        init_from_b64,
+        process_message,
     };
-})()
+})();

@@ -103,14 +103,11 @@ Send values to the frontend via JSON for now
 Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
-    if isopen(session) && isready(session.js_fully_loaded)
+    if isready(session)
         @assert isempty(session.message_queue)
         binary = serialize_binary(session, message)
         write(session.connection[], binary)
     else
-        if isassigned(CURRENT_PAGE) && session.id == CURRENT_PAGE[].session.id
-            @warn("session $(isopen(session) ? "" : "closed") and $(isready(session.js_fully_loaded) ? "isready" : "not ready")")
-        end
         push!(session.message_queue, message)
     end
 end

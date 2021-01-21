@@ -99,13 +99,16 @@ end
         @test isopen(session)
         session.connection[] = nothing
         @test !isopen(session)
-        # the message queue gets emptied and all messages are sent on `onit_obs == true`
-        @test isempty(session.message_queue)
+        # there should be 3 messages in here
+        # 2 for evaljs, one for registering the int_obs
+        @test length(session.message_queue) == 3
         @test isempty(open_session.unique_object_cache)
         init_obs[] = true
         @test !isempty(session.message_queue)
-        @test session.message_queue[1][:id] == init_obs.id
-        @test session.message_queue[2][:msg_type] == JSServe.FusedMessage
+        # There should only be two messages now, 1 fused message that sends all messages in one go
+        # and one to update obs
+        @test length(session.message_queue) == 2
+        @test session.message_queue[1][:msg_type] == JSServe.FusedMessage
 
         session.connection[] = open_session.connection[]
         messages = copy(session.message_queue)
