@@ -53,33 +53,79 @@ const JSSERVE_CONFIGURATION = (
 )
 
 """
-configure_server!(external_url="";
-        listen_port=JSSERVE_CONFIGURATION.listen_port[],
-        external_port=listen_port)
-Configure JSServe server to be reachable from outside.
-This should be used when displaying JSServe based Apps in e.g. Pluto!
-`configure_server!("http://192.168.178.21")`
-Will set the server to:
-`external_url = "http://192.168.178.21:\$(external_port)"`
-If you're using some domain, where the port doesn't need to be attached use:
-`configure_server!("http://my-domain.com", external_port=nothing)`
+    configure_server!(;
+            listen_url::String=JSSERVE_CONFIGURATION.listen_url[],
+            listen_port::Integer=JSSERVE_CONFIGURATION.listen_port[],
+            forwarded_port::Integer=listen_port,
+            external_url=nothing,
+            content_delivery_url=nothing
+        )
 
-If you set `listen_port` to something, it will also change the port the server is listening on when started!
+Configures the parameters for the automatically started server.
+
+    Parameters:
+
+    * listen_url=JSSERVE_CONFIGURATION.listen_url[]
+        The address the server listens to.
+        must be 0.0.0.0, 127.0.0.1 or localhost.
+        If not set differently by an ENV variable, will default to 127.0.0.1
+
+    * listen_port::Integer=JSSERVE_CONFIGURATION.listen_port[],
+        The Port to which the default server listens to
+        If not set differently by an ENV variable, will default to 9284
+
+    * forwarded_port::Integer=listen_port,
+        if port gets forwarded to some other port, set it here!
+
+    * external_url=nothing
+        The url from which the server is reachable.
+        If served on "127.0.0.1", this will default to http://localhost:forwarded_port
+        if listen_url is "0.0.0.0", this will default to http://\$(Sockets.getipaddr()):forwarded_port
+        so that the server is reachable inside the local network.
+        If the server should be reachable from some external dns server,
+        this needs to be set here.
+
+    * content_delivery_url=nothing
+        You can server files from another server.
+        Make sure any file referenced from Julia is reachable at
+        content_delivery_url * "/the_file"
 """
-function configure_server!(external_url="";
-        listen_port=JSSERVE_CONFIGURATION.listen_port[],
-        external_port=listen_port,
-        content_delivery_url=nothing)
+function configure_server!(;
+        listen_url=nothing,
+        # The Port to which the default server listens to
+        listen_port::Integer=JSSERVE_CONFIGURATION.listen_port[],
+        # if port gets forwarded to some other port, set it here!
+        forwarded_port::Integer=listen_port,
+        # The url from which the server is reachable.
+        # If served on "127.0.0.1", this will default to
+        # if listen_url is "0.0.0.0", this will default to
+        # Sockets.getipaddr() so that it's the ip address in the local network.
+        # If the server should be reachable from some external dns server,
+        # this needs to be set here
+        external_url=nothing,
+        # You can server files from another server.
+        # Make sure any file referenced from Julia is reachable at
+        # content_delivery_url * "/the_file"
+        content_delivery_url=nothing
+    )
 
-    JSSERVE_CONFIGURATION.listen_port[] = listen_port
-    if isempty(external_url)
-        external_url = "http://localhost"
+    if isnothing(listen_url)
+        listen_url = JSSERVE_CONFIGURATION.listen_url[]
     end
-    if external_port !== nothing
-        external_url = "$(external_url):$(external_port)"
+
+    if isnothing(external_url)
+        if listen_url == "0.0.0.0"
+            external_url = string(Sockets.getipaddr(), ":$forwarded_port")
+        elseif listen_url in ("127.0.0.1", "localhost")
+            external_url = "http://localhost:$forwarded_port"
+        else
+            error("Trying to listen to $(listen_url), while only \"127.0.0.1\", \"0.0.0.0\" and \"localhost\" are supported")
+        end
     end
+    # set the config!
     JSSERVE_CONFIGURATION.listen_url[] = "0.0.0.0"
     JSSERVE_CONFIGURATION.external_url[] = external_url
+    JSSERVE_CONFIGURATION.listen_port[] = listen_port
     if content_delivery_url === nothing
         JSSERVE_CONFIGURATION.content_delivery_url[] = external_url
     else
@@ -120,5 +166,9 @@ function __init__()
         browser_display()
     end
 end
+
+# Core functionality
+export Page, Session, App, DOM, @js_str
+export Slider, Button
 
 end # module

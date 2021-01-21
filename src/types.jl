@@ -124,10 +124,13 @@ struct UrlSerializer
     inline_all::Bool
 end
 
-function UrlSerializer()
-    proxy = JSSERVE_CONFIGURATION.content_delivery_url[]
+function UrlSerializer(;
+        proxy = JSSERVE_CONFIGURATION.content_delivery_url[],
+        assetserver=true, asset_folder=nothing, absolute=proxy!="",
+        inline_all=false
+    )
     return UrlSerializer(
-        true, nothing, proxy != "", proxy, false
+        assetserver, asset_folder, absolute, proxy, inline_all
     )
 end
 

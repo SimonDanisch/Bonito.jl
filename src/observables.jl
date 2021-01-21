@@ -18,8 +18,14 @@ end
 Update the value of an observable, without sending changes to the JS frontend.
 This will be used to update updates from the forntend.
 """
-function update_nocycle!(obs::Observable, value)
-    setindex!(obs, value, notify = (f-> !(f isa JSUpdateObservable)))
+function update_nocycle!(obs::Observable, @nospecialize(value))
+    obs.val = value
+    for f in Observables.listeners(obs)
+        if !(f isa JSUpdateObservable)
+            Base.invokelatest(f, value)
+        end
+    end
+    return
 end
 
 function jsrender(session::Session, obs::Observable)

@@ -101,6 +101,11 @@ function update_cached_value!(session::Session, object)
     send(session, message)
 end
 
+function serialize_string(session::Session, @nospecialize(obj))
+    binary = serialize_binary(session, obj)
+    return Base64.base64encode(binary)
+end
+
 function serialize_binary(session::Session, @nospecialize(obj))
     data = obj
     # We need a way to not serialize messages, e.g. in `update_cached_value`
