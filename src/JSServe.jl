@@ -110,7 +110,12 @@ function configure_server!(;
     )
 
     if isnothing(listen_url)
-        listen_url = JSSERVE_CONFIGURATION.listen_url[]
+        if !isnothing(external_url)
+            # if we serve to an external url, server must listen to 0.0.0.0
+            listen_url = "0.0.0.0"
+        else
+            listen_url = JSSERVE_CONFIGURATION.listen_url[]
+        end
     end
 
     if isnothing(external_url)
@@ -123,7 +128,7 @@ function configure_server!(;
         end
     end
     # set the config!
-    JSSERVE_CONFIGURATION.listen_url[] = "0.0.0.0"
+    JSSERVE_CONFIGURATION.listen_url[] = listen_url
     JSSERVE_CONFIGURATION.external_url[] = external_url
     JSSERVE_CONFIGURATION.listen_port[] = listen_port
     if content_delivery_url === nothing
