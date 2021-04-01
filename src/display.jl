@@ -180,7 +180,6 @@ function render_sub_session(parent_session, html_dom)
     # we need to normally register on_init with `session`, BUT
     # it already needs to be registered upfront with JSServe in the browser
     # so that it can properly trigger the observable early in the loaded html/js
-    @show on_init.id
     send(parent_session, payload=on_init[], id=on_init.id, msg_type=RegisterObservable)
     # Render the app and register all the resources with the session
     # Note, since we set the connection to nothing, nothing gets sent yet
