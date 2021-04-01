@@ -154,11 +154,12 @@ end
 by_value(@nospecialize(x)) = x
 
 function by_value(node::Hyperscript.Node{Hyperscript.HTMLSVG})
-    return [
-        :tag => getfield(node, :tag),
-        :children => by_value.(getfield(node, :children)),
-        getfield(node, :attrs)...
-    ]
+    vals = Dict(
+        "tag" => getfield(node, :tag),
+        "children" => by_value.(getfield(node, :children))
+    )
+    merge!(vals, getfield(node, :attrs))
+    return vals
 end
 
 function ref_or(or_callback, context::SerializationContext, @nospecialize(x))

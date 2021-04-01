@@ -162,6 +162,89 @@ function assure_ready(page::Page)
     send(session, fused_messages!(session))
 end
 
+function render_sub_session(parent_session, html_dom)
+
+    session = Session(parent_session;
+        connection=Base.RefValue{Union{Nothing, WebSocket, IOBuffer}}(nothing),
+        dependencies=Set{Asset}(),
+        id=string(uuid4()),
+        observables=Dict{String, Tuple{Bool, Observable}}(),
+        on_close=Observable(false),
+        message_queue=Dict{Symbol, Any}[],
+        js_fully_loaded=Channel{Bool}(1),
+        deregister_callbacks=Observables.ObserverFunction[]
+    )
+
+    on_init = Observable(false)
+    # Manually register on_init - this is a bit fragile, but
+    # we need to normally register on_init with `session`, BUT
+    # it already needs to be registered upfront with JSServe in the browser
+    # so that it can properly trigger the observable early in the loaded html/js
+    @show on_init.id
+    send(parent_session, payload=on_init[], id=on_init.id, msg_type=RegisterObservable)
+    # Render the app and register all the resources with the session
+    # Note, since we set the connection to nothing, nothing gets sent yet
+    # This is important, since we can only sent the messages after the HTML has been rendered
+    # since we must assume the messages / js contains references to HTML elements
+    js_dom = jsrender(session, html_dom)
+    register_resource!(session, js_dom)
+
+    new_deps = setdiff(session.dependencies, parent_session.dependencies)
+    union!(parent_session.dependencies, new_deps)
+
+    on(session, on_init) do is_init
+        if !is_init
+            error("The html didn't initialize correctly")
+        end
+        init_session(session)
+    end
+
+    init = js"""
+        // register this session so it gets deleted when it gets removed from dom
+        JSServe.register_sub_session($(session.id))
+        console.log("Initializing session!!!")
+        JSServe.update_obs($(on_init), true)
+    """
+
+    final_dom = DOM.div(
+        js_dom,
+        include_all_assets(parent_session, new_deps)...,
+        jsrender(session, init),
+        id=session.id,
+    )
+
+    obs_shared_with_parent = intersect(keys(session.observables), keys(parent_session.observables))
+    # Those obs are managed by page session, so we don't need to have them in here!
+    # This is important when we clean them up, since a child session shouldn't
+    # delete any observable already managed by the parent session
+    for obs in obs_shared_with_parent
+        delete!(session.observables, obs)
+    end
+    # but in the end, all observables need to be registered
+    # with the page session, since that's where javascript will sent all the events
+    merge!(parent_session.observables, session.observables)
+
+    on(session, session.on_close) do closed
+        # remove the sub-session specific js resources
+        if closed
+            obs_ids = collect(keys(session.observables))
+            JSServeLib.delete_observables(parent_session, obs_ids)
+            # since we deleted all obs shared with the parent session,
+            # we can delete savely delete all of them from there
+            # Note, that we previously added them all here!
+            for (k, o) in session.observables
+                delete!(parent_session.observables, k)
+            end
+        end
+    end
+
+    # finally give page a connection! :)
+    session.connection[] = parent_session.connection[]
+
+    return final_dom
+end
+
+
 function show_in_page(page::Page, app::App)
     page_session = page.session
     is_offline = page.offline
