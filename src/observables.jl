@@ -29,11 +29,18 @@ function update_nocycle!(obs::Observable, @nospecialize(value))
 end
 
 function jsrender(session::Session, obs::Observable)
-    html = map(session, obs) do data
-        repr_richest(jsrender(session, data))
-    end
+    html = Observable{Any}(
+        repr_richest(jsrender(session, obs[]))
+    )
     dom = DOM.m_unesc("span", html[])
-    onjs(session, html, js"(html)=> JSServe.update_dom_node($(dom), html)")
+    on(session, obs) do data
+        html[] = by_value(render_sub_session(session, data))
+    end
+    onjs(session, html, js"(html)=> {
+        const new_node = JSServe.materialize_node(html)
+        const dom = $(dom)
+        dom.replaceChild(new_node, dom.childNodes[0])
+    }")
     return dom
 end
 

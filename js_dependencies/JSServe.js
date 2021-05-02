@@ -557,5 +557,6 @@ const JSServe = (function () {
         update_cached_value,
         init_from_b64,
         process_message,
+        materialize_node
     };
 })();

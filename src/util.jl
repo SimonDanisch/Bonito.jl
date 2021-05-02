@@ -40,6 +40,7 @@ end
 
 repr_richest(x) = repr(richest_mime(x), x)
 repr_richest(x::String) = x
+repr_richest(x::Number) = sprint(print, x)
 
 columns(args...; class="") = DOM.div(args..., class=class * " flex flex-col")
 rows(args...; class="") = DOM.div(args..., class=class * " flex flex-row")
