@@ -18,10 +18,10 @@
     end
     testsession(test_handler, port=8555) do app
         hey = query_testid("hey")
-        @test evaljs(app, js"$(hey).innerText") == "Data: Float16(2.0)"
+        @test evaljs(app, js"$(hey).innerText") == "Data: 2.0"
         float16_obs = children(children(app.dom)[1][])[2]
         float16_obs[] = Float16(77)
-        @test evaljs(app, js"$(hey).innerText") == "Data: Float16(77.0)"
+        @test evaljs(app, js"$(hey).innerText") == "Data: 77"
     end
 end
 

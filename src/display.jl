@@ -205,7 +205,7 @@ function render_sub_session(parent_session, html_dom)
         JSServe.update_obs($(on_init), true)
     """
 
-    final_dom = DOM.div(
+    final_dom = DOM.span(
         js_dom,
         include_all_assets(parent_session, new_deps)...,
         jsrender(session, init),
