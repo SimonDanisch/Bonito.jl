@@ -1,8 +1,7 @@
 # Render the widgets from WidgetsBase.jl
 function jsrender(session::Session, button::Button)
-    return jsrender(session, DOM.input(
-        type = "button",
-        value = button.content,
+    return jsrender(session, DOM.button(
+        button.content,
         onclick = js"JSServe.update_obs($(button.value), true);";
         button.attributes...
     ))
