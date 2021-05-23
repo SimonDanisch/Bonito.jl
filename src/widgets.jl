@@ -111,7 +111,7 @@ function JSServe.jsrender(session::Session, table::Table)
     header = DOM.thead(DOM.tr(DOM.th.(names)...))
     rows = []
     for row in Tables.rows(table.table)
-        push!(rows, DOM.tr(DOM.th.(table.row_renderer.(values(row)))...))
+        push!(rows, DOM.tr(DOM.td.(table.row_renderer.(values(row)))...))
     end
     body = DOM.tbody(rows...)
     return DOM.table(header, body; class=table.class)
