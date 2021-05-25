@@ -236,7 +236,7 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=10.0)
 end
 
 function evaljs_value(with_session, js; error_on_closed=true, time_out=100.0)
-    evaljs_value(session(with_session), js)
+    evaljs_value(session(with_session), js; error_on_closed=error_on_closed, time_out=time_out)
 end
 
 """
