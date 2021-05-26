@@ -85,7 +85,7 @@ function include_all_assets(session, assets)
 end
 
 function Base.show(io::IO, ::MIME"text/html", page::Page)
-    if !(page.offline)
+    if !page.offline
         server = get_server()
         insert_session!(server, page.session)
     end
@@ -150,14 +150,23 @@ function assure_ready(page::Page)
     end
     tstart = time()
     warned = false
-    while time() - tstart < 10
+    initialized = false
+    while time() - tstart < 100
         children_loaded = all(isready, values(page.child_sessions))
-        isready(session) && children_loaded && break
+        if isready(session) && children_loaded
+            initialized = true
+            break
+        end
         if (time() - tstart) > 1 && !warned
             warned = true
             @warn("Waiting for page sessions to load.
                 This can happen for the first cells to run, or is indicative of faulty state")
         end
+        # yield / sleep to give websocket etc a chance to connect
+        sleep(0.01)
+    end
+    if !initialized
+        error("Could not initialize Page. Open an issue at JSServe.jl.")
     end
     send(session, fused_messages!(session))
 end
