@@ -1,8 +1,7 @@
 # Render the widgets from WidgetsBase.jl
 function jsrender(session::Session, button::Button)
-    return jsrender(session, DOM.input(
-        type = "button",
-        value = button.content,
+    return jsrender(session, DOM.button(
+        button.content,
         onclick = js"JSServe.update_obs($(button.value), true);";
         button.attributes...
     ))
@@ -112,7 +111,7 @@ function JSServe.jsrender(session::Session, table::Table)
     header = DOM.thead(DOM.tr(DOM.th.(names)...))
     rows = []
     for row in Tables.rows(table.table)
-        push!(rows, DOM.tr(DOM.th.(table.row_renderer.(values(row)))...))
+        push!(rows, DOM.tr(DOM.td.(table.row_renderer.(values(row)))...))
     end
     body = DOM.tbody(rows...)
     return DOM.table(header, body; class=table.class)

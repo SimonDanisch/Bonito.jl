@@ -64,14 +64,14 @@ end
 
 function test_current_session(app)
     dom = children(app.dom)[1]
-    @test evaljs(app, js"document.querySelectorAll('input[type=\"button\"]').length") == 1
+    @test evaljs(app, js"document.querySelectorAll('button').length") == 1
     @test evaljs(app, js"document.querySelectorAll('input[type=\"range\"]').length") == 2
-    @test evaljs(app, js"document.querySelectorAll('input[type=\"button\"]').length") == 1
+    @test evaljs(app, js"document.querySelectorAll('button').length") == 1
     @test evaljs(app, js"document.querySelectorAll('input[type=\"range\"]').length") == 2
 
     @testset "button" begin
         # It's in the dom!
-        @test evaljs(app, js"document.querySelectorAll('input[type=\"button\"]').length") == 1
+        @test evaljs(app, js"document.querySelectorAll('button').length") == 1
         bquery = query_testid("hi_button")
         # Spam the button press on the JS side a bit, to make sure we're not loosing events!
         for i in 1:100
@@ -84,7 +84,7 @@ function test_current_session(app)
         @test button.content[] == "hi"
         button.content[] = "new name"
         bquery = query_testid("hi_button")
-        @test evaljs(app, js"$(bquery).value") == "new name"
+        @test evaljs(app, js"$(bquery).innerText") == "new name"
         # button press from Julia
         val = test_value(app, ()-> (button.value[] = true))
         @test val["button"] == true
