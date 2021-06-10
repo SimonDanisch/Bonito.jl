@@ -108,3 +108,7 @@ end
     JSServe.register_resource!(s, div)
     @test JSTest.assets[1] in s.dependencies
 end
+
+@testset "tryrun" begin
+    @test JSServe.tryrun(`fake_command`) == false
+end

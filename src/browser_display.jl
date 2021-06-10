@@ -18,18 +18,32 @@ function browser_display()
     return
 end
 
+"""
+    tryrun(cmd::Cmd)
+
+Try to run a command. Return `true` if `cmd` runs and is successful (exits with a code of `0`).
+Return `false` otherwise.
+"""
+function tryrun(cmd::Cmd)
+    try
+        return success(cmd)
+    catch e
+        return false
+    end
+end
+
 function openurl(url::String)
     if Sys.isapple()
-        success(`open $url`) && return
+        tryrun(`open $url`) && return
     elseif Sys.iswindows()
-        success(`powershell.exe start $url`) && return
+        tryrun(`powershell.exe start $url`) && return
     elseif Sys.isunix()
-        success(`xdg-open $url`) && return
-        success(`gnome-open $url`) && return
+        tryrun(`xdg-open $url`) && return
+        tryrun(`gnome-open $url`) && return
     end
-    success(`python -mwebbrowser $(url)`) && return
+    tryrun(`python -mwebbrowser $(url)`) && return
     # our last hope
-    success(`python3 -mwebbrowser $(url)`) && return
+    tryrun(`python3 -mwebbrowser $(url)`) && return
     @warn("Can't find a way to open a browser, open $(url) manually!")
 end
 
