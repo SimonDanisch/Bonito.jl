@@ -31,7 +31,7 @@ app = App() do
     end
     fig = Figure()
 
-    vol = volume(fig[1,1], signal; algorithm=map(Symbol, algorithm), ambient=Vec3f0(0.8), isovalue=iso_value)
+    vol = volume(fig[1,1], signal; algorithm=map(Symbol, algorithm), ambient=Vec3f(0.8), isovalue=iso_value)
 
     colormaps = collect(AbstractPlotting.all_gradient_names)
     cmap = map(cmap_button) do click

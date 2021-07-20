@@ -47,9 +47,9 @@ function handler(s, r)
         restrict(volume_frames[idx])
     end
     clims = (8, 12)
-    cmapa = RGBAf0.(to_colormap(:thermal), 1.0)
-    cmap1 = vcat(fill(RGBAf0(0,0,0,0), 20), cmapa)
-    cmap2 = vcat(cmapa, fill(RGBAf0(0,0,0,0), 20))
+    cmapa = RGBAf.(to_colormap(:thermal), 1.0)
+    cmap1 = vcat(fill(RGBAf(0,0,0,0), 20), cmapa)
+    cmap2 = vcat(cmapa, fill(RGBAf(0,0,0,0), 20))
     cmap = map(flip_colormap) do x
         return x ? copy(cmap1) : copy(cmap2)
     end
