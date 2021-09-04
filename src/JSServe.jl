@@ -38,7 +38,7 @@ include("browser_display.jl")
 
 const JSSERVE_CONFIGURATION = (
     # The URL used to which the default server listens to
-    listen_url = Ref("127.0.0.1"),
+    listen_url = Ref("localhost"),
     # The Port to which the default server listens to
     listen_port = Ref(9284),
     # The url Javascript uses to connect to the websocket.
@@ -67,7 +67,7 @@ Configures the parameters for the automatically started server.
 
     * listen_url=JSSERVE_CONFIGURATION.listen_url[]
         The address the server listens to.
-        must be 0.0.0.0, 127.0.0.1 or localhost.
+        must be 0.0.0.0, 127.0.0.1, ::, ::1, or localhost.
         If not set differently by an ENV variable, will default to 127.0.0.1
 
     * listen_port::Integer=JSSERVE_CONFIGURATION.listen_port[],
