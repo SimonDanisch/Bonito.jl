@@ -42,11 +42,17 @@ function response_404(body="Not Found")
 end
 
 function replace_url(match_str)
+    path = string(URIs.URI(match_str).path)
     key_regex = r"(/assetserver/[a-z0-9]+-.*?):([\d]+):[\d]+"
-    m = match(key_regex, match_str)
-    key = m[1]
-    path = assetserver_to_localfile(string(key))
-    return path * ":" * m[2]
+    m = match(key_regex, path)
+    try
+        key = m[1]
+        path = assetserver_to_localfile(string(key))
+        return path * ":" * m[2]
+    catch e
+        @warn "couldn't find path" exception=e
+        return match_str
+    end
 end
 
 const ASSET_URL_REGEX = r"http://.*/assetserver/([a-z0-9]+-.*?):([\d]+):[\d]+"

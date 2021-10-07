@@ -19,6 +19,8 @@ using Tables
 using Colors
 using LinearAlgebra
 using CodecZlib
+using URIs
+
 
 include("types.jl")
 include("server.jl")

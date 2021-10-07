@@ -42,7 +42,8 @@ function Page(;
     )
     configure_server!(;server_config...)
     if session === nothing
-        serializer = UrlSerializer(inline_all=exportable)
+        server = get_server()
+        serializer = UrlSerializer(inline_all=exportable, absolute=true, proxy=JSServe.online_url(server, ""))
         session = Session(url_serializer=serializer)
     end
 
@@ -64,24 +65,39 @@ function Base.close(page::Page)
     empty!(page.session.unique_object_cache)
 end
 
-function include_all_assets(session, assets)
+function include_all_assets(session, dependencies, on_init)
     # protect against require being loaded by someone else
     # (e.g. Documenter.jl)
-    return [
-        jsrender(session, js"""
-            window.__define = window.define;
-            window.__require = window.require;
-            window.define = undefined;
-            window.require = undefined;
-        """),
-        include_asset.(assets, (session.url_serializer,))...,
-        jsrender(session, js"""
-            window.define = window.__define;
-            window.require = window.__require;
-            window.__define = undefined;
-            window.__require = undefined;
-        """)
-    ]
+    deps = Dict{String, String}()
+    names = String[]
+    for dep in dependencies
+        uri = url(dep.assets[1], session.url_serializer)
+        deps[string(dep.name)] = replace(uri, ".js" => "")
+        push!(names, string(dep.name))
+    end
+    args = join("__" .* names, ", ")
+    body = join(map(names) do name
+        return """    if (__$(name)) {
+                window.$(name) = __$(name);
+            }
+        """
+    end, "\n")
+    jsondeps = JSON3.write(deps)
+    js_src = getfield(JSServe.jsrender(session, on_init), :children)[1]
+    code = jsrender(session, JSCode([JSString("""
+        console.log("LOADING THIS SHIT")
+        var deps = $(jsondeps)
+        console.log(deps)
+        require.config({
+            waitSeconds: 0,
+            paths: deps
+        });
+        require($(JSON3.write(names)), function($args) {
+            $body
+            $(js_src)
+        });
+    """)]))
+    return code
 end
 
 function Base.show(io::IO, ::MIME"text/html", page::Page)
@@ -115,11 +131,9 @@ function Base.show(io::IO, ::MIME"text/html", page::Page)
         js"JSServe.setup_connection({offline: true})"
     else
         js"""
-            const proxy_url = $(websocket_url)
-            const session_id = $(page.session.id)
             // track if our child session doms get removed from the document (dom)
             JSServe.track_deleted_sessions($(delete_session))
-            JSServe.setup_connection({proxy_url, session_id})
+            JSServe.setup_connection({proxy_url: $(websocket_url), session_id: $(page.session.id)})
             JSServe.sent_done_loading()
         """
     end
@@ -129,10 +143,7 @@ function Base.show(io::IO, ::MIME"text/html", page::Page)
         Base64Lib,
         JSServeLib,
     ]
-    page_init_dom = DOM.div(
-        include_all_assets(page.session, deps)...,
-        init
-    )
+    page_init_dom = DOM.div(include_all_assets(page.session, deps, init))
     println(io, node_html(page.session, page_init_dom))
 end
 
@@ -172,7 +183,7 @@ function assure_ready(page::Page)
 end
 
 function render_sub_session(parent_session, html_dom)
-
+    println("HEYYYY")
     session = Session(parent_session;
         connection=Base.RefValue{Union{Nothing, WebSocket, IOBuffer}}(nothing),
         dependencies=Set{Asset}(),
@@ -213,11 +224,9 @@ function render_sub_session(parent_session, html_dom)
         console.log("Initializing session!!!")
         JSServe.update_obs($(on_init), true)
     """
-
     final_dom = DOM.span(
         js_dom,
-        include_all_assets(parent_session, new_deps)...,
-        jsrender(session, init),
+        include_all_assets(parent_session, new_deps, init),
         id=session.id,
     )
 
@@ -276,6 +285,8 @@ function show_in_page(page::Page, app::App)
     page.child_sessions[session.id] = session
 
     on_init = Observable(false)
+    @info("SHOWING IN PAGE DUDE: $(on_init.id)")
+
     # Manually register on_init - this is a bit fragile, but
     # we need to normally register on_init with `session`, BUT
     # it already needs to be registered upfront with JSServe in the browser
@@ -298,9 +309,9 @@ function show_in_page(page::Page, app::App)
         if !is_init
             error("The html didn't initialize correctly")
         end
+        @info("WE INIT BOII!!")
         init_session(session)
     end
-
     init = if exportable
         # We take all messages and serialize them directly into the init js
         messages = fused_messages!(session)
@@ -315,15 +326,16 @@ function show_in_page(page::Page, app::App)
     else
         js"""
             // register this session so it gets deleted when it gets removed from dom
+            console.log("register subsession")
             JSServe.register_sub_session($(session.id))
+            console.log("update on init")
             JSServe.update_obs($(on_init), true)
         """
     end
 
     final_dom = DOM.div(
         js_dom,
-        include_all_assets(page_session, new_deps)...,
-        jsrender(session, init),
+        include_all_assets(page_session, new_deps, init),
         id=session.id,
     )
 
@@ -371,14 +383,19 @@ function show_in_iframe(server, session, app)
 end
 
 function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
-    if isassigned(CURRENT_PAGE)
-        # We are in Page rendering mode!
-        page = CURRENT_PAGE[]
-        println(io, show_in_page(page, app))
-    else
-        server = get_server()
-        session = Session()
-        println(io, show_in_iframe(server, session, app))
+    try
+        if isassigned(CURRENT_PAGE)
+            # We are in Page rendering mode!
+            page = CURRENT_PAGE[]
+            println(io, show_in_page(page, app))
+        else
+            server = get_server()
+            session = Session()
+            println(io, show_in_iframe(server, session, app))
+        end
+    catch e
+        @error "Error in show" exception=e
+        return "lol ey"
     end
 end
 
@@ -420,9 +437,7 @@ function page_html(session::Session, html)
         DOM.body(
             DOM.div(rendered, id="application-dom"),
             onload=DontEscape("""
-                const proxy_url = '$(proxy_url)'
-                const session_id = '$(session.id)'
-                JSServe.setup_connection({proxy_url, session_id})
+                JSServe.setup_connection({'$(proxy_url)', '$(session.id)'})
                 JSServe.sent_done_loading()
             """)
         )

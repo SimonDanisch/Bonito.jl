@@ -27,7 +27,7 @@ end
 include("mimetypes.jl")
 
 function file_server(context)
-    path = context.request.target
+    path = string(URIs.URI(context.request.target).path)
     if is_key_registered(path)
         filepath = assetserver_to_localfile(path)
         if isfile(filepath)
@@ -231,8 +231,8 @@ function url(asset::Asset, serializer::UrlSerializer=UrlSerializer())
 end
 
 
-const MsgPackLib = Asset(dependency_path("msgpack.min.js"))
-const PakoLib = Asset(dependency_path("pako_inflate.min.js"))
+const MsgPackLib = Dependency(:msgpack, [dependency_path("msgpack.min.js")])
+const PakoLib = Dependency(:pako, [dependency_path("pako_inflate.min.js")])
 const JSServeLib = Dependency(:JSServe, [dependency_path("JSServe.js")])
 const Base64Lib = Dependency(:Base64, [dependency_path("Base64.js")])
 

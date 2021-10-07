@@ -33,6 +33,7 @@ const JSServe = (function () {
     }
 
     function update_obs(id, value) {
+        console.log(`updating ${id} with ${value}`)
         if (id in registered_observables) {
             try {
                 registered_observables[id] = value;
