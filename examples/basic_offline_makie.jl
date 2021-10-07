@@ -9,7 +9,7 @@ rows(args...; class="") = DOM.div(args..., class=class * " flex flex-row")
 css_color(c) = "background-color: #$(hex(c))"
 using MakieGallery, FileIO
 # get a somewhat interesting point cloud:
-cat = decompose(Point3f0, MakieGallery.loadasset("cat.obj"))
+cat = decompose(Point3f, MakieGallery.loadasset("cat.obj"))
 # Create a little interactive app
 function App(session, request)
     markersize = JSServe.Slider(range(1, stop=20, step=0.1))
