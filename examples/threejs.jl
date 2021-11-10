@@ -4,10 +4,10 @@ using JSServe.DOM
 
 # Javascript & CSS dependencies can be declared locally and
 # freely interpolated in the DOM / js string, and will make sure it loads
-const THREE = JSServe.Dependency(
+const THREE = JSServe.JSModule(
     :THREE, # name of the Javascript module
     # Could also include additional css dependencies here
-    ["https://cdn.jsdelivr.net/gh/mrdoob/three.js/build/three.min.js"]
+    "https://cdn.jsdelivr.net/gh/mrdoob/three.js/build/three.min.js"
 )
 
 app = App() do session, request

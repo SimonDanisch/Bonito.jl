@@ -65,15 +65,23 @@ function Base.close(page::Page)
     empty!(page.session.unique_object_cache)
 end
 
+get_asset(asset::Asset) = asset
+
+function get_asset(dep::Dependency)
+    dep.assets[1]
+end
+
 function include_all_assets(session, dependencies, on_init)
     # protect against require being loaded by someone else
     # (e.g. Documenter.jl)
     deps = Dict{String, String}()
     names = String[]
     for dep in dependencies
-        uri = url(dep.assets[1], session.url_serializer)
-        deps[string(dep.name)] = replace(uri, ".js" => "")
-        push!(names, string(dep.name))
+        asset = get_asset(dep)
+        uri = url(asset, session.url_serializer)
+        name = string(asset.module_name)
+        deps[name] = replace(uri, ".js" => "")
+        push!(names, name)
     end
     args = join("__" .* names, ", ")
     body = join(map(names) do name
@@ -394,7 +402,7 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
             println(io, show_in_iframe(server, session, app))
         end
     catch e
-        @error "Error in show" exception=e
+        @error "Error in show" exception=CapturedException(e, Base.catch_backtrace())
         return "lol ey"
     end
 end

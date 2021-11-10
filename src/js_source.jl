@@ -75,6 +75,12 @@ function print_js_code(io::IO, dep::Dependency, context)
     return context
 end
 
+function print_js_code(io::IO, dep::Asset, context)
+    isempty(dep.module_name) && error("Can't interpolate asset, must use JSModule instead!")
+    print(io, dep.module_name)
+    return context
+end
+
 function print_js_code(io::IO, jsc::JSCode, context)
     for elem in jsc.source
         print_js_code(io, elem, context)

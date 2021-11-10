@@ -52,7 +52,7 @@ function Base.show(io::IO, asset::Asset)
     print(io, url(asset))
 end
 
-function Asset(online_path::String, onload::Union{Nothing, JSCode}=nothing; check_isfile=false)
+function Asset(online_path::String, onload::Union{Nothing, JSCode}=nothing; check_isfile=false, module_name="")
     local_path = ""; real_online_path = ""
     if is_online(online_path)
         local_path = ""
@@ -63,7 +63,11 @@ function Asset(online_path::String, onload::Union{Nothing, JSCode}=nothing; chec
             error("File $(local_path) does not exist!")
         end
     end
-    return Asset(Symbol(getextension(online_path)), real_online_path, local_path, onload)
+    ext = Symbol(getextension(online_path))
+    if !isempty(module_name) && ext !== :js
+        error("Module needs to be a javascript file")
+    end
+    return Asset(ext, real_online_path, local_path, onload, module_name)
 end
 
 """
@@ -230,11 +234,10 @@ function url(asset::Asset, serializer::UrlSerializer=UrlSerializer())
     end
 end
 
-
-const MsgPackLib = Dependency(:msgpack, [dependency_path("msgpack.min.js")])
-const PakoLib = Dependency(:pako, [dependency_path("pako_inflate.min.js")])
-const JSServeLib = Dependency(:JSServe, [dependency_path("JSServe.js")])
-const Base64Lib = Dependency(:Base64, [dependency_path("Base64.js")])
+const MsgPackLib = JSModule(:msgpack, dependency_path("msgpack.min.js"))
+const PakoLib = JSModule(:pako, dependency_path("pako_inflate.min.js"))
+const JSServeLib = JSModule(:JSServe, dependency_path("JSServe.js"))
+const Base64Lib = JSModule(:Base64, dependency_path("Base64.js"))
 
 const MarkdownCSS = Asset(dependency_path("markdown.css"))
 const TailwindCSS = Asset(dependency_path("tailwind.min.css"))

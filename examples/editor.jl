@@ -5,7 +5,7 @@ using Hyperscript
 using JSServe.DOM
 
 using JSServe: Server, evaljs, linkjs
-using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency
+using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, JSModule
 
 struct Editor
     source::Observable{String}
@@ -15,9 +15,9 @@ end
 
 # Javascript & CSS dependencies can be declared locally and
 # freely interpolated in the DOM / js string, and will make sure it loads
-const ace = JSServe.Dependency(
+const ace = JSModule(
     :ace,
-    ["https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"]
+    "https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"
 )
 
 app = App() do session::Session

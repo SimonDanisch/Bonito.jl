@@ -67,6 +67,12 @@ struct Asset
     online_path::String
     local_path::String
     onload::Union{Nothing, JSCode}
+    # optional module name, if referring to js Module
+    module_name::String
+end
+
+function JSModule(name::Symbol, url::String)
+    return Asset(url; module_name=string(name))
 end
 
 """
