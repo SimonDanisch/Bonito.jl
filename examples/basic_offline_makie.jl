@@ -18,7 +18,7 @@ app = App() do session
     color = map(hue_slider) do hue
         HSV(hue, 0.5, 0.5)
     end
-    plot = scatter(cat, markersize=markersize, color=color, resolution=(500, 500), show_axis=false)
+    plot = scatter(cat, markersize=markersize, color=color, figure=(resolution=(500, 500),))
     m_slider = styled_slider(markersize, markersize.value)
     color_swatch = DOM.div(class="h-6 w-6 p-1 rounded dropshadow", style=map(css_color, color))
     h_slider = styled_slider(hue_slider, color_swatch)
