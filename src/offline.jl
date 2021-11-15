@@ -46,10 +46,6 @@ function record_values(f, session, widget)
     end
 end
 
-function record_state_map(session::Session, handler::Function)
-    return record_state_map(session, handler(session, nothing))
-end
-
 function while_disconnected(f, session::Session)
     connection = session.connection[]
     session.connection[] = nothing
@@ -105,18 +101,18 @@ end
 
 
 """
-export_standalone(dom_handler, folder::String;
+export_standalone(app::Application, folder::String;
         absolute_urls=false, content_delivery_url="file://" * folder * "/",
     )
 
-Exports the app defined by `dom_handler` with all its assets to `folder`.
+Exports the app defined by `app::Application` with all its assets to `folder`.
 Will write the main html out into `folder/index.html`.
 Overwrites all existing files!
 If this gets served behind a proxy, set `absolute_urls=true` and
 set `content_delivery_url` to your proxy url.
 If `clear_folder=true` all files in `folder` will get deleted before exporting again!
 """
-function export_standalone(dom_handler, folder::String;
+function export_standalone(app::App, folder::String;
         clear_folder=false, write_index_html=true,
         absolute_urls=false, content_delivery_url="file://" * folder * "/",
     )
@@ -125,11 +121,13 @@ function export_standalone(dom_handler, folder::String;
             rm(joinpath(folder, file), force=true, recursive=true)
         end
     end
-    serializer = UrlSerializer(false, folder, absolute_urls, content_delivery_url)
+    serializer = UrlSerializer(false, folder, absolute_urls, content_delivery_url, false)
     # set id to "", since we dont needed, and like this we get nicer file names
     session = Session(url_serializer=serializer)
-    html_dom = Base.invokelatest(dom_handler, session, (target="/",))
-    html_str = dom2html(session, html_dom)
+    html_str = sprint() do io
+        show(io, MIME"text/html"(), Page(offline=true, exportable=true, session=session))
+        show(io, MIME"text/html"(), app)
+    end
     if write_index_html
         open(joinpath(folder, "index.html"), "w") do io
             println(io, html_str)
