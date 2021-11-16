@@ -390,14 +390,6 @@ function iframe_html(server::Server, session::Session, route::String)
     return DOM.iframe(src=url, id=session.id, style=style, scrolling="no")
 end
 
-function node_html(session::Session, node::Hyperscript.Node)
-    js_dom = DOM.div(jsrender(session, node), id="application-dom")
-    # register resources (e.g. observables, assets)
-    register_resource!(session, js_dom)
-    return repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
-end
-
-
 """
     page_html(session::Session, html_body)
 Embedds the html_body in a standalone html document!
@@ -424,7 +416,6 @@ function page_html(session::Session, html)
                 const session_id = '$(session.id)'
                 JSServe.setup_connection({proxy_url, session_id})
                 JSServe.sent_done_loading()
-                document.getElementById('application-dom').style.visibility = 'visible'
             """)
         )
     )
