@@ -418,12 +418,13 @@ function page_html(session::Session, html)
             session_deps...
         ),
         DOM.body(
-            DOM.div(rendered, id="application-dom"),
+            DOM.div(rendered, id="application-dom", style="visibility: hidden;"),
             onload=DontEscape("""
                 const proxy_url = '$(proxy_url)'
                 const session_id = '$(session.id)'
                 JSServe.setup_connection({proxy_url, session_id})
                 JSServe.sent_done_loading()
+                document.getElementById('application-dom').style.visibility = 'visible'
             """)
         )
     )
