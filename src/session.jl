@@ -11,7 +11,10 @@ end
 
 function init_session(session::Session)
     evaljs(session, js"""
-        document.getElementById('application-dom').style.visibility = 'visible'
+        const application_dom = document.getElementById('application-dom')
+        if (application_dom) {
+            application_dom.style.visibility = 'visible'
+        }
     """)
     put!(session.js_fully_loaded, true)
     send(session, fused_messages!(session))
