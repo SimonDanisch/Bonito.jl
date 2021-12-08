@@ -427,7 +427,10 @@ function page_html(session::Session, html)
             """)
         )
     )
-    return Hyperscript.wraphtml(Hyperscript.Pretty(html_body))
+    return sprint() do io
+        println(io, "<!doctype html>")
+        show(io, MIME"text/html"(), Hyperscript.Pretty(html_body))
+    end
 end
 
 function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+html", dom::App)
