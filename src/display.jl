@@ -400,7 +400,7 @@ end
 
 """
     page_html(session::Session, html_body)
-Embedds the html_body in a standalone html document!
+Embeds the html_body in a standalone html document!
 """
 function page_html(session::Session, html)
     proxy_url = JSSERVE_CONFIGURATION.external_url[]
@@ -427,7 +427,7 @@ function page_html(session::Session, html)
             """)
         )
     )
-    return repr(MIME"text/html"(), Hyperscript.Pretty(html_body))
+    return Hyperscript.wraphtml(Hyperscript.Pretty(html_body))
 end
 
 function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+html", dom::App)
