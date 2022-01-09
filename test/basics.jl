@@ -101,7 +101,7 @@ end
         @test !isopen(session)
         # there should be 3 messages in here
         # 2 for evaljs, one for registering the int_obs
-        @test length(session.message_queue) == 3
+        @test length(session.message_queue) == 4
         @test isempty(open_session.unique_object_cache)
         init_obs[] = true
         @test !isempty(session.message_queue)

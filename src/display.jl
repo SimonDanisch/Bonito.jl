@@ -301,6 +301,12 @@ function show_in_page(page::Page, app::App)
         init_session(session)
     end
 
+    # unhide DOM last, when everything is done ()
+    evaljs(session, js"""
+        const application_dom = document.getElementById($(session.id))
+        application_dom.style.visibility = 'visible'
+    """)
+
     init = if exportable
         # We take all messages and serialize them directly into the init js
         messages = fused_messages!(session)
@@ -325,6 +331,9 @@ function show_in_page(page::Page, app::App)
         include_all_assets(page_session, new_deps)...,
         jsrender(session, init),
         id=session.id,
+        # we hide the dom, so the user can't interact before
+        # all js connections are loaded
+        style="visibility: hidden;"
     )
 
     obs_shared_with_parent = intersect(keys(session.observables), keys(page_session.observables))
@@ -366,7 +375,12 @@ function show_in_iframe(server, session, app)
     # to the parent iframe, for which we register an
     # event handler via resize_iframe_parent, which then
     # resizes the parent iframe accordingly
-    route!(server, session_route => app)
+    app_wrapped = App() do session::Session, request
+        on_document_load(session, js"JSServe.resize_iframe_parent($(session.id))")
+        html_dom = Base.invokelatest(app.handler, session, request)
+        return html_dom
+    end
+    route!(server, session_route => app_wrapped)
     return jsrender(session, iframe_html(server, session, session_route))
 end
 
@@ -386,8 +400,33 @@ function iframe_html(server::Server, session::Session, route::String)
     # Display the route we just added in an iframe inline:
     url = online_url(server, route)
     remote_origin = online_url(server, "")
-    style = "position: absolute; width: 100%; height: 100%; padding: 0; overflow: hidden; border: none"
-    return DOM.iframe(src=url, id=session.id, style=style, scrolling="no")
+    style = "position: relative; display: block; width: 100%; height: 100%; padding: 0; overflow: hidden; border: none"
+    return DOM.div(
+        js"""
+            function register_resize_handler(remote_origin) {
+                function resize_callback(event) {
+                    if (event.origin !== remote_origin) {
+                        return;
+                    }
+                    const uuid = event.data[0];
+                    const width = event.data[1];
+                    const height = event.data[2];
+                    const iframe = document.getElementById($(session.id));
+                    if (iframe) {
+                        iframe.style.width = width + "px";
+                        iframe.style.height = height + "px";
+                    }
+                }
+                if (window.addEventListener) {
+                    window.addEventListener("message", resize_callback, false);
+                } else if (window.attachEvent) {
+                    window.attachEvent("onmessage", resize_callback);
+                }
+            }
+            register_resize_handler($(remote_origin))
+        """,
+        DOM.iframe(src=url, id=session.id, style=style, scrolling="no")
+    )
 end
 
 function node_html(session::Session, node::Hyperscript.Node)
@@ -396,7 +435,6 @@ function node_html(session::Session, node::Hyperscript.Node)
     register_resource!(session, js_dom)
     return repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
 end
-
 
 """
     page_html(session::Session, html_body)
@@ -418,7 +456,7 @@ function page_html(session::Session, html)
             session_deps...
         ),
         DOM.body(
-            DOM.div(rendered, id="application-dom"),
+            DOM.div(rendered, id="application-dom", style="visibility: hidden;"),
             onload=DontEscape("""
                 const proxy_url = '$(proxy_url)'
                 const session_id = '$(session.id)'

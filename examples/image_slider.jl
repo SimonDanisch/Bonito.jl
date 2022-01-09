@@ -17,5 +17,3 @@ app = App() do
     end
     return DOM.div(slider, img)
 end
-
-display(app)
