@@ -301,6 +301,12 @@ function show_in_page(page::Page, app::App)
         init_session(session)
     end
 
+    # unhide DOM last, when everything is done ()
+    evaljs(session, js"""
+        const application_dom = document.getElementById($(session.id))
+        application_dom.style.visibility = 'visible'
+    """)
+
     init = if exportable
         # We take all messages and serialize them directly into the init js
         messages = fused_messages!(session)
@@ -325,6 +331,9 @@ function show_in_page(page::Page, app::App)
         include_all_assets(page_session, new_deps)...,
         jsrender(session, init),
         id=session.id,
+        # we hide the dom, so the user can't interact before
+        # all js connections are loaded
+        style="visibility: hidden;"
     )
 
     obs_shared_with_parent = intersect(keys(session.observables), keys(page_session.observables))
@@ -447,7 +456,7 @@ function page_html(session::Session, html)
             session_deps...
         ),
         DOM.body(
-            DOM.div(rendered, id="application-dom"),
+            DOM.div(rendered, id="application-dom", style="visibility: hidden;"),
             onload=DontEscape("""
                 const proxy_url = '$(proxy_url)'
                 const session_id = '$(session.id)'
