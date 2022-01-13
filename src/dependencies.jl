@@ -39,12 +39,14 @@ function file_server(context)
     return HTTP.Response(404)
 end
 
+const dependency_folder = @path joinpath(@__DIR__, "..", "js_dependencies")
+
 """
     dependency_path(paths...)
 
 Path to serve downloaded dependencies
 """
-dependency_path(paths...) = joinpath(@__DIR__, "..", "js_dependencies", paths...)
+dependency_path(paths...) = joinpath(dependency_folder, paths...)
 
 mediatype(asset::Asset) = asset.media_type
 
