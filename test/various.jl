@@ -109,6 +109,28 @@ end
     @test JSTest.assets[1] in s.dependencies
 end
 
+@testset "relocatable" begin
+    deps = [
+        JSServe.MsgPackLib => "js", 
+        JSServe.PakoLib => "js", 
+        JSServe.JSServeLib => "js", 
+        JSServe.Base64Lib => "js", 
+        JSServe.MarkdownCSS => "css", 
+        JSServe.TailwindCSS => "css", 
+        JSServe.Styling => "css",
+    ]
+    for (dep, ext) in deps
+        assets = dep isa Dependency ? dep.assets : [dep]
+        for asset in assets
+            @test isempty(asset.online_path)
+            @test getfield(asset, :local_path) isa RelocatableFolders.Path
+            @test asset.local_path isa String
+            @test ispath(asset.local_path)
+            @test asset.media_type == Symbol(ext)
+        end
+    end
+end
+
 @testset "tryrun" begin
     @test JSServe.tryrun(`fake_command`) == false
 end

@@ -1,4 +1,4 @@
-using Hyperscript, Markdown, Test
+using Hyperscript, Markdown, Test, RelocatableFolders
 using JSServe, Observables
 using JSServe: Session, evaljs, linkjs, div
 using JSServe: onjs, JSString, Dependency, jsrender
