@@ -120,7 +120,8 @@ end
         JSServe.Styling => "css",
     ]
     for (dep, ext) in deps
-        assets = dep isa Dependency ? dep.assets : [dep]
+        @test (dep isa Asset) || (dep isa Dependency)
+        assets = dep isa Asset ? [dep] : dep.assets
         for asset in assets
             @test isempty(asset.online_path)
             @test getfield(asset, :local_path) isa RelocatableFolders.Path
@@ -128,6 +129,14 @@ end
             @test ispath(asset.local_path)
             @test asset.media_type == Symbol(ext)
         end
+    end
+
+    # make sure that assets with `String` or with `RelocatableFolders.Path` behave consistently
+    libpath1 = joinpath(@__DIR__, "..", "js_dependencies", "styled.css")
+    libpath2 = @path libpath1
+    asset1, asset2 = Asset(libpath1), Asset(libpath2)
+    for key in (:media_type, :online_path, :local_path, :onload)
+        @test getproperty(asset1, key) == getproperty(asset2, key)
     end
 end
 
