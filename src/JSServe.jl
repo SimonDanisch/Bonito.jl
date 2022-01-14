@@ -19,7 +19,7 @@ using Tables
 using Colors
 using LinearAlgebra
 using CodecZlib
-using RelocatableFolders: @path, Path
+using RelocatableFolders: @path, Path, getroot
 
 include("types.jl")
 include("server.jl")

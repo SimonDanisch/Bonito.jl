@@ -82,7 +82,7 @@ julia> JSServe.getextension("https://my-cdn.net/foo.bar.css?version=1")
 Taken from WebIO.jl
 """
 getextension(path::AbstractString) = lowercase(last(split(first(split(path, "?")), ".")))
-getextension(path::Path) = getextension(String(path))
+getextension(path::Path) = getextension(getroot(path))
 
 """
     is_online(path)
