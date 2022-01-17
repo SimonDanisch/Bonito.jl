@@ -65,7 +65,7 @@ struct Asset
     # If you only give an online resource, we will download it
     # to also be able to host it locally
     online_path::String
-    local_path::String
+    local_path::Union{String, Path}
     onload::Union{Nothing, JSCode}
 end
 

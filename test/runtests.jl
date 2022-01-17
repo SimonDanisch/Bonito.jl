@@ -1,7 +1,7 @@
-using Hyperscript, Markdown, Test
+using Hyperscript, Markdown, Test, RelocatableFolders
 using JSServe, Observables
 using JSServe: Session, evaljs, linkjs, div
-using JSServe: onjs, JSString, Dependency, jsrender
+using JSServe: onjs, JSString, Asset, Dependency, jsrender
 using JSServe: @js_str, js_type, pointer_identity, uuid, serialize_js, SerializationContext, serialize_binary
 using JSServe.DOM
 using JSServe.HTTP

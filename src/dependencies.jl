@@ -44,7 +44,7 @@ end
 
 Path to serve downloaded dependencies
 """
-dependency_path(paths...) = joinpath(@__DIR__, "..", "js_dependencies", paths...)
+dependency_path(paths...) = @path joinpath(@__DIR__, "..", "js_dependencies", paths...)
 
 mediatype(asset::Asset) = asset.media_type
 
@@ -52,16 +52,17 @@ function Base.show(io::IO, asset::Asset)
     print(io, url(asset))
 end
 
-function Asset(online_path::String, onload::Union{Nothing, JSCode}=nothing; check_isfile=false)
+function Base.getproperty(asset::Asset, key::Symbol)
+    return key === :local_path ? String(getfield(asset, :local_path)) : getfield(asset, key)
+end
+
+function Asset(online_path::Union{String, Path}, onload::Union{Nothing, JSCode}=nothing; check_isfile=false)
     local_path = ""; real_online_path = ""
     if is_online(online_path)
         local_path = ""
         real_online_path = online_path
     else
-        local_path = normpath(abspath(expanduser(online_path)))
-        if check_isfile && !isfile(local_path)
-            error("File $(local_path) does not exist!")
-        end
+        local_path = normalize_path(online_path; check_isfile=check_isfile)
     end
     return Asset(Symbol(getextension(online_path)), real_online_path, local_path, onload)
 end
@@ -80,7 +81,8 @@ julia> JSServe.getextension("https://my-cdn.net/foo.bar.css?version=1")
 ```
 Taken from WebIO.jl
 """
-getextension(path) = lowercase(last(split(first(split(path, "?")), ".")))
+getextension(path::AbstractString) = lowercase(last(split(first(split(path, "?")), ".")))
+getextension(path::Path) = getextension(getroot(path))
 
 """
     is_online(path)
@@ -88,7 +90,19 @@ getextension(path) = lowercase(last(split(first(split(path, "?")), ".")))
 Determine whether or not the specified path is a local filesystem path (and not
 a remote resource that is hosted on, for example, a CDN).
 """
-is_online(path) = any(startswith.(path, ("//", "https://", "http://", "ftp://")))
+is_online(path::AbstractString) = any(startswith.(path, ("//", "https://", "http://", "ftp://")))
+is_online(path::Path) = false # RelocatableFolders is only used for local filesystem paths
+
+function normalize_path(path::AbstractString; check_isfile=false)
+    local_path = normpath(abspath(expanduser(path)))
+    if check_isfile && !isfile(local_path)
+        error("File $(local_path) does not exist!")
+    end
+    return local_path
+end
+
+# `Path` type handles all normalizations and checks
+normalize_path(path::Path; check_isfile=false) = path
 
 function Dependency(name::Symbol, urls::AbstractVector)
     return Dependency(name, Asset.(urls), Dict{Symbol, JSCode}())
