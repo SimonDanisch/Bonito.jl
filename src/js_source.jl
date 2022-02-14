@@ -70,7 +70,7 @@ function print_js_code(io::IO, jss::JSString, context)
     return context
 end
 
-function print_js_code(io::IO, dep::Dependency, context)
+function print_js_code(io::IO, dep::Union{Dependency, ES6Module}, context)
     print(io, dep.name)
     return context
 end
@@ -90,11 +90,21 @@ function print_js_code(io::IO, jsss::AbstractVector{JSCode}, context)
     return context
 end
 
+function import_module(mod::ES6Module)
+    return "import * as $(mod.name) from '$(mod.path)'"
+end
+
 function jsrender(session::Session, js::JSCode)
-    register_resource!(session, js)
+    deps = []
+    register_resource!(session, js, deps)
     source = sprint() do io
         println(io)
+        for dep in unique(deps)
+            if dep isa ES6Module
+                println(io, import_module(dep))
+            end
+        end
         println(io, js)
     end
-    return DOM.script(source, type="text/javascript")
+    return DOM.script(source, type="module")
 end

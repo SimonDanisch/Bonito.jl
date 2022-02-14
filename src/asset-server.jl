@@ -27,6 +27,7 @@ include("mimetypes.jl")
 
 function file_server(context)
     path = context.request.target
+    @show path
     if is_key_registered(path)
         filepath = assetserver_to_localfile(path)
         if isfile(filepath)
@@ -34,6 +35,18 @@ function file_server(context)
                       "Content-Type" => file_mimetype(filepath)]
             return HTTP.Response(200, header, body = read(filepath))
         end
+    end
+    return HTTP.Response(404)
+end
+
+function module_server(context)
+    path = context.request.target[2:end]
+    dir = string(JSServe.dependency_path())
+    file = joinpath(dir, path)
+    if isfile(file)
+        header = ["Access-Control-Allow-Origin" => "*",
+                    "Content-Type" => "application/javascript"]
+        return HTTP.Response(200, header, body = read(file))
     end
     return HTTP.Response(404)
 end

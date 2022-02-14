@@ -210,10 +210,12 @@ function url(asset::Asset, serializer::UrlSerializer=UrlSerializer())
     end
 end
 
-const MsgPackLib = Asset(dependency_path("msgpack.min.js"))
-const PakoLib = Asset(dependency_path("pako_inflate.min.js"))
-const JSServeLib = Dependency(:JSServe, [dependency_path("JSServe.js")])
+function ES6Module(path)
+    name = Symbol(splitext(basename(path))[1])
+    return ES6Module(name, path)
+end
 
+const JSServeLib = ES6Module("./JSServe.js")
 const MarkdownCSS = Asset(dependency_path("markdown.css"))
 const TailwindCSS = Asset(dependency_path("tailwind.min.css"))
 const Styling = Asset(dependency_path("styled.css"))

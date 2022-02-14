@@ -148,7 +148,7 @@ function warmup(application::Server)
         # This will error, since its not a propper websocket request
         @debug "Error in stream_handler" exception=e
     end
-    target = register_local_file(JSServeLib.assets[1].local_path) # http target part
+    target = register_local_file(JSServeLib.path) # http target part
     asset_url = local_url(application, target)
     request = Request("GET", target)
 
@@ -213,6 +213,7 @@ function Server(
         verbose = false,
         routes = Routes(
             "/" => app,
+            r"/*.js" => module_server,
             r"/assetserver/" * MATCH_HEX^40 * r"-.*" => file_server,
             r".*" => (context)-> response_404()
         ),
@@ -231,7 +232,7 @@ function Server(
     try
         start(application; verbose=verbose)
         # warmup server!
-        warmup(application)
+        # warmup(application)
     catch e
         close(application)
         rethrow(e)

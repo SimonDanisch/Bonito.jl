@@ -68,6 +68,11 @@ struct Asset
     local_path::Union{String, Path}
 end
 
+struct ES6Module
+    name::Symbol
+    path::Union{String, Path}
+end
+
 """
 Encapsulates frontend dependencies. Can be used in the following way:
 

@@ -158,7 +158,7 @@ Link the observables in Julia, but only as long as the session is active.
 """
 function linkjs(session::Session, a::Observable, b::Observable)
     # register the callback with the JS session
-    onjs(session, a, js"(v) => $(JSServeLib).update_obs($b, v)")
+    onjs(session, a, js"(v) => update_obs($b, v)")
 end
 
 function linkjs(has_session, a::Observable, b::Observable)
@@ -198,9 +198,9 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=10.0)
     js_with_result = js"""
     try{
         const result = $(js);
-        $(JSServeLib).update_obs($(comm), {result: result});
+        update_obs($(comm), {result: result});
     }catch(e){
-        $(JSServeLib).update_obs($(comm), {error: e.toString()});
+        update_obs($(comm), {error: e.toString()});
     }
     """
 
@@ -233,32 +233,32 @@ end
 Walks dom like structures and registers all resources (Observables, Assets Depencies)
 with the session.
 """
-register_resource!(session::Session, @nospecialize(obj)) = nothing # do nothing for unknown type
+register_resource!(session::Session, @nospecialize(obj), resources=nothing) = nothing # do nothing for unknown type
 
-function register_resource!(session::Session, list::Union{Tuple, AbstractVector, Pair})
+function register_resource!(session::Session, list::Union{Tuple, AbstractVector, Pair}, resources=nothing)
     for elem in list
-        register_resource!(session, elem)
+        register_resource!(session, elem, resources)
     end
 end
 
-function register_resource!(session::Session, dict::Union{NamedTuple, AbstractDict})
+function register_resource!(session::Session, dict::Union{NamedTuple, AbstractDict}, resources=nothing)
     for (k, v) in pairs(dict)
-        register_resource!(session, v)
-        register_resource!(session, k)
+        register_resource!(session, v, resources)
+        register_resource!(session, k, resources)
     end
 end
 
-function register_resource!(session::Session, jss::JSCode)
-    register_resource!(session, jss.source)
+function register_resource!(session::Session, jss::JSCode, resources=nothing)
+    register_resource!(session, jss.source, resources)
 end
 
-function register_resource!(session::Session, node::Node)
+function register_resource!(session::Session, node::Node, resources=nothing)
     walk_dom(node) do x
-        register_resource!(session, x)
+        register_resource!(session, x, resources)
     end
 end
 
-function register_resource!(session::Session, observable::Observable)
+function register_resource!(session::Session, observable::Observable, resources=nothing)
     if !haskey(session.observables, observable.id)
         session.observables[observable.id] = (true, observable)
         # Register on the JS side by sending the current value
@@ -269,14 +269,20 @@ function register_resource!(session::Session, observable::Observable)
     end
 end
 
-function register_resource!(session::Session, dependency::Dependency)
+function register_resource!(session::Session, dependency::Dependency, resources=nothing)
     for asset in dependency.assets
-        register_resource!(session, asset)
+        register_resource!(session, asset, resources)
     end
     return dependency
 end
 
-function register_resource!(session::Session, asset::Asset)
+function register_resource!(session::Session, asset::ES6Module, resources=nothing)
+    isnothing(resources) || push!(resources, asset)
+    return asset
+end
+
+function register_resource!(session::Session, asset::Asset, resources=nothing)
+    isnothing(resources) || push!(resources, asset)
     push!(session.dependencies, asset)
     return asset
 end

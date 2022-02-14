@@ -191,7 +191,7 @@ function render_sub_session(parent_session, html_dom)
     init = js"""
         // register this session so it gets deleted when it gets removed from dom
         $(JSServeLib).register_sub_session($(session.id))
-        $(JSServeLib).update_obs($(on_init), true)
+        update_obs($(on_init), true)
     """
 
     final_dom = DOM.span(
@@ -281,14 +281,14 @@ function show_in_page(page::Page, app::App)
             const init_data_b64 = $(serialize_string(session, messages))
             $(JSServeLib).init_from_b64(init_data_b64)
             if (!$(is_offline)){
-                $(JSServeLib).update_obs($(on_init), true)
+                update_obs($(on_init), true)
             }
         })()"""
     else
         js"""
             // register this session so it gets deleted when it gets removed from dom
             $(JSServeLib).register_sub_session($(session.id))
-            $(JSServeLib).update_obs($(on_init), true)
+            update_obs($(on_init), true)
         """
     end
 
@@ -411,22 +411,24 @@ function page_html(session::Session, html)
     serializer = session.url_serializer
     rendered = jsrender(session, html)
     session_deps = include_asset.(session.dependencies, (serializer,))
+
+    onload = jsrender(session, js"""
+        window.addEventListener('load', (event) => {
+            const proxy_url = $(proxy_url)
+            const session_id = $(session.id)
+            $(JSServeLib).setup_connection({proxy_url, session_id})
+            $(JSServeLib).sent_done_loading()
+        })
+    """)
+
     html_body = DOM.html(
         DOM.head(
             DOM.meta(charset="UTF-8"),
-            include_asset(PakoLib, serializer),
-            include_asset(MsgPackLib, serializer),
-            include_asset(JSServeLib, serializer),
             session_deps...
         ),
         DOM.body(
             DOM.div(rendered, id="application-dom", style="visibility: hidden;"),
-            onload=DontEscape("""
-                const proxy_url = '$(proxy_url)'
-                const session_id = '$(session.id)'
-                JSServe.setup_connection({proxy_url, session_id})
-                JSServe.sent_done_loading()
-            """)
+            onload
         )
     )
     return sprint() do io

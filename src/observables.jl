@@ -38,7 +38,7 @@ function jsrender(session::Session, obs::Observable)
     end
     onjs(session, html, js"""
     (html)=> {
-        const new_node = $(JSServeLib).materialize_node(html)
+        const new_node = JSServe.materialize_node(html)
         const dom = $(dom)
         dom.replaceChild(new_node, dom.childNodes[0])
     }""")
