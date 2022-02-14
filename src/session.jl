@@ -20,42 +20,23 @@ function init_session(session::Session)
     send(session, fused_messages!(session))
 end
 
-function Session(connection=Base.RefValue{Union{WebSocket, Nothing, IOBuffer}}(nothing); url_serializer=UrlSerializer(), id=string(uuid4()))
-    return Session(
-        connection,
-        Dict{String, Tuple{Bool, Observable}}(),
-        Dict{Symbol, Any}[],
-        Set{Asset}(),
-        JSCode[],
-        id,
-        Channel{Bool}(1),
-        init_session,
-        url_serializer,
-        Ref{Union{Nothing, JSException}}(nothing),
-        Observable{Union{Nothing, Dict{String, Any}}}(nothing),
-        Observable(false),
-        Observables.ObserverFunction[],
-        Dict{String, WeakRef}()
-    )
-end
+function Session(connection=nothing;
+                observables=Dict{String, Tuple{Bool, Observable}}(),
+                message_queue=Dict{Symbol, Any}[],
+                dependencies=Set{Asset}(),
+                on_document_load=JSCode[],
+                id=string(uuid4()),
+                js_fully_loaded=Channel{Bool}(1),
+                on_websocket_ready=init_session,
+                url_serializer=UrlSerializer(),
+                init_error=Ref{Union{Nothing, JSException}}(nothing),
+                js_comm=Observable{Union{Nothing, Dict{String, Any}}}(nothing),
+                on_close=Observable(false),
+                deregister_callbacks=Observables.ObserverFunction[],
+                unique_object_cache=Dict{String, WeakRef}())
 
-function Session(session::Session;
-                connection=session.connection,
-                observables=session.observables,
-                message_queue=session.message_queue,
-                dependencies=session.dependencies,
-                on_document_load=session.on_document_load,
-                id=session.id,
-                js_fully_loaded=session.js_fully_loaded,
-                on_websocket_ready=session.on_websocket_ready,
-                url_serializer=session.url_serializer,
-                init_error=session.init_error,
-                js_comm=session.js_comm,
-                on_close=session.on_close,
-                deregister_callbacks=session.deregister_callbacks,
-                unique_object_cache=session.unique_object_cache)
     return Session(
-        connection,
+        Base.RefValue{Union{Nothing, WebSocket, IOBuffer}}(connection),
         observables,
         message_queue,
         dependencies,
@@ -79,6 +60,7 @@ function Base.close(session::Session)
         # https://github.com/JuliaWeb/HTTP.jl/issues/649
         if isassigned(session.connection) && !isnothing(session.connection[])
             close(session.connection[])
+            session.connection[] = nothing
         end
     catch e
         if !(e isa Base.IOError)
@@ -140,6 +122,7 @@ function onjs(session::Session, obs::Observable, func::JSCode)
         session;
         msg_type=OnjsCallback,
         id=obs.id,
+        # return is needed to since on the JS side this will be wrapped in a function
         payload=JSCode([JSString("return "), func])
     )
 end
@@ -175,7 +158,7 @@ Link the observables in Julia, but only as long as the session is active.
 """
 function linkjs(session::Session, a::Observable, b::Observable)
     # register the callback with the JS session
-    onjs(session, a, js"(v) => JSServe.update_obs($b, v)")
+    onjs(session, a, js"(v) => $(JSServeLib).update_obs($b, v)")
 end
 
 function linkjs(has_session, a::Observable, b::Observable)
@@ -215,10 +198,9 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=10.0)
     js_with_result = js"""
     try{
         const result = $(js);
-        console.log(result)
-        JSServe.update_obs($(comm), {result: result});
+        $(JSServeLib).update_obs($(comm), {result: result});
     }catch(e){
-        JSServe.update_obs($(comm), {error: e.toString()});
+        $(JSServeLib).update_obs($(comm), {error: e.toString()});
     }
     """
 
@@ -270,17 +252,13 @@ function register_resource!(session::Session, jss::JSCode)
     register_resource!(session, jss.source)
 end
 
-function register_resource!(session::Session, asset::Union{Asset, Dependency, Observable})
-    push!(session, asset)
-end
-
 function register_resource!(session::Session, node::Node)
     walk_dom(node) do x
         register_resource!(session, x)
     end
 end
 
-function Base.push!(session::Session, observable::Observable)
+function register_resource!(session::Session, observable::Observable)
     if !haskey(session.observables, observable.id)
         session.observables[observable.id] = (true, observable)
         # Register on the JS side by sending the current value
@@ -291,17 +269,14 @@ function Base.push!(session::Session, observable::Observable)
     end
 end
 
-function Base.push!(session::Session, dependency::Dependency)
+function register_resource!(session::Session, dependency::Dependency)
     for asset in dependency.assets
-        push!(session, asset)
+        register_resource!(session, asset)
     end
     return dependency
 end
 
-function Base.push!(session::Session, asset::Asset)
+function register_resource!(session::Session, asset::Asset)
     push!(session.dependencies, asset)
-    if asset.onload !== nothing
-        on_document_load(session, asset.onload)
-    end
     return asset
 end

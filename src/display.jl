@@ -93,7 +93,7 @@ function Base.show(io::IO, ::MIME"text/html", page::Page)
     websocket_url = JSSERVE_CONFIGURATION.external_url[]
     delete_session = Observable("")
 
-    push!(page.session, page.session.js_comm)
+    register_resource!(page.session, page.session.js_comm)
 
     on(delete_session) do session_id
         if !haskey(page.child_sessions, session_id)
@@ -105,28 +105,26 @@ function Base.show(io::IO, ::MIME"text/html", page::Page)
         # Set connection to nothing,
         # so that no clean up happens over the active websocket connection
         # (e.g. close will try to close the ws connection)
-        child.on_close[] = true
         child.connection[] = nothing
         close(child)
         delete!(page.child_sessions, session_id)
     end
 
     init = if page.offline
-        js"JSServe.setup_connection({offline: true})"
+        js"$(JSServeLib).setup_connection({offline: true})"
     else
         js"""
             const proxy_url = $(websocket_url)
             const session_id = $(page.session.id)
             // track if our child session doms get removed from the document (dom)
-            JSServe.track_deleted_sessions($(delete_session))
-            JSServe.setup_connection({proxy_url, session_id})
-            JSServe.sent_done_loading()
+            $(JSServeLib).track_deleted_sessions($(delete_session))
+            $(JSServeLib).setup_connection({proxy_url, session_id})
+            $(JSServeLib).sent_done_loading()
         """
     end
     deps = [
         MsgPackLib,
         PakoLib,
-        Base64Lib,
         JSServeLib,
     ]
     page_init_dom = DOM.div(
@@ -172,30 +170,13 @@ function assure_ready(page::Page)
 end
 
 function render_sub_session(parent_session, html_dom)
-
-    session = Session(parent_session;
-        connection=Base.RefValue{Union{Nothing, WebSocket, IOBuffer}}(nothing),
-        dependencies=Set{Asset}(),
-        id=string(uuid4()),
-        observables=Dict{String, Tuple{Bool, Observable}}(),
-        on_close=Observable(false),
-        message_queue=Dict{Symbol, Any}[],
-        js_fully_loaded=Channel{Bool}(1),
-        deregister_callbacks=Observables.ObserverFunction[]
-    )
-
+    session = Session(nothing)
     on_init = Observable(false)
-    # Manually register on_init - this is a bit fragile, but
-    # we need to normally register on_init with `session`, BUT
-    # it already needs to be registered upfront with JSServe in the browser
-    # so that it can properly trigger the observable early in the loaded html/js
-    send(parent_session, payload=on_init[], id=on_init.id, msg_type=RegisterObservable)
     # Render the app and register all the resources with the session
     # Note, since we set the connection to nothing, nothing gets sent yet
     # This is important, since we can only sent the messages after the HTML has been rendered
     # since we must assume the messages / js contains references to HTML elements
     js_dom = jsrender(session, html_dom)
-    register_resource!(session, js_dom)
 
     new_deps = setdiff(session.dependencies, parent_session.dependencies)
     union!(parent_session.dependencies, new_deps)
@@ -209,9 +190,8 @@ function render_sub_session(parent_session, html_dom)
 
     init = js"""
         // register this session so it gets deleted when it gets removed from dom
-        JSServe.register_sub_session($(session.id))
-        console.log("Initializing session!!!")
-        JSServe.update_obs($(on_init), true)
+        $(JSServeLib).register_sub_session($(session.id))
+        $(JSServeLib).update_obs($(on_init), true)
     """
 
     final_dom = DOM.span(
@@ -228,6 +208,7 @@ function render_sub_session(parent_session, html_dom)
     for obs in obs_shared_with_parent
         delete!(session.observables, obs)
     end
+
     # but in the end, all observables need to be registered
     # with the page session, since that's where javascript will sent all the events
     merge!(parent_session.observables, session.observables)
@@ -238,7 +219,7 @@ function render_sub_session(parent_session, html_dom)
             obs_ids = collect(keys(session.observables))
             JSServeLib.delete_observables(parent_session, obs_ids)
             # since we deleted all obs shared with the parent session,
-            # we can delete savely delete all of them from there
+            # we can savely delete all of them from there
             # Note, that we previously added them all here!
             for (k, o) in session.observables
                 delete!(parent_session.observables, k)
@@ -262,32 +243,17 @@ function show_in_page(page::Page, app::App)
     assure_ready(page)
 
     # Create a child session, to track the per app resources
-    session = Session(page_session;
-        connection=Base.RefValue{Union{Nothing, WebSocket, IOBuffer}}(nothing),
-        dependencies=Set{Asset}(),
-        id=string(uuid4()),
-        observables=Dict{String, Tuple{Bool, Observable}}(),
-        on_close=Observable(false),
-        message_queue=Dict{Symbol, Any}[],
-        js_fully_loaded=Channel{Bool}(1),
-        deregister_callbacks=Observables.ObserverFunction[]
-    )
+    session = Session(nothing)
     # register with page session for proper clean up!
     page.child_sessions[session.id] = session
 
     on_init = Observable(false)
-    # Manually register on_init - this is a bit fragile, but
-    # we need to normally register on_init with `session`, BUT
-    # it already needs to be registered upfront with JSServe in the browser
-    # so that it can properly trigger the observable early in the loaded html/js
-    send(page_session, payload=on_init[], id=on_init.id, msg_type=RegisterObservable)
     # Render the app and register all the resources with the session
     # Note, since we set the connection to nothing, nothing gets sent yet
     # This is important, since we can only sent the messages after the HTML has been rendered
     # since we must assume the messages / js contains references to HTML elements
     html_dom = Base.invokelatest(app.handler, session, (; show="/show_inline"))
     js_dom = jsrender(session, html_dom)
-    register_resource!(session, js_dom)
 
     new_deps = setdiff(session.dependencies, page_session.dependencies)
     union!(page_session.dependencies, new_deps)
@@ -311,18 +277,18 @@ function show_in_page(page::Page, app::App)
         # We take all messages and serialize them directly into the init js
         messages = fused_messages!(session)
         js"""(()=> {
-            JSServe.register_sub_session($(session.id))
+            $(JSServeLib).register_sub_session($(session.id))
             const init_data_b64 = $(serialize_string(session, messages))
-            JSServe.init_from_b64(init_data_b64)
+            $(JSServeLib).init_from_b64(init_data_b64)
             if (!$(is_offline)){
-                JSServe.update_obs($(on_init), true)
+                $(JSServeLib).update_obs($(on_init), true)
             }
         })()"""
     else
         js"""
             // register this session so it gets deleted when it gets removed from dom
-            JSServe.register_sub_session($(session.id))
-            JSServe.update_obs($(on_init), true)
+            $(JSServeLib).register_sub_session($(session.id))
+            $(JSServeLib).update_obs($(on_init), true)
         """
     end
 
@@ -376,7 +342,7 @@ function show_in_iframe(server, session, app)
     # event handler via resize_iframe_parent, which then
     # resizes the parent iframe accordingly
     app_wrapped = App() do session::Session, request
-        on_document_load(session, js"JSServe.resize_iframe_parent($(session.id))")
+        on_document_load(session, js"$(JSServeLib).resize_iframe_parent($(session.id))")
         html_dom = Base.invokelatest(app.handler, session, request)
         return html_dom
     end
@@ -444,7 +410,6 @@ function page_html(session::Session, html)
     proxy_url = JSSERVE_CONFIGURATION.external_url[]
     serializer = session.url_serializer
     rendered = jsrender(session, html)
-    register_resource!(session, rendered)
     session_deps = include_asset.(session.dependencies, (serializer,))
     html_body = DOM.html(
         DOM.head(
@@ -452,7 +417,6 @@ function page_html(session::Session, html)
             include_asset(PakoLib, serializer),
             include_asset(MsgPackLib, serializer),
             include_asset(JSServeLib, serializer),
-            include_asset(Base64Lib, serializer),
             session_deps...
         ),
         DOM.body(

@@ -66,7 +66,6 @@ struct Asset
     # to also be able to host it locally
     online_path::String
     local_path::Union{String, Path}
-    onload::Union{Nothing, JSCode}
 end
 
 """
@@ -89,8 +88,6 @@ jsrender will make sure that all dependencies get loaded.
 struct Dependency
     name::Symbol # The JS Module name that will get loaded
     assets::Vector{Asset}
-    # The global -> Function name, JSCode -> the actual function code!
-    functions::Dict{Symbol, JSCode}
 end
 
 """
@@ -188,7 +185,6 @@ end
 struct Routes
     table::Vector{Pair{Any, Any}}
 end
-
 
 """
 The application one serves

@@ -83,14 +83,13 @@ function record_states(session::Session, dom::Hyperscript.Node)
         const statemap = $(independent_states)
         const observables = $(observable_ids)
         observables.forEach(id => {
-            console.log(id)
-            JSServe.on_update(id, function (val) {
+            $(JSServeLib).on_update(id, function (val) {
                 // messages to send for this state of that observable
                 const messages = statemap[id][val]
                 // not all states trigger events
                 // so some states won't have any messages recorded
                 if (messages){
-                    JSServe.process_message(messages)
+                    $(JSServeLib).process_message(messages)
                 }
             })
         })

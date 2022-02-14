@@ -111,12 +111,11 @@ end
 
 @testset "relocatable" begin
     deps = [
-        JSServe.MsgPackLib => "js", 
-        JSServe.PakoLib => "js", 
-        JSServe.JSServeLib => "js", 
-        JSServe.Base64Lib => "js", 
-        JSServe.MarkdownCSS => "css", 
-        JSServe.TailwindCSS => "css", 
+        JSServe.MsgPackLib => "js",
+        JSServe.PakoLib => "js",
+        JSServe.JSServeLib => "js",
+        JSServe.MarkdownCSS => "css",
+        JSServe.TailwindCSS => "css",
         JSServe.Styling => "css",
     ]
     for (dep, ext) in deps

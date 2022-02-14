@@ -36,11 +36,12 @@ function jsrender(session::Session, obs::Observable)
     on(session, obs) do data
         html[] = by_value(render_sub_session(session, data))
     end
-    onjs(session, html, js"(html)=> {
-        const new_node = JSServe.materialize_node(html)
+    onjs(session, html, js"""
+    (html)=> {
+        const new_node = $(JSServeLib).materialize_node(html)
         const dom = $(dom)
         dom.replaceChild(new_node, dom.childNodes[0])
-    }")
+    }""")
     return dom
 end
 

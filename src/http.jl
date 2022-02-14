@@ -75,7 +75,7 @@ function handle_ws_message(session::Session, message)
         end
         session.on_websocket_ready(session)
     else
-        @error "Unrecognized message: $(typ) with type: $(typeof(type))"
+        @error "Unrecognized message: $(typ) with type: $(typeof(typ))"
     end
 end
 

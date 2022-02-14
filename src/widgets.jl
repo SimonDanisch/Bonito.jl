@@ -2,7 +2,7 @@
 function jsrender(session::Session, button::Button)
     return jsrender(session, DOM.button(
         button.content,
-        onclick = js"JSServe.update_obs($(button.value), true);";
+        onclick = js"$(JSServeLib).update_obs($(button.value), true);";
         button.attributes...
     ))
 end
@@ -11,7 +11,7 @@ function jsrender(session::Session, tf::TextField)
     return jsrender(session, DOM.input(
         type = "textfield",
         value = tf.value,
-        onchange = js"JSServe.update_obs($(tf.value),  this.value);";
+        onchange = js"$(JSServeLib).update_obs($(tf.value),  this.value);";
         tf.attributes...
     ))
 end
@@ -20,7 +20,7 @@ function jsrender(session::Session, ni::NumberInput)
     return jsrender(session, DOM.input(
         type = "number",
         value = ni.value,
-        onchange = js"JSServe.update_obs($(ni.value), parseFloat(this.value));";
+        onchange = js"$(JSServeLib).update_obs($(ni.value), parseFloat(this.value));";
         ni.attributes...
     ))
 end
@@ -32,16 +32,16 @@ function jsrender(session::Session, slider::Slider)
         max = map(last, slider.range),
         value = slider.value,
         step = map(step, slider.range),
-        oninput = js"JSServe.update_obs($(slider.value), parseFloat(value))";
+        oninput = js"$(JSServeLib).update_obs($(slider.value), parseFloat(value))";
         slider.attributes...
     ))
 end
 
-function JSServe.jsrender(session::Session, tb::Checkbox)
+function jsrender(session::Session, tb::Checkbox)
     return jsrender(session, DOM.input(
         type = "checkbox",
         checked = tb.value,
-        onchange = js"JSServe.update_obs($(tb.value), this.checked);";
+        onchange = js"$(JSServeLib).update_obs($(tb.value), this.checked);";
         tb.attributes...
     ))
 end
@@ -73,13 +73,13 @@ function jsrender(session::Session, slider::RangeSlider)
     rangediv = DOM.div()
     create_slider = js"""function create_slider(style){
         var range = $(rangediv);
-        range.noUiSlider.updateOptions(JSServe.deserialize_js(style), true);
+        range.noUiSlider.updateOptions($(JSServeLib).deserialize_js(style), true);
     }"""
     onload(session, rangediv, js"""function onload(range){
         var style = $(style[]);
         $(noUiSlider).create(range, style);
         range.noUiSlider.on('update', function (values, handle, unencoded, tap, positions){
-            JSServe.update_obs($(slider.value), [parseFloat(values[0]), parseFloat(values[1])]);
+            $(JSServeLib).update_obs($(slider.value), [parseFloat(values[0]), parseFloat(values[1])]);
         });
     }""")
     onjs(session, style, create_slider)
@@ -106,7 +106,7 @@ function Table(table; class="", row_renderer=render_row_value)
     return Table(table, class, row_renderer)
 end
 
-function JSServe.jsrender(session::Session, table::Table)
+function jsrender(session::Session, table::Table)
     names = string.(Tables.schema(table.table).names)
     header = DOM.thead(DOM.tr(DOM.th.(names)...))
     rows = []
@@ -117,7 +117,7 @@ function JSServe.jsrender(session::Session, table::Table)
     return DOM.table(header, body; class=table.class)
 end
 
-const ace = JSServe.Dependency(
+const ace = Dependency(
     :ace,
     ["https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"]
 )
@@ -169,7 +169,7 @@ end
 function jsrender(session::Session, editor::CodeEditor)
     theme = "ace/theme/$(editor.theme)"
     language = "ace/mode/$(editor.language)"
-    JSServe.onload(session, editor.element, js"""
+    onload(session, editor.element, js"""
         function (element){
             var editor = $ace.edit(element);
             editor.setTheme($theme);
@@ -179,7 +179,7 @@ function jsrender(session::Session, editor::CodeEditor)
             editor.setOptions($(editor.options));
 
             editor.session.on('change', function(delta) {
-                JSServe.update_obs($(editor.onchange), editor.getValue());
+                $(JSServeLib).update_obs($(editor.onchange), editor.getValue());
             });
 
             editor.session.setValue($(editor.onchange[]));

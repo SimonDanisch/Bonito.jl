@@ -65,7 +65,7 @@ attribute_render(session::Session, parent, attribute::String, x::Nothing) = x
 attribute_render(session::Session, parent, attribute::String, x::Bool) = x
 
 function attribute_render(session::Session, parent, attribute::String, obs::Observable)
-    onjs(session, obs, js"value=> JSServe.update_node_attribute($(parent), $attribute, value)")
+    onjs(session, obs, js"value=> $(JSServeLib).update_node_attribute($(parent), $attribute, value)")
     return attribute_render(session, parent, attribute, obs[])
 end
 
@@ -125,12 +125,21 @@ is_boolean_attribute(attribute::String) = attribute in BOOLEAN_ATTRIUTES
 
 function render_node(session::Session, node::Node)
     # give each node a unique id inside the dom
+    node_children = children(node)
+    node_attrs = Hyperscript.attrs(node)
+    isempty(node_children) && isempty(node_attrs) && return node
+
     new_attributes = Dict{String, Any}()
-    newchildren = map(children(node)) do elem
-        return jsrender(session, elem)
+    children_changed = false
+    attributes_changed = false
+    newchildren = map(node_children) do elem
+        new_elem = jsrender(session, elem)
+        children_changed = children_changed || new_elem !== elem
+        return new_elem
     end
-    for (k, v) in Hyperscript.attrs(node)
+    for (k, v) in node_attrs
         rendered = attribute_render(session, node, k, v)
+        attributes_changed = attributes_changed || rendered !== v
         # We code nothing to mean omitting the attribute!
         if is_boolean_attribute(k)
             if rendered isa Bool
@@ -145,12 +154,15 @@ function render_node(session::Session, node::Node)
             new_attributes[k] = rendered
         end
     end
-    return Node(
-        Hyperscript.context(node),
-        Hyperscript.tag(node),
-        newchildren,
-        new_attributes
-    )
+    if attributes_changed || children_changed
+        return Node(
+            Hyperscript.context(node),
+            Hyperscript.tag(node),
+            newchildren,
+            new_attributes)
+    else
+        return node
+    end
 end
 
 # jsrender(session, x) will be called anywhere...
@@ -160,7 +172,7 @@ function jsrender(session::Session, node::Node)
 end
 
 function uuid(node::Node)
-    get(Hyperscript.attrs(node), "data-jscall-id") do
+    return get(Hyperscript.attrs(node), "data-jscall-id") do
         error("Node $(node) doesn't have a unique id. Make sure to use DOM.$(Hyperscript.tag(node))")
     end
 end
@@ -173,7 +185,7 @@ To enable putting YourType into a dom element/div.
 You can also overload it to take a session as first argument, to register
 messages with the current web session (e.g. via onjs).
 """
-jsrender(::Session, x::Any) = jsrender(x)
+jsrender(::Session, @nospecialize(x)) = jsrender(x)
+jsrender(@nospecialize(x)) = x
 jsrender(::Session, x::Symbol) = DOM.p(string(x))
 jsrender(::Session, x::Hyperscript.Styled) = x
-jsrender(x) = x

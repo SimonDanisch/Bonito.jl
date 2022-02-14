@@ -1,7 +1,7 @@
 
 function jsrender(session::Session, md::Markdown.MD)
     md_div = DOM.div(md_html(session, md.content)...; class="markdown-body")
-    return JSServe.jsrender(session, md_div)
+    return jsrender(session, md_div)
 end
 
 function md_html(session::Session, content::Vector)

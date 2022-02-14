@@ -93,7 +93,7 @@ function update_cached_value!(session::Session, object)
     # If we cache while sending the message to update the object
     # it will just send a reference to the already cached value! :D
     ctx = SerializationContext(nothing)
-    ref = JSServe.pointer_identity(object)
+    ref = pointer_identity(object)
     message = Dict(
         :dont_serialize => true,
         :update_cache => Dict("to_remove" => [], "to_register" => Dict(ref => serialize_js(ctx, object)))
