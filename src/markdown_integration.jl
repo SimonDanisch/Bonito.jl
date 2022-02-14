@@ -180,21 +180,31 @@ function replace_interpolation!(context, expr::Expr)
     end
 end
 
+function render_mime(m::MIME"text/html", value)
+    html = repr(m, value)
+    return HTML(html)
+end
+
+function render_mime(m::MIME"image/png", value)
+    img = repr(m, value)
+    src = "data:image/png;base64," * Base64.base64encode(img)
+    return DOM.img(src=src)
+end
+
 function replace_expressions(markdown::Markdown.Code, context; eval_julia_code=false)
     if markdown.language == "julia" && eval_julia_code isa Module
-        run = Button(">")
-        result = Observable{Any}(DOM.span(""))
-        on(run) do click
-            expr = parseall(markdown.code)
-            expr = replace_interpolation!(context, expr)
-            evaled = eval_julia_code.eval(expr)
-            result[] = render_result(evaled)
+        hide = occursin("# hide", markdown.code)
+        md_expr = hide ? "" : markdown
+        expr = parseall(markdown.code)
+        expr = replace_interpolation!(context, expr)
+        evaled = eval_julia_code.eval(expr)
+        if isnothing(evaled)
+            result = render_mime(richest_mime(evaled), evaled)
+            return md"$md_expr
+                      $result"
+        else
+            return md_expr
         end
-        return md"""
-        $(markdown)
-        $(run)
-        $(result)
-        """
     else
         return markdown
     end

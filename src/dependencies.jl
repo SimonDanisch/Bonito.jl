@@ -207,43 +207,50 @@ function unique_name_in_folder(folder, dream_name)
     error("No unique names found after 1000000 tries for name $(dream_name) in $(folder)")
 end
 
-function url(asset::Asset, serializer::UrlSerializer=UrlSerializer())
-    if isempty(asset.online_path)
-        path = asset.local_path
-        relative_path = if serializer.assetserver
-            # we use assetserver, so we register the local file with the server
-            register_local_file(path)
+function local_path(path, serializer)
+    if serializer.assetserver
+        # we use assetserver, so we register the local file with the server
+        return register_local_file(path)
+    else
+        # we don't use assetserver, so we copy the asset to asset_folder
+        # for someone else to serve them!
+        if serializer.asset_folder === nothing
+            error("Not using assetserver requires to set `asset_folder` to a valid local folder")
+        end
+        if !isdir(serializer.asset_folder)
+            error("`asset_folder` doesn't exist: $(serializer.asset_folder)")
+        end
+        relative_path = relpath(path, serializer.asset_folder)
+        if !(occursin("..", relative_path) || abspath(path) == relative_path)
+            # file is already in asset folder
+            return relative_path
         else
-            # we don't use assetserver, so we copy the asset to asset_folder
-            # for someone else to serve them!
-            if serializer.asset_folder === nothing
-                error("Not using assetserver requires to set `asset_folder` to a valid local folder")
-            end
-            if !isdir(serializer.asset_folder)
-                error("`asset_folder` doesn't exist: $(serializer.asset_folder)")
-            end
-            # make sure we don't get name clashes in asset_folder
             path_base = dirname(path)
             file_name = basename(path)
             unique_file_name = unique_name_in_folder(serializer.asset_folder, file_name)
             unique_path = joinpath(serializer.asset_folder, unique_file_name)
             cp(path, unique_path, force=true)
-            unique_file_name
+            return unique_file_name
         end
-        if serializer.absolute
-            # we serve from an absolute URL, so we append the content_delivery_url!
-            return serializer.content_delivery_url * relative_path
-        else
-            return relative_path
-        end
-    else
+    end
+end
+
+function url(asset::Asset, serializer::UrlSerializer=UrlSerializer())
+    if !isempty(asset.online_path)
         # We dont touch online urls for now
         # we may to decide to download them and add them to the asset_folder
         # if desired
         return asset.online_path
+    else
+        relative_path = local_path(asset.local_path, serializer)
+        if serializer.absolute
+            # we serve from an absolute URL, so we append the content_delivery_url
+            return serializer.content_delivery_url * relative_path
+        else
+            return relative_path
+        end
     end
 end
-
 
 const MsgPackLib = Asset(dependency_path("msgpack.min.js"))
 const PakoLib = Asset(dependency_path("pako_inflate.min.js"))
