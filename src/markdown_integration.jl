@@ -180,17 +180,6 @@ function replace_interpolation!(context, expr::Expr)
     end
 end
 
-function render_mime(m::MIME"text/html", value)
-    html = repr(m, value)
-    return HTML(html)
-end
-
-function render_mime(m::MIME"image/png", value)
-    img = repr(m, value)
-    src = "data:image/png;base64," * Base64.base64encode(img)
-    return DOM.img(src=src)
-end
-
 function replace_expressions(markdown::Markdown.Code, context; eval_julia_code=false)
     if markdown.language == "julia" && eval_julia_code isa Module
         hide = occursin("# hide", markdown.code)

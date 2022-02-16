@@ -7,8 +7,6 @@ using Hyperscript: Node, children, tag
 using HTTP, Markdown
 using HTTP: Response, Request
 using HTTP.Streams: Stream
-using WebSockets
-using WebSockets: WebSocket
 
 using Base64
 using MsgPack
@@ -22,12 +20,13 @@ using CodecZlib
 using RelocatableFolders: @path, Path, getroot
 
 include("types.jl")
-include("server.jl")
+# include("server.jl")
 include("js_source.jl")
+include("connection/connection.jl")
 include("session.jl")
+include("jsrender.jl")
 include("observables.jl")
-include("dependencies.jl")
-include("asset-server.jl")
+include("asset-servers/assets.jl")
 include("http.jl")
 include("util.jl")
 include("widgets.jl")

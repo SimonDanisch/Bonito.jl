@@ -34,7 +34,7 @@ color[] = "green"
 
 
 app = App() do
-    button = DOM.div("click me", onclick=js"JSServe.update_obs($(color), 'blue')")
+    button = DOM.div("click me", onclick=js"update_obs($(color), 'blue')")
     return DOM.div(
         button, DOM.h1("Hello World", style=map(x-> "color: $(x)", color))
     )

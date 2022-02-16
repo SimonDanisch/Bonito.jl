@@ -46,10 +46,10 @@ function jsrender(session::Session, tb::Checkbox)
     ))
 end
 
-const noUiSlider = Dependency(
-    :noUiSlider,
-    [dependency_path("nouislider.min.js"), dependency_path("nouislider.min.css")]
-)
+# const noUiSlider = Dependency(
+#     :noUiSlider,
+#     [dependency_path("nouislider.min.js"), dependency_path("nouislider.min.css")]
+# )
 
 function jsrender(session::Session, slider::RangeSlider)
     args = (slider.range, slider.connect, slider.orientation,
@@ -72,11 +72,11 @@ function jsrender(session::Session, slider::RangeSlider)
     end
     rangediv = DOM.div()
     create_slider = js"""function create_slider(style){
-        var range = $(rangediv);
-        range.noUiSlider.updateOptions($(JSServeLib).deserialize_js(style), true);
+        const range = $(rangediv);
+        range.noUiSlider.updateOptions(style, true);
     }"""
     onload(session, rangediv, js"""function onload(range){
-        var style = $(style[]);
+        const style = $(style[]);
         $(noUiSlider).create(range, style);
         range.noUiSlider.on('update', function (values, handle, unencoded, tap, positions){
             update_obs($(slider.value), [parseFloat(values[0]), parseFloat(values[1])]);
@@ -117,10 +117,10 @@ function jsrender(session::Session, table::Table)
     return DOM.table(header, body; class=table.class)
 end
 
-const ace = Dependency(
-    :ace,
-    ["https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"]
-)
+# const ace = Dependency(
+#     :ace,
+#     ["https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"]
+# )
 
 struct CodeEditor
     theme::String

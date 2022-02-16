@@ -57,83 +57,16 @@ end
 """
 Represent an asset stored at an URL.
 We try to always have online & local files for assets
-If one gives an online resource, it will be downloaded, to host it locally.
 """
 struct Asset
+    name::Union{Nothing, String}
+    es6module::Bool
     media_type::Symbol
     # We try to always have online & local files for assets
     # If you only give an online resource, we will download it
     # to also be able to host it locally
     online_path::String
     local_path::Union{String, Path}
-end
-
-struct ES6Module
-    name::Symbol
-    path::Union{String, Path}
-end
-
-"""
-Encapsulates frontend dependencies. Can be used in the following way:
-
-```Julia
-const noUiSlider = Dependency(
-    :noUiSlider,
-    # js & css dependencies are supported
-    [
-        "https://cdn.jsdelivr.net/gh/leongersen/noUiSlider/distribute/nouislider.min.js",
-        "https://cdn.jsdelivr.net/gh/leongersen/noUiSlider/distribute/nouislider.min.css"
-    ]
-)
-# use the dependency on the frontend:
-evaljs(session, js"\$(noUiSlider).some_function(...)")
-```
-jsrender will make sure that all dependencies get loaded.
-"""
-struct Dependency
-    name::Symbol # The JS Module name that will get loaded
-    assets::Vector{Asset}
-end
-
-"""
-    UrlSerializer
-Struct used to encode how an url is rendered
-Fields:
-```julia
-# uses assetserver?
-assetserver::Bool
-# if assetserver == false, we move all assets into asset_folder
-# for someone else to serve them!
-asset_folder::Union{Nothing, String}
-
-absolute::Bool
-# Used to prepend if absolute == true
-content_delivery_url::String
-```
-"""
-struct UrlSerializer
-    # uses assetserver?
-    assetserver::Bool
-    # if assetserver == false, we move all assets into asset_folder
-    # for someone else to serve them!
-    asset_folder::Union{Nothing, String}
-
-    absolute::Bool
-    # Used to prepend if absolute == true
-    content_delivery_url::String
-    # Inlines all content directly into the html
-    # Makes all above options obsolete
-    inline_all::Bool
-end
-
-function UrlSerializer(;
-        proxy = JSSERVE_CONFIGURATION.content_delivery_url[],
-        assetserver=true, asset_folder=nothing, absolute=proxy!="",
-        inline_all=false
-    )
-    return UrlSerializer(
-        assetserver, asset_folder, absolute, proxy, inline_all
-    )
 end
 
 struct JSException <: Exception
@@ -164,27 +97,32 @@ function Base.show(io::IO, exception::JSException)
     end
 end
 
+abstract type FrontendConnection end
+struct NoConnection <: FrontendConnection end
+abstract type AbstractAssetServer end
+
 """
 A web session with a user
 """
-struct Session
-    # IOBuffer for testing
-    connection::Base.RefValue{Union{Nothing, WebSocket, IOBuffer}}
+struct Session{Connection <: FrontendConnection}
+    id::String
+    # The connection to the JS frontend.
+    # Currently can be IJuliaConnection, WebsocketConnection, PlutoConnection, NoConnection
+    connection::Connection
+    # The way we serve any file asset
+    asset_server::AbstractAssetServer
     # Bool -> if already registered with Frontend
     observables::Dict{String, Tuple{Bool, Observable}}
     message_queue::Vector{Dict{Symbol, Any}}
-    dependencies::Set{Asset}
+    # Code that gets evalued last after all other messages, when session gets connected
     on_document_load::Vector{JSCode}
-    id::String
     js_fully_loaded::Channel{Bool}
-    on_websocket_ready::Any
-    url_serializer::UrlSerializer
+    on_connection_ready::Any
     # Should be checkd on js_fully_loaded to see if an error occured
     init_error::Ref{Union{Nothing, JSException}}
     js_comm::Observable{Union{Nothing, Dict{String, Any}}}
     on_close::Observable{Bool}
     deregister_callbacks::Vector{Observables.ObserverFunction}
-    unique_object_cache::Dict{String, WeakRef}
 end
 
 struct Routes
@@ -197,7 +135,6 @@ The application one serves
 struct Server
     url::String
     port::Int
-    sessions::Dict{String, Session}
     server_task::Ref{Task}
     server_connection::Ref{TCPServer}
     routes::Routes

@@ -42,7 +42,7 @@ end
 
 function print_js_code(io::IO, @nospecialize(object), context)
     serialized = serialize_js(context, object)
-    if serialized isa Union{Number, String}
+    if serialized isa Union{Number, String, Symbol}
         return print_js_code(io, serialized, context)
     end
     if isnothing(context.interpolated)
@@ -70,7 +70,7 @@ function print_js_code(io::IO, jss::JSString, context)
     return context
 end
 
-function print_js_code(io::IO, dep::Union{Dependency, ES6Module}, context)
+function print_js_code(io::IO, dep::Asset, context)
     print(io, dep.name)
     return context
 end
@@ -90,7 +90,7 @@ function print_js_code(io::IO, jsss::AbstractVector{JSCode}, context)
     return context
 end
 
-function import_module(mod::ES6Module)
+function import_module(mod::Asset)
     return "import * as $(mod.name) from '$(mod.path)'"
 end
 
@@ -100,7 +100,7 @@ function jsrender(session::Session, js::JSCode)
     source = sprint() do io
         println(io)
         for dep in unique(deps)
-            if dep isa ES6Module
+            if dep isa Asset
                 println(io, import_module(dep))
             end
         end

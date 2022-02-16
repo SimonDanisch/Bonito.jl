@@ -20,7 +20,6 @@ const CURRENT_PAGE = Ref{Page}()
         server_config...
     )
 
-
 A Page should be used for anything that displays multiple outputs, like Pluto/IJulia/Documenter.
 It activates a special html mime show mode, which is more efficient in that scenario.
 
@@ -61,38 +60,10 @@ function Base.close(page::Page)
     end
     empty!(page.child_sessions)
     close(page.session)
-    empty!(page.session.unique_object_cache)
-end
-
-function include_all_assets(session, assets)
-    # protect against require being loaded by someone else
-    # (e.g. Documenter.jl)
-    return [
-        jsrender(session, js"""
-            window.__define = window.define;
-            window.__require = window.require;
-            window.define = undefined;
-            window.require = undefined;
-        """),
-        include_asset.(assets, (session.url_serializer,))...,
-        jsrender(session, js"""
-            window.define = window.__define;
-            window.require = window.__require;
-            window.__define = undefined;
-            window.__require = undefined;
-        """)
-    ]
 end
 
 function Base.show(io::IO, ::MIME"text/html", page::Page)
-    if !page.offline
-        server = get_server()
-        insert_session!(server, page.session)
-    end
-    serializer = page.session.url_serializer
-    websocket_url = JSSERVE_CONFIGURATION.external_url[]
     delete_session = Observable("")
-
     register_resource!(page.session, page.session.js_comm)
 
     on(delete_session) do session_id
@@ -110,28 +81,13 @@ function Base.show(io::IO, ::MIME"text/html", page::Page)
         delete!(page.child_sessions, session_id)
     end
 
-    init = if page.offline
-        js"$(JSServeLib).setup_connection({offline: true})"
-    else
-        js"""
-            const proxy_url = $(websocket_url)
-            const session_id = $(page.session.id)
-            // track if our child session doms get removed from the document (dom)
-            $(JSServeLib).track_deleted_sessions($(delete_session))
-            $(JSServeLib).setup_connection({proxy_url, session_id})
-            $(JSServeLib).sent_done_loading()
-        """
-    end
-    deps = [
-        MsgPackLib,
-        PakoLib,
-        JSServeLib,
-    ]
-    page_init_dom = DOM.div(
-        include_all_assets(page.session, deps)...,
-        init
-    )
-    println(io, node_html(page.session, page_init_dom))
+    init = init_connection(session)
+    track = js"""
+        $(JSServeLib).track_deleted_sessions($(delete_session))
+    """
+    page_init_dom = DOM.div(track, init)
+    node_html(io, page.session, page_init_dom)
+    return
 end
 
 function assure_ready(page::Page)
@@ -189,9 +145,9 @@ function render_sub_session(parent_session, html_dom)
     end
 
     init = js"""
-        // register this session so it gets deleted when it gets removed from dom
-        $(JSServeLib).register_sub_session($(session.id))
-        update_obs($(on_init), true)
+    // register this session so it gets deleted when it gets removed from dom
+    $(JSServeLib).register_sub_session($(session.id))
+    update_obs($(on_init), true)
     """
 
     final_dom = DOM.span(
@@ -342,7 +298,7 @@ function show_in_iframe(server, session, app)
     # event handler via resize_iframe_parent, which then
     # resizes the parent iframe accordingly
     app_wrapped = App() do session::Session, request
-        on_document_load(session, js"$(JSServeLib).resize_iframe_parent($(session.id))")
+        on_document_load(session, js"JSServe.resize_iframe_parent($(session.id))")
         html_dom = Base.invokelatest(app.handler, session, request)
         return html_dom
     end
@@ -395,11 +351,9 @@ function iframe_html(server::Server, session::Session, route::String)
     )
 end
 
-function node_html(session::Session, node::Hyperscript.Node)
+function node_html(io::IO, session::Session, node::Hyperscript.Node)
     js_dom = DOM.div(jsrender(session, node), id="application-dom")
-    # register resources (e.g. observables, assets)
-    register_resource!(session, js_dom)
-    return repr(MIME"text/html"(), Hyperscript.Pretty(js_dom))
+    return show(io, MIME"text/html"(), Hyperscript.Pretty(js_dom))
 end
 
 """

@@ -20,36 +20,32 @@ function init_session(session::Session)
     send(session, fused_messages!(session))
 end
 
-function Session(connection=nothing;
+function Session(connection=default_connect();
+                id=string(uuid4()),
+                asset_server=default_asset_server(),
                 observables=Dict{String, Tuple{Bool, Observable}}(),
                 message_queue=Dict{Symbol, Any}[],
-                dependencies=Set{Asset}(),
                 on_document_load=JSCode[],
-                id=string(uuid4()),
                 js_fully_loaded=Channel{Bool}(1),
-                on_websocket_ready=init_session,
-                url_serializer=UrlSerializer(),
+                on_connection_ready=init_session,
                 init_error=Ref{Union{Nothing, JSException}}(nothing),
                 js_comm=Observable{Union{Nothing, Dict{String, Any}}}(nothing),
                 on_close=Observable(false),
-                deregister_callbacks=Observables.ObserverFunction[],
-                unique_object_cache=Dict{String, WeakRef}())
+                deregister_callbacks=Observables.ObserverFunction[])
 
     return Session(
-        Base.RefValue{Union{Nothing, WebSocket, IOBuffer}}(connection),
+        id,
+        connection,
+        asset_server,
         observables,
         message_queue,
-        dependencies,
         on_document_load,
-        id,
         js_fully_loaded,
-        on_websocket_ready,
-        url_serializer,
+        on_connection_ready,
         init_error,
         js_comm,
         on_close,
         deregister_callbacks,
-        unique_object_cache
     )
 end
 
@@ -267,18 +263,6 @@ function register_resource!(session::Session, observable::Observable, resources=
         # Make sure we register on the js side
         send(session, payload=observable[], id=observable.id, msg_type=RegisterObservable)
     end
-end
-
-function register_resource!(session::Session, dependency::Dependency, resources=nothing)
-    for asset in dependency.assets
-        register_resource!(session, asset, resources)
-    end
-    return dependency
-end
-
-function register_resource!(session::Session, asset::ES6Module, resources=nothing)
-    isnothing(resources) || push!(resources, asset)
-    return asset
 end
 
 function register_resource!(session::Session, asset::Asset, resources=nothing)

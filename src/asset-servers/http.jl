@@ -1,7 +1,5 @@
-const ASSET_REGISTRY = Dict{String, String}()
-
-function unique_file_key(path::String)
-    return bytes2hex(sha1(abspath(path))) * "-" * basename(path)
+struct HTTPAssetServer <: AbstractAssetServer
+    registered_files::Dict{String, String}
 end
 
 function register_local_file(file::String)
@@ -23,11 +21,8 @@ function assetserver_to_localfile(key::String)
     return path
 end
 
-include("mimetypes.jl")
-
 function file_server(context)
     path = context.request.target
-    @show path
     if is_key_registered(path)
         filepath = assetserver_to_localfile(path)
         if isfile(filepath)
@@ -41,7 +36,7 @@ end
 
 function module_server(context)
     path = context.request.target[2:end]
-    dir = string(JSServe.dependency_path())
+    dir = string(dependency_path())
     file = joinpath(dir, path)
     if isfile(file)
         header = ["Access-Control-Allow-Origin" => "*",

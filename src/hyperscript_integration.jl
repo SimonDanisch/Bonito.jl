@@ -177,15 +177,4 @@ function uuid(node::Node)
     end
 end
 
-"""
-    jsrender([::Session], x::Any)
-Internal render method to create a valid dom. Registers used observables with a session
-And makes sure the dom only contains valid elements. Overload jsrender(::YourType)
-To enable putting YourType into a dom element/div.
-You can also overload it to take a session as first argument, to register
-messages with the current web session (e.g. via onjs).
-"""
-jsrender(::Session, @nospecialize(x)) = jsrender(x)
-jsrender(@nospecialize(x)) = x
-jsrender(::Session, x::Symbol) = DOM.p(string(x))
-jsrender(::Session, x::Hyperscript.Styled) = x
+jsrender(x::Hyperscript.Styled) = x
