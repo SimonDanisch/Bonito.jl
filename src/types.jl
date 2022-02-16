@@ -123,6 +123,7 @@ struct Session{Connection <: FrontendConnection}
     js_comm::Observable{Union{Nothing, Dict{String, Any}}}
     on_close::Observable{Bool}
     deregister_callbacks::Vector{Observables.ObserverFunction}
+    content_identity::Dict{String, Any}
 end
 
 struct Routes

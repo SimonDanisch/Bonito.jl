@@ -37,22 +37,17 @@ macro js_str(js_source)
 end
 
 function Base.show(io::IO, jsc::JSCode)
-    print_js_code(io, jsc, SerializationContext(nothing))
+    print_js_code(io, jsc,  SerializationContext())
 end
 
 function print_js_code(io::IO, @nospecialize(object), context)
-    serialized = serialize_js(context, object)
-    if serialized isa Union{Number, String, Symbol}
-        return print_js_code(io, serialized, context)
-    end
-    if isnothing(context.interpolated)
-        json = JSON3.write(serialized)
-        print(io, "JSServe.deserialize_js($(json))")
+    serialized = serialize_cached(context, object)
+    if serialized isa CacheKey
+        print(io, "__eval_context__['$(serialized.id)']")
     else
-        index = length(context.interpolated) # 0 indexed
-        push!(context.interpolated, serialized)
-        print(io, "__eval_context__[$(index)]")
+        print_js_code(io, serialized, context)
     end
+    return context
 end
 
 function print_js_code(io::IO, x::Number, context)
@@ -67,11 +62,6 @@ end
 
 function print_js_code(io::IO, jss::JSString, context)
     print(io, jss.source)
-    return context
-end
-
-function print_js_code(io::IO, dep::Asset, context)
-    print(io, dep.name)
     return context
 end
 

@@ -11,6 +11,7 @@ mediatype(asset::Asset) = asset.media_type
 function get_path(asset::Asset)
     isempty(asset.online_path) ? asset.local_path : asset.online_path
 end
+
 """
     is_online(path)
 
@@ -19,6 +20,7 @@ a remote resource that is hosted on, for example, a CDN).
 """
 is_online(path::AbstractString) = any(startswith.(path, ("//", "https://", "http://", "ftp://")))
 is_online(path::Path) = false # RelocatableFolders is only used for local filesystem paths
+
 function normalize_path(path::AbstractString; check_isfile=false)
     local_path = normpath(abspath(expanduser(path)))
     if check_isfile && !isfile(local_path)
@@ -67,6 +69,8 @@ function unique_file_key(path::String)
     return bytes2hex(sha1(abspath(path))) * "-" * basename(path)
 end
 
+unique_file_key(path) = unique_file_key(string(path))
+
 function ES6Module(path)
     name = String(splitext(basename(path))[1])
     return Asset(path; name=name, es6module=true)
@@ -84,9 +88,8 @@ function CDNSource(name; user=nothing, version=nothing)
     return Asset(url; name=name, es6module=true)
 end
 
-function jsrender(session::Session, asset::Asset)
-    asset_js = insert_asset(session.asset_server, asset)
-    return jsrender(session, asset_js)
+function object_identity(asset::Asset)
+    return :content_identity, unique_file_key(asset)
 end
 
 include("mimetypes.jl")

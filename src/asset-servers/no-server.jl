@@ -8,7 +8,8 @@ end
 
 NoServer() = NoServer(Dict{String, String}())
 
-function insert_asset(server::NoServer, path::Asset)
+function insert_asset(server::NoServer, asset::Asset)
+    path = asset.local_path
     if haskey(server.registered_files, path)
         key = server.registered_files[path]
         return js"""
@@ -18,7 +19,7 @@ function insert_asset(server::NoServer, path::Asset)
     key = unique_file_key(path)
     server.registered_files[path] = key
     return js"""
-        JSServe.load_module_from_bytes($(key), $(read(path)))
+        JSServe.load_module_from_bytes($(key), $(asset))
         """
 end
 

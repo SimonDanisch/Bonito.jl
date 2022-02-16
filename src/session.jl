@@ -31,7 +31,8 @@ function Session(connection=default_connect();
                 init_error=Ref{Union{Nothing, JSException}}(nothing),
                 js_comm=Observable{Union{Nothing, Dict{String, Any}}}(nothing),
                 on_close=Observable(false),
-                deregister_callbacks=Observables.ObserverFunction[])
+                deregister_callbacks=Observables.ObserverFunction[],
+                content_identity=Dict{String, Any}())
 
     return Session(
         id,
@@ -46,6 +47,7 @@ function Session(connection=default_connect();
         js_comm,
         on_close,
         deregister_callbacks,
+        content_identity
     )
 end
 
