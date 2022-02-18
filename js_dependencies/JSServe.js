@@ -1,78 +1,35 @@
-import { process_message, set_message_callback } from "./Connection";
+import * as Connection from "./Connection.js";
+import * as Protocol from "./Protocol.js";
+import * as Sessions from "./Sessions.js";
 
-const loaded_es6_modules = {};
-
-async function load_module_from_bytes(key, code_ui8_array) {
-    const js_module_promise = new Promise((r) => {
-        const reader = new FileReader();
-        reader.onload = async () => r(await import(reader.result));
-        reader.readAsDataURL(
-            new Blob([code_ui8_array], { type: "text/javascript" })
-        );
-    });
-
-    const module = await js_module_promise;
-    loaded_es6_modules[key] = module;
-    return module;
-}
-
-function load_module_from_key(key) {
-    const module = loaded_es6_modules[key];
-    if (!module) {
-        throw `Module with key ${key} not found`;
-    }
-    return module
-}
+const { send_error, send_warning, process_message } = Connection;
+const { deserialize, base64decode, decode_binary, encode_binary } = Protocol;
+const { init_session, deserialize_cached } = Sessions;
 
 const JSServe = {
-    set_message_callback,
-    process_message,
-    deserialize_js,
-    get_observable,
-    on_update,
-    delete_observables,
-    send_warning,
+    Protocol,
+    deserialize,
+    base64decode,
+    decode_binary,
+    encode_binary,
+
+    Connection,
     send_error,
-    setup_connection,
-    sent_done_loading,
-    update_obs,
-    update_node_attribute,
-    is_list,
-    registered_observables,
-    observable_callbacks,
-    session_object_cache,
-    track_deleted_sessions,
-    register_sub_session,
-    update_dom_node,
-    resize_iframe_parent,
-    update_cached_value,
-    init_from_b64,
-    materialize_node,
+    send_warning,
+    process_message,
+
+    Sessions,
+    deserialize_cached,
+    init_session
 };
 
-window.update_obs = update_obs;
+window.JSServe = JSServe;
 
 export {
-    deserialize_js,
-    get_observable,
-    on_update,
-    delete_observables,
-    send_warning,
+    Protocol,
+    deserialize,
+    Connection,
     send_error,
-    setup_connection,
-    sent_done_loading,
-    update_obs,
-    update_node_attribute,
-    is_list,
-    registered_observables,
-    observable_callbacks,
-    session_object_cache,
-    track_deleted_sessions,
-    register_sub_session,
-    update_dom_node,
-    resize_iframe_parent,
-    update_cached_value,
-    init_from_b64,
+    send_warning,
     process_message,
-    materialize_node,
 };

@@ -116,14 +116,14 @@ struct Session{Connection <: FrontendConnection}
     message_queue::Vector{Dict{Symbol, Any}}
     # Code that gets evalued last after all other messages, when session gets connected
     on_document_load::Vector{JSCode}
-    js_fully_loaded::Channel{Bool}
+    connection_ready::Channel{Bool}
     on_connection_ready::Any
-    # Should be checkd on js_fully_loaded to see if an error occured
+    # Should be checkd on connection_ready to see if an error occured
     init_error::Ref{Union{Nothing, JSException}}
     js_comm::Observable{Union{Nothing, Dict{String, Any}}}
     on_close::Observable{Bool}
     deregister_callbacks::Vector{Observables.ObserverFunction}
-    content_identity::Dict{String, Any}
+    session_cache::Dict{String, Any}
 end
 
 struct Routes

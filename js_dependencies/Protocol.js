@@ -1,9 +1,11 @@
-import { encode as msg_encode, decode as msg_decode } from "./3rdparty/msgpack.min.js";
-import { inflate, deflate } from "./3rdparty/pako_inflate.min.js";
+import * as MsgPack from "https://cdn.esm.sh/v66/@msgpack/msgpack@2.7.2/es2021/msgpack.js";
+import * as Pako from "https://cdn.esm.sh/v66/pako@2.0.4/es2021/pako.js";
+import { Observable } from "./Observables.js";
+import { deserialize_cached, lookup_globally } from "./Sessions.js";
 
 function materialize_node(data) {
     // if is a node attribute
-    if (is_list(data)) {
+    if (Array.isArray(data)) {
         return data.map(materialize_node);
     } else if (data.tag) {
         const node = document.createElement(data.tag);
@@ -32,8 +34,16 @@ function materialize_node(data) {
     }
 }
 
-function is_list(value) {
-    return value && typeof value === "object" && value.constructor === Array;
+async function load_module_from_bytes(code_ui8_array) {
+    const js_module_promise = new Promise((r) => {
+        const reader = new FileReader();
+        reader.onload = async () => r(await import(reader.result));
+        console.log(code_ui8_array);
+        reader.readAsDataURL(
+            new Blob([code_ui8_array], { type: "text/javascript" })
+        );
+    });
+    return await js_module_promise;
 }
 
 function is_dict(value) {
@@ -51,65 +61,73 @@ function array_to_buffer(array) {
     );
 }
 
-function deserialize_datatype(type, payload) {
+function lookup_cached(cache, key) {
+    const mcache = cache[key];
+    if (mcache) {
+        return mcache;
+    }
+    return lookup_globally(key);
+}
+
+function deserialize_datatype(cache, type, payload) {
     switch (type) {
         case "TypedVector":
             return payload;
+        case "CacheKey":
+            return lookup_cached(cache, payload);
         case "DomNode":
-            return document.querySelector(`[data-jscall-id="${payload}"]`);
-        case "DomNodeFull":
             return materialize_node(payload);
+        case "Asset":
+            if (payload.es6module) {
+                return load_module_from_bytes(
+                    deserialize(cache, payload.bytes)
+                );
+            } else {
+                return payload.bytes;
+            }
         case "JSCode":
+            const lookup_cached_inner = (id) => lookup_cached(cache, id);
             const eval_func = new Function(
-                "__eval_context__",
+                "__lookup_cached",
                 "JSServe",
-                data.payload.source
+                deserialize(cache, payload)
             );
-            const context = deserialize_js(data.payload.context);
             // return a closure, that when called runs the code!
-            return () => eval_func(context, JSServe);
+            return () => eval_func(lookup_cached_inner, JSServe);
         case "Observable":
-            const value = deserialize_js(data.payload.value);
-            const id = data.payload.id;
-            registered_observables[id] = value;
-            return id;
+            const value = deserialize(cache, payload.value);
+            console.log(`this observable though: ${payload}`);
+            return new Observable(payload.id, value);
         case "Uint8Array":
-            const buffer = array_to_buffer(data.payload);
-            return new UInt8Array(buffer);
+            return payload;
         case "Int32Array":
-            const buffer = array_to_buffer(data.payload);
-            return new Int32Array(buffer);
+            return new Int32Array(array_to_buffer(payload));
         case "Uint32Array":
-            const buffer = array_to_buffer(data.payload);
-            return new Uint32Array(buffer);
+            return new Uint32Array(array_to_buffer(payload));
         case "Float32Array":
-            const buffer = array_to_buffer(data.payload);
-            return new Float32Array(buffer);
+            return new Float32Array(array_to_buffer(payload));
         case "Float64Array":
-            const buffer = array_to_buffer(data.payload);
-            return new Float64Array(buffer);
+            return new Float64Array(array_to_buffer(payload));
         default:
-            send_error(
-                "Can't deserialize custom type: " +
-                    data.__javascript_type__,
-                null
-            );
+            send_error("Can't deserialize custom type: " + type, null);
     }
 }
 
-
-export function deserialize_js(binary_data) {
-    const data = decode_binary(binary_data);
-    if (is_list(data)) {
-        return data.map(deserialize_js);
+export function deserialize(cache, data) {
+    if (Array.isArray(data)) {
+        return data.map((x) => deserialize(cache, x));
     } else if (is_dict(data)) {
         if ("__javascript_type__" in data) {
-            return deserialize_datatype(data.__javascript_type__, data.payload);
+            return deserialize_datatype(
+                cache,
+                data.__javascript_type__,
+                data.payload
+            );
         } else {
             const result = {};
             for (let k in data) {
                 if (data.hasOwnProperty(k)) {
-                    result[k] = deserialize_js(data[k]);
+                    result[k] = deserialize(cache, data[k]);
                 }
             }
             return result;
@@ -136,28 +154,29 @@ async function base64encode(data_as_uint8array) {
     return base64url.slice(len, base64url.length);
 }
 
-async function base64decode(base64_str) {
+export async function base64decode(base64_str) {
     const response = await fetch(
         "data:application/octet-stream;base64," + base64_str
     );
-    return new Uint8Array(await response.arrayBuffer())
+    return new Uint8Array(await response.arrayBuffer());
 }
 
-export function decode_binary(binary) {
+export async function decode_binary_message(binary) {
     // we either get a uint buffer or base64 decoded string
     if (is_string(binary)) {
-        return decode_binary(base64decode(binary));
+        return decode_binary_message(await base64decode(binary));
     } else {
-        return msg_decode(inflate(binary));
+        return await deserialize_cached(decode_binary(binary));
     }
 }
 
-export function encode_binary(data) {
-    const binary = msg_encode(data);
-    return deflate(binary);
+export function decode_binary(binary) {
+    console.log(binary)
+    const msg_binary = Pako.inflate(binary);
+    return MsgPack.decode(msg_binary);
 }
 
-export function decode_string(string) {
-    const binary = base64decode(string);
-    return decode_binary(binary);
+export function encode_binary(data) {
+    const binary = MsgPack.encode(data);
+    return Pako.deflate(binary);
 }

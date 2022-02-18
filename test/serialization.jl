@@ -4,7 +4,7 @@
     test = "heyyyy"
     doms = [DOM.div("hey"), DOM.h1("heydude")]
     dublicate = rand(1000, 1000)
-    duplicate_id = pointer_identity(dublicate)
+    duplicate_id = message_cache(dublicate)
     data = Dict(
         "array" => [1,2,3,4,5],
         "obsies" => [Observable(1), Observable([1,2,3,4])],

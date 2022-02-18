@@ -1,12 +1,4 @@
-# Save some bytes by using ints for switch variable
-const UpdateObservable = "0"
-const OnjsCallback = "1"
-const EvalJavascript = "2"
-const JavascriptError = "3"
-const JavascriptWarning = "4"
-const RegisterObservable = "5"
-const JSDoneLoading = "8"
-const FusedMessage = "9"
+
 
 function html(body)
     return HTTP.Response(200, ["Content-Type" => "text/html", "charset" => "utf-8"], body=body)

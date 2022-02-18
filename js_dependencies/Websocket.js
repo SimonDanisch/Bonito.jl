@@ -91,7 +91,7 @@ function setup_connection(config_input) {
             console.log("CONNECTED!!: ", url);
             websocket.onmessage = function (evt) {
                 const binary = new Uint8Array(evt.data);
-                const data = decode_binary(binary);
+                const data = decode_binary_message(binary);
                 process_message(data);
             };
         };

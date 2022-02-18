@@ -16,7 +16,7 @@ function init_session(session::Session)
             application_dom.style.visibility = 'visible'
         }
     """)
-    put!(session.js_fully_loaded, true)
+    put!(session.connection_ready, true)
     send(session, fused_messages!(session))
 end
 
@@ -26,13 +26,13 @@ function Session(connection=default_connect();
                 observables=Dict{String, Tuple{Bool, Observable}}(),
                 message_queue=Dict{Symbol, Any}[],
                 on_document_load=JSCode[],
-                js_fully_loaded=Channel{Bool}(1),
+                connection_ready=Channel{Bool}(1),
                 on_connection_ready=init_session,
                 init_error=Ref{Union{Nothing, JSException}}(nothing),
                 js_comm=Observable{Union{Nothing, Dict{String, Any}}}(nothing),
                 on_close=Observable(false),
                 deregister_callbacks=Observables.ObserverFunction[],
-                content_identity=Dict{String, Any}())
+                session_cache=Dict{String, Any}())
 
     return Session(
         id,
@@ -41,40 +41,24 @@ function Session(connection=default_connect();
         observables,
         message_queue,
         on_document_load,
-        js_fully_loaded,
+        connection_ready,
         on_connection_ready,
         init_error,
         js_comm,
         on_close,
         deregister_callbacks,
-        content_identity
+        session_cache
     )
 end
 
 session(session::Session) = session
 
 function Base.close(session::Session)
-    try
-        # https://github.com/JuliaWeb/HTTP.jl/issues/649
-        if isassigned(session.connection) && !isnothing(session.connection[])
-            close(session.connection[])
-            session.connection[] = nothing
-        end
-    catch e
-        if !(e isa Base.IOError)
-            @warn "error while closing websocket!" exception=e
-        end
-    end
-    try
-        # Errors in `on_close` should not disrupt closing!
-        session.on_close[] = true
-    catch e
-        @warn "error while setting on_close" exception=e
-    end
+    close(session.connection)
     empty!(session.observables)
     empty!(session.on_document_load)
     empty!(session.message_queue)
-    empty!(session.dependencies)
+    empty!(session.session_cache)
     # remove all listeners that where created for this session
     foreach(off, session.deregister_callbacks)
     empty!(session.deregister_callbacks)
@@ -99,12 +83,10 @@ function Sockets.send(session::Session, message::Dict{Symbol, Any})
 end
 
 function Base.isready(session::Session)
-    return isready(session.js_fully_loaded) && isopen(session)
+    return isready(session.connection_ready) && isopen(session)
 end
 
-function Base.isopen(session::Session)
-    return isassigned(session.connection) && !isnothing(session.connection[]) && isopen(session.connection[])
-end
+Base.isopen(session::Session) = isopen(session.connection)
 
 """
     onjs(session::Session, obs::Observable, func::JSCode)
@@ -114,12 +96,10 @@ If the observable gets updated from the JS side, the calling of `func` will be t
 entirely in javascript, without any communication with the Julia `session`.
 """
 function onjs(session::Session, obs::Observable, func::JSCode)
-    # register the callback with the JS session
-    register_resource!(session, (obs, func))
     send(
         session;
         msg_type=OnjsCallback,
-        id=obs.id,
+        obs=obs,
         # return is needed to since on the JS side this will be wrapped in a function
         payload=JSCode([JSString("return "), func])
     )
@@ -144,7 +124,6 @@ end
 executes javascript after document is loaded
 """
 function on_document_load(session::Session, js::JSCode)
-    register_resource!(session, js)
     push!(session.on_document_load, js)
 end
 
@@ -169,7 +148,6 @@ end
 Evaluate a javascript script in `session`.
 """
 function evaljs(session::Session, jss::JSCode)
-    register_resource!(session, jss)
     send(session; msg_type=EvalJavascript, payload=jss)
 end
 
@@ -271,4 +249,26 @@ function register_resource!(session::Session, asset::Asset, resources=nothing)
     isnothing(resources) || push!(resources, asset)
     push!(session.dependencies, asset)
     return asset
+end
+
+# path = JSServe.dependency_path("JSServe.js")
+# bundled = joinpath(dirname(path), "JSServe.bundle.js")
+# Deno_jll.deno() do exe
+#     write(bundled, read(`$exe bundle $(path)`))
+# end
+
+
+function session_dom(session::Session, app)
+    dom = jsrender(session, app)
+    all_messages = fused_messages!(session)
+    init = """
+        JSServe.init_session({session_id: '$(session.id)'});
+    """
+    return DOM.div(
+        jsrender(session, JSServeLib),
+        DOM.script(init, type="module"),
+        dom,
+        id=session.id,
+        style="visibility: hidden;"
+    )
 end

@@ -78,16 +78,19 @@ function Hyperscript.printescaped(io::IO, x::DontEscape, escapes)
 end
 
 function attribute_render(session::Session, parent, attribute::String, jss::JSCode)
-    register_resource!(session, jss)
-    return string(jss)
+    # add js after parent gets loaded
+    onload(session, parent, js"""function (node) {
+        node[$attribute] = $(jss)
+    }""")
+    return ""
 end
 
-function attribute_render(session::Session, parent, attribute::String, jss::Asset)
+function attribute_render(session::Session, parent, attribute::String, asset::Asset)
     if parent isa Hyperscript.Node{Hyperscript.CSS}
         # css seems to require an url object
-        return "url($(url(jss, session.url_serializer)))"
+        return "url($(url(session.asset_server, asset)))"
     else
-        return "$(url(jss, session.url_serializer))"
+        return "$(url(session.asset_server, asset))"
     end
 end
 

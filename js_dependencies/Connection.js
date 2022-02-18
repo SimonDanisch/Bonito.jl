@@ -1,4 +1,5 @@
-import { deserialize_js, decode_binary, encode_binary } from "./Protocol";
+import { decode_binary_message, encode_binary } from "./Protocol.js";
+import { lookup_globally } from './Sessions.js'
 
 // Save some bytes by using ints for switch variable
 const UpdateObservable = "0";
@@ -10,16 +11,30 @@ const RegisterObservable = "5";
 const JSDoneLoading = "8";
 const FusedMessage = "9";
 
+function on_connection_open() {
+    CONNECTION.queue.forEach(message => sent_message(message));
+}
+
 const CONNECTION = {
     send_message: undefined,
+    on_open: on_connection_open,
+    queue: [],
+    status: "closed",
 };
 
 export function set_message_callback(f) {
     CONNECTION.send_message = f;
 }
 
-export function sent_message(message) {
-    CONNECTION.send_message(encode_binary(message));
+export function send_to_julia(message) {
+    const {send_message, status} = CONNECTION;
+    if (send_message && status === "open") {
+        send_message(encode_binary(message));
+    } else if (status === "closed") {
+        CONNECTION.queue.push(message);
+    } else {
+        console.log("Trying to send messages while connection is offline");
+    }
 }
 
 export function send_error(message, exception) {
@@ -48,28 +63,25 @@ export function sent_done_loading() {
     });
 }
 
-export function process_message(data) {
-    const data = decode_binary(data);
+export async function process_message(binary_or_string) {
+    const data = await decode_binary_message(binary_or_string);
     try {
         switch (data.msg_type) {
             case UpdateObservable:
-                const value = deserialize_js(data.payload);
-                registered_observables[data.id] = value;
-                // update all onjs callbacks
-                run_js_callbacks(data.id, value);
+                const observable = lookup_globally(data.id);
+                observable.notify(payload, true);
                 break;
             case RegisterObservable:
-                registered_observables[data.id] = deserialize_js(data.payload);
+                registered_observables[data.id] = data.payload;
                 break;
             case OnjsCallback:
                 // register a callback that will executed on js side
                 // when observable updates
-                const id = data.id;
-                const f = deserialize_js(data.payload)();
-                on_update(id, f);
+                on_update(data.id, data.payload());
                 break;
             case EvalJavascript:
-                const eval_closure = deserialize_js(data.payload);
+                const eval_closure = data.payload;
+                console.log(eval_closure)
                 eval_closure();
                 break;
             case FusedMessage:
@@ -84,4 +96,15 @@ export function process_message(data) {
     } catch (e) {
         send_error(`Error while processing message ${JSON.stringify(data)}`, e);
     }
+}
+
+export {
+    UpdateObservable,
+    OnjsCallback,
+    EvalJavascript,
+    JavascriptError,
+    JavascriptWarning,
+    RegisterObservable,
+    JSDoneLoading,
+    FusedMessage,
 }

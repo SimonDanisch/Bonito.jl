@@ -7,7 +7,7 @@ You can also overload it to take a session as first argument, to register
 messages with the current web session (e.g. via onjs).
 """
 jsrender(::Session, @nospecialize(x)) = jsrender(x)
-jsrender(value::Union{String, Symbol}) = DOM.p(string(value))
+jsrender(value::Union{String, Symbol}) = string(value)
 
 function render_mime(m::MIME"text/html", @nospecialize(value))
     html = repr(m, value)

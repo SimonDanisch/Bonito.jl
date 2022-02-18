@@ -7,7 +7,7 @@ mutable struct IJuliaConnection <: FrontendConnection
     comm::Union{Nothing, IJuliaComm}
 end
 
-function send_message(session::Session{IJuliaConnection}, data)
+function send_to_julia(session::Session{IJuliaConnection}, data)
     comm = session.connection[].comm
     IJulia.send_comm(comm, data)
 end

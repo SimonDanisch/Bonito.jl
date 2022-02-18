@@ -1,3 +1,13 @@
+# Save some bytes by using ints for switch variable
+const UpdateObservable = "0"
+const OnjsCallback = "1"
+const EvalJavascript = "2"
+const JavascriptError = "3"
+const JavascriptWarning = "4"
+const RegisterObservable = "5"
+const JSDoneLoading = "8"
+const FusedMessage = "9"
+
 """
     process_message(session::Session, bytes::AbstractVector{UInt8})
 

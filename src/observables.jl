@@ -28,23 +28,6 @@ function update_nocycle!(obs::Observable, @nospecialize(value))
     return
 end
 
-function jsrender(session::Session, obs::Observable)
-    html = Observable{Any}(
-        repr_richest(jsrender(session, obs[]))
-    )
-    dom = DOM.m_unesc("span", html[])
-    on(session, obs) do data
-        html[] = by_value(render_sub_session(session, data))
-    end
-    onjs(session, html, js"""
-    (html)=> {
-        const new_node = JSServe.materialize_node(html)
-        const dom = $(dom)
-        dom.replaceChild(new_node, dom.childNodes[0])
-    }""")
-    return dom
-end
-
 # on & map versions that deregister when session closes!
 function Observables.on(f, session::Session, observable::Observable)
     to_deregister = on(f, observable)
@@ -65,4 +48,21 @@ function Base.map(f, session::Session, observables::Observable...; result=Observ
         result[] = f(newvals...)
     end
     return result
+end
+
+function jsrender(session::Session, obs::Observable)
+    html = Observable{Any}(
+        repr_richest(jsrender(session, obs[]))
+    )
+    dom = DOM.m_unesc("span", html[])
+    on(session, obs) do data
+        html[] = render_sub_session(session, data)
+    end
+    onjs(session, html, js"""
+    (html)=> {
+        const new_node = JSServe.materialize_node(html)
+        const dom = $(dom)
+        dom.replaceChild(new_node, dom.childNodes[0])
+    }""")
+    return dom
 end

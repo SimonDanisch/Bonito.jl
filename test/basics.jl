@@ -24,7 +24,7 @@ end
 @testset "Page rendering & cleanup" begin
     io = IOBuffer()
     open_session = JSServe.Session(Base.RefValue{Union{Nothing, JSServe.WebSocket, IOBuffer}}(io))
-    put!(open_session.js_fully_loaded, true)
+    put!(open_session.connection_ready, true)
     page = JSServe.Page(session=open_session)
     @test isopen(page.session)
     rslider = JSServe.RangeSlider(1:100; value=[10, 80])
@@ -83,7 +83,7 @@ end
     # Wrap in func, to make sure we dont capture any reference globally
     function gc_avoid_func()
         dublicate = rand(1000, 1000)
-        dub_ref = JSServe.pointer_identity(dublicate)
+        dub_ref = JSServe.message_cache(dublicate)
         dom = JSServe.App() do session
             JSServe.evaljs(session, js"$(dublicate); $(dublicate)")
             JSServe.evaljs(session, js"$(dublicate); $(dublicate)")

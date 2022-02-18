@@ -43,9 +43,14 @@ end
 function print_js_code(io::IO, @nospecialize(object), context)
     serialized = serialize_cached(context, object)
     if serialized isa CacheKey
-        print(io, "__eval_context__['$(serialized.id)']")
+        print(io, "__lookup_cached('$(serialized.id)')")
     else
-        print_js_code(io, serialized, context)
+        id = pointer_identity(serialized)
+        if isnothing(id)
+            error("damn")
+        end
+        context.message_cache[id] = serialized
+        print(io, "__lookup_cached('$(id)')")
     end
     return context
 end
@@ -65,6 +70,11 @@ function print_js_code(io::IO, jss::JSString, context)
     return context
 end
 
+function print_js_code(io::IO, node::Node, context)
+    print(io, "document.querySelector('[data-jscall-id=\"$(uuid(node))\"]')")
+    return context
+end
+
 function print_js_code(io::IO, jsc::JSCode, context)
     for elem in jsc.source
         print_js_code(io, elem, context)
@@ -80,21 +90,12 @@ function print_js_code(io::IO, jsss::AbstractVector{JSCode}, context)
     return context
 end
 
-function import_module(mod::Asset)
-    return "import * as $(mod.name) from '$(mod.path)'"
-end
-
 function jsrender(session::Session, js::JSCode)
-    deps = []
-    register_resource!(session, js, deps)
-    source = sprint() do io
-        println(io)
-        for dep in unique(deps)
-            if dep isa Asset
-                println(io, import_module(dep))
-            end
-        end
-        println(io, js)
-    end
-    return DOM.script(source, type="module")
+    msg = Dict(:msg_type => EvalJavascript, :payload => js, :session => session.id)
+    msg_b64_str = serialize_string(session, msg)
+    src = """
+        const msg = '$(msg_b64_str)'
+        JSServe.process_message(msg);
+    """
+    return DOM.script(src, type="module")
 end

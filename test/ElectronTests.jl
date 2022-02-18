@@ -145,7 +145,7 @@ function wait(testsession::TestSession; timeout=300)
     on_timeout = "Timed out when waiting for JS to being loaded! Likely an error happend on the JS side, or your testsession is taking longer than $(timeout) seconds. If no error in console, try increasing timeout!"
     tstart = time()
     while time() - tstart < timeout
-        if isready(testsession.session.js_fully_loaded)
+        if isready(testsession.session.connection_ready)
             # Error on js during init! We can't continue like this :'(
             if testsession.session.init_error[] !== nothing
                 throw(testsession.session.init_error[])

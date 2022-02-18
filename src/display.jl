@@ -66,25 +66,8 @@ function Base.show(io::IO, ::MIME"text/html", page::Page)
     delete_session = Observable("")
     register_resource!(page.session, page.session.js_comm)
 
-    on(delete_session) do session_id
-        if !haskey(page.child_sessions, session_id)
-            error("Session to delete not found ($(session_id)), please open an issue with JSServe.jl")
-        end
-
-        @debug("deleting child session: $(session_id)")
-        child = page.child_sessions[session_id]
-        # Set connection to nothing,
-        # so that no clean up happens over the active websocket connection
-        # (e.g. close will try to close the ws connection)
-        child.connection[] = nothing
-        close(child)
-        delete!(page.child_sessions, session_id)
-    end
-
     init = init_connection(session)
-    track = js"""
-        $(JSServeLib).track_deleted_sessions($(delete_session))
-    """
+
     page_init_dom = DOM.div(track, init)
     node_html(io, page.session, page_init_dom)
     return
@@ -168,20 +151,6 @@ function render_sub_session(parent_session, html_dom)
     # but in the end, all observables need to be registered
     # with the page session, since that's where javascript will sent all the events
     merge!(parent_session.observables, session.observables)
-
-    on(session, session.on_close) do closed
-        # remove the sub-session specific js resources
-        if closed
-            obs_ids = collect(keys(session.observables))
-            JSServeLib.delete_observables(parent_session, obs_ids)
-            # since we deleted all obs shared with the parent session,
-            # we can savely delete all of them from there
-            # Note, that we previously added them all here!
-            for (k, o) in session.observables
-                delete!(parent_session.observables, k)
-            end
-        end
-    end
 
     # finally give page a connection! :)
     session.connection[] = parent_session.connection[]

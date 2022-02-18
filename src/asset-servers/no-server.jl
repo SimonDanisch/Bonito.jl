@@ -8,19 +8,8 @@ end
 
 NoServer() = NoServer(Dict{String, String}())
 
-function insert_asset(server::NoServer, asset::Asset)
-    path = asset.local_path
-    if haskey(server.registered_files, path)
-        key = server.registered_files[path]
-        return js"""
-            JSServe.load_module_from_key($(key))
-            """
-    end
-    key = unique_file_key(path)
-    server.registered_files[path] = key
-    return js"""
-        JSServe.load_module_from_bytes($(key), $(asset))
-        """
+function url(server::NoServer, asset::Asset)
+    return to_data_url(asset.local_path)
 end
 
 struct AssetFolder <: AbstractAssetServer

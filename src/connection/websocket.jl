@@ -35,7 +35,7 @@ function Base.close(ws::WebSocketConnection)
     end
 end
 
-function send_message(session::Session{WebSocketConnection}, message::Dict{Symbol, Any})
+function send_to_julia(session::Session{WebSocketConnection}, message::Dict{Symbol, Any})
     write(session.socket, serialize_binary(session, message))
 end
 
