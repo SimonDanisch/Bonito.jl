@@ -75,6 +75,16 @@ struct JSException <: Exception
     stacktrace::Vector{String}
 end
 
+function replace_url(match_str)
+    key_regex = r"(/assetserver/[a-z0-9]+-.*?):([\d]+):[\d]+"
+    m = match(key_regex, match_str)
+    key = m[1]
+    path = assetserver_to_localfile(string(key))
+    return path * ":" * m[2]
+end
+
+const ASSET_URL_REGEX = r"http://.*/assetserver/([a-z0-9]+-.*?):([\d]+):[\d]+"
+
 """
 Creates a Julia exception from data passed to us by the frondend!
 """
@@ -124,20 +134,4 @@ struct Session{Connection <: FrontendConnection}
     on_close::Observable{Bool}
     deregister_callbacks::Vector{Observables.ObserverFunction}
     session_cache::Dict{String, Any}
-end
-
-struct Routes
-    table::Vector{Pair{Any, Any}}
-end
-
-"""
-The application one serves
-"""
-struct Server
-    url::String
-    port::Int
-    server_task::Ref{Task}
-    server_connection::Ref{TCPServer}
-    routes::Routes
-    websocket_routes::Routes
 end

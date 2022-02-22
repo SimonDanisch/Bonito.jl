@@ -28,7 +28,7 @@ app = DOM.div(
     DOM.div(class=Observable("test"))
 )
 open("test.html", "w") do io
-    s = Session()
+    s = Session(; asset_server=JSServe.HTTPAssetServer())
     domy = JSServe.session_dom(s, app)
     show(io, Hyperscript.Pretty(domy))
 end

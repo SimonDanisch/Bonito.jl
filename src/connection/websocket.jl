@@ -1,9 +1,14 @@
 using HTTP.WebSockets: WebSocket
-
+using .HTTPServer: Server
 
 mutable struct WebSocketConnection <: FrontendConnection
     socket::Union{Nothing, WebSocket}
 end
+
+const MATCH_HEX = r"[\da-f]"
+const MATCH_UUID4 = MATCH_HEX^8 * r"-" * (MATCH_HEX^4 * r"-")^3 * MATCH_HEX^12
+const MATCH_SESSION_ID = MATCH_UUID4 * r"/" * MATCH_HEX^4
+
 
 function save_read(websocket)
     try
@@ -24,10 +29,14 @@ function save_read(websocket)
     end
 end
 
+Base.isopen(ws::WebSocketConnection) = !isnothing(ws.socket) && isopen(ws.socket)
+
 function Base.close(ws::WebSocketConnection)
+    isnothing(ws.socket) && return
     try
         # https://github.com/JuliaWeb/HTTP.jl/issues/649
-        isopen(ws.socket) && close(ws.socket)
+        isopen(ws) && close(ws.socket)
+        ws.socket = nothing
     catch e
         if !(e isa Base.IOError)
             @warn "error while closing websocket!" exception=e
@@ -35,7 +44,7 @@ function Base.close(ws::WebSocketConnection)
     end
 end
 
-function send_to_julia(session::Session{WebSocketConnection}, message::Dict{Symbol, Any})
+function send_to_js(session::Session{WebSocketConnection}, message::Dict{Symbol, Any})
     write(session.socket, serialize_binary(session, message))
 end
 
@@ -121,4 +130,8 @@ function init_connection(session::Session{WebSocketConnection})
     return js"""
         $(JSServeLib).setup_connection({$(websocket_url), $(session.id)})
     """
+end
+
+function add_to_server!(server, session)
+    r"/" * MATCH_SESSION_ID => websocket_handler
 end

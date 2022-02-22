@@ -1,4 +1,20 @@
 
+struct Routes
+    table::Vector{Pair{Any, Any}}
+end
+
+"""
+HTTP server with websocket & http routes
+"""
+struct Server
+    url::String
+    port::Int
+    server_task::Ref{Task}
+    server_connection::Ref{TCPServer}
+    routes::Routes
+    websocket_routes::Routes
+end
+
 function Routes(pairs::Pair...)
     return Routes([pairs...])
 end
@@ -19,7 +35,7 @@ function Base.setindex!(routes::Routes, f, pattern)
     # Sort for priority so that exact string matches come first
     sort!(routes.table, by = pattern_priority)
     # return if it was inside already!
-    return idx === nothing
+    return isnothing(idx)
 end
 
 function route!(application::Server, pattern_f::Pair)
@@ -34,9 +50,7 @@ function websocket_route!(application::Server, pattern_f::Pair)
     application.websocket_routes[pattern_f[1]] = pattern_f[2]
 end
 
-function apply_handler(f, args...)
-    return f(args...)
-end
+apply_handler(f, args...) = f(args...)
 
 function apply_handler(chain::Tuple, context, args...)
     f = first(chain)
@@ -79,6 +93,7 @@ end
 
 """
     local_url(server::Server, url)
+
 The local url to reach the server, on the server
 """
 function local_url(server::Server, url)
@@ -196,9 +211,6 @@ function stream_handler(application::Server, stream::Stream)
     end
 end
 
-const MATCH_HEX = r"[\da-f]"
-const MATCH_UUID4 = MATCH_HEX^8 * r"-" * (MATCH_HEX^4 * r"-")^3 * MATCH_HEX^12
-const MATCH_SESSION_ID = MATCH_UUID4 * r"/" * MATCH_HEX^4
 
 """
 Server(
@@ -209,44 +221,29 @@ Server(
 Creates an application that manages the global server state!
 """
 function Server(
-        app::App, url::String, port::Int;
+        url::String, port::Int;
         verbose = false,
-        routes = Routes(
-            "/" => app,
-            r"/*.js" => module_server,
-            r"/assetserver/" * MATCH_HEX^40 * r"-.*" => file_server,
-            r".*" => (context)-> response_404()
-        ),
-        websocket_routes = Routes(
-            r"/" * MATCH_SESSION_ID => websocket_handler
-        )
+        routes = Routes(),
+        websocket_routes = Routes()
     )
-
-    application = Server(
-        url, port, Dict{String, Dict{String, Session}}(),
+    server = Server(
+        url, port,
         Ref{Task}(), Ref{TCPServer}(),
         routes,
         websocket_routes
     )
 
     try
-        start(application; verbose=verbose)
+        start(server; verbose=verbose)
         # warmup server!
         # warmup(application)
     catch e
-        close(application)
+        close(server)
         rethrow(e)
     end
 
-    return application
+    return server
 end
-
-function Server(
-        app, url::String, port::Int; kw...
-    )
-    Server(App(app), url, port; kw...)
-end
-
 
 function isrunning(application::Server)
     return (isassigned(application.server_task) &&
@@ -256,11 +253,6 @@ function isrunning(application::Server)
 end
 
 function Base.close(application::Server)
-    # Closing the io connection should shut down the HTTP listen loop
-    for (id, session) in application.sessions
-        close(session)
-    end
-
     if isassigned(application.server_connection)
         close(application.server_connection[])
         @assert !isopen(application.server_connection[])
@@ -273,20 +265,6 @@ function Base.close(application::Server)
         catch e
             @debug "Server task failed with an (expected) exception on close" exception=e
         end
-    end
-    # Sometimes, the first request after closing will still go through
-    # see: https://github.com/JuliaWeb/HTTP.jl/pull/494
-    # We need to make sure, that we are the ones making this request,
-    # So that a newly opened connection won't get a faulty response from this server!
-    try
-        app_url = local_url(application, "/")
-        while true
-            x = HTTP.get(app_url, readtimeout=1, retries=1)
-            x.status != 200 && break # we got a bad request, maining server is closed!
-        end
-    catch e
-        # This is expected to fail!
-        @debug "Failed get request successfully after closing server!" exception=e
     end
     @assert !isrunning(application)
 end
@@ -319,7 +297,125 @@ function get_server()
     return GLOBAL_SERVER[]
 end
 
-function insert_session!(server::Server, session=Session())
-    server.sessions[session.id] = session
-    return session
+const JSSERVE_CONFIGURATION = (
+    # The URL used to which the default server listens to
+    listen_url = Ref("localhost"),
+    # The Port to which the default server listens to
+    listen_port = Ref(9284),
+    # The url Javascript uses to connect to the websocket.
+    # if empty, it will use:
+    # `window.location.protocol + "//" + window.location.host`
+    external_url = Ref(""),
+    # The url prepended to assets when served!
+    # if `""`, urls are inserted into HTML in relative form!
+    content_delivery_url = Ref(""),
+    # Verbosity for logging!
+    verbose = Ref(false)
+)
+
+"""
+    configure_server!(;
+            listen_url::String=JSSERVE_CONFIGURATION.listen_url[],
+            listen_port::Integer=JSSERVE_CONFIGURATION.listen_port[],
+            forwarded_port::Integer=listen_port,
+            external_url=nothing,
+            content_delivery_url=nothing
+        )
+
+Configures the parameters for the automatically started server.
+
+    Parameters:
+
+    * listen_url=JSSERVE_CONFIGURATION.listen_url[]
+        The address the server listens to.
+        must be 0.0.0.0, 127.0.0.1, ::, ::1, or localhost.
+        If not set differently by an ENV variable, will default to 127.0.0.1
+
+    * listen_port::Integer=JSSERVE_CONFIGURATION.listen_port[],
+        The Port to which the default server listens to
+        If not set differently by an ENV variable, will default to 9284
+
+    * forwarded_port::Integer=listen_port,
+        if port gets forwarded to some other port, set it here!
+
+    * external_url=nothing
+        The url from which the server is reachable.
+        If served on "127.0.0.1", this will default to http://localhost:forwarded_port
+        if listen_url is "0.0.0.0", this will default to http://\$(Sockets.getipaddr()):forwarded_port
+        so that the server is reachable inside the local network.
+        If the server should be reachable from some external dns server,
+        this needs to be set here.
+
+    * content_delivery_url=nothing
+        You can server files from another server.
+        Make sure any file referenced from Julia is reachable at
+        content_delivery_url * "/the_file"
+"""
+function configure_server!(;
+        listen_url=nothing,
+        # The Port to which the default server listens to
+        listen_port::Integer=JSSERVE_CONFIGURATION.listen_port[],
+        # if port gets forwarded to some other port, set it here!
+        forwarded_port::Integer=listen_port,
+        # The url from which the server is reachable.
+        # If served on "127.0.0.1", this will default to
+        # if listen_url is "0.0.0.0", this will default to
+        # Sockets.getipaddr() so that it's the ip address in the local network.
+        # If the server should be reachable from some external dns server,
+        # this needs to be set here
+        external_url=nothing,
+        # You can server files from another server.
+        # Make sure any file referenced from Julia is reachable at
+        # content_delivery_url * "/the_file"
+        content_delivery_url=nothing
+    )
+
+    if isnothing(listen_url)
+        if !isnothing(external_url)
+            # if we serve to an external url, server must listen to 0.0.0.0
+            listen_url = "0.0.0.0"
+        else
+            listen_url = JSSERVE_CONFIGURATION.listen_url[]
+        end
+    end
+
+    if isnothing(external_url)
+        if listen_url == "0.0.0.0"
+            external_url = string(Sockets.getipaddr(), ":$forwarded_port")
+        elseif listen_url in ("127.0.0.1", "localhost")
+            external_url = "http://localhost:$forwarded_port"
+        else
+            error("Trying to listen to $(listen_url), while only \"127.0.0.1\", \"0.0.0.0\" and \"localhost\" are supported")
+        end
+    end
+    # set the config!
+    JSSERVE_CONFIGURATION.listen_url[] = listen_url
+    JSSERVE_CONFIGURATION.external_url[] = external_url
+    JSSERVE_CONFIGURATION.listen_port[] = listen_port
+    if content_delivery_url === nothing
+        JSSERVE_CONFIGURATION.content_delivery_url[] = external_url
+    else
+        JSSERVE_CONFIGURATION.content_delivery_url[] = content_delivery_url
+    end
+    return
+end
+
+
+function server_defaults()
+     url = if haskey(ENV, "JULIA_WEBIO_BASEURL")
+        ENV["JULIA_WEBIO_BASEURL"]
+    else
+        ""
+    end
+    if endswith(url, "/")
+        url = url[1:end-1]
+    end
+    JSSERVE_CONFIGURATION.listen_url[] = get(ENV, "JSSERVE_LISTEN_URL", "127.0.0.1")
+    JSSERVE_CONFIGURATION.external_url[] = url
+    JSSERVE_CONFIGURATION.content_delivery_url[] = url
+
+    if haskey(ENV, "WEBIO_HTTP_PORT")
+        JSSERVE_CONFIGURATION.listen_port[] = parse(Int, ENV["WEBIO_HTTP_PORT"])
+    end
+
 end

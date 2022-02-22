@@ -1,4 +1,11 @@
-struct BrowserDisplay <: Base.Multimedia.AbstractDisplay end
+struct BrowserDisplay <: Base.Multimedia.AbstractDisplay
+    server::Server
+end
+
+function BrowserDisplay()
+
+
+end
 
 """
     browser_display()
@@ -47,22 +54,19 @@ function openurl(url::String)
     @warn("Can't find a way to open a browser, open $(url) manually!")
 end
 
-function Base.display(::BrowserDisplay, dom::App)
-    application = get_server()
+function Base.display(bd::BrowserDisplay, dom)
+    server = bd.server
     session_url = "/browser-display"
-    route_was_present = route!(application, session_url) do context
-        # Serve the actual content
-        session = insert_session!(context.application)
-        html_dom = Base.invokelatest(dom.handler, session, context.request)
-        return html(page_html(session, html_dom))
-    end
-    # Only open url first time!
-    if isempty(application.sessions)
-        openurl(online_url(application, session_url))
-    else
-        for (id, session) in application.sessions
-            evaljs(session, js"location.reload(true)")
+    is_new_route = route!(server, session_url) do context
+        html_str = sprint() do io
+            show(io, MIME"text/html"(), dom)
         end
+        return html(html_str)
+    end
+    if is_new_route
+        openurl(online_url(server, session_url))
+    else
+
     end
     return
 end
