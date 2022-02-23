@@ -12,7 +12,6 @@ function url(server::HTTPAssetServer, asset::Asset)
     return key
 end
 
-
 function (server::HTTPAssetServer)(context)
     path = context.request.target
     rf = server.registered_files
@@ -27,8 +26,9 @@ function (server::HTTPAssetServer)(context)
     return HTTP.Response(404)
 end
 
-function add_ws_to_server!(server, session)
-    route!(server, r"/assetserver/" * MATCH_HEX^40 * r"-.*" => session.file_server)
+function setup_asset_server(asset_server::HTTPAssetServer)
+    server = HTTPServer.get_server()
+    HTTPServer.route!(server, r"/assetserver/" * MATCH_HEX^40 * r"-.*" => asset_server)
 end
 
 function apply_handler(app::App, context)

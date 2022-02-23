@@ -23,7 +23,7 @@ end
 function Session(connection=default_connect();
                 id=string(uuid4()),
                 asset_server=default_asset_server(),
-                observables=Dict{String, Tuple{Bool, Observable}}(),
+                observables=Dict{String, Observable}(),
                 message_queue=Dict{Symbol, Any}[],
                 on_document_load=JSCode[],
                 connection_ready=Channel{Bool}(1),
@@ -261,6 +261,8 @@ end
 function session_dom(session::Session, app)
     dom = jsrender(session, app)
     all_messages = fused_messages!(session)
+    connection_init = JSServe.setup_connect(session)
+    asset_init = JSServe.setup_asset_server(session.asset_server)
     init = """
         JSServe.init_session({session_id: '$(session.id)'});
     """

@@ -22,7 +22,7 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
     data = deserialize_binary(bytes)
     typ = data["msg_type"]
     if typ == UpdateObservable
-        _, obs = session.observables[data["id"]]
+        obs = session.observables[data["id"]]
         Base.invokelatest(update_nocycle!, obs, data["payload"])
     elseif typ == JavascriptError
         show(stderr, JSException(data))
@@ -62,4 +62,8 @@ function look_up_session(id::String)
     else
         error("Unregistered session id: $id. Active sessions: $(collect(keys(ACTIVE_SESSIONS)))")
     end
+end
+
+function register_session(session::Session)
+    get!(ACTIVE_SESSIONS, session.id, session)
 end

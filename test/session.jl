@@ -10,25 +10,37 @@ end
 
 test_mod = ES6Module(JSServe.dependency_path("Test.js"))
 some_file = Asset(JSServe.dependency_path("..", "examples", "assets", "julia.png"))
-obs = Observable(0)
-app = DOM.div(
-    some_file,
-    js"""
-        (async function (){
-            const Test = await $(test_mod)
-            console.log(Test)
-            Test.hello()
-            const obs = $(obs)
-            console.log(obs)
-            obs.on(x=> console.log('update: ' + x))
-            obs.notify(1)
-        })()
+Websocket = ES6Module(JSServe.dependency_path("Websocket.js"))
 
-    """,
-    DOM.div(class=Observable("test"))
-)
+obs = Observable(0)
+on(obs) do num
+    @show num
+end
+s = JSServe.HTTPServer.get_server()
+close(s)
+
+asset_server = JSServe.HTTPAssetServer()
+connection = JSServe.WebSocketConnection()
 open("test.html", "w") do io
-    s = Session(; asset_server=JSServe.HTTPAssetServer())
-    domy = JSServe.session_dom(s, app)
+    global session = Session(connection; asset_server=asset_server)
+    app = DOM.div(
+        some_file,
+        js"""
+            (async () => {
+                const Websocket = await $(Websocket)
+                Websocket.setup_connection({proxy_url: '', session_id: $(session.id)})
+                const obs = $(obs)
+                obs.notify(77)
+            })()
+
+        """,
+        DOM.div(class=Observable("test"))
+    )
+    domy = JSServe.session_dom(session, app)
     show(io, Hyperscript.Pretty(domy))
 end
+
+asset = Asset("test.html")
+
+println("http://localhost:9284", JSServe.url(asset_server, asset))
+println("http://localhost:9284", JSServe.url(asset_server, asset))

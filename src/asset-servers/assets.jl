@@ -113,7 +113,7 @@ Path to serve downloaded dependencies
 """
 dependency_path(paths...) = @path joinpath(@__DIR__, "..", "..", "js_dependencies", paths...)
 
-const JSServeLib = ES6Module(JSServe.dependency_path("JSServe.bundle.js"))
+const JSServeLib = ES6Module(dependency_path("JSServe.bundle.js"))
 
 include("mimetypes.jl")
 include("no-server.jl")

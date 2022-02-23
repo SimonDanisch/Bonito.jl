@@ -2749,23 +2749,24 @@ const JavascriptWarning = "4";
 const RegisterObservable = "5";
 const JSDoneLoading = "8";
 const FusedMessage = "9";
-function on_connection_open() {
-    CONNECTION.queue.forEach((message)=>sent_message(message)
-    );
-}
 const CONNECTION = {
     send_message: undefined,
-    on_open: on_connection_open,
     queue: [],
     status: "closed"
 };
-function set_message_callback(f) {
-    CONNECTION.send_message = f;
+function on_connection_open2(send_message_callback) {
+    CONNECTION.send_message = send_message_callback;
+    CONNECTION.status = "open";
+    CONNECTION.queue.forEach((message)=>send_to_julia(message)
+    );
+}
+function on_connection_close2() {
+    CONNECTION.status = "closed";
 }
 function send_error2(message, exception) {
     console.error(message);
     console.error(exception);
-    sent_message({
+    send_to_julia({
         msg_type: JavascriptError,
         message: message,
         exception: String(exception),
@@ -2852,7 +2853,7 @@ function update_session_cache(session_id, new_session_cache, message_cache) {
     });
     return;
 }
-async function deserialize_cached(message) {
+async function deserialize_cached2(message) {
     const { session_id , session_cache , message_cache , data  } = message;
     update_session_cache(session_id, session_cache, message_cache);
     return deserialize2(message_cache, data);
@@ -2892,7 +2893,7 @@ function track_deleted_sessions() {
         DELETE_OBSERVER = observer;
     }
 }
-function init_session(session) {
+function init_session2(session) {
     const { session_id , all_messages  } = session;
     console.log(all_messages);
     console.log(session_id);
@@ -2921,19 +2922,19 @@ function close_session(session_id) {
 }
 const mod = {
     lookup_globally: lookup_globally,
-    deserialize_cached: deserialize_cached,
+    deserialize_cached: deserialize_cached2,
     track_deleted_sessions: track_deleted_sessions,
-    init_session: init_session,
+    init_session: init_session2,
     close_session: close_session
 };
-function encode_binary(data) {
+function encode_binary2(data) {
     const binary = ve(data);
     return Ol(binary);
 }
 function send_to_julia(message) {
     const { send_message , status  } = CONNECTION;
     if (send_message && status === "open") {
-        send_message(encode_binary(message));
+        send_message(encode_binary2(message));
     } else if (status === "closed") {
         CONNECTION.queue.push(message);
     } else {
@@ -3008,38 +3009,38 @@ function deserialize_datatype(cache, type, payload) {
             send_error("Can't deserialize custom type: " + type, null);
     }
 }
-async function base64decode(base64_str) {
+async function base64decode2(base64_str) {
     const response = await fetch("data:application/octet-stream;base64," + base64_str);
     return new Uint8Array(await response.arrayBuffer());
 }
 async function decode_binary_message(binary) {
     if (is_string(binary)) {
-        return decode_binary_message(await base64decode(binary));
+        return decode_binary_message(await base64decode2(binary));
     } else {
-        return await deserialize_cached(decode_binary(binary));
+        return await deserialize_cached2(decode_binary2(binary));
     }
 }
-function decode_binary(binary) {
+function decode_binary2(binary) {
     console.log(binary);
     const msg_binary = Cl(binary);
     return Se(msg_binary);
 }
 const mod1 = {
     deserialize: deserialize2,
-    base64decode: base64decode,
+    base64decode: base64decode2,
     decode_binary_message: decode_binary_message,
-    decode_binary: decode_binary,
-    encode_binary: encode_binary
+    decode_binary: decode_binary2,
+    encode_binary: encode_binary2
 };
 function send_warning1(message) {
     console.warn(message);
-    sent_message({
+    send_to_julia({
         msg_type: JavascriptWarning,
         message: message
     });
 }
 function sent_done_loading() {
-    sent_message({
+    send_to_julia({
         msg_type: JSDoneLoading,
         exception: "null"
     });
@@ -3083,14 +3084,15 @@ const mod2 = {
     RegisterObservable: RegisterObservable,
     JSDoneLoading: JSDoneLoading,
     FusedMessage: FusedMessage,
-    set_message_callback: set_message_callback,
+    on_connection_open: on_connection_open2,
+    on_connection_close: on_connection_close2,
     send_to_julia: send_to_julia,
     send_error: send_error2,
     send_warning: send_warning1,
     sent_done_loading: sent_done_loading,
     process_message: process_message2
 };
-const { send_error: send_error1 , send_warning: send_warning2 , process_message: process_message1  } = mod2;
+const { send_error: send_error1 , send_warning: send_warning2 , process_message: process_message1 , on_connection_open: on_connection_open1 , on_connection_close: on_connection_close1 ,  } = mod2;
 const { deserialize: deserialize1 , base64decode: base64decode1 , decode_binary: decode_binary1 , encode_binary: encode_binary1  } = mod1;
 const { init_session: init_session1 , deserialize_cached: deserialize_cached1  } = mod;
 const JSServe1 = {
@@ -3103,10 +3105,12 @@ const JSServe1 = {
     send_error: send_error1,
     send_warning: send_warning2,
     process_message: process_message1,
+    on_connection_open: on_connection_open1,
+    on_connection_close: on_connection_close1,
     Sessions: mod,
     deserialize_cached: deserialize_cached1,
     init_session: init_session1
 };
 window.JSServe = JSServe1;
-export { mod1 as Protocol, deserialize1 as deserialize, mod2 as Connection, send_error1 as send_error, send_warning2 as send_warning, process_message1 as process_message };
+export { mod1 as Protocol, deserialize1 as deserialize, base64decode1 as base64decode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, mod2 as Connection, send_error1 as send_error, send_warning2 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, mod as Sessions, deserialize_cached1 as deserialize_cached, init_session1 as init_session };
 

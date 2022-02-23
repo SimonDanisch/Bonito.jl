@@ -11,19 +11,20 @@ const RegisterObservable = "5";
 const JSDoneLoading = "8";
 const FusedMessage = "9";
 
-function on_connection_open() {
-    CONNECTION.queue.forEach(message => sent_message(message));
-}
-
 const CONNECTION = {
     send_message: undefined,
-    on_open: on_connection_open,
     queue: [],
     status: "closed",
 };
 
-export function set_message_callback(f) {
-    CONNECTION.send_message = f;
+export function on_connection_open(send_message_callback) {
+    CONNECTION.send_message = send_message_callback;
+    CONNECTION.status = "open";
+    CONNECTION.queue.forEach((message) => send_to_julia(message));
+}
+
+export function on_connection_close() {
+    CONNECTION.status = "closed";
 }
 
 export function send_to_julia(message) {
@@ -40,7 +41,7 @@ export function send_to_julia(message) {
 export function send_error(message, exception) {
     console.error(message);
     console.error(exception);
-    sent_message({
+    send_to_julia({
         msg_type: JavascriptError,
         message: message,
         exception: String(exception),
@@ -50,14 +51,14 @@ export function send_error(message, exception) {
 
 export function send_warning(message) {
     console.warn(message);
-    sent_message({
+    send_to_julia({
         msg_type: JavascriptWarning,
         message: message,
     });
 }
 
 export function sent_done_loading() {
-    sent_message({
+    send_to_julia({
         msg_type: JSDoneLoading,
         exception: "null",
     });
@@ -107,4 +108,4 @@ export {
     RegisterObservable,
     JSDoneLoading,
     FusedMessage,
-}
+};

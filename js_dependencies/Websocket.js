@@ -42,40 +42,33 @@ function ensure_connection() {
     return true;
 }
 
-function websocket_send(data) {
+function isopen() {
+    if (session_websocket.length === 0) {
+        return false;
+    }
+    if (session_websocket[0]) {
+        return session_websocket[0].readyState === 1;
+    }
+    return false;
+}
+
+function websocket_send(binary_data) {
     const has_conenction = ensure_connection();
     if (has_conenction) {
-        if (session_websocket[0]) {
-            if (session_websocket[0].readyState == 1) {
-                session_websocket[0].send(msg_encode(data));
-            } else {
-                console.log("Websocket not in readystate!");
-                // wait until in ready state
-                setTimeout(() => websocket_send(data), 100);
-            }
+        if (isopen()) {
+            session_websocket[0].send(binary_data);
+            return true;
         } else {
-            console.log("Websocket is null!");
-            // we're in offline mode!
-            return;
+            return false;
         }
+    } else {
+        console.log("Websocket is null!");
+        // we're in offline mode!
+        return undefined;
     }
 }
 
-function setup_connection(config_input) {
-    let config = config_input;
-    if (!config) {
-        config = websocket_config;
-    } else {
-        websocket_config = config_input;
-    }
-
-    const { offline, proxy_url, session_id } = config;
-    // we're in offline mode, dont even try!
-    if (offline) {
-        console.log("OFFLINE FOREVER");
-        return;
-    }
-    const url = websocket_url(session_id, proxy_url);
+export function setup_connection(config_input) {
     let tries = 0;
     let websocket;
     function tryconnect(url) {
@@ -91,9 +84,9 @@ function setup_connection(config_input) {
             console.log("CONNECTED!!: ", url);
             websocket.onmessage = function (evt) {
                 const binary = new Uint8Array(evt.data);
-                const data = decode_binary_message(binary);
-                process_message(data);
+                JSServe.process_message(binary);
             };
+            JSServe.on_connection_open(websocket_send);
         };
 
         websocket.onclose = function (evt) {
@@ -101,20 +94,11 @@ function setup_connection(config_input) {
             while (session_websocket.length > 0) {
                 session_websocket.pop();
             }
-            if (window.dont_even_try_to_reconnect) {
-                // ok, we cant even right now and just give up
-                session_websocket.push(null);
-                return;
-            }
+            JSServe.on_connection_close();
             console.log("Wesocket close code: " + evt.code);
         };
         websocket.onerror = function (event) {
             console.error("WebSocket error observed:" + event);
-            console.log(
-                "dont_even_try_to_reconnect: " +
-                    window.dont_even_try_to_reconnect
-            );
-
             if (tries <= 1) {
                 while (session_websocket.length > 0) {
                     session_websocket.pop();
@@ -128,10 +112,15 @@ function setup_connection(config_input) {
             }
         };
     }
-    if (url) {
-        tryconnect(url);
+    let config = config_input;
+    if (!config) {
+        config = websocket_config;
     } else {
-        // we're in offline mode!
-        session_websocket.push(null);
+        websocket_config = config_input;
     }
+
+    const { session_id, proxy_url } = config;
+
+    const url = websocket_url(session_id, proxy_url);
+    tryconnect(url);
 }

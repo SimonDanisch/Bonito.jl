@@ -122,7 +122,7 @@ struct Session{Connection <: FrontendConnection}
     # The way we serve any file asset
     asset_server::AbstractAssetServer
     # Bool -> if already registered with Frontend
-    observables::Dict{String, Tuple{Bool, Observable}}
+    observables::Dict{String, Observable}
     message_queue::Vector{Dict{Symbol, Any}}
     # Code that gets evalued last after all other messages, when session gets connected
     on_document_load::Vector{JSCode}

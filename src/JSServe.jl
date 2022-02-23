@@ -1,6 +1,8 @@
 module JSServe
 
 import Sockets
+using Sockets: send
+
 using UUIDs
 using Hyperscript
 using Observables
@@ -18,6 +20,7 @@ using Colors
 using LinearAlgebra
 using CodecZlib
 using RelocatableFolders: @path, Path, getroot
+using URIs
 
 include("HTTPServer/HTTPServer.jl")
 include("types.jl")

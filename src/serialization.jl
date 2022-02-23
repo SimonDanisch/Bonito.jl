@@ -1,14 +1,15 @@
 struct SerializationContext
     session_cache::Dict{String, Any}
     message_cache::Dict{String, Any}
+    observables::Dict{String, Observable}
 end
 
 function SerializationContext(session_cache=Dict{String, Any}())
-    return SerializationContext(session_cache, Dict{String, Any}())
+    return SerializationContext(session_cache, Dict{String, Any}(), Dict{String, Observable}())
 end
 
 function SerializationContext(session::Session)
-    return SerializationContext(session.session_cache, Dict{String, Any}())
+    return SerializationContext(session.session_cache, Dict{String, Any}(), session.observables)
 end
 
 # MsgPack doesn't natively support Float16
@@ -46,6 +47,7 @@ function js_type(type::String, @nospecialize(x))
 end
 
 function serialize_cached(context::SerializationContext, obs::Observable)
+    context.observables[obs.id] = obs
     get!(context.session_cache, obs.id) do
         js_type("Observable", Dict(:id => obs.id, :value => serialize_cached(context, obs[])))
     end
@@ -142,18 +144,19 @@ function serialize_cached(context::SerializationContext, dict::AbstractDict)
 end
 
 function serialize_cached(session::Session, @nospecialize(obj))
-    content_id = copy(session.session_cache)
-    ctx = SerializationContext(content_id)
+    old_cache = collect(keys(session.session_cache))
+    ctx = SerializationContext(session)
     # we merge all objects into one dict
     # Since we don't reuse the message_cache dict, we can just merge it into that:
     # apply custom, overloadable transformation
     data = serialize_cached(ctx, obj)
-    for (k, obj) in session.session_cache
-        delete!(content_id, k)
+    session_cache = ctx.session_cache
+    for k in old_cache
+        delete!(session_cache, k)
     end
     return Dict(
         :session_id => session.id,
-        :session_cache => content_id,
+        :session_cache => session_cache,
         :message_cache => ctx.message_cache,
         :data => data)
 end

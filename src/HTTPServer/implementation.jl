@@ -68,6 +68,7 @@ function delegate(routes::Routes, application, request::Request, args...)
             return apply_handler(f, context, args...)
         end
     end
+    println("DIdn't find no route!!")
     # If no route is found we have a classic case of 404!
     # What a classic this response!
     return response_404("Didn't find route for $(request.target)")
@@ -170,9 +171,13 @@ function warmup(application::Server)
 end
 
 function stream_handler(application::Server, stream::Stream)
+    println("got request")
     if HTTP.WebSockets.is_upgrade(stream.message)
+        println("is websocket")
         try
             HTTP.WebSockets.upgrade(stream; binary=true) do ws
+                println("upgrading to ws: $(stream.message)")
+                println("upgrading to ws: $(application.websocket_routes)")
                 delegate(
                     application.websocket_routes, application, stream.message, ws
                 )
@@ -259,37 +264,29 @@ function Base.close(application::Server)
     @assert !isrunning(application)
 end
 
-function start(application::Server; verbose=false)
-    isrunning(application) && return
-    address = Sockets.InetAddr(Sockets.getaddrinfo(application.url), application.port)
+function start(server::Server; verbose=false)
+    isrunning(server) && return
+    @show server.url server.port
+    address = Sockets.InetAddr(Sockets.getaddrinfo(server.url), server.port)
     ioserver = Sockets.listen(address)
-    application.server_connection[] = ioserver
+    server.server_connection[] = ioserver
     # pass tcp connection to listen, so that we can close the server
-    application.server_task[] = @async HTTP.listen(
-            application.url, application.port; server=ioserver, verbose=verbose
-        ) do stream::Stream
-        Base.invokelatest(stream_handler, application, stream)
+
+    server.server_task[] = @async begin
+        HTTP.listen(
+                server.url, server.port; server=ioserver, verbose=verbose
+            ) do stream::Stream
+            Base.invokelatest(stream_handler, server, stream)
+        end
     end
     return
 end
 
 const GLOBAL_SERVER = Ref{Server}()
 
-function get_server()
-    if !isassigned(GLOBAL_SERVER) || istaskdone(GLOBAL_SERVER[].server_task[])
-        GLOBAL_SERVER[] = Server(
-            App("Nothing to see"),
-            JSSERVE_CONFIGURATION.listen_url[],
-            JSSERVE_CONFIGURATION.listen_port[],
-            verbose=JSSERVE_CONFIGURATION.verbose[]
-        )
-    end
-    return GLOBAL_SERVER[]
-end
-
 const JSSERVE_CONFIGURATION = (
     # The URL used to which the default server listens to
-    listen_url = Ref("localhost"),
+    listen_url = Ref("127.0.0.1"),
     # The Port to which the default server listens to
     listen_port = Ref(9284),
     # The url Javascript uses to connect to the websocket.
@@ -300,8 +297,21 @@ const JSSERVE_CONFIGURATION = (
     # if `""`, urls are inserted into HTML in relative form!
     content_delivery_url = Ref(""),
     # Verbosity for logging!
-    verbose = Ref(false)
+    verbose = Ref(true)
 )
+
+function get_server()
+    if !isassigned(GLOBAL_SERVER) || istaskdone(GLOBAL_SERVER[].server_task[])
+        GLOBAL_SERVER[] = Server(
+            JSSERVE_CONFIGURATION.listen_url[],
+            JSSERVE_CONFIGURATION.listen_port[],
+            verbose=JSSERVE_CONFIGURATION.verbose[]
+        )
+    end
+    return GLOBAL_SERVER[]
+end
+
+
 
 """
     configure_server!(;

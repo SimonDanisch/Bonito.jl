@@ -5,10 +5,18 @@ mutable struct WebSocketConnection <: FrontendConnection
     socket::Union{Nothing, WebSocket}
 end
 
+WebSocketConnection() = WebSocketConnection(nothing)
+
 const MATCH_HEX = r"[\da-f]"
 const MATCH_UUID4 = MATCH_HEX^8 * r"-" * (MATCH_HEX^4 * r"-")^3 * MATCH_HEX^12
-const MATCH_SESSION_ID = MATCH_UUID4 * r"/" * MATCH_HEX^4
 
+function setup_connect(session::Session{WebSocketConnection})
+    register_session(session)
+    connection = session.connection
+    server = HTTPServer.get_server()
+    HTTPServer.websocket_route!(server, r"/" * MATCH_UUID4 => connection)
+    return
+end
 
 function save_read(websocket)
     try
@@ -55,7 +63,7 @@ function handle_ws_error(e)
     end
 end
 
-function handle_ws_connection(server::Server, session::Session, websocket::WebSocket)
+function run_connection_loop(server::Server, session::Session, websocket::WebSocket)
     try
         @debug("opening ws connection for session: $(session.id)")
         while !eof(websocket)
@@ -78,60 +86,37 @@ function handle_ws_connection(server::Server, session::Session, websocket::WebSo
 end
 
 """
-    request_to_sessionid(request; throw = true)
-
-Returns the session and browser id from request.
-With throw = false, it can be used to check if a request
-contains a valid session/browser id for a websocket connection.
-Will return nothing if request is invalid!
-"""
-function request_to_sessionid(request; throw=true)
-    if length(request.target) >= 42 # for /36session_id/4browser_id/
-        session_browser = split(request.target, "/", keepempty=false)
-        if length(session_browser) == 2
-            sessionid, browserid = string.(session_browser)
-            if length(sessionid) == 36 && length(browserid) == 4
-                return sessionid, browserid
-            end
-        end
-    end
-    if throw
-        error("Invalid sessionid: $(request.target)")
-    else
-        return nothing
-    end
-end
-
-"""
     handles a new websocket connection to a session
 """
-function websocket_handler(context, websocket::WebSocket)
+function (connection::WebSocketConnection)(context, websocket::WebSocket)
+    println("GOt the WS")
     request = context.request; application = context.application
-    sessionid = request_to_sessionid(request, throw=true)
+    uri = URIs.URI(request.target).path
+    session_id = URIs.splitpath(uri)[1]
+    println("WS session id: $(session_id)")
+    session = look_up_session(session_id)
     # Look up the connection in our sessions
-    if haskey(application.sessions, sessionid)
-        session = application.sessions[sessionid]
+    if !(isnothing(session))
         if isopen(session)
             # Would be nice to not error here - but I think this should never
             # Happen, and if it happens, we need to debug it!
             error("Session already has connection")
         end
-        session.connection[] = websocket
-        handle_ws_connection(application, session, websocket)
+        connection.socket = websocket
+        run_connection_loop(application, session, websocket)
     else
         # This happens when an old session trys to reconnect to a new app
         # We somehow need to figure out better, how to recognize this
-        @debug("Unregistered session id: $sessionid. Sessions: $(collect(keys(application.sessions)))")
+        @debug("Unregistered session id: $session_id.")
     end
 end
 
 function init_connection(session::Session{WebSocketConnection})
-    websocket_url
+    Websocket = Asset(dependency_path("Websocket.js"))
     return js"""
-        $(JSServeLib).setup_connection({$(websocket_url), $(session.id)})
+        (async function () {
+            const Websocket = await $(Websocket)
+            Websocket.setup_connection({$(websocket_url), $(session.id)})
+        })()
     """
-end
-
-function add_to_server!(server, session)
-    r"/" * MATCH_SESSION_ID => websocket_handler
 end
