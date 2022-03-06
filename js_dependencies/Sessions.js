@@ -15,6 +15,7 @@ export function lookup_globally(id) {
 }
 
 function free_object(id) {
+    console.log(`freeing ${id}`)
     const object = GLOBAL_SESSION_CACHE[id];
     if (object) {
         const [data, refcount] = object;
@@ -33,22 +34,25 @@ function free_object(id) {
 }
 
 function update_session_cache(session_id, new_session_cache, message_cache) {
-    console.log(session_id)
-    console.log(SESSIONS);
     const { session_cache } = SESSIONS[session_id];
-
     Object.keys(new_session_cache).forEach((key) => {
         const data_unserialized = new_session_cache[key];
-        if (data_unserialized) {
+        if (data_unserialized != null) {
+            console.log(`object adding: ${key}`)
             // if data is an object, we shouldn't have it in the cache yet, since otherwise we wouldn't sent it again
             const new_data = deserialize(message_cache, data_unserialized);
+            console.log(new_data)
             GLOBAL_SESSION_CACHE[key] = [new_data, 1];
         } else {
             // data already cached, we just need to increment the refcount
-            const [data, refcount] = GLOBAL_SESSION_CACHE[key];
-            GLOBAL_SESSION_CACHE[key] = [data, refcount + 1];
-            // keep track of usage in session cache
-            session_cache.push(key);
+            const obj = GLOBAL_SESSION_CACHE[key];
+            if (obj) {
+                GLOBAL_SESSION_CACHE[key] = [obj[0], obj[1] + 1];
+                // keep track of usage in session cache
+                session_cache.push(key);
+            } else {
+                console.log(`${key} is undefined what??`)
+            }
         }
     });
     return;
@@ -56,9 +60,7 @@ function update_session_cache(session_id, new_session_cache, message_cache) {
 
 export async function deserialize_cached(message) {
     const { session_id, session_cache, message_cache, data } = message;
-
     update_session_cache(session_id, session_cache, message_cache);
-
     return deserialize(message_cache, data);
 }
 
@@ -128,7 +130,7 @@ export function close_session(session_id) {
     while (session_cache.length > 0) {
         free_object(session_cache.pop());
     }
-    delete SESSIONS[id];
+    delete SESSIONS[session_id];
     send_session_close(session_id);
     return;
 }

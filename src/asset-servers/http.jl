@@ -5,7 +5,7 @@ end
 HTTPAssetServer() = HTTPAssetServer(Dict{String, String}())
 
 function url(server::HTTPAssetServer, asset::Asset)
-    file = asset.local_path
+    file = local_path(asset)
     target = normpath(abspath(expanduser(file)))
     key = "/assetserver/" * unique_file_key(target)
     get!(()-> target, server.registered_files, key)

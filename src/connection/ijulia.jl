@@ -14,44 +14,45 @@ end
 
 Base.isopen(c::IJuliaConnection) = haskey(IJulia.CommManager.comms, c.comm.id)
 
-function init_connection(session::Session{IJuliaConnection})
+function setup_connect(session::Session{IJuliaConnection})
     @eval begin
         function IJulia.CommManager.register_comm(comm::IJulia.CommManager.Comm{PLUGIN_NAME}, message)
-            session = look_up_session(comm["data"]["session_id"])
             comm.on_msg = function (msg)
-                data_uint8 = Base64.base64decode(msg.content["data"])
-                process_message(session, data_uint8)
+                data = msg.content["data"]
+                data_uint8 = Base64.base64decode(data)
+                JSServe.process_message(session, data_uint8)
+            end
+            comm.on_close = (args...)-> begin
+                close(session)
             end
         end
     end
     id = session.id
     return js"""
+        (async () => {
+            if (!window.Jupyter) {
+                throw "Jupyter not loaded"
+            }
+            const plugin_name = $(JSServe.PLUGIN_NAME)
+            const comm_manager = Jupyter.notebook.kernel.comm_manager
+            comm_manager.unregister_target(plugin_name)
+            comm_manager.register_target(plugin_name, () => {})
+            const comm = comm_manager.new_comm(
+                plugin_name, // target_name
+                {session_id: $(session.id)}, // data
+                undefined, // callbacks
+                undefined, // metadata
+                undefined, // comm_id
+                undefined, // buffers
+            )
+            comm.on_msg((msg) => {
+                JSServe.process_message(msg.content.data)
+            });
 
-    if (!window.IJulia) {
-        throw "IJulia not loaded"
-    }
-    const plugin_name = $(PLUGIN_NAME)
-    const comm_manager = Jupyter.notebook.kernel.comm_manager
-    comm_manager.unregister_target(plugin_name)
-    comm_manager.register_target(plugin_name, () => {})
-
-    const comm = comm_manager.new_comm(
-        plugin_name, // target_name
-        {session_id: $(id)}, // data
-        undefined, // callbacks
-        undefined, // metadata
-        undefined, // comm_id
-        undefined, // buffers
-    )
-
-    comm.on_msg((msg) => {
-        $(JSServeLib).process_message(msg.content.data)
-    });
-
-    $(JSServeLib).set_message_callback((binary) => {
-        const decoder = new TextDecoder('utf8');
-        const b64encoded = btoa(decoder.decode(binary));
-        comm.send(b64encoded)
-    })
+            JSServe.on_connection_open(async (binary) => {
+                const b64encoded = await JSServe.base64encode(binary);
+                comm.send(b64encoded)
+            })
+        })()
     """
 end

@@ -10,13 +10,7 @@ WebSocketConnection() = WebSocketConnection(nothing)
 const MATCH_HEX = r"[\da-f]"
 const MATCH_UUID4 = MATCH_HEX^8 * r"-" * (MATCH_HEX^4 * r"-")^3 * MATCH_HEX^12
 
-function setup_connect(session::Session{WebSocketConnection})
-    register_session(session)
-    connection = session.connection
-    server = HTTPServer.get_server()
-    HTTPServer.websocket_route!(server, r"/" * MATCH_UUID4 => connection)
-    return
-end
+
 
 function save_read(websocket)
     try
@@ -81,7 +75,6 @@ function run_connection_loop(server::Server, session::Session, websocket::WebSoc
         # This always needs to happen, which is why we need a try catch!
         @debug("Closing: $(session.id)")
         close(session)
-        delete!(server.sessions, session.id)
     end
 end
 
@@ -89,7 +82,7 @@ end
     handles a new websocket connection to a session
 """
 function (connection::WebSocketConnection)(context, websocket::WebSocket)
-    println("GOt the WS")
+    println("Got the WS")
     request = context.request; application = context.application
     uri = URIs.URI(request.target).path
     session_id = URIs.splitpath(uri)[1]
@@ -111,12 +104,18 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
     end
 end
 
-function init_connection(session::Session{WebSocketConnection})
-    Websocket = Asset(dependency_path("Websocket.js"))
+function setup_connect(session::Session{WebSocketConnection})
+    register_session(session)
+    connection = session.connection
+    server = HTTPServer.get_server()
+    HTTPServer.websocket_route!(server, r"/" * MATCH_UUID4 => connection)
     return js"""
-        (async function () {
+        (async () => {
+            console.log("Nani??")
             const Websocket = await $(Websocket)
-            Websocket.setup_connection({$(websocket_url), $(session.id)})
+            console.log("Lol: ", Websocket)
+            console.log(Websocket)
+            Websocket.setup_connection({proxy_url: '', session_id: $(session.id)})
         })()
     """
 end

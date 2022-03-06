@@ -71,7 +71,10 @@ function serialize_cached(context::SerializationContext, jsc::Union{JSCode, JSSt
 end
 
 serialize_js(@nospecialize(x)) = x
-serialize_js(asset::Asset) = js_type("Asset", Dict(:es6module => asset.es6module, :bytes => serialize_js(read(get_path(asset)))))
+function serialize_js(asset::Asset)
+    bytes = serialize_js(read(local_path(asset)))
+    return js_type("Asset", Dict(:es6module => asset.es6module, :bytes => bytes))
+end
 
 serialize_js(array::AbstractVector{T}) where {T<:Number} = js_type("TypedVector", array)
 serialize_js(array::AbstractVector{UInt8}) = js_type("Uint8Array", to_bytevec(array))
@@ -144,16 +147,28 @@ function serialize_cached(context::SerializationContext, dict::AbstractDict)
 end
 
 function serialize_cached(session::Session, @nospecialize(obj))
-    old_cache = collect(keys(session.session_cache))
-    ctx = SerializationContext(session)
+    ctx = SerializationContext(Dict{String, Any}(), Dict{String, Any}(), session.observables)
     # we merge all objects into one dict
     # Since we don't reuse the message_cache dict, we can just merge it into that:
     # apply custom, overloadable transformation
     data = serialize_cached(ctx, obj)
-    session_cache = ctx.session_cache
-    for k in old_cache
-        delete!(session_cache, k)
+    session_cache = Dict{String, Any}()
+    for (k, obj) in ctx.session_cache
+        if !haskey(session.session_cache, k)
+            println("not in cache, adding: $(k)")
+            session_cache[k] = obj
+            session.session_cache[k] = obj
+        else
+            println("in cache: $(k)")
+            # if already cached, we dont send it again
+            # but we need to declare it, so that we can do refcounting
+            session_cache[k] = nothing
+        end
     end
+    for (k, ob) in session_cache
+        println("$k: $(typeof(obj))")
+    end
+
     return Dict(
         :session_id => session.id,
         :session_cache => session_cache,

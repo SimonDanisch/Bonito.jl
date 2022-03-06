@@ -269,6 +269,7 @@ function session_dom(session::Session, app)
     return DOM.div(
         jsrender(session, JSServeLib),
         DOM.script(init, type="module"),
+        jsrender(session, connection_init),
         dom,
         id=session.id,
         style="visibility: hidden;"

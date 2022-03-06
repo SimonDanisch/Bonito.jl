@@ -68,7 +68,7 @@ function delegate(routes::Routes, application, request::Request, args...)
             return apply_handler(f, context, args...)
         end
     end
-    println("DIdn't find no route!!")
+    println("DIdn't find no route!! $(request.target)")
     # If no route is found we have a classic case of 404!
     # What a classic this response!
     return response_404("Didn't find route for $(request.target)")
@@ -176,8 +176,7 @@ function stream_handler(application::Server, stream::Stream)
         println("is websocket")
         try
             HTTP.WebSockets.upgrade(stream; binary=true) do ws
-                println("upgrading to ws: $(stream.message)")
-                println("upgrading to ws: $(application.websocket_routes)")
+                println("upgrading to ws")
                 delegate(
                     application.websocket_routes, application, stream.message, ws
                 )
@@ -221,6 +220,7 @@ function Server(
         routes = Routes(),
         websocket_routes = Routes()
     )
+    @show verbose
     server = Server(
         url, port,
         Ref{Task}(), Ref{TCPServer}(),
@@ -297,7 +297,7 @@ const JSSERVE_CONFIGURATION = (
     # if `""`, urls are inserted into HTML in relative form!
     content_delivery_url = Ref(""),
     # Verbosity for logging!
-    verbose = Ref(true)
+    verbose = Ref(false)
 )
 
 function get_server()

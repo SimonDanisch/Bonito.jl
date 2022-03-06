@@ -38,7 +38,6 @@ async function load_module_from_bytes(code_ui8_array) {
     const js_module_promise = new Promise((r) => {
         const reader = new FileReader();
         reader.onload = async () => r(await import(reader.result));
-        console.log(code_ui8_array);
         reader.readAsDataURL(
             new Blob([code_ui8_array], { type: "text/javascript" })
         );
@@ -83,7 +82,7 @@ function deserialize_datatype(cache, type, payload) {
                     deserialize(cache, payload.bytes)
                 );
             } else {
-                return payload.bytes;
+                return deserialize(cache, payload.bytes);
             }
         case "JSCode":
             const lookup_cached_inner = (id) => lookup_cached(cache, id);
@@ -96,7 +95,6 @@ function deserialize_datatype(cache, type, payload) {
             return () => eval_func(lookup_cached_inner, JSServe);
         case "Observable":
             const value = deserialize(cache, payload.value);
-            console.log(`this observable though: ${payload}`);
             return new Observable(payload.id, value);
         case "Uint8Array":
             return payload;
@@ -137,7 +135,7 @@ export function deserialize(cache, data) {
     }
 }
 
-async function base64encode(data_as_uint8array) {
+export async function base64encode(data_as_uint8array) {
     // Use a FileReader to generate a base64 data URI
     const base64url = await new Promise((r) => {
         const reader = new FileReader();
@@ -171,7 +169,6 @@ export async function decode_binary_message(binary) {
 }
 
 export function decode_binary(binary) {
-    console.log(binary)
     const msg_binary = Pako.inflate(binary);
     return MsgPack.decode(msg_binary);
 }

@@ -82,7 +82,6 @@ export async function process_message(binary_or_string) {
                 break;
             case EvalJavascript:
                 const eval_closure = data.payload;
-                console.log(eval_closure)
                 eval_closure();
                 break;
             case FusedMessage:

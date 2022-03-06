@@ -2,10 +2,7 @@ struct BrowserDisplay <: Base.Multimedia.AbstractDisplay
     server::Server
 end
 
-function BrowserDisplay()
-
-
-end
+BrowserDisplay() = BrowserDisplay(get_server())
 
 """
     browser_display()

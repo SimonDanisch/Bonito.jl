@@ -67,6 +67,7 @@ struct Asset
     # to also be able to host it locally
     online_path::String
     local_path::Union{String, Path}
+    last_bundled::Base.RefValue{Union{Nothing, Dates.DateTime}}
 end
 
 struct JSException <: Exception

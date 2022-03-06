@@ -10,13 +10,21 @@ const {
     on_connection_close,
 } = Connection;
 
-const { deserialize, base64decode, decode_binary, encode_binary } = Protocol;
+const {
+    deserialize,
+    base64decode,
+    base64encode,
+    decode_binary,
+    encode_binary,
+} = Protocol;
+
 const { init_session, deserialize_cached } = Sessions;
 
 const JSServe = {
     Protocol,
     deserialize,
     base64decode,
+    base64encode,
     decode_binary,
     encode_binary,
 
@@ -38,6 +46,7 @@ export {
     Protocol,
     deserialize,
     base64decode,
+    base64encode,
     decode_binary,
     encode_binary,
 

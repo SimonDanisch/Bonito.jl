@@ -8,8 +8,10 @@ end
 
 NoServer() = NoServer(Dict{String, String}())
 
-function url(server::NoServer, asset::Asset)
-    return to_data_url(asset.local_path)
+setup_asset_server(::NoServer) = nothing
+
+function url(::NoServer, asset::Asset)
+    return to_data_url(local_path(asset))
 end
 
 struct AssetFolder <: AbstractAssetServer

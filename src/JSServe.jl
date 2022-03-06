@@ -3,12 +3,15 @@ module JSServe
 import Sockets
 using Sockets: send
 
+using Dates
 using UUIDs
 using Hyperscript
 using Observables
 using Hyperscript: Node, children, tag
 using Markdown
 using HTTP
+using Deno_jll
+
 
 using Base64
 using MsgPack
@@ -25,11 +28,11 @@ using URIs
 include("HTTPServer/HTTPServer.jl")
 include("types.jl")
 include("js_source.jl")
-include("connection/connection.jl")
 include("session.jl")
 include("jsrender.jl")
 include("observables.jl")
 include("asset-servers/assets.jl")
+include("connection/connection.jl")
 include("util.jl")
 include("widgets.jl")
 include("hyperscript_integration.jl")

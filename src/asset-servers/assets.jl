@@ -68,7 +68,8 @@ function Asset(online_path::Union{String, Path}; name=nothing, es6module=false, 
         local_path = normalize_path(online_path; check_isfile=check_isfile)
     end
     mediatype = Symbol(getextension(online_path))
-    return Asset(name, es6module, mediatype, real_online_path, local_path)
+    last_bundled = Base.RefValue{Union{Nothing, Dates.DateTime}}(nothing)
+    return Asset(name, es6module, mediatype, real_online_path, local_path, last_bundled)
 end
 
 function unique_file_key(path::String)
@@ -113,7 +114,8 @@ Path to serve downloaded dependencies
 """
 dependency_path(paths...) = @path joinpath(@__DIR__, "..", "..", "js_dependencies", paths...)
 
-const JSServeLib = ES6Module(dependency_path("JSServe.bundle.js"))
+const JSServeLib = ES6Module(dependency_path("JSServe.js"))
+const Websocket = ES6Module(dependency_path("Websocket.js"))
 
 include("mimetypes.jl")
 include("no-server.jl")
@@ -123,30 +125,41 @@ function default_asset_server()
     return NoServer()
 end
 
-function local_path(path, serializer)
-    if serializer.assetserver
-        # we use assetserver, so we register the local file with the server
-        return register_local_file(path)
+
+function local_path(asset::Asset)
+    if asset.es6module
+        bundle!(asset)
+        return bundle_path(asset)
     else
-        # we don't use assetserver, so we copy the asset to asset_folder
-        # for someone else to serve them!
-        if serializer.asset_folder === nothing
-            error("Not using assetserver requires to set `asset_folder` to a valid local folder")
-        end
-        if !isdir(serializer.asset_folder)
-            error("`asset_folder` doesn't exist: $(serializer.asset_folder)")
-        end
-        relative_path = relpath(path, serializer.asset_folder)
-        if !(occursin("..", relative_path) || abspath(path) == relative_path)
-            # file is already in asset folder
-            return relative_path
-        else
-            path_base = dirname(path)
-            file_name = basename(path)
-            unique_file_name = unique_name_in_folder(serializer.asset_folder, file_name)
-            unique_path = joinpath(serializer.asset_folder, unique_file_name)
-            cp(path, unique_path, force=true)
-            return unique_file_name
-        end
+        return asset.local_path
     end
+end
+
+function bundle_path(asset::Asset)
+    path, ext = splitext(asset.local_path)
+    return string(path, ".bundled", ext)
+end
+
+function last_modified(path)
+    Dates.unix2datetime(Base.Filesystem.mtime(JSServe.getroot(path)))
+end
+
+function needs_bundling(asset::Asset)
+    asset.es6module || return false
+    isnothing(asset.last_bundled[]) && return true
+    path = asset.local_path
+    isfile(bundle_path(asset)) || return true
+    return last_modified(path) > asset.last_bundled[]
+end
+
+function bundle!(asset::Asset)
+    needs_bundling(asset) || return
+    path = asset.local_path
+    bundled = bundle_path(asset)
+    println("bundling...")
+    Deno_jll.deno() do exe
+        write(bundled, read(`$exe bundle $(path)`))
+    end
+    asset.last_bundled[] = Dates.now()
+    return
 end

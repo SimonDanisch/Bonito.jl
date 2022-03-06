@@ -20,6 +20,7 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         return
     end
     data = deserialize_binary(bytes)
+    println(data)
     typ = data["msg_type"]
     if typ == UpdateObservable
         obs = session.observables[data["id"]]
