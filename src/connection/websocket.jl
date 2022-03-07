@@ -109,13 +109,14 @@ function setup_connect(session::Session{WebSocketConnection})
     connection = session.connection
     server = HTTPServer.get_server()
     HTTPServer.websocket_route!(server, r"/" * MATCH_UUID4 => connection)
+    proxy_url = "http://127.0.0.1:$(server.port)"
     return js"""
         (async () => {
             console.log("Nani??")
             const Websocket = await $(Websocket)
             console.log("Lol: ", Websocket)
             console.log(Websocket)
-            Websocket.setup_connection({proxy_url: '', session_id: $(session.id)})
+            Websocket.setup_connection({proxy_url: $(proxy_url), session_id: $(session.id)})
         })()
     """
 end

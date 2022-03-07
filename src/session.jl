@@ -258,13 +258,15 @@ end
 # end
 
 
-function session_dom(session::Session, app)
-    dom = jsrender(session, app)
+function session_dom(session::Session, app::App)
+    dom = jsrender(session, app.handler(session, (target="/",)))
     all_messages = fused_messages!(session)
+    msg_b64_str = serialize_string(session, all_messages)
     connection_init = JSServe.setup_connect(session)
     asset_init = JSServe.setup_asset_server(session.asset_server)
     init = """
-        JSServe.init_session({session_id: '$(session.id)'});
+        const all_messages = $(repr(msg_b64_str))
+        JSServe.init_session({all_messages, session_id: '$(session.id)'});
     """
     return DOM.div(
         jsrender(session, JSServeLib),
