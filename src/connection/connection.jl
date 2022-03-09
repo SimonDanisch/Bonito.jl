@@ -20,7 +20,6 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         return
     end
     data = deserialize_binary(bytes)
-    println(data)
     typ = data["msg_type"]
     if typ == UpdateObservable
         obs = session.observables[data["id"]]
@@ -43,6 +42,7 @@ end
 
 include("websocket.jl")
 include("ijulia.jl")
+include("no-connection.jl")
 
 function default_connect()
     if isdefined(Main, :IJulia)

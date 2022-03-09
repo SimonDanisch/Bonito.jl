@@ -136,3 +136,20 @@ function export_standalone(app::App, folder::String;
         return html_str, session
     end
 end
+
+function export_static(folder::String, routes::Routes)
+    isdir(folder) || mkpath(folder)
+    asset_server = AssetFolder(folder)
+    connection = JSServe.NoConnection()
+    session = Session(connection; asset_server=asset_server)
+    for (route, app) in routes.routes
+        if route == "/"
+            route = "index"
+        end
+
+        @show folder route
+        open(joinpath(folder, route) * ".html", "w") do io
+            page_html(io, session, app)
+        end
+    end
+end

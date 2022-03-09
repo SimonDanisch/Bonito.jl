@@ -332,54 +332,23 @@ end
     page_html(session::Session, html_body)
 Embeds the html_body in a standalone html document!
 """
-function page_html(session::Session, html)
-    proxy_url = JSSERVE_CONFIGURATION.external_url[]
-    serializer = session.url_serializer
-    rendered = jsrender(session, html)
-    session_deps = include_asset.(session.dependencies, (serializer,))
-
-    onload = jsrender(session, js"""
-        window.addEventListener('load', (event) => {
-            const proxy_url = $(proxy_url)
-            const session_id = $(session.id)
-            $(JSServeLib).setup_connection({proxy_url, session_id})
-            $(JSServeLib).sent_done_loading()
-        })
-    """)
-
+function page_html(io::IO, session::Session, app::App)
+    dom = session_dom(session, app)
     html_body = DOM.html(
         DOM.head(
             DOM.meta(charset="UTF-8"),
-            session_deps...
         ),
         DOM.body(
-            DOM.div(rendered, id="application-dom", style="visibility: hidden;"),
-            onload
+            DOM.div(dom, id="application-dom", style="visibility: hidden;")
         )
     )
-    return sprint() do io
-        println(io, "<!doctype html>")
-        show(io, MIME"text/html"(), Hyperscript.Pretty(html_body))
-    end
+    println(io, "<!doctype html>")
+    show(io, MIME"text/html"(), Hyperscript.Pretty(html_body))
+    return
 end
 
 function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+html", dom::App)
-    if get(io, :use_offline_mode, false)
-        export_folder = get(io, :export_folder, "/")
-        absolute_urls = get(io, :absolute_urls, false)
-        content_delivery_url = get(io, :content_delivery_url, "")
-        html, session = export_standalone(dom.handler, export_folder;
-            absolute_urls=absolute_urls,
-            content_delivery_url=content_delivery_url,
-            write_index_html=false)
-        # We prepare for being offline, but we still start a server while things
-        # are online!
-        application = get_server()
-        application.sessions[session.id] = session
-        println(io, html)
-    else
-        show(io.io, MIME"text/html"(), dom)
-    end
+    show(io.io, MIME"text/html"(), dom)
 end
 
 function Base.show(io::IO, m::MIME"application/vnd.jsserve.application+html", app::App)
@@ -388,4 +357,9 @@ end
 
 function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
     show(IOContext(io), MIME"text/html"(), app)
+end
+
+function show_as_html(io::IO, session::Session, dom)
+    println(io, "<!doctype html>")
+    show(io, MIME"text/html"(), Hyperscript.Pretty(html_body))
 end

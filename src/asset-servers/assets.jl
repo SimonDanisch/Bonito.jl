@@ -140,8 +140,9 @@ function bundle_path(asset::Asset)
     return string(path, ".bundled", ext)
 end
 
-function last_modified(path)
-    Dates.unix2datetime(Base.Filesystem.mtime(JSServe.getroot(path)))
+last_modified(path::Path) = last_modified(JSServe.getroot(path))
+function last_modified(path::String)
+    Dates.unix2datetime(Base.Filesystem.mtime(path))
 end
 
 function needs_bundling(asset::Asset)

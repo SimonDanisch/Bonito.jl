@@ -109,7 +109,6 @@ function Base.show(io::IO, exception::JSException)
 end
 
 abstract type FrontendConnection end
-struct NoConnection <: FrontendConnection end
 abstract type AbstractAssetServer end
 
 """
@@ -136,3 +135,12 @@ struct Session{Connection <: FrontendConnection}
     deregister_callbacks::Vector{Observables.ObserverFunction}
     session_cache::Dict{String, Any}
 end
+
+
+struct Routes
+    routes::Dict{String, App}
+end
+
+Routes() = Routes(Dict{String, App}())
+
+Base.setindex!(routes::Routes, app::App, key::String) = (routes.routes[key] = app)

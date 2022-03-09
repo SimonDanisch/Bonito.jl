@@ -16,5 +16,29 @@ end
 
 struct AssetFolder <: AbstractAssetServer
     folder::String
-    registered_files::Dict{String, String}
+end
+
+setup_asset_server(::JSServe.AssetFolder) = nothing
+
+function url(assetfolder::AssetFolder, asset::Asset)
+    folder = abspath(assetfolder.folder)
+    path = abspath(local_path(asset))
+    bundle!(asset)
+    if !occursin(folder, path)
+        file = basename(path)
+        subfolder = if mediatype(asset) == :js
+            "javascript/"
+        elseif mediatype(asset) == :css
+            "css/"
+        elseif mediatype(asset) in (:jpeg, :jpg, :png)
+            "images/"
+        else
+            ""
+        end
+        _path = normpath(joinpath(folder, subfolder * file))
+        isdir(dirname(_path)) || mkpath(dirname(_path))
+        cp(path, _path; force=true)
+        path = _path
+    end
+    return relpath(path, folder)
 end
