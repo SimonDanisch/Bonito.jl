@@ -40,5 +40,5 @@ function url(assetfolder::AssetFolder, asset::Asset)
         cp(path, _path; force=true)
         path = _path
     end
-    return relpath(path, folder)
+    return "/" * relpath(path, folder)
 end

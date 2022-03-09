@@ -146,9 +146,9 @@ function export_static(folder::String, routes::Routes)
         if route == "/"
             route = "index"
         end
-
-        @show folder route
-        open(joinpath(folder, route) * ".html", "w") do io
+        html_file = normpath(joinpath(folder, route) * ".html")
+        isdir(dirname(html_file)) || mkpath(dirname(html_file))
+        open(html_file, "w") do io
             page_html(io, session, app)
         end
     end

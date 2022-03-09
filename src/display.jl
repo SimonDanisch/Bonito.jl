@@ -224,7 +224,7 @@ function show_in_page(page::Page, app::App)
         id=session.id,
         # we hide the dom, so the user can't interact before
         # all js connections are loaded
-        style="visibility: hidden;"
+        #style="visibility: hidden;"
     )
 
     obs_shared_with_parent = intersect(keys(session.observables), keys(page_session.observables))
@@ -339,7 +339,7 @@ function page_html(io::IO, session::Session, app::App)
             DOM.meta(charset="UTF-8"),
         ),
         DOM.body(
-            DOM.div(dom, id="application-dom", style="visibility: hidden;")
+            DOM.div(dom, id="application-dom") #, style="visibility: hidden;"
         )
     )
     println(io, "<!doctype html>")

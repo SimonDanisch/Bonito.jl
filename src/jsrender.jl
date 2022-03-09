@@ -8,6 +8,7 @@ messages with the current web session (e.g. via onjs).
 """
 jsrender(::Session, @nospecialize(x)) = jsrender(x)
 jsrender(value::Union{String, Symbol}) = string(value)
+jsrender(::Nothing) = DOM.span()
 
 function render_mime(m::MIME"text/html", @nospecialize(value))
     html = repr(m, value)

@@ -274,6 +274,6 @@ function session_dom(session::Session, app::App)
         jsrender(session, connection_init),
         dom,
         id=session.id,
-        style="visibility: hidden;"
+        # style="visibility: hidden;"
     )
 end

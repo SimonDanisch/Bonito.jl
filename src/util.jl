@@ -45,8 +45,8 @@ repr_richest(x::Number) = sprint(print, x)
 columns(args...; class="") = DOM.div(args..., class=class * " flex flex-col")
 rows(args...; class="") = DOM.div(args..., class=class * " flex flex-row")
 
-function grid(args...; cols=4, rows=4, class="")
-    class *= " grid auto-cols-max grid-cols-$(cols) grid-rows-$(rows) gap-4"
+function grid(args...; cols=4, rows=4, class="", gap=4)
+    class *= " grid auto-cols-max grid-cols-$(cols) grid-rows-$(rows) gap-$(gap)"
     return DOM.div(args..., class=class)
 end
 
