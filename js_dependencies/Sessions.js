@@ -105,13 +105,10 @@ export function track_deleted_sessions() {
     }
 }
 
-export function init_session(session) {
-    const { session_id, all_messages } = session;
-    console.log(session_id);
+export function init_session(session_id) {
     track_deleted_sessions();
     SESSIONS[session_id] = { session_cache: new Set() };
     // send_session_ready(session_id);
-    process_message(all_messages);
     const root_node = document.getElementById(session_id);
     if (root_node) {
         root_node.style.visibility = "visible";

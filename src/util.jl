@@ -1,5 +1,8 @@
 
+struct Break end
+
 function walk_dom(f, x::JSCode, visited = IdDict())
+    f(x)
     walk_dom(f, x.source, visited)
 end
 
@@ -12,17 +15,23 @@ walk_dom(f, x::Markdown.Paragraph, visited = IdDict()) = walk_dom(f, x.content, 
 function walk_dom(f, x::Union{Tuple, AbstractVector, Pair}, visited = IdDict())
     get!(visited, x, nothing) !== nothing && return
     for elem in x
-        walk_dom(f, elem, visited)
+        f(elem)
+        res = walk_dom(f, elem, visited)
+        res isa Break && return res
     end
 end
 
 function walk_dom(f, x::Node, visited = IdDict())
     get!(visited, x, nothing) !== nothing && return
     for elem in children(x)
-        walk_dom(f, elem, visited)
+        f(elem)
+        res = walk_dom(f, elem, visited)
+        res isa Break && return res
     end
     for (name, elem) in Hyperscript.attrs(x)
-        walk_dom(f, elem, visited)
+        f(elem)
+        res = walk_dom(f, elem, visited)
+        res isa Break && return res
     end
 end
 

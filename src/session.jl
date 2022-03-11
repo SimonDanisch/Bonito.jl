@@ -260,20 +260,48 @@ end
 
 function session_dom(session::Session, app::App)
     dom = jsrender(session, app.handler(session, (target="/",)))
+    body = nothing
+    head = nothing
+    walk_dom(dom) do x
+        x isa Node || return
+        t = Hyperscript.tag(x)
+        if t == "body"
+            body = x
+        elseif t == "head"
+            head = x
+        end
+        !isnothing(body) && !isnothing(head) && return Break()
+    end
+
+    if isnothing(head) && isnothing(body)
+        println("using dom")
+        body = dom
+        head = dom
+        dom = DOM.div(dom, id=session.id)
+    end
+
     all_messages = fused_messages!(session)
     msg_b64_str = serialize_string(session, all_messages)
-    connection_init = JSServe.setup_connect(session)
-    asset_init = JSServe.setup_asset_server(session.asset_server)
-    init = """
-        const all_messages = $(repr(msg_b64_str))
-        JSServe.init_session({all_messages, session_id: '$(session.id)'});
+    init_connection = jsrender(session, JSServe.setup_connect(session))
+    init_server = jsrender(session, JSServe.setup_asset_server(session.asset_server))
+
+    init_session = """
+        JSServe.init_session('$(session.id)');
     """
-    return DOM.div(
+
+    load_msgs = """
+        const all_messages = $(repr(msg_b64_str))
+        JSServe.process_message(all_messages);
+    """
+
+    pushfirst!(children(head),
         jsrender(session, JSServeLib),
-        DOM.script(init, type="module"),
-        jsrender(session, connection_init),
-        dom,
-        id=session.id,
-        # style="visibility: hidden;"
+        DOM.script(init_session, type="module"),
+        init_connection,
+        init_server
     )
+
+    push!(children(body), DOM.script(load_msgs, type="module"))
+
+    return dom
 end

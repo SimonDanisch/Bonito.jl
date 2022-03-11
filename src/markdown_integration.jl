@@ -188,8 +188,7 @@ function replace_expressions(markdown::Markdown.Code, context; eval_julia_code=f
         expr = replace_interpolation!(context, expr)
         evaled = eval_julia_code.eval(expr)
         if !isnothing(evaled)
-            result = render_mime(richest_mime(evaled), evaled)
-            return Markdown.MD([md_expr, result])
+            return Markdown.MD([md_expr, evaled])
         else
             return md_expr
         end

@@ -334,16 +334,8 @@ Embeds the html_body in a standalone html document!
 """
 function page_html(io::IO, session::Session, app::App)
     dom = session_dom(session, app)
-    html_body = DOM.html(
-        DOM.head(
-            DOM.meta(charset="UTF-8"),
-        ),
-        DOM.body(
-            DOM.div(dom, id="application-dom") #, style="visibility: hidden;"
-        )
-    )
     println(io, "<!doctype html>")
-    show(io, MIME"text/html"(), Hyperscript.Pretty(html_body))
+    show(io, MIME"text/html"(), Hyperscript.Pretty(dom))
     return
 end
 
