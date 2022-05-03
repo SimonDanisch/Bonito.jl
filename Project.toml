@@ -1,7 +1,7 @@
 name = "JSServe"
 uuid = "824d6782-a2ef-11e9-3a09-e5662e0c26f9"
 authors = ["SimonDanisch <sdanisch@gmail.com>"]
-version = "1.2.5"
+version = "1.2.6"
 
 [deps]
 Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
@@ -30,8 +30,8 @@ HTTP = "0.8, 0.9"
 Hyperscript = "0.0.3, 0.0.4"
 JSON3 = "1.0"
 MsgPack = "1.1.0"
-Observables = "0.3, 0.4"
 RelocatableFolders = "0.1, 0.2"
+Observables = "0.5.1"
 Tables = "1"
 WebSockets = "1.5"
 WidgetsBase = "0.1"
