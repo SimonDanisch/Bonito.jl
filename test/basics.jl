@@ -7,7 +7,7 @@
     @test haskey(session.observables, obs1.id)
     # Obs registered correctly
     @test session.observables[obs1.id][1] # is registered
-    @test obs1.listeners[1] isa JSServe.JSUpdateObservable
+    @test obs1.listeners[1][2] isa JSServe.JSUpdateObservable
     @test session.message_queue[1][:msg_type] == JSServe.RegisterObservable
     @test session.message_queue[1][:id] == obs1.id
 
