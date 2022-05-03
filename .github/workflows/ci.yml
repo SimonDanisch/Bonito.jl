@@ -32,7 +32,7 @@ jobs:
       - name: Run headless test
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: julia --project=@. -e "using Pkg; Pkg.test(coverage=true)"
+          run: julia --project=@. -e "using Pkg; Pkg.up(); Pkg.test(coverage=true)"
       - uses: julia-actions/julia-processcoverage@v1
       - uses: codecov/codecov-action@v1
         with:
