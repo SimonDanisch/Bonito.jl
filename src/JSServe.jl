@@ -39,7 +39,7 @@ include("browser_display.jl")
 
 const JSSERVE_CONFIGURATION = (
     # The URL used to which the default server listens to
-    listen_url = Ref("localhost"),
+    listen_url = Ref("127.0.0.1"),
     # The Port to which the default server listens to
     listen_port = Ref(9284),
     # The url Javascript uses to connect to the websocket.
@@ -176,5 +176,8 @@ end
 # Core functionality
 export Page, Session, App, DOM, @js_str
 export Slider, Button
+
+include("precompiles.jl")
+_precompile_()
 
 end # module

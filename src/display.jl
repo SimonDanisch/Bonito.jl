@@ -200,7 +200,7 @@ function render_sub_session(parent_session, html_dom)
     new_deps = setdiff(session.dependencies, parent_session.dependencies)
     union!(parent_session.dependencies, new_deps)
 
-    on(session, on_init) do is_init
+    on_dereg(session, on_init) do is_init
         if !is_init
             error("The html didn't initialize correctly")
         end
@@ -232,7 +232,7 @@ function render_sub_session(parent_session, html_dom)
     # with the page session, since that's where javascript will sent all the events
     merge!(parent_session.observables, session.observables)
 
-    on(session, session.on_close) do closed
+    on_dereg(session, session.on_close) do closed
         # remove the sub-session specific js resources
         if closed
             obs_ids = collect(keys(session.observables))
@@ -294,7 +294,7 @@ function show_in_page(page::Page, app::App)
 
     exportable = page.exportable
 
-    on(session, on_init) do is_init
+    on_dereg(session, on_init) do is_init
         if !is_init
             error("The html didn't initialize correctly")
         end
@@ -347,7 +347,7 @@ function show_in_page(page::Page, app::App)
     # with the page session, since that's where javascript will sent all the events
     merge!(page_session.observables, session.observables)
 
-    on(session, session.on_close) do closed
+    on_dereg(session, session.on_close) do closed
         # remove the sub-session specific js resources
         if closed
             obs_ids = collect(keys(session.observables))

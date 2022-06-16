@@ -285,7 +285,7 @@ function Base.push!(session::Session, observable::Observable)
         session.observables[observable.id] = (true, observable)
         # Register on the JS side by sending the current value
         updater = JSUpdateObservable(session, observable.id)
-        on(updater, session, observable)
+        on_dereg(updater, session, observable)
         # Make sure we register on the js side
         send(session, payload=observable[], id=observable.id, msg_type=RegisterObservable)
     end

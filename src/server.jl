@@ -304,10 +304,10 @@ function start(application::Server; verbose=false)
     return
 end
 
-const GLOBAL_SERVER = Ref{Server}()
+const GLOBAL_SERVER = Ref{Union{Server, Nothing}}(nothing)
 
 function get_server()
-    if !isassigned(GLOBAL_SERVER) || istaskdone(GLOBAL_SERVER[].server_task[])
+    if isnothing(GLOBAL_SERVER[]) || istaskdone(GLOBAL_SERVER[].server_task[])
         GLOBAL_SERVER[] = Server(
             App("Nothing to see"),
             JSSERVE_CONFIGURATION.listen_url[],

@@ -54,7 +54,7 @@ const noUiSlider = Dependency(
 function jsrender(session::Session, slider::RangeSlider)
     args = (slider.range, slider.connect, slider.orientation,
             slider.tooltips, slider.ticks)
-    style = map(session, args...) do range, connect, orientation, tooltips, ticks
+    style = map_dereg(session, args...) do range, connect, orientation, tooltips, ticks
         value = slider.value[]
         return Dict(
             "range" => Dict(

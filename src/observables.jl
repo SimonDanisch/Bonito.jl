@@ -33,7 +33,7 @@ function jsrender(session::Session, obs::Observable)
         repr_richest(jsrender(session, obs[]))
     )
     dom = DOM.m_unesc("span", html[])
-    on(session, obs) do data
+    on_dereg(session, obs) do data
         html[] = by_value(render_sub_session(session, data))
     end
     onjs(session, html, js"(html)=> {
@@ -45,22 +45,22 @@ function jsrender(session::Session, obs::Observable)
 end
 
 # on & map versions that deregister when session closes!
-function Observables.on(f, session::Session, observable::Observable)
+function on_dereg(f, session::Session, observable::Observable)
     to_deregister = on(f, observable)
     push!(session.deregister_callbacks, to_deregister)
     return to_deregister
 end
 
-function Observables.onany(f, session::Session, observables::Observable...)
+function onany_dereg(f, session::Session, observables::Observable...)
     to_deregister = onany(f, observables...)
     append!(session.deregister_callbacks, to_deregister)
     return to_deregister
 end
 
-function Base.map(f, session::Session, observables::Observable...; result=Observable{Any}())
+function map_dereg(f, session::Session, observables::Observable...; result=Observable{Any}())
     # map guarantees to be run upfront!
     result[] = f(Observables.to_value.(observables)...)
-    onany(session, observables...) do newvals...
+    onany_dereg(session, observables...) do newvals...
         result[] = f(newvals...)
     end
     return result
