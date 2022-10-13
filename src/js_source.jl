@@ -46,9 +46,7 @@ function print_js_code(io::IO, @nospecialize(object), context)
         print(io, "__lookup_cached('$(serialized.id)')")
     else
         id = pointer_identity(serialized)
-        if isnothing(id)
-            error("damn")
-        end
+        isnothing(id) && error("damn")
         context.message_cache[id] = serialized
         print(io, "__lookup_cached('$(id)')")
     end
@@ -75,6 +73,11 @@ function print_js_code(io::IO, node::Node, context)
     return context
 end
 
+function print_js_code(io::IO, node::Asset, context)
+    print(io, "document.querySelector('[data-jscall-id=\"$(uuid(node))\"]')")
+    return context
+end
+
 function print_js_code(io::IO, jsc::JSCode, context)
     for elem in jsc.source
         print_js_code(io, elem, context)
@@ -91,11 +94,16 @@ function print_js_code(io::IO, jsss::AbstractVector{JSCode}, context)
 end
 
 function jsrender(session::Session, js::JSCode)
-    msg = Dict(:msg_type => EvalJavascript, :payload => js, :session => session.id)
-    msg_b64_str = serialize_string(session, msg)
+    context = SerializationContext()
+    code = sprint() do io
+        print_js_code(io, js, context)
+    end
+    data_str = serialize_string(context.data)
+    imports = join(import_module.(context.jsmodules), "\n")
     src = """
-        const msg = '$(msg_b64_str)'
-        JSServe.process_message(msg);
+        $imports
+        const __lookup_cache = JSServe.deserialize('$(data_str)')
+        $code
     """
     return DOM.script(src, type="module")
 end

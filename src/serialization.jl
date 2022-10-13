@@ -1,15 +1,15 @@
 struct SerializationContext
-    session_cache::Dict{String, Any}
-    message_cache::Dict{String, Any}
+    session_cache::OrderedDict{String, Any}
+    message_cache::OrderedDict{String, Any}
     observables::Dict{String, Observable}
 end
 
-function SerializationContext(session_cache=Dict{String, Any}())
-    return SerializationContext(session_cache, Dict{String, Any}(), Dict{String, Observable}())
+function SerializationContext(session_cache=OrderedDict{String, Any}())
+    return SerializationContext(session_cache, OrderedDict{String, Any}(), Dict{String, Observable}())
 end
 
 function SerializationContext(session::Session)
-    return SerializationContext(session.session_cache, Dict{String, Any}(), session.observables)
+    return SerializationContext(session.session_cache, OrderedDict{String, Any}(), session.observables)
 end
 
 # MsgPack doesn't natively support Float16
@@ -147,31 +147,26 @@ function serialize_cached(context::SerializationContext, dict::AbstractDict)
 end
 
 function serialize_cached(session::Session, @nospecialize(obj))
-    ctx = SerializationContext(Dict{String, Any}(), Dict{String, Any}(), session.observables)
+    ctx = SerializationContext(OrderedDict{String, Any}(), OrderedDict{String, Any}(), session.observables)
     # we merge all objects into one dict
     # Since we don't reuse the message_cache dict, we can just merge it into that:
     # apply custom, overloadable transformation
     data = serialize_cached(ctx, obj)
-    session_cache = Dict{String, Any}()
+    session_cache = OrderedDict{String, Any}()
     for (k, obj) in ctx.session_cache
         if !haskey(session.session_cache, k)
-            println("not in cache, adding: $(k)")
             session_cache[k] = obj
             session.session_cache[k] = obj
         else
-            println("in cache: $(k)")
             # if already cached, we dont send it again
             # but we need to declare it, so that we can do refcounting
             session_cache[k] = nothing
         end
     end
-    for (k, ob) in session_cache
-        println("$k: $(typeof(obj))")
-    end
 
     return Dict(
         :session_id => session.id,
-        :session_cache => session_cache,
+        :session_cache => map(x-> (x...,), collect(session_cache)),
         :message_cache => ctx.message_cache,
         :data => data)
 end

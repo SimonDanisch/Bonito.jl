@@ -8,6 +8,7 @@ const {
     process_message,
     on_connection_open,
     on_connection_close,
+    register_init_messages
 } = Connection;
 
 const {
@@ -18,7 +19,9 @@ const {
     encode_binary,
 } = Protocol;
 
-const { init_session, deserialize_cached } = Sessions;
+const { init_session, deserialize_cached, GLOBAL_SESSION_CACHE } = Sessions;
+
+window.GLOBAL_SESSION_CACHE = GLOBAL_SESSION_CACHE
 
 const JSServe = {
     Protocol,
@@ -34,6 +37,8 @@ const JSServe = {
     process_message,
     on_connection_open,
     on_connection_close,
+    register_init_messages,
+    GLOBAL_SESSION_CACHE,
 
     Sessions,
     deserialize_cached,
@@ -56,7 +61,7 @@ export {
     process_message,
     on_connection_open,
     on_connection_close,
-
+    register_init_messages,
     Sessions,
     deserialize_cached,
     init_session,

@@ -1,5 +1,5 @@
 import { deserialize } from "./Protocol.js";
-import { process_message, send_error } from "./Connection.js";
+import { process_message, register_init_messages, send_error } from "./Connection.js";
 
 const SESSIONS = {};
 // session global cache with refcounting
@@ -12,6 +12,12 @@ export function lookup_globally(id) {
         send_error(`Could not find ${id} in global cache.`);
     }
     return object[0];
+}
+
+window.GLOBAL_SESSION_CACHE = GLOBAL_SESSION_CACHE
+
+export {
+    GLOBAL_SESSION_CACHE
 }
 
 function free_object(id) {
@@ -35,13 +41,10 @@ function free_object(id) {
 
 function update_session_cache(session_id, new_session_cache, message_cache) {
     const { session_cache } = SESSIONS[session_id];
-    Object.keys(new_session_cache).forEach((key) => {
-        const data_unserialized = new_session_cache[key];
+    new_session_cache.forEach(([key, data_unserialized]) => {
         if (data_unserialized != null) {
-            console.log(`object adding: ${key}`)
             // if data is an object, we shouldn't have it in the cache yet, since otherwise we wouldn't sent it again
             const new_data = deserialize(message_cache, data_unserialized);
-            console.log(new_data)
             GLOBAL_SESSION_CACHE[key] = [new_data, 1];
         } else {
             // data already cached, we just need to increment the refcount
@@ -105,7 +108,8 @@ export function track_deleted_sessions() {
     }
 }
 
-export function init_session(session_id) {
+export function init_session(session_id, on_done_init) {
+    register_init_messages(on_done_init);
     track_deleted_sessions();
     SESSIONS[session_id] = { session_cache: new Set() };
     // send_session_ready(session_id);

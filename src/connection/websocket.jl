@@ -112,10 +112,7 @@ function setup_connect(session::Session{WebSocketConnection})
     proxy_url = "http://127.0.0.1:$(server.port)"
     return js"""
         (async () => {
-            console.log("Nani??")
             const Websocket = await $(Websocket)
-            console.log("Lol: ", Websocket)
-            console.log(Websocket)
             Websocket.setup_connection({proxy_url: $(proxy_url), session_id: $(session.id)})
         })()
     """

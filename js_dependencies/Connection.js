@@ -13,14 +13,22 @@ const FusedMessage = "9";
 
 const CONNECTION = {
     send_message: undefined,
+    init_messages: undefined,
     queue: [],
     status: "closed",
 };
+
+export function register_init_messages(init_messages_callback) {
+    console.log("Setting init messages")
+    CONNECTION.init_messages = init_messages_callback;
+}
 
 export function on_connection_open(send_message_callback) {
     CONNECTION.send_message = send_message_callback;
     CONNECTION.status = "open";
     CONNECTION.queue.forEach((message) => send_to_julia(message));
+    console.log("running init messages")
+    CONNECTION.init_messages()
 }
 
 export function on_connection_close() {
@@ -64,8 +72,17 @@ export function sent_done_loading() {
     });
 }
 
+function is_array(x, type) {
+    return (typeof x === 'object') && (x.constructor === type);
+}
+
 export async function process_message(binary_or_string) {
-    const data = await decode_binary_message(binary_or_string);
+    let data;
+    if (typeof binary_or_string === "string" || is_array(binary_or_string, Uint8Array)) {
+        data = await decode_binary_message(binary_or_string);
+    } else {
+        data = binary_or_string
+    }
     try {
         switch (data.msg_type) {
             case UpdateObservable:

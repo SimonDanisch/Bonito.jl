@@ -2,6 +2,7 @@ function fused_messages!(session::Session)
     messages = []
     append!(messages, session.message_queue)
     for js in session.on_document_load
+        println(js)
         push!(messages, Dict(:msg_type=>EvalJavascript, :payload=>js))
     end
     empty!(session.on_document_load)
@@ -286,22 +287,20 @@ function session_dom(session::Session, app::App)
     init_server = jsrender(session, JSServe.setup_asset_server(session.asset_server))
 
     init_session = """
-        JSServe.init_session('$(session.id)');
+        function on_done_init(){
+            console.log('load those messages')
+            const all_messages = `$(msg_b64_str)`
+            JSServe.process_message(all_messages);
+            console.log('done!')
+        }
+        JSServe.init_session('$(session.id)', on_done_init);
     """
-
-    load_msgs = """
-        const all_messages = $(repr(msg_b64_str))
-        JSServe.process_message(all_messages);
-    """
-
     pushfirst!(children(head),
         jsrender(session, JSServeLib),
         DOM.script(init_session, type="module"),
         init_connection,
         init_server
     )
-
-    push!(children(body), DOM.script(load_msgs, type="module"))
 
     return dom
 end

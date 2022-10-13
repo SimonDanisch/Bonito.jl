@@ -8,5 +8,7 @@ end
 Base.isopen(::NoConnection) = false
 
 function setup_connect(session::Session{NoConnection})
-    return nothing
+    return js"""
+        JSServe.on_connection_open((w)=> undefined)
+    """
 end

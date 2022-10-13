@@ -161,6 +161,6 @@ function bundle!(asset::Asset)
     Deno_jll.deno() do exe
         write(bundled, read(`$exe bundle $(path)`))
     end
-    asset.last_bundled[] = Dates.now()
+    asset.last_bundled[] = Dates.now(UTC) # Filesystem.mtime(file) is in UTC
     return
 end

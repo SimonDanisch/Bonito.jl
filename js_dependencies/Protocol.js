@@ -86,10 +86,11 @@ function deserialize_datatype(cache, type, payload) {
             }
         case "JSCode":
             const lookup_cached_inner = (id) => lookup_cached(cache, id);
+            const src_code =  deserialize(cache, payload)
             const eval_func = new Function(
                 "__lookup_cached",
                 "JSServe",
-                deserialize(cache, payload)
+                src_code
             );
             // return a closure, that when called runs the code!
             return () => eval_func(lookup_cached_inner, JSServe);
@@ -131,6 +132,7 @@ export function deserialize(cache, data) {
             return result;
         }
     } else {
+        console.log(data)
         return data;
     }
 }
