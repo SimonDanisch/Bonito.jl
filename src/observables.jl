@@ -20,7 +20,7 @@ This will be used to update updates from the forntend.
 """
 function update_nocycle!(obs::Observable, @nospecialize(value))
     obs.val = value
-    for f in Observables.listeners(obs)
+    for (prio, f) in Observables.listeners(obs)
         if !(f isa JSUpdateObservable)
             Base.invokelatest(f, value)
         end

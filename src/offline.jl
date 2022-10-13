@@ -98,11 +98,12 @@ function record_states(session::Session, dom::Hyperscript.Node)
     return rendered
 end
 
-
 """
-export_standalone(app::Application, folder::String;
+    export_standaloneexport_standalone(
+        app::App, folder::String;
+        clear_folder=false, write_index_html=true,
         absolute_urls=false, content_delivery_url="file://" * folder * "/",
-    )
+        single_html=false)
 
 Exports the app defined by `app::Application` with all its assets to `folder`.
 Will write the main html out into `folder/index.html`.
@@ -110,17 +111,19 @@ Overwrites all existing files!
 If this gets served behind a proxy, set `absolute_urls=true` and
 set `content_delivery_url` to your proxy url.
 If `clear_folder=true` all files in `folder` will get deleted before exporting again!
+`single_html=true` will write out a single html instead of writing out JS depencies as separate files.
 """
 function export_standalone(app::App, folder::String;
         clear_folder=false, write_index_html=true,
         absolute_urls=false, content_delivery_url="file://" * folder * "/",
+        single_html=false
     )
     if clear_folder
         for file in readdir(folder)
             rm(joinpath(folder, file), force=true, recursive=true)
         end
     end
-    serializer = UrlSerializer(false, folder, absolute_urls, content_delivery_url, false)
+    serializer = UrlSerializer(false, folder, absolute_urls, content_delivery_url, single_html)
     # set id to "", since we dont needed, and like this we get nicer file names
     session = Session(url_serializer=serializer)
     html_str = sprint() do io
