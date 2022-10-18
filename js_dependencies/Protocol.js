@@ -34,17 +34,6 @@ function materialize_node(data) {
     }
 }
 
-async function load_module_from_bytes(code_ui8_array) {
-    const js_module_promise = new Promise((r) => {
-        const reader = new FileReader();
-        reader.onload = async () => r(await import(reader.result));
-        reader.readAsDataURL(
-            new Blob([code_ui8_array], { type: "text/javascript" })
-        );
-    });
-    return await js_module_promise;
-}
-
 function is_dict(value) {
     return value && typeof value === "object";
 }
@@ -65,7 +54,7 @@ function lookup_cached(cache, key) {
     if (mcache) {
         return mcache;
     }
-    return lookup_globally(key);
+    throw new Error(`Key ${key} not found! ${mcache}`)
 }
 
 function deserialize_datatype(cache, type, payload) {
@@ -78,22 +67,22 @@ function deserialize_datatype(cache, type, payload) {
             return materialize_node(payload);
         case "Asset":
             if (payload.es6module) {
-                return load_module_from_bytes(
-                    deserialize(cache, payload.bytes)
-                );
+                return import(payload.url)
             } else {
-                return deserialize(cache, payload.bytes);
+                return payload.url; // return url for now
             }
         case "JSCode":
-            const lookup_cached_inner = (id) => lookup_cached(cache, id);
-            const src_code =  deserialize(cache, payload)
+            const source = payload.source
+            const objects = deserialize(cache, payload.interpolated_objects)
+            const lookup_interpolated = (id) => objects[id];
+            // create a new func, that has __lookup_cached as argument
             const eval_func = new Function(
-                "__lookup_cached",
+                "__lookup_interpolated",
                 "JSServe",
-                src_code
+                source
             );
             // return a closure, that when called runs the code!
-            return () => eval_func(lookup_cached_inner, JSServe);
+            return () => eval_func(lookup_interpolated, JSServe);
         case "Observable":
             const value = deserialize(cache, payload.value);
             return new Observable(payload.id, value);
@@ -132,7 +121,7 @@ export function deserialize(cache, data) {
             return result;
         }
     } else {
-        console.log(data)
+        // Numbers, strings etc
         return data;
     }
 }
@@ -164,7 +153,7 @@ export async function base64decode(base64_str) {
 export async function decode_binary_message(binary) {
     // we either get a uint buffer or base64 decoded string
     if (is_string(binary)) {
-        return decode_binary_message(await base64decode(binary));
+        return await decode_binary_message(await base64decode(binary));
     } else {
         return await deserialize_cached(decode_binary(binary));
     }
@@ -178,4 +167,15 @@ export function decode_binary(binary) {
 export function encode_binary(data) {
     const binary = MsgPack.encode(data);
     return Pako.deflate(binary);
+}
+
+async function load_module_from_bytes(code_ui8_array) {
+    const js_module_promise = new Promise((r) => {
+        const reader = new FileReader();
+        reader.onload = async () => r(await import(reader.result));
+        reader.readAsDataURL(
+            new Blob([code_ui8_array], { type: "text/javascript" })
+        );
+    });
+    return await js_module_promise;
 }

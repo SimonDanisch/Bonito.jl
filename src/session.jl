@@ -290,8 +290,13 @@ function session_dom(session::Session, app::App)
         function on_done_init(){
             console.log('load those messages')
             const all_messages = `$(msg_b64_str)`
-            JSServe.process_message(all_messages);
-            console.log('done!')
+            JSServe.base64decode(all_messages).then(binary=> {
+                const message = JSServe.decode_binary(binary);
+                console.log("binary done!")
+                const this_is_nice = JSServe.deserialize_cached(message)
+                JSServe.process_message(all_messages);
+                console.log("hehehe")
+            })
         }
         JSServe.init_session('$(session.id)', on_done_init);
     """

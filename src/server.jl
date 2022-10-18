@@ -114,71 +114,6 @@ function online_url(server::Server, url)
     end
 end
 
-function websocket_request()
-    headers = [
-        "Host" => "localhost",
-        "User-Agent" => "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0",
-        "Accept" => "*/*",
-        "Accept-Encoding" => "gzip, deflate, br",
-        "Accept-Language" => "de,en-US;q=0.7,en;q=0.3",
-        "Cache-Control" => "no-cache",
-        "Connection" => "keep-alive, Upgrade",
-        "Dnt" => "1",
-        "Origin" => "https://localhost",
-        "Pragma" => "no-cache",
-        "Sec-Websocket-Extensions" => "permessage-deflate",
-        "Sec-Websocket-Key" => "BL3d8I8KC5faPjubRM0riA==",
-        "Sec-Websocket-Version" => "13",
-        "Upgrade" => "websocket",
-    ]
-    msg = HTTP.Request(
-        "GET",
-        "/",
-        headers,
-        UInt8[],
-        parent = nothing,
-        version = v"1.1.0"
-    )
-    return Stream(msg, IOBuffer())
-end
-
-"""
-warmup(application::Server)
-
-Warms up the application, by sending a couple of request.
-"""
-function warmup(application::Server)
-    yield() # yield to server task to give it a chance to get started
-    task = application.server_task[]
-    if Base.istaskdone(task)
-        error("Webserver doesn't serve! Error: $(fetch(task))")
-    end
-    # Make a websocket request
-    stream = websocket_request()
-    try
-        @async stream_handler(application, stream)
-        write(stream, "blaaa")
-    catch e
-        # TODO make it not error so we can test this properly
-        # This will error, since its not a propper websocket request
-        @debug "Error in stream_handler" exception=e
-    end
-    target = register_local_file(JSServeLib.path) # http target part
-    asset_url = local_url(application, target)
-    request = Request("GET", target)
-
-    delegate(application.routes, application, request)
-
-    if Base.istaskdone(task)
-        error("Webserver doesn't serve! Error: $(fetch(task))")
-    end
-    resp = WebSockets.HTTP.get(asset_url, readtimeout=500, retries=1)
-    if resp.status != 200
-        error("Webserver didn't start succesfully")
-    end
-    return
-end
-
 function stream_handler(application::Server, stream::Stream)
     if WebSockets.is_upgrade(stream)
         try
@@ -235,8 +170,6 @@ function Server(
 
     try
         start(server; verbose=verbose)
-        # warmup server!
-        # warmup(application)
     catch e
         close(server)
         rethrow(e)
@@ -399,7 +332,6 @@ function configure_server!(;
     end
     return
 end
-
 
 function server_defaults()
      url = if haskey(ENV, "JULIA_WEBIO_BASEURL")

@@ -52,7 +52,10 @@ jsc.source == [JSString("console.log("), some_julia_variable, JSString("\"")]
 """
 struct JSCode
     source::Vector{Union{JSString, Any}}
+    file::String # location of the js string, a la "path/to/file:line"
 end
+
+JSCode(source) = JSCode(source, "")
 
 """
 Represent an asset stored at an URL.

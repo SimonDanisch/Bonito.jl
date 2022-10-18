@@ -125,7 +125,6 @@ function default_asset_server()
     return NoServer()
 end
 
-
 function local_path(asset::Asset)
     if asset.es6module
         bundle!(asset)

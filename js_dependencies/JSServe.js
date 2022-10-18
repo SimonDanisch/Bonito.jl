@@ -17,6 +17,7 @@ const {
     base64encode,
     decode_binary,
     encode_binary,
+    decode_binary_message
 } = Protocol;
 
 const { init_session, deserialize_cached, GLOBAL_SESSION_CACHE } = Sessions;
@@ -30,6 +31,7 @@ const JSServe = {
     base64encode,
     decode_binary,
     encode_binary,
+    decode_binary_message,
 
     Connection,
     send_error,

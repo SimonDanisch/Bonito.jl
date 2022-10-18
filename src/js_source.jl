@@ -33,77 +33,91 @@ end
 macro js_str(js_source)
     value_array = :([])
     append!(value_array.args, iterate_interpolations(js_source))
-    return :(JSCode($value_array))
+    return :(JSCode($value_array, $(string(__source__.file, ":", __source__.line))))
 end
 
 function Base.show(io::IO, jsc::JSCode)
-    print_js_code(io, jsc,  SerializationContext())
+    print_js_code(io, jsc, IdDict())
 end
 
-function print_js_code(io::IO, @nospecialize(object), context)
-    serialized = serialize_cached(context, object)
-    if serialized isa CacheKey
-        print(io, "__lookup_cached('$(serialized.id)')")
-    else
-        id = pointer_identity(serialized)
-        isnothing(id) && error("damn")
-        context.message_cache[id] = serialized
-        print(io, "__lookup_cached('$(id)')")
-    end
-    return context
+function print_js_code(io::IO, @nospecialize(object), objects::IdDict)
+    id = get!(()-> string(hash(object)), objects, object)
+    debug = summary(object) # TODO, probably slow, so needs a way of disabling
+    print(io, "__lookup_interpolated('$(id)', '$(debug)')")
+    return objects
 end
 
-function print_js_code(io::IO, x::Number, context)
+function print_js_code(io::IO, x::Number, objects::IdDict)
     print(io, x)
-    return context
+    return objects
 end
 
-function print_js_code(io::IO, x::String, context)
+function print_js_code(io::IO, x::String, objects::IdDict)
     print(io, "'", x, "'")
-    return context
+    return objects
 end
 
-function print_js_code(io::IO, jss::JSString, context)
+function print_js_code(io::IO, jss::JSString, objects::IdDict)
     print(io, jss.source)
-    return context
+    return objects
 end
 
-function print_js_code(io::IO, node::Node, context)
+function print_js_code(io::IO, node::Node, objects::IdDict)
     print(io, "document.querySelector('[data-jscall-id=\"$(uuid(node))\"]')")
-    return context
+    return objects
 end
 
-function print_js_code(io::IO, node::Asset, context)
-    print(io, "document.querySelector('[data-jscall-id=\"$(uuid(node))\"]')")
-    return context
-end
-
-function print_js_code(io::IO, jsc::JSCode, context)
+function print_js_code(io::IO, jsc::JSCode, objects::IdDict)
+    println(io, "// JSCode from: ", jsc.file)
     for elem in jsc.source
-        print_js_code(io, elem, context)
+        print_js_code(io, elem, objects::IdDict)
     end
-    return context
+    return objects
 end
 
-function print_js_code(io::IO, jsss::AbstractVector{JSCode}, context)
+function print_js_code(io::IO, jsss::AbstractVector{JSCode}, objects::IdDict)
     for jss in jsss
-        print_js_code(io, jss, context)
+        print_js_code(io, jss, objects::IdDict)
         println(io)
     end
-    return context
+    return objects
 end
 
 function jsrender(session::Session, js::JSCode)
-    context = SerializationContext()
+    data_str = serialize_string(session, js)
+    # Deserialize JSCode type and call it to run it!
+    # TODO, stacktraces become truely terrible like this
+
+    objects = IdDict()
+    # Print code while collecting all interpolated objects in an IdDict
     code = sprint() do io
-        print_js_code(io, js, context)
+        print_js_code(io, js, objects)
     end
-    data_str = serialize_string(context.data)
-    imports = join(import_module.(context.jsmodules), "\n")
+    # reverse lookup and serialize elements
+    interpolated_objects = Dict(v => serialize_cached(context, k) for (k, v) in objects)
+    data = Dict(
+        :interpolated_objects => interpolated_objects,
+        :source => code,
+        :julia_file => js.file
+    )
+    data_str = serialize_string(session, interpolated_objects)
     src = """
-        $imports
-        const __lookup_cache = JSServe.deserialize('$(data_str)')
-        $code
+        // JSCode from $(js.file)
+        const data_str = '$(data_str)'
+        console.log("ok lets do this")
+        JSServe.base64decode(data_str).then(binary=> {
+            console.log("Uhmm")
+            const message = JSServe.decode_binary(binary);
+            console.log(message)
+            const objects = JSServe.deserialize_cached(message)
+            console.log("it resolved :) ")
+            console.log(objects)
+            function __lookup_interpolated(id) {
+                console.log(`looking up \${id}`)
+                return objects[id];
+            }
+            $code
+        })
     """
     return DOM.script(src, type="module")
 end

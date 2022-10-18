@@ -61,10 +61,11 @@ function update_session_cache(session_id, new_session_cache, message_cache) {
     return;
 }
 
-export async function deserialize_cached(message) {
-    const { session_id, session_cache, message_cache, data } = message;
-    update_session_cache(session_id, session_cache, message_cache);
-    return deserialize(message_cache, data);
+export function deserialize_cached(message) {
+    const { session_id, session_cache, data } = message;
+    // update_session_cache(session_id, session_cache);
+    const cache = deserialize({}, session_cache)
+    return deserialize(cache, data)
 }
 
 let DELETE_OBSERVER = undefined;
@@ -109,11 +110,13 @@ export function track_deleted_sessions() {
 }
 
 export function init_session(session_id, on_done_init) {
+    console.log("init session")
     register_init_messages(on_done_init);
     track_deleted_sessions();
     SESSIONS[session_id] = { session_cache: new Set() };
     // send_session_ready(session_id);
     const root_node = document.getElementById(session_id);
+    console.log("making visiiii")
     if (root_node) {
         root_node.style.visibility = "visible";
     }

@@ -1,15 +1,15 @@
 struct SerializationContext
     session_cache::OrderedDict{String, Any}
-    message_cache::OrderedDict{String, Any}
     observables::Dict{String, Observable}
+    asset_server::AbstractAssetServer
 end
 
 function SerializationContext(session_cache=OrderedDict{String, Any}())
-    return SerializationContext(session_cache, OrderedDict{String, Any}(), Dict{String, Observable}())
+    return SerializationContext(session_cache, Dict{String, Observable}())
 end
 
 function SerializationContext(session::Session)
-    return SerializationContext(session.session_cache, OrderedDict{String, Any}(), session.observables)
+    return SerializationContext(session.session_cache, session.observables)
 end
 
 # MsgPack doesn't natively support Float16
@@ -46,12 +46,46 @@ function js_type(type::String, @nospecialize(x))
     )
 end
 
+serialize_js(@nospecialize(x)) = x
+serialize_js(array::AbstractVector{T}) where {T<:Number} = js_type("TypedVector", array)
+serialize_js(array::AbstractVector{UInt8}) = js_type("Uint8Array", to_bytevec(array))
+serialize_js(array::AbstractVector{Int32}) = js_type("Int32Array", to_bytevec(array))
+serialize_js(array::AbstractVector{UInt32}) = js_type("Uint32Array", to_bytevec(array))
+serialize_js(array::AbstractVector{Float16}) = serialize_js(convert(Vector{Float32}, array))
+serialize_js(array::AbstractVector{Float32}) = js_type("Float32Array", to_bytevec(array))
+serialize_js(array::AbstractVector{Float64}) = js_type("Float64Array", to_bytevec(array))
+
+function serialize_cached(context::SerializationContext, asset::Asset)
+    id = object_identity(asset)
+    get!(context.session_cache, id) do
+        return js_type("Asset", Dict(:es6module => asset.es6module, :url => url(context.asset_server, asset)))
+    end
+    return js_type("CacheKey", id)
+end
+
+
 function serialize_cached(context::SerializationContext, obs::Observable)
     context.observables[obs.id] = obs
     get!(context.session_cache, obs.id) do
         js_type("Observable", Dict(:id => obs.id, :value => serialize_cached(context, obs[])))
     end
-    return CacheKey(obs.id)
+    return js_type("CacheKey", obs.id)
+end
+
+function serialize_cached(context::SerializationContext, js::JSCode)
+    objects = IdDict()
+    # Print code while collecting all interpolated objects in an IdDict
+    code = sprint() do io
+        print_js_code(io, js, objects)
+    end
+    # reverse lookup and serialize elements
+    interpolated_objects = Dict(v => serialize_cached(context, k) for (k, v) in objects)
+    data = Dict(
+        :interpolated_objects => interpolated_objects,
+        :source => code,
+        :julia_file => js.file
+    )
+    return js_type("JSCode", data)
 end
 
 function serialize_cached(context::SerializationContext, node::Hyperscript.Node{Hyperscript.HTMLSVG})
@@ -63,79 +97,27 @@ function serialize_cached(context::SerializationContext, node::Hyperscript.Node{
     return js_type("DomNodeFull", vals)
 end
 
-# For JSCode we need the context, since we want to recursively
-# cache all interpolated values
-function serialize_cached(context::SerializationContext, jsc::Union{JSCode, JSString})
-    js_string = sprint(io-> print_js_code(io, jsc, context))
-    return js_type("JSCode", js_string)
-end
+object_identity(asset::Asset) = unique_file_key(asset)
+object_identity(observable::Observable) = observable.id
+object_identity(@nospecialize(observable)) = nothing
 
-serialize_js(@nospecialize(x)) = x
-function serialize_js(asset::Asset)
-    bytes = serialize_js(read(local_path(asset)))
-    return js_type("Asset", Dict(:es6module => asset.es6module, :bytes => bytes))
-end
-
-serialize_js(array::AbstractVector{T}) where {T<:Number} = js_type("TypedVector", array)
-serialize_js(array::AbstractVector{UInt8}) = js_type("Uint8Array", to_bytevec(array))
-serialize_js(array::AbstractVector{Int32}) = js_type("Int32Array", to_bytevec(array))
-serialize_js(array::AbstractVector{UInt32}) = js_type("Uint32Array", to_bytevec(array))
-serialize_js(array::AbstractVector{Float16}) = serialize_js(convert(Vector{Float32}, array))
-serialize_js(array::AbstractVector{Float32}) = js_type("Float32Array", to_bytevec(array))
-serialize_js(array::AbstractVector{Float64}) = js_type("Float64Array", to_bytevec(array))
-
-function pointer_identity(@nospecialize(x::AbstractArray))
-    return string(UInt64(pointer(x)))
-end
-
-function pointer_identity(@nospecialize(obj))
-    # immutable objects have no pointer identity
-    isimmutable(obj) && return nothing
-    return string(UInt64(pointer_from_objref(obj)))
-end
-
-function object_identity(@nospecialize(obj))
-    return :message_cache, pointer_identity(obj)
-end
-
-function object_identity(str::String)
-    # don't cache strings smaller 520bytes
-    # which is the size of CacheKey serialized
-    if sizeof(str) < 520
-        return :session_cache, nothing
-    else
-        return :session_cache, string(hash(str))
-    end
-end
-
-function object_identity(asset::Asset)
-    return :session_cache, unique_file_key(asset)
-end
-
-function object_identity(observable::Observable)
-    return :session_cache, observable.id
-end
-
-struct CacheKey
-    id::String
-end
-
-MsgPack.msgpack_type(::Type{CacheKey}) = MsgPack.MapType()
-MsgPack.to_msgpack(::MsgPack.MapType, x::CacheKey) = js_type("CacheKey", x.id)
-
-function serialize_cached(context::SerializationContext, obj)
-    method, id = object_identity(obj)
+function serialize_cached(context::SerializationContext, @nospecialize(obj))
+    id = object_identity(obj)
     # if id is nothing it means we can't/ don't want to cache!
-    isnothing(id) && return obj
-    dict = getfield(context, method)
-    get!(dict, id) do
+    isnothing(id) && return serialize_js(obj)
+    get!(context.session_cache, id) do
         serialize_js(obj)
     end
-    return CacheKey(id)
+    return js_type("CacheKey", id)
 end
 
 function serialize_cached(context::SerializationContext, x::Union{AbstractArray, Tuple})
-    return map(x-> serialize_cached(context, x), x)
+    serialized = serialize_js(x)
+    if serialized === x
+        return map(x-> serialize_cached(context, x), x)
+    else
+        return serialized
+    end
 end
 
 function serialize_cached(context::SerializationContext, dict::AbstractDict)
@@ -147,27 +129,26 @@ function serialize_cached(context::SerializationContext, dict::AbstractDict)
 end
 
 function serialize_cached(session::Session, @nospecialize(obj))
-    ctx = SerializationContext(OrderedDict{String, Any}(), OrderedDict{String, Any}(), session.observables)
+    ctx = SerializationContext(OrderedDict{String, Any}(), session.observables, session.asset_server)
     # we merge all objects into one dict
     # Since we don't reuse the message_cache dict, we can just merge it into that:
     # apply custom, overloadable transformation
     data = serialize_cached(ctx, obj)
-    session_cache = OrderedDict{String, Any}()
-    for (k, obj) in ctx.session_cache
-        if !haskey(session.session_cache, k)
-            session_cache[k] = obj
-            session.session_cache[k] = obj
-        else
-            # if already cached, we dont send it again
-            # but we need to declare it, so that we can do refcounting
-            session_cache[k] = nothing
-        end
-    end
+    # session_cache = OrderedDict{String, Any}()
+    # for (k, obj) in ctx.session_cache
+    #     if !haskey(session.session_cache, k)
+    #         session_cache[k] = obj
+    #         session.session_cache[k] = obj
+    #     else
+    #         # if already cached, we dont send it again
+    #         # but we need to declare it, so that we can do refcounting
+    #         session_cache[k] = nothing
+    #     end
+    # end
 
     return Dict(
         :session_id => session.id,
-        :session_cache => map(x-> (x...,), collect(session_cache)),
-        :message_cache => ctx.message_cache,
+        :session_cache => ctx.session_cache,
         :data => data)
 end
 
