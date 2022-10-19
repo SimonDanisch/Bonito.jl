@@ -79,9 +79,11 @@ end
 
 function attribute_render(session::Session, parent, attribute::String, jss::JSCode)
     # add js after parent gets loaded
-    onload(session, parent, js"""function (node) {
+    func = js"""function (node) {
         node[$attribute] = $(jss)
-    }""")
+    }"""
+    # preserve func.file
+    onload(session, parent, JSCode(func.source, jss.file))
     return ""
 end
 

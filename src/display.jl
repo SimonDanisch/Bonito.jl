@@ -130,7 +130,7 @@ function render_sub_session(parent_session, html_dom)
     init = js"""
     // register this session so it gets deleted when it gets removed from dom
     $(JSServeLib).register_sub_session($(session.id))
-    update_obs($(on_init), true)
+    $(on_init).notify(true)
     """
 
     final_dom = DOM.span(
@@ -206,14 +206,14 @@ function show_in_page(page::Page, app::App)
             const init_data_b64 = $(serialize_string(session, messages))
             $(JSServeLib).init_from_b64(init_data_b64)
             if (!$(is_offline)){
-                update_obs($(on_init), true)
+                $(on_init).notify(true)
             }
         })()"""
     else
         js"""
             // register this session so it gets deleted when it gets removed from dom
             $(JSServeLib).register_sub_session($(session.id))
-            update_obs($(on_init), true)
+            $(on_init).notify(true)
         """
     end
 

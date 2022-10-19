@@ -57,6 +57,9 @@ function lookup_cached(cache, key) {
     throw new Error(`Key ${key} not found! ${mcache}`)
 }
 
+const OBSERVABLES = {}
+window.OBSERVABLES = OBSERVABLES
+
 function deserialize_datatype(cache, type, payload) {
     switch (type) {
         case "TypedVector":
@@ -82,10 +85,21 @@ function deserialize_datatype(cache, type, payload) {
                 source
             );
             // return a closure, that when called runs the code!
-            return () => eval_func(lookup_interpolated, JSServe);
+            return () => {
+                try{
+                    return eval_func(lookup_interpolated, JSServe)
+                } catch (err) {
+                    console.log(`error in closure from: ${payload.julia_file}`)
+                    console.log(`Source:`)
+                    console.log(source)
+                    throw err
+                }
+            }
         case "Observable":
             const value = deserialize(cache, payload.value);
-            return new Observable(payload.id, value);
+            const obs = new Observable(payload.id, value);
+            OBSERVABLES[payload.id] = obs;
+            return obs;
         case "Uint8Array":
             return payload;
         case "Int32Array":

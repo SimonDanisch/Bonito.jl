@@ -2,7 +2,6 @@ function fused_messages!(session::Session)
     messages = []
     append!(messages, session.message_queue)
     for js in session.on_document_load
-        println(js)
         push!(messages, Dict(:msg_type=>EvalJavascript, :payload=>js))
     end
     empty!(session.on_document_load)
@@ -116,7 +115,9 @@ end
 calls javascript `func` with node, once node has been displayed.
 """
 function onload(session::Session, node::Node, func::JSCode)
-    on_document_load(session, js"($(func))($(node));")
+    wrapped_func = js"($(func))($(node));"
+    # preserver fun.file
+    on_document_load(session, JSCode(wrapped_func.source, func.file))
 end
 
 """
@@ -136,7 +137,7 @@ Link the observables in Julia, but only as long as the session is active.
 """
 function linkjs(session::Session, a::Observable, b::Observable)
     # register the callback with the JS session
-    onjs(session, a, js"(v) => update_obs($b, v)")
+    onjs(session, a, js"""(v) => {$(b).notify(v)}""")
 end
 
 function linkjs(has_session, a::Observable, b::Observable)
@@ -175,9 +176,9 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=10.0)
     js_with_result = js"""
     try{
         const result = $(js);
-        update_obs($(comm), {result: result});
+        $(comm).notify({result: result});
     }catch(e){
-        update_obs($(comm), {error: e.toString()});
+        $(comm).notify({error: e.toString()});
     }
     """
 

@@ -68,16 +68,15 @@ function print_js_code(io::IO, node::Node, objects::IdDict)
 end
 
 function print_js_code(io::IO, jsc::JSCode, objects::IdDict)
-    println(io, "// JSCode from: ", jsc.file)
     for elem in jsc.source
-        print_js_code(io, elem, objects::IdDict)
+        print_js_code(io, elem, objects)
     end
     return objects
 end
 
 function print_js_code(io::IO, jsss::AbstractVector{JSCode}, objects::IdDict)
     for jss in jsss
-        print_js_code(io, jss, objects::IdDict)
+        print_js_code(io, jss, objects)
         println(io)
     end
     return objects
@@ -94,7 +93,7 @@ function jsrender(session::Session, js::JSCode)
         print_js_code(io, js, objects)
     end
     # reverse lookup and serialize elements
-    interpolated_objects = Dict(v => serialize_cached(context, k) for (k, v) in objects)
+    interpolated_objects = Dict(v => k for (k, v) in objects)
     data = Dict(
         :interpolated_objects => interpolated_objects,
         :source => code,
@@ -106,12 +105,8 @@ function jsrender(session::Session, js::JSCode)
         const data_str = '$(data_str)'
         console.log("ok lets do this")
         JSServe.base64decode(data_str).then(binary=> {
-            console.log("Uhmm")
             const message = JSServe.decode_binary(binary);
-            console.log(message)
             const objects = JSServe.deserialize_cached(message)
-            console.log("it resolved :) ")
-            console.log(objects)
             function __lookup_interpolated(id) {
                 console.log(`looking up \${id}`)
                 return objects[id];

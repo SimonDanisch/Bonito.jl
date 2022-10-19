@@ -112,7 +112,7 @@ end
 
 Path to serve downloaded dependencies
 """
-dependency_path(paths...) = @path joinpath(@__DIR__, "..", "..", "js_dependencies", paths...)
+dependency_path(paths...) = joinpath(@__DIR__, "..", "..", "js_dependencies", paths...)
 
 const JSServeLib = ES6Module(dependency_path("JSServe.js"))
 const Websocket = ES6Module(dependency_path("Websocket.js"))

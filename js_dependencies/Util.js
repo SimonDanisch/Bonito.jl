@@ -1,23 +1,3 @@
-function update_dom_node(dom, html) {
-    if (dom) {
-        dom.innerHTML = html;
-        return true;
-    } else {
-        //deregister the callback if the observable dom is gone
-        return false;
-    }
-}
-
-function update_node_attribute(node, attribute, value) {
-    if (node) {
-        if (node[attribute] != value) {
-            node[attribute] = value;
-        }
-        return true;
-    } else {
-        return false; //deregister
-    }
-}
 
 function resize_iframe_parent(session_id) {
     const body = document.body;

@@ -86,7 +86,10 @@ export async function process_message(binary_or_string) {
     try {
         switch (data.msg_type) {
             case UpdateObservable:
-                const observable = lookup_globally(data.id);
+                const observable = OBSERVABLES[data.id];
+                if (!observable) {
+                    throw new Error(`No observable with id ${data.id}`)
+                }
                 observable.notify(payload, true);
                 break;
             case RegisterObservable:
@@ -95,7 +98,7 @@ export async function process_message(binary_or_string) {
             case OnjsCallback:
                 // register a callback that will executed on js side
                 // when observable updates
-                on_update(data.id, data.payload());
+                data.obs.on(data.payload());
                 break;
             case EvalJavascript:
                 const eval_closure = data.payload;

@@ -24,6 +24,28 @@ const { init_session, deserialize_cached, GLOBAL_SESSION_CACHE } = Sessions;
 
 window.GLOBAL_SESSION_CACHE = GLOBAL_SESSION_CACHE
 
+
+function update_node_attribute(node, attribute, value) {
+    if (node) {
+        if (node[attribute] != value) {
+            node[attribute] = value;
+        }
+        return true;
+    } else {
+        return false; //deregister
+    }
+}
+
+function update_dom_node(dom, html) {
+    if (dom) {
+        dom.innerHTML = html;
+        return true;
+    } else {
+        //deregister the callback if the observable dom is gone
+        return false;
+    }
+}
+
 const JSServe = {
     Protocol,
     deserialize,
@@ -45,6 +67,9 @@ const JSServe = {
     Sessions,
     deserialize_cached,
     init_session,
+    // Util
+    update_node_attribute,
+    update_dom_node
 };
 
 window.JSServe = JSServe;

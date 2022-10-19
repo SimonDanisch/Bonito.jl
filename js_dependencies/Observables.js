@@ -1,4 +1,4 @@
-import { send_to_julia, UpdateObservable } from "./Connection.js";
+import { send_to_julia, UpdateObservable, send_error } from "./Connection.js";
 
 class Observable {
     #callbacks = [];

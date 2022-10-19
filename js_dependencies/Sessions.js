@@ -116,7 +116,6 @@ export function init_session(session_id, on_done_init) {
     SESSIONS[session_id] = { session_cache: new Set() };
     // send_session_ready(session_id);
     const root_node = document.getElementById(session_id);
-    console.log("making visiiii")
     if (root_node) {
         root_node.style.visibility = "visible";
     }
