@@ -17,6 +17,7 @@ const {
     base64encode,
     decode_binary,
     encode_binary,
+    materialize_node,
     decode_binary_message
 } = Protocol;
 
@@ -53,6 +54,7 @@ const JSServe = {
     base64encode,
     decode_binary,
     encode_binary,
+    materialize_node,
     decode_binary_message,
 
     Connection,

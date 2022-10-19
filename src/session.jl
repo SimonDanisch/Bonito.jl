@@ -10,6 +10,7 @@ function fused_messages!(session::Session)
 end
 
 function init_session(session::Session)
+    println("initing session :)")
     evaljs(session, js"""
         const application_dom = document.getElementById('application-dom')
         if (application_dom) {
@@ -76,7 +77,7 @@ function Sockets.send(session::Session, message::Dict{Symbol, Any})
     if isready(session)
         @assert isempty(session.message_queue)
         binary = serialize_binary(session, message)
-        write(session.connection[], binary)
+        write(session.connection, binary)
     else
         push!(session.message_queue, message)
     end
@@ -296,7 +297,6 @@ function session_dom(session::Session, app::App)
                 console.log("binary done!")
                 const this_is_nice = JSServe.deserialize_cached(message)
                 JSServe.process_message(all_messages);
-                console.log("hehehe")
             })
         }
         JSServe.init_session('$(session.id)', on_done_init);

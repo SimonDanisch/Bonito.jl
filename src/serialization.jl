@@ -1,7 +1,7 @@
 struct SerializationContext
     session_cache::OrderedDict{String, Any}
     observables::Dict{String, Observable}
-    asset_server::AbstractAssetServer
+    session::Session
 end
 
 function SerializationContext(session_cache=OrderedDict{String, Any}())
@@ -9,7 +9,7 @@ function SerializationContext(session_cache=OrderedDict{String, Any}())
 end
 
 function SerializationContext(session::Session)
-    return SerializationContext(session.session_cache, session.observables)
+    return SerializationContext(session.session_cache, session.observables, session)
 end
 
 # MsgPack doesn't natively support Float16
@@ -58,7 +58,7 @@ serialize_js(array::AbstractVector{Float64}) = js_type("Float64Array", to_byteve
 function serialize_cached(context::SerializationContext, asset::Asset)
     id = object_identity(asset)
     get!(context.session_cache, id) do
-        return js_type("Asset", Dict(:es6module => asset.es6module, :url => url(context.asset_server, asset)))
+        return js_type("Asset", Dict(:es6module => asset.es6module, :url => url(context.session.asset_server, asset)))
     end
     return js_type("CacheKey", id)
 end
@@ -67,6 +67,8 @@ end
 function serialize_cached(context::SerializationContext, obs::Observable)
     context.observables[obs.id] = obs
     get!(context.session_cache, obs.id) do
+        updater = JSUpdateObservable(context.session, obs.id)
+        on(updater, context.session, obs)
         js_type("Observable", Dict(:id => obs.id, :value => serialize_cached(context, obs[])))
     end
     return js_type("CacheKey", obs.id)
@@ -129,7 +131,7 @@ function serialize_cached(context::SerializationContext, dict::AbstractDict)
 end
 
 function serialize_cached(session::Session, @nospecialize(obj))
-    ctx = SerializationContext(OrderedDict{String, Any}(), session.observables, session.asset_server)
+    ctx = SerializationContext(OrderedDict{String, Any}(), session.observables, session)
     # we merge all objects into one dict
     # Since we don't reuse the message_cache dict, we can just merge it into that:
     # apply custom, overloadable transformation

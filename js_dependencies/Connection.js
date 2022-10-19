@@ -20,7 +20,10 @@ const CONNECTION = {
 
 export function register_init_messages(init_messages_callback) {
     console.log("Setting init messages")
-    CONNECTION.init_messages = init_messages_callback;
+    CONNECTION.init_messages = function () {
+        init_messages_callback();
+        sent_done_loading()
+    }
 }
 
 export function on_connection_open(send_message_callback) {
@@ -66,6 +69,7 @@ export function send_warning(message) {
 }
 
 export function sent_done_loading() {
+    console.log("done loading")
     send_to_julia({
         msg_type: JSDoneLoading,
         exception: "null",
@@ -77,6 +81,7 @@ function is_array(x, type) {
 }
 
 export async function process_message(binary_or_string) {
+    console.log("processing binary or string")
     let data;
     if (typeof binary_or_string === "string" || is_array(binary_or_string, Uint8Array)) {
         data = await decode_binary_message(binary_or_string);
@@ -86,11 +91,11 @@ export async function process_message(binary_or_string) {
     try {
         switch (data.msg_type) {
             case UpdateObservable:
-                const observable = OBSERVABLES[data.id];
+                const observable = window.OBSERVABLES[data.id];
                 if (!observable) {
                     throw new Error(`No observable with id ${data.id}`)
                 }
-                observable.notify(payload, true);
+                observable.notify(data.payload, true);
                 break;
             case RegisterObservable:
                 registered_observables[data.id] = data.payload;

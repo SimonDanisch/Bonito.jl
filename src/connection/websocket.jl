@@ -10,8 +10,6 @@ WebSocketConnection() = WebSocketConnection(nothing)
 const MATCH_HEX = r"[\da-f]"
 const MATCH_UUID4 = MATCH_HEX^8 * r"-" * (MATCH_HEX^4 * r"-")^3 * MATCH_HEX^12
 
-
-
 function save_read(websocket)
     try
         # readavailable is what HTTP overloaded for websockets
@@ -32,6 +30,9 @@ function save_read(websocket)
 end
 
 Base.isopen(ws::WebSocketConnection) = !isnothing(ws.socket) && isopen(ws.socket)
+function Base.write(ws::WebSocketConnection, binary)
+    write(ws.socket, binary)
+end
 
 function Base.close(ws::WebSocketConnection)
     isnothing(ws.socket) && return

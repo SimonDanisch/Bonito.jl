@@ -3,7 +3,7 @@ import * as Pako from "https://cdn.esm.sh/v66/pako@2.0.4/es2021/pako.js";
 import { Observable } from "./Observables.js";
 import { deserialize_cached, lookup_globally } from "./Sessions.js";
 
-function materialize_node(data) {
+export function materialize_node(data) {
     // if is a node attribute
     if (Array.isArray(data)) {
         return data.map(materialize_node);
