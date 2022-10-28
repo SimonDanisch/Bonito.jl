@@ -11,8 +11,6 @@ using Hyperscript: Node, children, tag
 using Markdown
 using HTTP
 using Deno_jll
-using OrderedCollections
-
 
 using Base64
 using MsgPack
@@ -25,6 +23,8 @@ using LinearAlgebra
 using CodecZlib
 using RelocatableFolders: @path, Path, getroot
 using URIs
+
+using Base: RefValue
 
 include("HTTPServer/HTTPServer.jl")
 include("types.jl")

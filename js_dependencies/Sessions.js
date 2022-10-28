@@ -1,35 +1,30 @@
 import { deserialize } from "./Protocol.js";
-import { process_message, register_init_messages, send_error } from "./Connection.js";
+import { register_on_connection_open, send_error } from "./Connection.js";
 
 const SESSIONS = {};
-// session global cache with refcounting
+// global object cache with refcounting
 // contains {id: [data, refcount]}
-const GLOBAL_SESSION_CACHE = {};
+// Right now, should only contain Observables + Assets
+const GLOBAL_OBJECT_CACHE = {};
 
-export function lookup_globally(id) {
-    const object = GLOBAL_SESSION_CACHE[id];
+export function lookup_observable(id) {
+    const object = GLOBAL_OBJECT_CACHE[id];
     if (!object) {
         send_error(`Could not find ${id} in global cache.`);
     }
     return object[0];
 }
 
-window.GLOBAL_SESSION_CACHE = GLOBAL_SESSION_CACHE
-
-export {
-    GLOBAL_SESSION_CACHE
-}
-
 function free_object(id) {
     console.log(`freeing ${id}`)
-    const object = GLOBAL_SESSION_CACHE[id];
+    const object = GLOBAL_OBJECT_CACHE[id];
     if (object) {
         const [data, refcount] = object;
         const new_refcount = refcount - 1;
         if (new_refcount === 0) {
-            delete GLOBAL_SESSION_CACHE[id];
+            delete GLOBAL_OBJECT_CACHE[id];
         } else {
-            GLOBAL_SESSION_CACHE[id] = [data, new_refcount];
+            GLOBAL_OBJECT_CACHE[id] = [data, new_refcount];
         }
     } else {
         send_warning(
@@ -39,32 +34,32 @@ function free_object(id) {
     return;
 }
 
-function update_session_cache(session_id, new_session_cache, message_cache) {
-    const { session_cache } = SESSIONS[session_id];
-    new_session_cache.forEach(([key, data_unserialized]) => {
-        if (data_unserialized != null) {
-            // if data is an object, we shouldn't have it in the cache yet, since otherwise we wouldn't sent it again
-            const new_data = deserialize(message_cache, data_unserialized);
-            GLOBAL_SESSION_CACHE[key] = [new_data, 1];
-        } else {
-            // data already cached, we just need to increment the refcount
-            const obj = GLOBAL_SESSION_CACHE[key];
+function update_session_cache(session_id, new_session_cache) {
+    const session_cache = SESSIONS[session_id]
+    console.log(new_session_cache)
+    const cache = deserialize(GLOBAL_OBJECT_CACHE, new_session_cache)
+    console.log(cache)
+    Object.keys(cache).forEach(key => {
+        // object can be nothing, which mean we already have it in GLOBAL_OBJECT_CACHE
+        const object = cache[key]
+        if (object) {
+            const obj = GLOBAL_OBJECT_CACHE[key];
             if (obj) {
-                GLOBAL_SESSION_CACHE[key] = [obj[0], obj[1] + 1];
-                // keep track of usage in session cache
-                session_cache.push(key);
+                // data already cached, we just need to increment the refcount
+                GLOBAL_OBJECT_CACHE[key] = [obj[0], obj[1] + 1];
             } else {
-                console.log(`${key} is undefined what??`)
+                GLOBAL_OBJECT_CACHE[key] = [object, 1]
             }
         }
+        // always keep track of usage in session cache
+        session_cache.add(key);
     });
-    return;
+    return cache;
 }
 
 export function deserialize_cached(message) {
     const { session_id, session_cache, data } = message;
-    // update_session_cache(session_id, session_cache);
-    const cache = deserialize({}, session_cache)
+    const cache = update_session_cache(session_id, session_cache);
     return deserialize(cache, data)
 }
 
@@ -109,11 +104,11 @@ export function track_deleted_sessions() {
     }
 }
 
-export function init_session(session_id, on_done_init) {
+export function init_session(session_id, on_connection_open) {
     console.log("init session")
-    register_init_messages(on_done_init);
+    register_on_connection_open(on_connection_open);
     track_deleted_sessions();
-    SESSIONS[session_id] = { session_cache: new Set() };
+    SESSIONS[session_id] = new Set();
     // send_session_ready(session_id);
     const root_node = document.getElementById(session_id);
     if (root_node) {
@@ -122,7 +117,7 @@ export function init_session(session_id, on_done_init) {
 }
 
 export function close_session(session_id) {
-    const { session_cache } = SESSIONS[session_id];
+    const session_cache = SESSIONS[session_id];
     const root_node = document.getElementById(session_id);
     if (root_node) {
         root_node.style.display = "none";

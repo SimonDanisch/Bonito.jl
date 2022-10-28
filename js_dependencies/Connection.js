@@ -1,5 +1,5 @@
-import { decode_binary_message, encode_binary } from "./Protocol.js";
-import { lookup_globally } from './Sessions.js'
+import { encode_binary } from "./Protocol.js";
+import { lookup_observable } from "./Sessions.js";
 
 // Save some bytes by using ints for switch variable
 const UpdateObservable = "0";
@@ -13,25 +13,31 @@ const FusedMessage = "9";
 
 const CONNECTION = {
     send_message: undefined,
-    init_messages: undefined,
+    connection_open_callback: undefined,
     queue: [],
     status: "closed",
 };
 
-export function register_init_messages(init_messages_callback) {
-    console.log("Setting init messages")
-    CONNECTION.init_messages = function () {
-        init_messages_callback();
-        sent_done_loading()
+/*
+Registers a callback that gets called
+*/
+export function register_on_connection_open(callback) {
+    CONNECTION.connection_open_callback = function () {
+        // `callback` CAN return a promise. If not, we turn it into one!
+        const promise = Promise.resolve(callback())
+        // once the callback promise resolves, we're FINALLY done and call done_loading
+        // which will signal the Julia side that EVERYTHING is set up!
+        promise.then(() => sent_done_loading())
     }
 }
 
 export function on_connection_open(send_message_callback) {
     CONNECTION.send_message = send_message_callback;
     CONNECTION.status = "open";
+    // Once connection open, we send all messages that have queued up
     CONNECTION.queue.forEach((message) => send_to_julia(message));
-    console.log("running init messages")
-    CONNECTION.init_messages()
+    // then we signal, that our connection is open and unqueued, which can run further callbacks!
+    CONNECTION.connection_open_callback()
 }
 
 export function on_connection_close() {
@@ -76,29 +82,15 @@ export function sent_done_loading() {
     });
 }
 
-function is_array(x, type) {
-    return (typeof x === 'object') && (x.constructor === type);
-}
-
-export async function process_message(binary_or_string) {
-    console.log("processing binary or string")
-    let data;
-    if (typeof binary_or_string === "string" || is_array(binary_or_string, Uint8Array)) {
-        data = await decode_binary_message(binary_or_string);
-    } else {
-        data = binary_or_string
-    }
+export function process_message(data) {
     try {
         switch (data.msg_type) {
             case UpdateObservable:
-                const observable = window.OBSERVABLES[data.id];
-                if (!observable) {
-                    throw new Error(`No observable with id ${data.id}`)
-                }
+                // this is a bit annoying...Better would be to let deserialization look up the observable
+                // and just do data.observable.notify
+                // But this is more efficient, which matters for such hot function (i think, lol)
+                const observable = lookup_observable(data.id);
                 observable.notify(data.payload, true);
-                break;
-            case RegisterObservable:
-                registered_observables[data.id] = data.payload;
                 break;
             case OnjsCallback:
                 // register a callback that will executed on js side
@@ -106,12 +98,11 @@ export async function process_message(binary_or_string) {
                 data.obs.on(data.payload());
                 break;
             case EvalJavascript:
-                const eval_closure = data.payload;
-                eval_closure();
+                // javascript functions will get deserialized to a function, which we now just call to eval the code!
+                data.payload();
                 break;
             case FusedMessage:
-                const messages = data.payload;
-                messages.forEach(process_message);
+                data.payload.forEach(process_message);
                 break;
             default:
                 throw new Error(

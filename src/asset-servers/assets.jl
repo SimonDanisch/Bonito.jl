@@ -106,7 +106,6 @@ function to_data_url(file_path; mime = file_mimetype(file_path))
     end
 end
 
-
 """
     dependency_path(paths...)
 

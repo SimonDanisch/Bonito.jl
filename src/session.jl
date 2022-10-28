@@ -11,50 +11,87 @@ end
 
 function init_session(session::Session)
     println("initing session :)")
-    evaljs(session, js"""
-        const application_dom = document.getElementById('application-dom')
-        if (application_dom) {
-            application_dom.style.visibility = 'visible'
-        }
-    """)
     put!(session.connection_ready, true)
     send(session, fused_messages!(session))
 end
 
-function Session(connection=default_connect();
-                id=string(uuid4()),
-                asset_server=default_asset_server(),
-                observables=Dict{String, Observable}(),
-                message_queue=Dict{Symbol, Any}[],
-                on_document_load=JSCode[],
-                connection_ready=Channel{Bool}(1),
-                on_connection_ready=init_session,
-                init_error=Ref{Union{Nothing, JSException}}(nothing),
-                js_comm=Observable{Union{Nothing, Dict{String, Any}}}(nothing),
-                on_close=Observable(false),
-                deregister_callbacks=Observables.ObserverFunction[],
-                session_cache=Dict{String, Any}())
-
-    return Session(
-        id,
-        connection,
-        asset_server,
-        observables,
-        message_queue,
-        on_document_load,
-        connection_ready,
-        on_connection_ready,
-        init_error,
-        js_comm,
-        on_close,
-        deregister_callbacks,
-        session_cache
-    )
-end
-
 session(session::Session) = session
 
+Base.parent(session::Session) = session.parent[]
+
+root_session(session::Session) = isnothing(parent(session)) ? session : root_session(parent(session))
+
+
+"""
+    add_cached!(create_cached_object::Function, session::Session, message_cache::Dict{String, Any}, key::String)
+
+Checks if key is already cached by the session or it's root session (we skip any child session between root -> this session).
+If not cached already, we call `create_cached_object` to create a serialized form of the object corresponding to `key` and cache it.
+We return nothing if already cached, or the serialized object if not cached.
+We also handle the part of adding things to the message_cache from the serialization context.
+"""
+function add_cached!(create_cached_object::Function, session::Session, message_cache::Dict{String, Any}, key::String)
+    # If already in session, there's nothing we need to do, since we've done the work the first time we added the object
+    haskey(session.session_cache, key) && return nothing
+    # Now, we have two code paths, depending on whether we have a child session or a root session
+    root = root_session(session)
+    if root === session # we are root, so we simply cache the object (we already checked it's not cached yet)
+        obj = create_cached_object()
+        message_cache[key] = obj
+        session.session_cache[key] = obj
+        return obj # we need to send the object to JS, so we return it here
+    else
+        # This session is a child session.
+        # We never cache objects in the child directly, but track it here with `key => nothing` for cleaning up purposes.
+        session.session_cache[key] = nothing
+        # Now we need to figure out if the root session has the object cached already
+        # The root session has our object cached already.
+        if haskey(root.session_cache, key)
+            # in this case, we just add the key to the message cache, so that the JS side can associate the object with out session
+            message_cache[key] = nothing
+            return nothing
+        end
+        # Nobody has the object cached
+        obj = create_cached_object()
+        message_cache[key] = obj
+        root.session_cache[key] = obj
+        return obj
+    end
+end
+
+
+function child_haskey(child::Session, key)
+    haskey(child.session_cache, key) && return true
+    return any(((id, s),)-> child_haskey(s, key), child.children)
+end
+
+function delete_cached!(root::Session, key::String)
+    if !haskey(session.session_cache, key)
+        # This should uncover any fault in our caching logic!
+        error("Deleting key that doesn't belong to any cached object")
+    end
+    # We don't do reference counting, but we check if any child still holds a reference to the object we want to delete
+    if !any(((id, s),)-> child_haskey(s, key), root.children)
+        # So only delete it if nobody has it anymore!
+        delete!(session.session_cache, key)
+    end
+end
+
 function Base.close(session::Session)
+    # unregister all cached objects from parent session
+    root = root_session(session)
+    # If we're a child session, we need to remove all objects trackt in our root session:
+    if session !== root
+        # We need to remove our session from the parent first, otherwise `delete_cached!`
+        # will think our session still holds the value, which would prevent it from deleting
+        delete!(parent(session), session.id)
+        for key in keys(session.session_cache)
+            delete_cached!(root, key)
+        end
+    end
+    # delete_cached! only deletes in the root session so we need to still empty the session_cache:
+    empty!(session.session_cache)
+
     close(session.connection)
     empty!(session.observables)
     empty!(session.on_document_load)
@@ -102,7 +139,7 @@ function onjs(session::Session, obs::Observable, func::JSCode)
         msg_type=OnjsCallback,
         obs=obs,
         # return is needed to since on the JS side this will be wrapped in a function
-        payload=JSCode([JSString("return "), func])
+        payload=JSCode([JSString("return "), func], func.file)
     )
 end
 
@@ -254,13 +291,6 @@ function register_resource!(session::Session, asset::Asset, resources=nothing)
     return asset
 end
 
-# path = JSServe.dependency_path("JSServe.js")
-# bundled = joinpath(dirname(path), "JSServe.bundle.js")
-# Deno_jll.deno() do exe
-#     write(bundled, read(`$exe bundle $(path)`))
-# end
-
-
 function session_dom(session::Session, app::App)
     dom = jsrender(session, app.handler(session, (target="/",)))
     body = nothing
@@ -283,23 +313,19 @@ function session_dom(session::Session, app::App)
         dom = DOM.div(dom, id=session.id)
     end
 
+    # TODO, just sent them once connection opens?
     all_messages = fused_messages!(session)
     msg_b64_str = serialize_string(session, all_messages)
     init_connection = jsrender(session, JSServe.setup_connect(session))
     init_server = jsrender(session, JSServe.setup_asset_server(session.asset_server))
 
     init_session = """
-        function on_done_init(){
-            console.log('load those messages')
-            const all_messages = `$(msg_b64_str)`
-            JSServe.base64decode(all_messages).then(binary=> {
-                const message = JSServe.decode_binary(binary);
-                console.log("binary done!")
-                const this_is_nice = JSServe.deserialize_cached(message)
-                JSServe.process_message(all_messages);
-            })
-        }
-        JSServe.init_session('$(session.id)', on_done_init);
+    function on_connection_open(){
+        console.log('load those messages')
+        const all_messages = `$(msg_b64_str)`
+        return JSServe.decode_base64_message(all_messages).then(JSServe.process_message)
+    }
+    JSServe.init_session('$(session.id)', on_connection_open);
     """
     pushfirst!(children(head),
         jsrender(session, JSServeLib),

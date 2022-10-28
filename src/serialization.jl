@@ -1,15 +1,10 @@
 struct SerializationContext
-    session_cache::OrderedDict{String, Any}
-    observables::Dict{String, Observable}
+    message_cache::Dict{String, Any}
     session::Session
 end
 
-function SerializationContext(session_cache=OrderedDict{String, Any}())
-    return SerializationContext(session_cache, Dict{String, Observable}())
-end
-
 function SerializationContext(session::Session)
-    return SerializationContext(session.session_cache, session.observables, session)
+    return SerializationContext(Dict{String, Any}(), session)
 end
 
 # MsgPack doesn't natively support Float16
@@ -47,7 +42,7 @@ function js_type(type::String, @nospecialize(x))
 end
 
 serialize_js(@nospecialize(x)) = x
-serialize_js(array::AbstractVector{T}) where {T<:Number} = js_type("TypedVector", array)
+serialize_js(array::AbstractVector{T}) where {T<:Union{String, Number}} = js_type("TypedVector", array)
 serialize_js(array::AbstractVector{UInt8}) = js_type("Uint8Array", to_bytevec(array))
 serialize_js(array::AbstractVector{Int32}) = js_type("Int32Array", to_bytevec(array))
 serialize_js(array::AbstractVector{UInt32}) = js_type("Uint32Array", to_bytevec(array))
@@ -56,19 +51,17 @@ serialize_js(array::AbstractVector{Float32}) = js_type("Float32Array", to_byteve
 serialize_js(array::AbstractVector{Float64}) = js_type("Float64Array", to_bytevec(array))
 
 function serialize_cached(context::SerializationContext, asset::Asset)
-    id = object_identity(asset)
-    get!(context.session_cache, id) do
+    key = object_identity(asset)
+    add_cached!(context.session, context.message_cache, key) do
         return js_type("Asset", Dict(:es6module => asset.es6module, :url => url(context.session.asset_server, asset)))
     end
-    return js_type("CacheKey", id)
+    return js_type("CacheKey", key)
 end
 
-
 function serialize_cached(context::SerializationContext, obs::Observable)
-    context.observables[obs.id] = obs
-    get!(context.session_cache, obs.id) do
-        updater = JSUpdateObservable(context.session, obs.id)
-        on(updater, context.session, obs)
+    add_cached!(context.session, context.message_cache, obs.id) do
+        register_with_session!(context.session, obs)
+        context.session.observables[obs.id] = obs
         js_type("Observable", Dict(:id => obs.id, :value => serialize_cached(context, obs[])))
     end
     return js_type("CacheKey", obs.id)
@@ -104,19 +97,20 @@ object_identity(observable::Observable) = observable.id
 object_identity(@nospecialize(observable)) = nothing
 
 function serialize_cached(context::SerializationContext, @nospecialize(obj))
-    id = object_identity(obj)
-    # if id is nothing it means we can't/ don't want to cache!
-    isnothing(id) && return serialize_js(obj)
-    get!(context.session_cache, id) do
+    key = object_identity(obj)
+    # if key is nothing it means we can't/ don't want to cache!
+    isnothing(key) && return serialize_js(obj)
+    add_cached!(context.session, context.message_cache, key) do
         serialize_js(obj)
     end
-    return js_type("CacheKey", id)
+    return js_type("CacheKey", key)
 end
 
 function serialize_cached(context::SerializationContext, x::Union{AbstractArray, Tuple})
+    # we need to serialize arrays first, to not send e.g. Vector{Float32} as a list of every item serialized separately
     serialized = serialize_js(x)
-    if serialized === x
-        return map(x-> serialize_cached(context, x), x)
+    if serialized === x # serialize_js will return all objects without a specific serialization as is
+        return map(x-> serialize_cached(context, x), x) # then we just serialize recursively
     else
         return serialized
     end
@@ -131,26 +125,11 @@ function serialize_cached(context::SerializationContext, dict::AbstractDict)
 end
 
 function serialize_cached(session::Session, @nospecialize(obj))
-    ctx = SerializationContext(OrderedDict{String, Any}(), session.observables, session)
-    # we merge all objects into one dict
-    # Since we don't reuse the message_cache dict, we can just merge it into that:
-    # apply custom, overloadable transformation
+    ctx = SerializationContext(session)
     data = serialize_cached(ctx, obj)
-    # session_cache = OrderedDict{String, Any}()
-    # for (k, obj) in ctx.session_cache
-    #     if !haskey(session.session_cache, k)
-    #         session_cache[k] = obj
-    #         session.session_cache[k] = obj
-    #     else
-    #         # if already cached, we dont send it again
-    #         # but we need to declare it, so that we can do refcounting
-    #         session_cache[k] = nothing
-    #     end
-    # end
-
     return Dict(
         :session_id => session.id,
-        :session_cache => ctx.session_cache,
+        :session_cache => ctx.message_cache,
         :data => data)
 end
 

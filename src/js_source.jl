@@ -83,7 +83,7 @@ function print_js_code(io::IO, jsss::AbstractVector{JSCode}, objects::IdDict)
 end
 
 function jsrender(session::Session, js::JSCode)
-    data_str = serialize_string(session, js)
+    # data_str = serialize_string(session, js)
     # Deserialize JSCode type and call it to run it!
     # TODO, stacktraces become truely terrible like this
 

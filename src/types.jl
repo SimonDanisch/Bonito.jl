@@ -118,6 +118,8 @@ abstract type AbstractAssetServer end
 A web session with a user
 """
 struct Session{Connection <: FrontendConnection}
+    parent::RefValue{Union{Session, Nothing}}
+    children::Dict{String, Session{Connection}}
     id::String
     # The connection to the JS frontend.
     # Currently can be IJuliaConnection, WebsocketConnection, PlutoConnection, NoConnection
@@ -139,6 +141,39 @@ struct Session{Connection <: FrontendConnection}
     session_cache::Dict{String, Any}
 end
 
+
+function Session(connection=default_connect();
+                id=string(uuid4()),
+                asset_server=default_asset_server(),
+                observables=Dict{String, Observable}(),
+                message_queue=Dict{Symbol, Any}[],
+                on_document_load=JSCode[],
+                connection_ready=Channel{Bool}(1),
+                on_connection_ready=init_session,
+                init_error=Ref{Union{Nothing, JSException}}(nothing),
+                js_comm=Observable{Union{Nothing, Dict{String, Any}}}(nothing),
+                on_close=Observable(false),
+                deregister_callbacks=Observables.ObserverFunction[],
+                session_cache=Dict{String, Any}())
+
+    return Session(
+        Base.RefValue{Union{Nothing, Session}}(nothing),
+        Dict{String, Session{typeof(connection)}}(),
+        id,
+        connection,
+        asset_server,
+        observables,
+        message_queue,
+        on_document_load,
+        connection_ready,
+        on_connection_ready,
+        init_error,
+        js_comm,
+        on_close,
+        deregister_callbacks,
+        session_cache
+    )
+end
 
 struct Routes
     routes::Dict{String, App}

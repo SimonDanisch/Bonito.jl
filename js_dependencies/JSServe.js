@@ -8,7 +8,7 @@ const {
     process_message,
     on_connection_open,
     on_connection_close,
-    register_init_messages
+    register_on_connection_open
 } = Connection;
 
 const {
@@ -18,12 +18,11 @@ const {
     decode_binary,
     encode_binary,
     materialize_node,
-    decode_binary_message
+    decode_binary_message,
+    decode_base64_message
 } = Protocol;
 
-const { init_session, deserialize_cached, GLOBAL_SESSION_CACHE } = Sessions;
-
-window.GLOBAL_SESSION_CACHE = GLOBAL_SESSION_CACHE
+const { init_session, deserialize_cached } = Sessions;
 
 
 function update_node_attribute(node, attribute, value) {
@@ -56,6 +55,7 @@ const JSServe = {
     encode_binary,
     materialize_node,
     decode_binary_message,
+    decode_base64_message,
 
     Connection,
     send_error,
@@ -63,8 +63,7 @@ const JSServe = {
     process_message,
     on_connection_open,
     on_connection_close,
-    register_init_messages,
-    GLOBAL_SESSION_CACHE,
+    register_on_connection_open,
 
     Sessions,
     deserialize_cached,
@@ -90,7 +89,8 @@ export {
     process_message,
     on_connection_open,
     on_connection_close,
-    register_init_messages,
+    register_on_connection_open,
+
     Sessions,
     deserialize_cached,
     init_session,

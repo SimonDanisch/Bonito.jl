@@ -83,8 +83,12 @@ export function setup_connection(config_input) {
         websocket.onopen = function () {
             console.log("CONNECTED!!: ", url);
             websocket.onmessage = function (evt) {
-                const binary = new Uint8Array(evt.data);
-                JSServe.process_message(binary);
+                // run this async... (or do we?)
+                new Promise(resolve => {
+                    const binary = new Uint8Array(evt.data);
+                    JSServe.process_message(JSServe.decode_binary_message(binary));
+                    resolve()
+                })
             };
             JSServe.on_connection_open(websocket_send);
         };

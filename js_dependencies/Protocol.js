@@ -1,7 +1,9 @@
 import * as MsgPack from "https://cdn.esm.sh/v66/@msgpack/msgpack@2.7.2/es2021/msgpack.js";
 import * as Pako from "https://cdn.esm.sh/v66/pako@2.0.4/es2021/pako.js";
 import { Observable } from "./Observables.js";
-import { deserialize_cached, lookup_globally } from "./Sessions.js";
+import { deserialize_cached } from "./Sessions.js";
+import { send_error } from "./Connection.js";
+
 
 export function materialize_node(data) {
     // if is a node attribute
@@ -57,22 +59,19 @@ function lookup_cached(cache, key) {
     throw new Error(`Key ${key} not found! ${mcache}`)
 }
 
-const OBSERVABLES = {}
-window.OBSERVABLES = OBSERVABLES
-
 function deserialize_datatype(cache, type, payload) {
     switch (type) {
         case "TypedVector":
             return payload;
         case "CacheKey":
             return lookup_cached(cache, payload);
-        case "DomNode":
+        case "DomNodeFull":
             return materialize_node(payload);
         case "Asset":
             if (payload.es6module) {
                 return import(payload.url)
             } else {
-                return payload.url; // return url for now
+                return fetch(payload.url); // return url for now
             }
         case "JSCode":
             const source = payload.source
@@ -97,9 +96,7 @@ function deserialize_datatype(cache, type, payload) {
             }
         case "Observable":
             const value = deserialize(cache, payload.value);
-            const obs = new Observable(payload.id, value);
-            OBSERVABLES[payload.id] = obs;
-            return obs;
+            return new Observable(payload.id, value);
         case "Uint8Array":
             return payload;
         case "Int32Array":
@@ -140,37 +137,42 @@ export function deserialize(cache, data) {
     }
 }
 
-export async function base64encode(data_as_uint8array) {
+export function base64encode(data_as_uint8array) {
     // Use a FileReader to generate a base64 data URI
-    const base64url = await new Promise((r) => {
+    const base64_promise = new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onload = () => r(reader.result);
+        reader.onload = () => {
+            /*
+            The result looks like
+            "data:application/octet-stream;base64,<your base64 data>",
+            so we split off the beginning:
+            */
+            const len = 37; //length of "data:application/octet-stream;base64,"
+            const base64url = reader.result
+            // now that we're done, resolve our promise!
+            resolve(base64url.slice(len, base64url.length));
+        };
         reader.readAsDataURL(new Blob([data_as_uint8array]));
     });
-    /*
-    The result looks like
-    "data:application/octet-stream;base64,<your base64 data>",
-    so we split off the beginning:
-    */
-    // length of "data:application/octet-stream;base64,"
-    const len = 37;
-    return base64url.slice(len, base64url.length);
+    return base64_promise;
 }
 
-export async function base64decode(base64_str) {
-    const response = await fetch(
-        "data:application/octet-stream;base64," + base64_str
-    );
-    return new Uint8Array(await response.arrayBuffer());
+export function base64decode(base64_str) {
+    return new Promise(resolve => {
+        fetch("data:application/octet-stream;base64," + base64_str).then(response => {
+            response.arrayBuffer().then(array => {
+                resolve(new Uint8Array(array))
+            })
+        })
+    })
 }
 
-export async function decode_binary_message(binary) {
-    // we either get a uint buffer or base64 decoded string
-    if (is_string(binary)) {
-        return await decode_binary_message(await base64decode(binary));
-    } else {
-        return await deserialize_cached(decode_binary(binary));
-    }
+export function decode_binary_message(binary) {
+    return deserialize_cached(decode_binary(binary))
+}
+
+export function decode_base64_message(base64_string) {
+    return base64decode(base64_string).then(decode_binary_message)
 }
 
 export function decode_binary(binary) {
@@ -183,13 +185,12 @@ export function encode_binary(data) {
     return Pako.deflate(binary);
 }
 
-async function load_module_from_bytes(code_ui8_array) {
-    const js_module_promise = new Promise((r) => {
+export function load_module_from_bytes(code_ui8_array) {
+    return new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onload = async () => r(await import(reader.result));
+        reader.onload = () => import(reader.result).then(resolve);
         reader.readAsDataURL(
             new Blob([code_ui8_array], { type: "text/javascript" })
         );
     });
-    return await js_module_promise;
 }
