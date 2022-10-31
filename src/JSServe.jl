@@ -26,8 +26,8 @@ using URIs
 
 using Base: RefValue
 
-include("HTTPServer/HTTPServer.jl")
 include("types.jl")
+include("HTTPServer/HTTPServer.jl")
 include("js_source.jl")
 include("session.jl")
 include("jsrender.jl")
@@ -54,5 +54,8 @@ end
 # Core functionality
 export Page, Session, App, DOM, @js_str
 export Slider, Button
+
+import .HTTPServer: browser_display
+export browser_display
 
 end # module

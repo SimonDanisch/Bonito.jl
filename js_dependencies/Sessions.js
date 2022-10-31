@@ -36,9 +36,7 @@ function free_object(id) {
 
 function update_session_cache(session_id, new_session_cache) {
     const session_cache = SESSIONS[session_id]
-    console.log(new_session_cache)
     const cache = deserialize(GLOBAL_OBJECT_CACHE, new_session_cache)
-    console.log(cache)
     Object.keys(cache).forEach(key => {
         // object can be nothing, which mean we already have it in GLOBAL_OBJECT_CACHE
         const object = cache[key]

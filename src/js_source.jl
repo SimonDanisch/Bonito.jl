@@ -108,7 +108,6 @@ function jsrender(session::Session, js::JSCode)
             const message = JSServe.decode_binary(binary);
             const objects = JSServe.deserialize_cached(message)
             function __lookup_interpolated(id) {
-                console.log(`looking up \${id}`)
                 return objects[id];
             }
             $code

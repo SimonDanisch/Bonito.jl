@@ -35,19 +35,20 @@ function Base.setindex!(routes::Routes, f, pattern)
     # Sort for priority so that exact string matches come first
     sort!(routes.table, by = pattern_priority)
     # return if it was inside already!
-    return isnothing(idx)
+    return idx === nothing
 end
 
-function route!(application::Server, pattern_f::Pair)
-    application.routes[pattern_f[1]] = pattern_f[2]
+function route!(application::Server, (pattern, func)::Pair)
+    @show pattern func
+    return setindex!(application.routes, func, pattern)
 end
 
 function route!(f, application::Server, pattern)
-    route!(application, pattern => f)
+    return route!(application, pattern => f)
 end
 
 function websocket_route!(application::Server, pattern_f::Pair)
-    application.websocket_routes[pattern_f[1]] = pattern_f[2]
+    return application.websocket_routes[pattern_f[1]] = pattern_f[2]
 end
 
 apply_handler(f, args...) = f(args...)

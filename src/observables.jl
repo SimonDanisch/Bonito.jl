@@ -14,15 +14,6 @@ function (x::JSUpdateObservable)(value)
     send(x.session, payload=value, id=x.id, msg_type=UpdateObservable)
 end
 
-function register_with_session!(session::Session, obs)
-    # don't add multiple callbacks for the same session
-    if !any(x-> x isa JSUpdateObservable && x.session === session, Observables.listeners(obs))
-        updater = JSUpdateObservable(session, obs.id)
-        on(updater, session, obs)
-    end
-end
-
-
 """
 Update the value of an observable, without sending changes to the JS frontend.
 This will be used to update updates from the forntend.

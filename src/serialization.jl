@@ -60,9 +60,13 @@ end
 
 function serialize_cached(context::SerializationContext, obs::Observable)
     add_cached!(context.session, context.message_cache, obs.id) do
-        register_with_session!(context.session, obs)
-        context.session.observables[obs.id] = obs
-        js_type("Observable", Dict(:id => obs.id, :value => serialize_cached(context, obs[])))
+        root = root_session(context.session)
+        get!(root.observables, obs.id) do
+            updater = JSUpdateObservable(root, obs.id)
+            on(updater, root, obs)
+            obs
+        end
+        return js_type("Observable", Dict(:id => obs.id, :value => serialize_cached(context, obs[])))
     end
     return js_type("CacheKey", obs.id)
 end
