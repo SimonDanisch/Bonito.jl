@@ -375,9 +375,9 @@ function show_in_iframe(server, session, app)
     # to the parent iframe, for which we register an
     # event handler via resize_iframe_parent, which then
     # resizes the parent iframe accordingly
-    app_wrapped = App() do session::Session, request
-        on_document_load(session, js"JSServe.resize_iframe_parent($(session.id))")
-        html_dom = Base.invokelatest(app.handler, session, request)
+    app_wrapped = App() do subsession::Session, request
+        on_document_load(subsession, js"JSServe.resize_iframe_parent($(session.id))")
+        html_dom = Base.invokelatest(app.handler, subsession, request)
         return html_dom
     end
     route!(server, session_route => app_wrapped)
