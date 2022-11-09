@@ -408,6 +408,9 @@ function iframe_html(server::Server, session::Session, route::String)
                     if (event.origin !== remote_origin) {
                         return;
                     }
+                    if (!(event.data && event.data.length && event.data.length === 3)) {
+                        return;
+                    }
                     const uuid = event.data[0];
                     if (uuid !== $(session.id)) {
                         return;
