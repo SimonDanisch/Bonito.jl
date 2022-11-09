@@ -27,7 +27,7 @@ WidgetsBase = "eead4739-05f7-45a1-878c-cee36b57321c"
 [compat]
 CodecZlib = "0.7"
 Colors = "0.12"
-HTTP = "0.8, 0.9"
+HTTP = "1.5"
 Hyperscript = "0.0.3, 0.0.4"
 MsgPack = "1.1.0"
 Observables = "0.5.1"

@@ -60,8 +60,8 @@ function Base.display(bd::BrowserDisplay, dom::App)
         end
         return html(html_str)
     end
-    if is_new_route
+    # if is_new_route
         openurl(online_url(server, session_url))
-    end
+    # end
     return
 end

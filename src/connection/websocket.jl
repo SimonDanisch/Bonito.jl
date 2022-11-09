@@ -1,11 +1,14 @@
-using HTTP.WebSockets: WebSocket
+using HTTP.WebSockets: WebSocket, WebSocketError
 using .HTTPServer: Server
+using HTTP.WebSockets: receive, isclosed
+using HTTP.WebSockets
 
 mutable struct WebSocketConnection <: FrontendConnection
     socket::Union{Nothing, WebSocket}
+    lock::ReentrantLock
 end
 
-WebSocketConnection() = WebSocketConnection(nothing)
+WebSocketConnection() = WebSocketConnection(nothing, ReentrantLock())
 
 const MATCH_HEX = r"[\da-f]"
 const MATCH_UUID4 = MATCH_HEX^8 * r"-" * (MATCH_HEX^4 * r"-")^3 * MATCH_HEX^12
@@ -13,14 +16,11 @@ const MATCH_UUID4 = MATCH_HEX^8 * r"-" * (MATCH_HEX^4 * r"-")^3 * MATCH_HEX^12
 function save_read(websocket)
     try
         # readavailable is what HTTP overloaded for websockets
-        return readavailable(websocket)
+        return receive(websocket)
     catch e
-        if e isa HTTP.WebSockets.WebSocketError && e.status in (1001, 1000)
-            # browser closed window / reload
-            # which is an expected error
-            @info("WS connection closed normally")
-            return nothing
-        elseif e isa Base.IOError
+        if WebSockets.isok(e)
+            # it's ok :shrug:
+        elseif e isa Union{Base.IOError, EOFError}
             @warn("WS connection closed because of IO error")
             return nothing
         else
@@ -29,40 +29,35 @@ function save_read(websocket)
     end
 end
 
-Base.isopen(ws::WebSocketConnection) = !isnothing(ws.socket) && isopen(ws.socket)
+Base.isopen(ws::WebSocketConnection) = !isnothing(ws.socket) && !isclosed(ws.socket)
 function Base.write(ws::WebSocketConnection, binary)
-    write(ws.socket, binary)
+    lock(ws.lock) do
+        send(ws.socket, binary)
+    end
 end
 
 function Base.close(ws::WebSocketConnection)
     isnothing(ws.socket) && return
     try
         # https://github.com/JuliaWeb/HTTP.jl/issues/649
-        isopen(ws) && close(ws.socket)
+        isclosed(ws.socket) || close(ws)
         ws.socket = nothing
     catch e
-        if !(e isa Base.IOError)
-            @warn "error while closing websocket!" exception=e
+        if !WebSockets.isok(e)
+            @warn "error while clsosing websocket" exception=(e, Base.catch_backtrace())
         end
     end
 end
 
 function send_to_js(session::Session{WebSocketConnection}, message::Dict{Symbol, Any})
-    write(session.socket, serialize_binary(session, message))
-end
-
-function handle_ws_error(e)
-    if !(e isa WebSockets.WebSocketClosedError || e isa Base.IOError)
-        @warn "error in websocket handler!"
-        Base.showerror(stderr, e, Base.catch_backtrace())
-    end
+    send(session.socket, serialize_binary(session, message))
 end
 
 function run_connection_loop(server::Server, session::Session, websocket::WebSocket)
     try
         @debug("opening ws connection for session: $(session.id)")
-        while !eof(websocket)
-            bytes = save_read(websocket)
+        while !isclosed(websocket)
+            bytes = receive(websocket)
             # nothing means the browser closed the connection so we're done
             isnothing(bytes) && break
             try

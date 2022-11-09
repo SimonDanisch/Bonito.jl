@@ -172,7 +172,7 @@ end
 
 function stream_handler(application::Server, stream::Stream)
     println("got request")
-    if HTTP.WebSockets.is_upgrade(stream.message)
+    if HTTP.WebSockets.isupgrade(stream.message)
         println("is websocket")
         try
             HTTP.WebSockets.upgrade(stream; binary=true) do ws
@@ -189,13 +189,13 @@ function stream_handler(application::Server, stream::Stream)
             end
         end
     end
-    http_handler = HTTP.RequestHandlerFunction() do request
+    http_handler = HTTP.streamhandler() do request
         delegate(
             application.routes, application, request,
         )
     end
     try
-        HTTP.handle(http_handler, stream)
+        http_handler(stream)
     catch e
         # we expect the IOError to happen, if either the page gets closed
         # or we close the server!

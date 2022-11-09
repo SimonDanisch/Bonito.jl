@@ -281,10 +281,7 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
         page = CURRENT_PAGE[]
         println(io, show_in_page(page, app))
     else
-        asset_server = JSServe.NoServer()
-        connection = JSServe.WebSocketConnection()
-        session = Session()
-        domy = JSServe.session_dom(session, app)
+        domy = JSServe.session_dom(Session(), app)
         show(io, Hyperscript.Pretty(domy))
         # println(io, show_in_iframe(server, session, app))
     end

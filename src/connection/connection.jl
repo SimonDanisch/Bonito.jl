@@ -22,8 +22,12 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
     data = deserialize_binary(bytes)
     typ = data["msg_type"]
     if typ == UpdateObservable
-        obs = session.observables[data["id"]]
-        Base.invokelatest(update_nocycle!, obs, data["payload"])
+        obs = get(session.observables, data["id"], nothing)
+        if isnothing(obs)
+            @warn "Observable $(data["id"]) not found :( "
+        else
+            Base.invokelatest(update_nocycle!, obs, data["payload"])
+        end
     elseif typ == JavascriptError
         show(stderr, JSException(data))
     elseif typ == JavascriptWarning
@@ -50,8 +54,8 @@ function default_connect()
     # elseif isdefined(Main, :Pluto)
         # return PlutoConnection(nothing)
     else
-        return NoConnection()
-        # return WebSocketConnection(nothing)
+        # return NoConnection()
+        return WebSocketConnection()
     end
 end
 

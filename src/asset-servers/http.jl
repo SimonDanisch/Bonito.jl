@@ -29,6 +29,7 @@ end
 function setup_asset_server(asset_server::HTTPAssetServer)
     server = HTTPServer.get_server()
     HTTPServer.route!(server, r"/assetserver/" * MATCH_HEX^40 * r"-.*" => asset_server)
+    return
 end
 
 function apply_handler(app::App, context)
