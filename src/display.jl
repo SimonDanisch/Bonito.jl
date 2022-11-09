@@ -403,7 +403,7 @@ function iframe_html(server::Server, session::Session, route::String)
     style = "position: relative; display: block; width: 100%; height: 100%; padding: 0; overflow: hidden; border: none"
     return DOM.div(
         js"""
-            function register_resize_handler(remote_origin) {
+            (function (remote_origin) {
                 function resize_callback(event) {
                     if (event.origin !== remote_origin) {
                         return;
@@ -428,8 +428,7 @@ function iframe_html(server::Server, session::Session, route::String)
                 } else if (window.attachEvent) {
                     window.attachEvent("onmessage", resize_callback);
                 }
-            }
-            register_resize_handler($(remote_origin))
+            })($(remote_origin))
         """,
         DOM.iframe(src=url, id=session.id, style=style, scrolling="no")
     )
