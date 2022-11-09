@@ -399,7 +399,7 @@ end
 function iframe_html(server::Server, session::Session, route::String)
     # Display the route we just added in an iframe inline:
     url = online_url(server, route)
-    remote_origin = online_url(server, "")
+    remote_origin = origin(server)
     style = "position: relative; display: block; width: 100%; height: 100%; padding: 0; overflow: hidden; border: none"
     return DOM.div(
         js"""

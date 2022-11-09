@@ -7,6 +7,7 @@ using Hyperscript: Node, children, tag
 using HTTP, Markdown
 using HTTP: Response, Request
 using HTTP.Streams: Stream
+using URIs
 using WebSockets
 using WebSockets: WebSocket
 

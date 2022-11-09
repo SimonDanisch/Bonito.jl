@@ -99,6 +99,17 @@ function online_url(server::Server, url)
     end
 end
 
+function origin(server::Server)
+    base_url = JSSERVE_CONFIGURATION.external_url[]
+    if isempty(base_url)
+        return string("http://", server.url, server.port == 80 ? "" : string(":", server.port), url)
+    else
+        uri = URI(base_url)
+        port = URIs.normalport(uri)
+        return string(uri.scheme, "://", uri.host, port == "" ? "" : string(":", port))
+    end
+end
+
 function websocket_request()
     headers = [
         "Host" => "localhost",
