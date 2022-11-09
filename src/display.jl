@@ -409,6 +409,9 @@ function iframe_html(server::Server, session::Session, route::String)
                         return;
                     }
                     const uuid = event.data[0];
+                    if (uuid !== $(session.id)) {
+                        return;
+                    }
                     const width = event.data[1];
                     const height = event.data[2];
                     const iframe = document.getElementById($(session.id));
