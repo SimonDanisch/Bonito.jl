@@ -121,8 +121,8 @@ include("no-server.jl")
 include("http.jl")
 
 function default_asset_server()
-    # return HTTPAssetServer()
-    return NoServer()
+    return HTTPAssetServer()
+    # return NoServer()
 end
 
 function local_path(asset::Asset)

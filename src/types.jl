@@ -114,12 +114,17 @@ end
 abstract type FrontendConnection end
 abstract type AbstractAssetServer end
 
+mutable struct SubConnection <: FrontendConnection
+    connection::FrontendConnection
+    isopen::Bool
+end
+
 """
 A web session with a user
 """
 struct Session{Connection <: FrontendConnection}
     parent::RefValue{Union{Session, Nothing}}
-    children::Dict{String, Session{Connection}}
+    children::Dict{String, Session{SubConnection}}
     id::String
     # The connection to the JS frontend.
     # Currently can be IJuliaConnection, WebsocketConnection, PlutoConnection, NoConnection
@@ -141,7 +146,6 @@ struct Session{Connection <: FrontendConnection}
     session_cache::Dict{String, Any}
 end
 
-
 function Session(connection=default_connect();
                 id=string(uuid4()),
                 asset_server=default_asset_server(),
@@ -158,7 +162,7 @@ function Session(connection=default_connect();
 
     return Session(
         Base.RefValue{Union{Nothing, Session}}(nothing),
-        Dict{String, Session{typeof(connection)}}(),
+        Dict{String, Session{SubConnection}}(),
         id,
         connection,
         asset_server,
@@ -173,6 +177,44 @@ function Session(connection=default_connect();
         deregister_callbacks,
         session_cache
     )
+end
+
+
+function Session(parent::Session;
+            id=string(uuid4()),
+            asset_server=parent.asset_server,
+            observables=Dict{String, Observable}(),
+            message_queue=Dict{Symbol, Any}[],
+            on_document_load=JSCode[],
+            connection_ready=Channel{Bool}(1),
+            on_connection_ready=init_session,
+            init_error=Ref{Union{Nothing, JSException}}(nothing),
+            js_comm=Observable{Union{Nothing, Dict{String, Any}}}(nothing),
+            on_close=Observable(false),
+            deregister_callbacks=Observables.ObserverFunction[],
+            session_cache=Dict{String, Any}())
+
+    root = root_session(parent)
+    connection = SubConnection(root)
+    session = Session(
+        Base.RefValue{Union{Nothing, Session}}(root),
+        Dict{String, Session{SubConnection}}(),
+        id,
+        connection,
+        asset_server,
+        observables,
+        message_queue,
+        on_document_load,
+        connection_ready,
+        on_connection_ready,
+        init_error,
+        js_comm,
+        on_close,
+        deregister_callbacks,
+        session_cache
+    )
+    root.children[id] = session
+    return session
 end
 
 struct Routes

@@ -50,19 +50,27 @@ function Base.map(f, session::Session, observables::Observable...; result=Observ
     return result
 end
 
+render_subsession(::Session, data::Union{AbstractString, Number}) = DOM.span(string(data))
+
+function render_subsession(parent::Session, app::App)
+    sub = Session(parent)
+    return session_dom(sub, app)
+end
+
+function render_subsession(parent::Session, dom::Node)
+    render_subsession(parent, App(()-> dom))
+end
+
 function jsrender(session::Session, obs::Observable)
-    html = Observable{Any}(
-        repr_richest(jsrender(session, obs[]))
-    )
-    dom = DOM.m_unesc("span", html[])
+    html = Observable{Any}(jsrender(session, obs[]))
+    dom = DOM.span(html[])
     on(session, obs) do data
-        html[] = DOM.span(repr_richest(jsrender(session, obs[])))
+        html[] = render_subsession(session, data)
     end
     onjs(session, html, js"""
     (html)=> {
-        const new_node = JSServe.materialize_node(html)
         const dom = $(dom)
-        dom.replaceChild(new_node, dom.childNodes[0])
+        dom.replaceChild(html, dom.childNodes[0])
     }""")
     return dom
 end

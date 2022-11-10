@@ -22,7 +22,7 @@ const {
     decode_base64_message
 } = Protocol;
 
-const { init_session, deserialize_cached } = Sessions;
+const { init_session, deserialize_cached, init_sub_session } = Sessions;
 
 
 function update_node_attribute(node, attribute, value) {
@@ -68,6 +68,7 @@ const JSServe = {
     Sessions,
     deserialize_cached,
     init_session,
+    init_sub_session,
     // Util
     update_node_attribute,
     update_dom_node
@@ -94,4 +95,5 @@ export {
     Sessions,
     deserialize_cached,
     init_session,
+    init_sub_session
 };

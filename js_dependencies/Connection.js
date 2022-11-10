@@ -21,13 +21,13 @@ const CONNECTION = {
 /*
 Registers a callback that gets called
 */
-export function register_on_connection_open(callback) {
+export function register_on_connection_open(callback, session_id) {
     CONNECTION.connection_open_callback = function () {
         // `callback` CAN return a promise. If not, we turn it into one!
         const promise = Promise.resolve(callback())
         // once the callback promise resolves, we're FINALLY done and call done_loading
         // which will signal the Julia side that EVERYTHING is set up!
-        promise.then(() => sent_done_loading())
+        promise.then(() => sent_done_loading(session_id))
     }
 }
 
@@ -74,10 +74,11 @@ export function send_warning(message) {
     });
 }
 
-export function sent_done_loading() {
+export function sent_done_loading(session_id) {
     console.log("done loading")
     send_to_julia({
         msg_type: JSDoneLoading,
+        session: session_id,
         exception: "null",
     });
 }

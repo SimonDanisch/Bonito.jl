@@ -307,31 +307,38 @@ function session_dom(session::Session, app::App)
     end
 
     if isnothing(head) && isnothing(body)
-        println("using dom")
         body = dom
         head = dom
         dom = DOM.div(dom, id=session.id)
     end
 
-    # TODO, just sent them once connection opens?
-    all_messages = fused_messages!(session)
-    msg_b64_str = serialize_string(session, all_messages)
     init_connection = jsrender(session, JSServe.setup_connect(session))
     init_server = jsrender(session, JSServe.setup_asset_server(session.asset_server))
 
+    # TODO, just sent them once connection opens?
+    all_messages = fused_messages!(session)
+    issubsession = !isnothing(parent(session))
+    on_open = if !isempty(all_messages)
+        msg_b64_str = serialize_string(session, all_messages)
+        """
+            const all_messages = `$(msg_b64_str)`
+            return JSServe.decode_base64_message(all_messages).then(JSServe.process_message)
+        """
+    else
+        ""
+    end
+
     init_session = """
     function on_connection_open(){
-        console.log('load those messages')
-        const all_messages = `$(msg_b64_str)`
-        return JSServe.decode_base64_message(all_messages).then(JSServe.process_message)
+    $(on_open)
     }
-    JSServe.init_session('$(session.id)', on_connection_open);
+    JSServe.init_session('$(session.id)', on_connection_open, $(issubsession));
     """
-    pushfirst!(children(head),
-        jsrender(session, JSServeLib),
-        DOM.script(init_session, type="module"),
-        init_connection,
-        init_server
-    )
+    js = []
+    if !issubsession
+        push!(js, jsrender(session, JSServeLib))
+    end
+    push!(js, DOM.script(init_session, type="module"), init_connection, init_server)
+    pushfirst!(children(head), js...)
     return dom
 end

@@ -8,6 +8,21 @@ const RegisterObservable = "5"
 const JSDoneLoading = "8"
 const FusedMessage = "9"
 
+
+function get_session(session::Session, id::String)
+    session.id == id && return session
+    if haskey(session.children, id)
+        return session.children[id]
+    end
+    # recurse
+    for (key, sub) in session.children
+        s = get_session(sub, id)
+        isnothing(s) || return s
+    end
+    # Nothing found...
+    return nothing
+end
+
 """
     process_message(session::Session, bytes::AbstractVector{UInt8})
 
@@ -37,13 +52,20 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
             exception = JSException(data)
             show(stderr, exception)
             session.init_error[] = exception
+        else
+            sub = get_session(session, data["session"])
+            if !isnothing(sub)
+                sub.on_connection_ready(session)
+            else
+                error("Sub session with id $(data["session"]) not found")
+            end
         end
-        session.on_connection_ready(session)
     else
         @error "Unrecognized message: $(typ) with type: $(typeof(typ))"
     end
 end
 
+include("sub-connection.jl")
 include("websocket.jl")
 include("ijulia.jl")
 include("no-connection.jl")

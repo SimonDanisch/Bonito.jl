@@ -102,10 +102,24 @@ export function track_deleted_sessions() {
     }
 }
 
-export function init_session(session_id, on_connection_open) {
+export function init_session(session_id, on_connection_open, subsession) {
     console.log("init session")
-    register_on_connection_open(on_connection_open);
     track_deleted_sessions();
+    SESSIONS[session_id] = new Set();
+    if (!subsession) {
+        register_on_connection_open(on_connection_open, session_id);
+    } else {
+        on_connection_open()
+    }
+    // send_session_ready(session_id);
+    const root_node = document.getElementById(session_id);
+    if (root_node) {
+        root_node.style.visibility = "visible";
+    }
+}
+
+export function init_sub_session(session_id) {
+    console.log(`init sub session: ${session_id}`)
     SESSIONS[session_id] = new Set();
     // send_session_ready(session_id);
     const root_node = document.getElementById(session_id);

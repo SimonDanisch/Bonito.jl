@@ -108,56 +108,6 @@ function assure_ready(page::Page)
     send(session, fused_messages!(session))
 end
 
-function render_sub_session(parent_session, html_dom)
-    session = Session(nothing)
-    on_init = Observable(false)
-    # Render the app and register all the resources with the session
-    # Note, since we set the connection to nothing, nothing gets sent yet
-    # This is important, since we can only sent the messages after the HTML has been rendered
-    # since we must assume the messages / js contains references to HTML elements
-    js_dom = jsrender(session, html_dom)
-
-    new_deps = setdiff(session.dependencies, parent_session.dependencies)
-    union!(parent_session.dependencies, new_deps)
-
-    on(session, on_init) do is_init
-        if !is_init
-            error("The html didn't initialize correctly")
-        end
-        init_session(session)
-    end
-
-    init = js"""
-    // register this session so it gets deleted when it gets removed from dom
-    $(JSServeLib).register_sub_session($(session.id))
-    $(on_init).notify(true)
-    """
-
-    final_dom = DOM.span(
-        js_dom,
-        include_all_assets(parent_session, new_deps)...,
-        jsrender(session, init),
-        id=session.id,
-    )
-
-    obs_shared_with_parent = intersect(keys(session.observables), keys(parent_session.observables))
-    # Those obs are managed by page session, so we don't need to have them in here!
-    # This is important when we clean them up, since a child session shouldn't
-    # delete any observable already managed by the parent session
-    for obs in obs_shared_with_parent
-        delete!(session.observables, obs)
-    end
-
-    # but in the end, all observables need to be registered
-    # with the page session, since that's where javascript will sent all the events
-    merge!(parent_session.observables, session.observables)
-
-    # finally give page a connection! :)
-    session.connection[] = parent_session.connection[]
-
-    return final_dom
-end
-
 
 function show_in_page(page::Page, app::App)
     page_session = page.session

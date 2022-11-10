@@ -5,10 +5,12 @@ import { deserialize_cached } from "./Sessions.js";
 import { send_error } from "./Connection.js";
 
 
-export function materialize_node(data) {
+export function materialize_node(cache, data) {
     // if is a node attribute
     if (Array.isArray(data)) {
-        return data.map(materialize_node);
+        return data.map(x=> materialize_node(cache, x));
+    } else if (data.__javascript_type__) {
+        return deserialize_datatype(cache, data.__javascript_type__, data.payload);
     } else if (data.tag) {
         const node = document.createElement(data.tag);
         Object.keys(data).forEach((key) => {
@@ -20,7 +22,7 @@ export function materialize_node(data) {
         });
         data.children.forEach((child) => {
             if (is_dict(child)) {
-                node.appendChild(materialize_node(child));
+                node.appendChild(materialize_node(cache, child));
             } else {
                 if (data.tag == "script") {
                     node.text = child;
@@ -66,7 +68,8 @@ function deserialize_datatype(cache, type, payload) {
         case "CacheKey":
             return lookup_cached(cache, payload);
         case "DomNodeFull":
-            return materialize_node(payload);
+            console.log(payload)
+            return materialize_node(cache, payload);
         case "Asset":
             if (payload.es6module) {
                 return import(payload.url)

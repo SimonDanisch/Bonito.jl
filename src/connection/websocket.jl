@@ -30,6 +30,7 @@ function save_read(websocket)
 end
 
 Base.isopen(ws::WebSocketConnection) = !isnothing(ws.socket) && !isclosed(ws.socket)
+
 function Base.write(ws::WebSocketConnection, binary)
     lock(ws.lock) do
         send(ws.socket, binary)
@@ -47,10 +48,6 @@ function Base.close(ws::WebSocketConnection)
             @warn "error while clsosing websocket" exception=(e, Base.catch_backtrace())
         end
     end
-end
-
-function send_to_js(session::Session{WebSocketConnection}, message::Dict{Symbol, Any})
-    send(session.socket, serialize_binary(session, message))
 end
 
 function run_connection_loop(server::Server, session::Session, websocket::WebSocket)
@@ -106,10 +103,10 @@ function setup_connect(session::Session{WebSocketConnection})
     server = HTTPServer.get_server()
     HTTPServer.websocket_route!(server, r"/" * MATCH_UUID4 => connection)
     proxy_url = "http://127.0.0.1:$(server.port)"
+
     return js"""
-        (async () => {
-            const Websocket = await $(Websocket)
-            Websocket.setup_connection({proxy_url: $(proxy_url), session_id: $(session.id)})
-        })()
+        $(Websocket).then(WS => {
+            WS.setup_connection({proxy_url: $(proxy_url), session_id: $(session.id)})
+        })
     """
 end

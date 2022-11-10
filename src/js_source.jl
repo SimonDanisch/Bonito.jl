@@ -92,26 +92,29 @@ function jsrender(session::Session, js::JSCode)
     code = sprint() do io
         print_js_code(io, js, objects)
     end
-    # reverse lookup and serialize elements
-    interpolated_objects = Dict(v => k for (k, v) in objects)
-    data = Dict(
-        :interpolated_objects => interpolated_objects,
-        :source => code,
-        :julia_file => js.file
-    )
-    data_str = serialize_string(session, interpolated_objects)
-    src = """
-        // JSCode from $(js.file)
-        const data_str = '$(data_str)'
-        console.log("ok lets do this")
-        JSServe.base64decode(data_str).then(binary=> {
-            const message = JSServe.decode_binary(binary);
-            const objects = JSServe.deserialize_cached(message)
-            function __lookup_interpolated(id) {
-                return objects[id];
-            }
-            $code
-        })
-    """
+    if isempty(objects)
+        src = code
+    else
+        # reverse lookup and serialize elements
+        interpolated_objects = Dict(v => k for (k, v) in objects)
+        data = Dict(
+            :interpolated_objects => interpolated_objects,
+            :source => code,
+            :julia_file => js.file
+        )
+        data_str = serialize_string(session, interpolated_objects)
+        src = """
+            // JSCode from $(js.file)
+            const data_str = '$(data_str)'
+            JSServe.base64decode(data_str).then(binary=> {
+                const message = JSServe.decode_binary(binary);
+                const objects = JSServe.deserialize_cached(message)
+                function __lookup_interpolated(id) {
+                    return objects[id];
+                }
+                $code
+            })
+        """
+    end
     return DOM.script(src, type="module")
 end
