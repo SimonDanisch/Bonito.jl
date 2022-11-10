@@ -5,7 +5,7 @@ end
 """
 HTTP server with websocket & http routes
 """
-struct Server
+mutable struct Server
     url::String
     port::Int
     server_task::Ref{Task}
@@ -264,11 +264,30 @@ function Base.close(application::Server)
     @assert !isrunning(application)
 end
 
+
+function try_listen(url, port)
+    address = Sockets.InetAddr(Sockets.getaddrinfo(url), port)
+    try
+        ioserver = Sockets.listen(address)
+        return port, ioserver
+    catch e
+        if e isa Base.IOError && e.code == -4091 #address already in use
+            return try_listen(url, port+1)
+        else
+            rethrow(e)
+        end
+    end
+end
+
 function start(server::Server; verbose=false)
     isrunning(server) && return
-    @show server.url server.port
-    address = Sockets.InetAddr(Sockets.getaddrinfo(server.url), server.port)
-    ioserver = Sockets.listen(address)
+
+    newport, ioserver = try_listen(server.url, server.port)
+    if server.port != newport
+        @warn "Port in use, using different port. New port: $(newport)"
+        server.port = newport
+    end
+
     server.server_connection[] = ioserver
     # pass tcp connection to listen, so that we can close the server
 

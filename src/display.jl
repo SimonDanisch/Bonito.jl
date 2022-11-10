@@ -275,6 +275,8 @@ function show_in_iframe(server, session, app)
     return jsrender(session, iframe_html(server, session, session_route))
 end
 
+Base.showable(::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, ::App) = true
+
 function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
     if isassigned(CURRENT_PAGE)
         # We are in Page rendering mode!
@@ -283,7 +285,6 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
     else
         domy = JSServe.session_dom(Session(), app)
         show(io, Hyperscript.Pretty(domy))
-        # println(io, show_in_iframe(server, session, app))
     end
 end
 

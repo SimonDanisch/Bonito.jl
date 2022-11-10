@@ -333,6 +333,5 @@ function session_dom(session::Session, app::App)
         init_connection,
         init_server
     )
-
     return dom
 end

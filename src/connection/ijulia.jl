@@ -1,5 +1,6 @@
 const PLUGIN_NAME = :JSServe
-
+const IJULIA_PKG_ID = Base.PkgId(Base.UUID("7073ff75-c697-5162-941a-fcdaad2a7d2a"), "IJulia")
+const IJulia = Ref{Module}()
 # IJulia.CommManager.Comm
 const IJuliaComm = Any
 
@@ -7,29 +8,37 @@ mutable struct IJuliaConnection <: FrontendConnection
     comm::Union{Nothing, IJuliaComm}
 end
 
-function send_to_julia(session::Session{IJuliaConnection}, data)
-    comm = session.connection[].comm
-    IJulia.send_comm(comm, data)
+function Base.write(connection::IJuliaConnection, bytes::AbstractVector{UInt8})
+    comm = connection.comm
+    IJulia[].send_comm(comm, Dict("data" => Base64.base64encode(bytes)))
 end
 
-Base.isopen(c::IJuliaConnection) = haskey(IJulia.CommManager.comms, c.comm.id)
+function Base.isopen(c::IJuliaConnection)
+    isnothing(c.comm) && return false
+    return haskey(IJulia[].CommManager.comms, c.comm.id)
+end
 
 function setup_connect(session::Session{IJuliaConnection})
-    @eval begin
-        function IJulia.CommManager.register_comm(comm::IJulia.CommManager.Comm{PLUGIN_NAME}, message)
+    IJulia[] = Base.loaded_modules[IJULIA_PKG_ID]
+    expr = quote
+        function IJulia.CommManager.register_comm(comm::CommManager.Comm{$(QuoteNode(PLUGIN_NAME))}, message)
+            session = $(session)
+            session.connection.comm = comm
             comm.on_msg = function (msg)
-                data = msg.content["data"]
-                data_uint8 = Base64.base64decode(data)
-                JSServe.process_message(session, data_uint8)
+                data_b64 = msg.content["data"]
+                bytes = $(Base64).base64decode(data_b64)
+                $(JSServe).process_message(session, bytes)
             end
-            comm.on_close = (args...)-> begin
-                close(session)
-            end
+            comm.on_close = (args...)-> close(session)
         end
     end
+
+    IJulia[].eval(expr)
+
     id = session.id
     return js"""
-        (async () => {
+        (() => {
+            console.log("setting up IJulia")
             if (!window.Jupyter) {
                 throw "Jupyter not loaded"
             }
@@ -46,12 +55,11 @@ function setup_connect(session::Session{IJuliaConnection})
                 undefined, // buffers
             )
             comm.on_msg((msg) => {
-                JSServe.process_message(msg.content.data)
+                JSServe.decode_base64_message(msg.content.data.data).then(JSServe.process_message)
             });
 
-            JSServe.on_connection_open(async (binary) => {
-                const b64encoded = await JSServe.base64encode(binary);
-                comm.send(b64encoded)
+            JSServe.on_connection_open((binary) => {
+                JSServe.base64encode(binary).then(x=> comm.send(x))
             })
         })()
     """
