@@ -10,6 +10,7 @@ const JavascriptWarning = "4";
 const RegisterObservable = "5";
 const JSDoneLoading = "8";
 const FusedMessage = "9";
+const CloseSession = "10";
 
 const CONNECTION = {
     send_message: undefined,
@@ -27,7 +28,7 @@ export function register_on_connection_open(callback, session_id) {
         const promise = Promise.resolve(callback())
         // once the callback promise resolves, we're FINALLY done and call done_loading
         // which will signal the Julia side that EVERYTHING is set up!
-        promise.then(() => sent_done_loading(session_id))
+        promise.then(() => send_done_loading(session_id))
     }
 }
 
@@ -74,12 +75,21 @@ export function send_warning(message) {
     });
 }
 
-export function sent_done_loading(session_id) {
+export function send_done_loading(session) {
     console.log("done loading")
     send_to_julia({
         msg_type: JSDoneLoading,
-        session: session_id,
+        session,
         exception: "null",
+    });
+}
+
+export function send_close_session(session, subsession) {
+    console.log(`closing ${session}`)
+    send_to_julia({
+        msg_type: CloseSession,
+        session,
+        subsession
     });
 }
 
@@ -123,5 +133,5 @@ export {
     JavascriptWarning,
     RegisterObservable,
     JSDoneLoading,
-    FusedMessage,
+    FusedMessage
 };

@@ -146,7 +146,7 @@ struct Session{Connection <: FrontendConnection}
     session_cache::Dict{String, Any}
 end
 
-function Session(connection=default_connect();
+function Session(connection=default_connection();
                 id=string(uuid4()),
                 asset_server=default_asset_server(),
                 observables=Dict{String, Observable}(),

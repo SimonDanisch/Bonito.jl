@@ -1,16 +1,15 @@
 import * as MsgPack from "https://cdn.esm.sh/v66/@msgpack/msgpack@2.7.2/es2021/msgpack.js";
 import * as Pako from "https://cdn.esm.sh/v66/pako@2.0.4/es2021/pako.js";
 import { Observable } from "./Observables.js";
-import { deserialize_cached } from "./Sessions.js";
+import { deserialize_cached, GLOBAL_OBJECT_CACHE } from "./Sessions.js";
 import { send_error } from "./Connection.js";
-
 
 export function materialize_node(cache, data) {
     // if is a node attribute
     if (Array.isArray(data)) {
         return data.map(x=> materialize_node(cache, x));
     } else if (data.__javascript_type__) {
-        return deserialize_datatype(cache, data.__javascript_type__, data.payload);
+        return materialize_node(cache, data.payload);
     } else if (data.tag) {
         const node = document.createElement(data.tag);
         Object.keys(data).forEach((key) => {
@@ -21,15 +20,7 @@ export function materialize_node(cache, data) {
             }
         });
         data.children.forEach((child) => {
-            if (is_dict(child)) {
-                node.appendChild(materialize_node(cache, child));
-            } else {
-                if (data.tag == "script") {
-                    node.text = child;
-                } else {
-                    node.innerText = child;
-                }
-            }
+            node.append(materialize_node(cache, child));
         });
         return node;
     } else {
@@ -58,6 +49,10 @@ function lookup_cached(cache, key) {
     if (mcache) {
         return mcache;
     }
+    const gcache = GLOBAL_OBJECT_CACHE[key]
+    if (gcache) {
+        return gcache[0];
+    }
     throw new Error(`Key ${key} not found! ${mcache}`)
 }
 
@@ -68,7 +63,6 @@ function deserialize_datatype(cache, type, payload) {
         case "CacheKey":
             return lookup_cached(cache, payload);
         case "DomNodeFull":
-            console.log(payload)
             return materialize_node(cache, payload);
         case "Asset":
             if (payload.es6module) {

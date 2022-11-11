@@ -7,6 +7,7 @@ const JavascriptWarning = "4"
 const RegisterObservable = "5"
 const JSDoneLoading = "8"
 const FusedMessage = "9"
+const CloseSession = "10"
 
 
 function get_session(session::Session, id::String)
@@ -55,10 +56,25 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         else
             sub = get_session(session, data["session"])
             if !isnothing(sub)
-                sub.on_connection_ready(session)
+                sub.on_connection_ready(sub)
             else
                 error("Sub session with id $(data["session"]) not found")
             end
+        end
+    elseif typ == CloseSession
+        sub = get_session(session, data["session"])
+        if !isnothing(sub)
+            if data["subsession"]
+                println("closing $(sub.id)")
+                close(sub)
+            else
+                # We only empty root sessions, since they will be reused
+                println("empty root!")
+                @assert root_session(sub) === sub
+                empty!(sub)
+            end
+        else
+            error("Sub session with id $(data["session"]) not found")
         end
     else
         @error "Unrecognized message: $(typ) with type: $(typeof(typ))"
@@ -70,7 +86,7 @@ include("websocket.jl")
 include("ijulia.jl")
 include("no-connection.jl")
 
-function default_connect()
+function default_connection()
     if isdefined(Main, :IJulia)
         return IJuliaConnection(nothing)
     # elseif isdefined(Main, :Pluto)

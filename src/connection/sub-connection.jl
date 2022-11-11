@@ -9,6 +9,7 @@ function Base.write(connection::SubConnection, binary)
 end
 
 Base.isopen(connection::SubConnection) = connection.isopen
+Base.close(connection::SubConnection) = (connection.isopen = false)
 
 function setup_connect(session::Session{SubConnection})
     return js""" """

@@ -8,6 +8,7 @@ const {
     process_message,
     on_connection_open,
     on_connection_close,
+    send_close_session,
     register_on_connection_open
 } = Connection;
 
@@ -63,6 +64,7 @@ const JSServe = {
     process_message,
     on_connection_open,
     on_connection_close,
+    send_close_session,
     register_on_connection_open,
 
     Sessions,

@@ -51,24 +51,21 @@ serialize_js(array::AbstractVector{Float32}) = js_type("Float32Array", to_byteve
 serialize_js(array::AbstractVector{Float64}) = js_type("Float64Array", to_bytevec(array))
 
 function serialize_cached(context::SerializationContext, asset::Asset)
-    key = object_identity(asset)
-    add_cached!(context.session, context.message_cache, key) do
+    return add_cached!(context.session, context.message_cache, asset) do
         return js_type("Asset", Dict(:es6module => asset.es6module, :url => url(context.session.asset_server, asset)))
     end
-    return js_type("CacheKey", key)
 end
 
 function serialize_cached(context::SerializationContext, obs::Observable)
-    add_cached!(context.session, context.message_cache, obs.id) do
+    return add_cached!(context.session, context.message_cache, obs) do
         root = root_session(context.session)
         get!(root.observables, obs.id) do
             updater = JSUpdateObservable(root, obs.id)
             on(updater, root, obs)
-            obs
+            return obs
         end
         return js_type("Observable", Dict(:id => obs.id, :value => serialize_cached(context, obs[])))
     end
-    return js_type("CacheKey", obs.id)
 end
 
 function serialize_cached(context::SerializationContext, js::JSCode)
@@ -104,10 +101,9 @@ function serialize_cached(context::SerializationContext, @nospecialize(obj))
     key = object_identity(obj)
     # if key is nothing it means we can't/ don't want to cache!
     isnothing(key) && return serialize_js(obj)
-    add_cached!(context.session, context.message_cache, key) do
+    return add_cached!(context.session, context.message_cache, obj) do
         serialize_js(obj)
     end
-    return js_type("CacheKey", key)
 end
 
 function serialize_cached(context::SerializationContext, x::Union{AbstractArray, Tuple})

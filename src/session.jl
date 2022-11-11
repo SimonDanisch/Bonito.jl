@@ -30,35 +30,35 @@ If not cached already, we call `create_cached_object` to create a serialized for
 We return nothing if already cached, or the serialized object if not cached.
 We also handle the part of adding things to the message_cache from the serialization context.
 """
-function add_cached!(create_cached_object::Function, session::Session, message_cache::Dict{String, Any}, key::String)
+function add_cached!(create_cached_object::Function, session::Session, send_to_js::Dict{String, Any}, @nospecialize(object))
+    key = object_identity(object)::String
+    result = js_type("CacheKey", key)
     # If already in session, there's nothing we need to do, since we've done the work the first time we added the object
-    haskey(session.session_cache, key) && return nothing
+    haskey(session.session_cache, key) && return result
     # Now, we have two code paths, depending on whether we have a child session or a root session
     root = root_session(session)
     if root === session # we are root, so we simply cache the object (we already checked it's not cached yet)
-        obj = create_cached_object()
-        message_cache[key] = obj
-        session.session_cache[key] = obj
-        return obj # we need to send the object to JS, so we return it here
+        send_to_js[key] = create_cached_object()
+        session.session_cache[key] = object
+        return result
     else
         # This session is a child session.
-        # We never cache objects in the child directly, but track it here with `key => nothing` for cleaning up purposes.
-        session.session_cache[key] = nothing
+
         # Now we need to figure out if the root session has the object cached already
         # The root session has our object cached already.
         if haskey(root.session_cache, key)
-            # in this case, we just add the key to the message cache, so that the JS side can associate the object with out session
-            message_cache[key] = nothing
-            return nothing
+            # in this case, we just add the key to send to js, so that the JS side can associate the object with this session
+            send_to_js[key] = nothing
+            return result
         end
-        # Nobody has the object cached
-        obj = create_cached_object()
-        message_cache[key] = obj
-        root.session_cache[key] = obj
-        return obj
+        # Nobody has the object cached, so we
+        # we add this session as the owner, but also add it to the root session
+        session.session_cache[key] = nothing
+        send_to_js[key] = create_cached_object()
+        root.session_cache[key] = object
+        return result
     end
 end
-
 
 function child_haskey(child::Session, key)
     haskey(child.session_cache, key) && return true
@@ -66,15 +66,30 @@ function child_haskey(child::Session, key)
 end
 
 function delete_cached!(root::Session, key::String)
-    if !haskey(session.session_cache, key)
+    if !haskey(root.session_cache, key)
         # This should uncover any fault in our caching logic!
         error("Deleting key that doesn't belong to any cached object")
     end
+    # We don't delete assets for now (since they remain loaded on the page anyways)
+    root.session_cache[key] isa Asset && return
     # We don't do reference counting, but we check if any child still holds a reference to the object we want to delete
     if !any(((id, s),)-> child_haskey(s, key), root.children)
         # So only delete it if nobody has it anymore!
-        delete!(session.session_cache, key)
+        delete!(root.session_cache, key)
+        if haskey(root.observables, key) # if we have an observable, we also need to remove the observable here
+            delete!(root.observables, key)
+        end
     end
+end
+
+function Base.empty!(session::Session)
+    root = root_session(session)
+    for key in keys(session.session_cache)
+        delete_cached!(root, key)
+    end
+    # remove all listeners that where created for this session
+    foreach(off, session.deregister_callbacks)
+    empty!(session.deregister_callbacks)
 end
 
 function Base.close(session::Session)
@@ -84,7 +99,7 @@ function Base.close(session::Session)
     if session !== root
         # We need to remove our session from the parent first, otherwise `delete_cached!`
         # will think our session still holds the value, which would prevent it from deleting
-        delete!(parent(session), session.id)
+        delete!(parent(session).children, session.id)
         for key in keys(session.session_cache)
             delete_cached!(root, key)
         end
@@ -329,6 +344,7 @@ function session_dom(session::Session, app::App)
     end
 
     init_session = """
+    console.log("running init session")
     function on_connection_open(){
     $(on_open)
     }

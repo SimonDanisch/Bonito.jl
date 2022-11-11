@@ -9,6 +9,12 @@ struct JSUpdateObservable
     id::String
 end
 
+# Somehow, showing JSUpdateObservable end up in a stackoverflow...
+# Not sure why, but hey, overloading show isn't a bad idea anyways, isn't it?
+function Base.show(io::IO, up::JSUpdateObservable)
+    print(io, "JSUpdateObservable($(typeof(up.session)), $(repr(up.id)))")
+end
+
 function (x::JSUpdateObservable)(value)
     # Sent an update event
     send(x.session, payload=value, id=x.id, msg_type=UpdateObservable)
@@ -66,6 +72,7 @@ function jsrender(session::Session, obs::Observable)
     dom = DOM.span(html[])
     on(session, obs) do data
         html[] = render_subsession(session, data)
+        return
     end
     onjs(session, html, js"""
     (html)=> {

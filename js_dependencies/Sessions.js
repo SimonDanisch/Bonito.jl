@@ -1,5 +1,5 @@
 import { deserialize } from "./Protocol.js";
-import { register_on_connection_open, send_error } from "./Connection.js";
+import { register_on_connection_open, send_error, send_close_session } from "./Connection.js";
 
 const SESSIONS = {};
 // global object cache with refcounting
@@ -16,10 +16,13 @@ export function lookup_observable(id) {
 }
 
 function free_object(id) {
-    console.log(`freeing ${id}`)
     const object = GLOBAL_OBJECT_CACHE[id];
     if (object) {
         const [data, refcount] = object;
+        if (data.constructor == Promise) {
+            // Promise => Module. We don't free Modules, since they'll be cached by the active page anyways
+            return
+        }
         const new_refcount = refcount - 1;
         if (new_refcount === 0) {
             delete GLOBAL_OBJECT_CACHE[id];
@@ -35,7 +38,7 @@ function free_object(id) {
 }
 
 function update_session_cache(session_id, new_session_cache) {
-    const session_cache = SESSIONS[session_id]
+    const [session_cache, subsession] = SESSIONS[session_id]
     const cache = deserialize(GLOBAL_OBJECT_CACHE, new_session_cache)
     Object.keys(cache).forEach(key => {
         // object can be nothing, which mean we already have it in GLOBAL_OBJECT_CACHE
@@ -72,7 +75,7 @@ export function track_deleted_sessions() {
             const to_delete = new Set();
             mutations.forEach((mutation) => {
                 mutation.removedNodes.forEach((x) => {
-                    if (x.id && x.id in SESSIONS) {
+                    if (x.id in SESSIONS) {
                         to_delete.add(x.id);
                     } else {
                         removal_occured = true;
@@ -83,7 +86,11 @@ export function track_deleted_sessions() {
             if (removal_occured) {
                 Object.keys(SESSIONS).forEach((id) => {
                     if (!document.getElementById(id)) {
-                        to_delete.add(id);
+                        // the ROOT session may survive without being in the dom anymore
+                        const is_subsession = SESSIONS[id][1]
+                        if (is_subsession) {
+                            to_delete.add(id);
+                        }
                     }
                 });
             }
@@ -103,9 +110,9 @@ export function track_deleted_sessions() {
 }
 
 export function init_session(session_id, on_connection_open, subsession) {
-    console.log("init session")
+    console.log(`init session: ${session_id}, ${subsession}`)
     track_deleted_sessions();
-    SESSIONS[session_id] = new Set();
+    SESSIONS[session_id] = [new Set(), subsession];
     if (!subsession) {
         register_on_connection_open(on_connection_open, session_id);
     } else {
@@ -118,28 +125,25 @@ export function init_session(session_id, on_connection_open, subsession) {
     }
 }
 
-export function init_sub_session(session_id) {
-    console.log(`init sub session: ${session_id}`)
-    SESSIONS[session_id] = new Set();
-    // send_session_ready(session_id);
-    const root_node = document.getElementById(session_id);
-    if (root_node) {
-        root_node.style.visibility = "visible";
-    }
-}
-
 export function close_session(session_id) {
-    const session_cache = SESSIONS[session_id];
+    const [session_cache, subsession] = SESSIONS[session_id];
     const root_node = document.getElementById(session_id);
     if (root_node) {
         root_node.style.display = "none";
         root_node.parentNode.removeChild(root_node);
     }
-
-    while (session_cache.length > 0) {
-        free_object(session_cache.pop());
+    session_cache.forEach(key => {
+        free_object(key);
+    })
+    session_cache.clear()
+    if (subsession) {
+        delete SESSIONS[session_id];
     }
-    delete SESSIONS[session_id];
-    send_session_close(session_id);
+    send_close_session(session_id, subsession);
     return;
+}
+
+export {
+    SESSIONS,
+    GLOBAL_OBJECT_CACHE
 }
