@@ -9,7 +9,7 @@ const {
     on_connection_open,
     on_connection_close,
     send_close_session,
-    register_on_connection_open
+    register_on_connection_open,
 } = Connection;
 
 const {
@@ -20,11 +20,11 @@ const {
     encode_binary,
     materialize_node,
     decode_binary_message,
-    decode_base64_message
+    decode_base64_message,
 } = Protocol;
 
-const { init_session, deserialize_cached, init_sub_session } = Sessions;
-
+const { init_session, deserialize_cached, free_session } =
+    Sessions;
 
 function update_node_attribute(node, attribute, value) {
     if (node) {
@@ -44,6 +44,17 @@ function update_dom_node(dom, html) {
     } else {
         //deregister the callback if the observable dom is gone
         return false;
+    }
+}
+
+function on_node_available(func, node_id) {
+    const node = document.querySelector(`[data-jscall-id="${node_id}"]`)
+    if (node) {
+        console.log("yay, node is here!")
+        func(node)
+    } else {
+        console.log(`not available, trying again: ${node_id}`)
+        setTimeout(on_node_available, 500, func, node_id)
     }
 }
 
@@ -70,10 +81,11 @@ const JSServe = {
     Sessions,
     deserialize_cached,
     init_session,
-    init_sub_session,
+    free_session,
     // Util
     update_node_attribute,
-    update_dom_node
+    update_dom_node,
+    on_node_available
 };
 
 window.JSServe = JSServe;
@@ -85,7 +97,6 @@ export {
     base64encode,
     decode_binary,
     encode_binary,
-
     Connection,
     send_error,
     send_warning,
@@ -93,9 +104,8 @@ export {
     on_connection_open,
     on_connection_close,
     register_on_connection_open,
-
     Sessions,
     deserialize_cached,
     init_session,
-    init_sub_session
+    free_session
 };

@@ -4,6 +4,12 @@ import { Observable } from "./Observables.js";
 import { deserialize_cached, GLOBAL_OBJECT_CACHE } from "./Sessions.js";
 import { send_error } from "./Connection.js";
 
+export class Retain {
+    constructor(value) {
+        this.value = value;
+    }
+}
+
 export function materialize_node(cache, data) {
     // if is a node attribute
     if (Array.isArray(data)) {
@@ -33,10 +39,6 @@ function is_dict(value) {
     return value && typeof value === "object";
 }
 
-function is_string(object) {
-    return typeof object === "string";
-}
-
 function array_to_buffer(array) {
     return array.buffer.slice(
         array.byteOffset,
@@ -45,16 +47,17 @@ function array_to_buffer(array) {
 }
 
 function lookup_cached(cache, key) {
-    const mcache = cache[key];
-    if (mcache) {
-        return mcache;
+    const object = cache[key];
+    if (object) {
+        if (object instanceof Retain) {
+            return object.value
+        } else {
+            return object;
+        }
     }
-    const gcache = GLOBAL_OBJECT_CACHE[key]
-    if (gcache) {
-        return gcache[0];
-    }
-    throw new Error(`Key ${key} not found! ${mcache}`)
+    throw new Error(`Key ${key} not found! ${object}`)
 }
+
 
 function deserialize_datatype(cache, type, payload) {
     switch (type) {
@@ -94,6 +97,9 @@ function deserialize_datatype(cache, type, payload) {
         case "Observable":
             const value = deserialize(cache, payload.value);
             return new Observable(payload.id, value);
+        case "Retain":
+            const real_value = deserialize(cache, payload);
+            return new Retain(real_value);
         case "Uint8Array":
             return payload;
         case "Int32Array":

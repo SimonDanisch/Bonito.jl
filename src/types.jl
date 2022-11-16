@@ -131,8 +131,6 @@ struct Session{Connection <: FrontendConnection}
     connection::Connection
     # The way we serve any file asset
     asset_server::AbstractAssetServer
-    # Bool -> if already registered with Frontend
-    observables::Dict{String, Observable}
     message_queue::Vector{Dict{Symbol, Any}}
     # Code that gets evalued last after all other messages, when session gets connected
     on_document_load::Vector{JSCode}
@@ -149,7 +147,6 @@ end
 function Session(connection=default_connection();
                 id=string(uuid4()),
                 asset_server=default_asset_server(),
-                observables=Dict{String, Observable}(),
                 message_queue=Dict{Symbol, Any}[],
                 on_document_load=JSCode[],
                 connection_ready=Channel{Bool}(1),
@@ -166,7 +163,6 @@ function Session(connection=default_connection();
         id,
         connection,
         asset_server,
-        observables,
         message_queue,
         on_document_load,
         connection_ready,
@@ -183,7 +179,6 @@ end
 function Session(parent::Session;
             id=string(uuid4()),
             asset_server=parent.asset_server,
-            observables=Dict{String, Observable}(),
             message_queue=Dict{Symbol, Any}[],
             on_document_load=JSCode[],
             connection_ready=Channel{Bool}(1),
@@ -202,7 +197,6 @@ function Session(parent::Session;
         id,
         connection,
         asset_server,
-        observables,
         message_queue,
         on_document_load,
         connection_ready,

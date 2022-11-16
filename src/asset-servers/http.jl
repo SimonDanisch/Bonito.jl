@@ -1,15 +1,16 @@
-struct HTTPAssetServer <: AbstractAssetServer
+mutable struct HTTPAssetServer <: AbstractAssetServer
     registered_files::Dict{String, String}
+    server
 end
 
-HTTPAssetServer() = HTTPAssetServer(Dict{String, String}())
+HTTPAssetServer() = HTTPAssetServer(Dict{String, String}(), nothing)
 
 function url(server::HTTPAssetServer, asset::Asset)
     file = local_path(asset)
     target = normpath(abspath(expanduser(file)))
     key = "/assetserver/" * unique_file_key(target)
     get!(()-> target, server.registered_files, key)
-    return key
+    return JSServe.HTTPServer.online_url(server.server, key)
 end
 
 function (server::HTTPAssetServer)(context)
@@ -27,8 +28,10 @@ function (server::HTTPAssetServer)(context)
 end
 
 function setup_asset_server(asset_server::HTTPAssetServer)
-    server = HTTPServer.get_server()
-    HTTPServer.route!(server, r"/assetserver/" * MATCH_HEX^40 * r"-.*" => asset_server)
+    if isnothing(asset_server.server)
+        asset_server.server = HTTPServer.get_server()
+    end
+    HTTPServer.route!(asset_server.server, r"/assetserver/" * MATCH_HEX^40 * r"-.*" => asset_server)
     return
 end
 

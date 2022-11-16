@@ -153,3 +153,77 @@ end
     # @test isempty(data_unpacked["update_cache"]["to_register"])
     # @test data_unpacked["update_cache"]["to_remove"][1] == dub_ref
 end
+
+
+@testset "" begin
+    obs2 = Observable("hey")
+    obs[] = App() do s
+        global sub = s
+        DOM.div("hehe", js"$(obs2).on(x=> console.log(x))")
+    end;
+
+    @test session.children[sub.id] === sub
+    @test sub.session_cache[obs2.id] == nothing
+    @test haskey(session.session_cache, obs2.id)
+    @test haskey(session.observables, obs2.id)
+    JSServe.evaljs_value(session, js"""(()=>{
+        return JSServe.Sessions.GLOBAL_OBJECT_CACHE[$(obs2.id)][1]
+    })()""")
+
+    obs[] = App(()-> DOM.div("hoehoe", js"console.log('please delete old session?')"));
+    @test !haskey(session.children, sub.id)
+    @test !haskey(session.session_cache, obs2.id)
+    @test !haskey(session.observables, obs2.id)
+
+    @test JSServe.evaljs_value(session, js"""(()=>{
+        const a = $(obs2.id) in JSServe.Sessions.GLOBAL_OBJECT_CACHE
+        const b = $(sub.id) in JSServe.Sessions.SESSIONS
+        return !a && !b
+    })()""")
+
+    session.observables
+
+    JSServe.evaljs_value(session, js"""(()=>{
+        return JSServe.Sessions.GLOBAL_OBJECT_CACHE.length
+    })()""")
+
+    using JSServe, Observables, Test
+    color = Observable("color: red;")
+    text = Observable("hehe")
+    app = App() do
+        DOM.div(text; style=color)
+    end;
+
+    parent = Session()
+    JSServe.session_dom(parent, app)
+
+    @test haskey(parent.observables, color.id)
+    @test haskey(parent.observables, text.listeners[1][2].html.id)
+
+    session = Session(parent)
+
+    new_obs = Observable([1,23,])
+    app2 = App() do
+        DOM.div(js"$new_obs"; style=color)
+    end;
+    dom = JSServe.session_dom(session, app2)
+
+    msg = JSServe.fused_messages!(session)
+    ser_msg = JSServe.serialize_cached(session, msg)
+
+    @test JSServe.root_session(session) == parent
+    @test JSServe.root_session(session) !== session
+
+    # Session shouldn't own, color
+    @test !haskey(session.session_cache, color.id)
+    @test session.session_cache[new_obs.id] == nothing
+    @test haskey(parent.session_cache, new_obs.id)
+    close(session)
+
+    @test isempty(session.session_cache)
+    @test !isopen(session)
+    # New obs the session brought in should stay:
+    @test !haskey(parent.session_cache, new_obs.id)
+    @test haskey(parent.session_cache, color.id)
+
+end

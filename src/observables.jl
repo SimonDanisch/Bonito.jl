@@ -35,8 +35,8 @@ function update_nocycle!(obs::Observable, @nospecialize(value))
 end
 
 # on & map versions that deregister when session closes!
-function Observables.on(f, session::Session, observable::Observable)
-    to_deregister = on(f, observable)
+function Observables.on(f, session::Session, observable::Observable; update=false)
+    to_deregister = on(f, observable; update=update)
     push!(session.deregister_callbacks, to_deregister)
     return to_deregister
 end
@@ -56,28 +56,48 @@ function Base.map(f, session::Session, observables::Observable...; result=Observ
     return result
 end
 
-render_subsession(::Session, data::Union{AbstractString, Number}) = DOM.span(string(data))
+render_subsession(p::Session, data::Union{AbstractString, Number}) = (p, DOM.span(string(data)))
 
 function render_subsession(parent::Session, app::App)
     sub = Session(parent)
-    return session_dom(sub, app)
+    return sub, session_dom(sub, app; init=false)
 end
 
 function render_subsession(parent::Session, dom::Node)
     render_subsession(parent, App(()-> dom))
 end
 
+function update_session_dom!(parent::Session, root_node, data)
+    sub, html = render_subsession(parent, data)
+    message = Dict(
+        :messages => fused_messages!(sub),
+        :html => html,
+    )
+    b64str = serialize_string(sub, message)
+
+    evaljs(parent, js"""
+        function callback(dom) {
+            const b64str = $(b64str)
+            function callback() {
+                return JSServe.decode_base64_message(b64str).then(message => {
+                    const { messages, html } = message;
+                    const dom = $(root_node)
+                    console.log(dom.childNodes[dom.childNodes.length-1])
+                    dom.replaceChild(html, dom.childNodes[dom.childNodes.length-1])
+                    JSServe.process_message(messages)
+                    console.log("obs session done: " + $(sub.id))
+                })
+            }
+            JSServe.init_session($(sub.id), callback, 'obs-sub')
+        }
+        JSServe.on_node_available(callback, $(uuid(root_node)))
+    """)
+end
+
 function jsrender(session::Session, obs::Observable)
-    html = Observable{Any}(jsrender(session, obs[]))
-    dom = DOM.span(html[])
-    on(session, obs) do data
-        html[] = render_subsession(session, data)
-        return
+    root_node = DOM.span(DOM.div())
+    on(session, obs; update=true) do data
+        update_session_dom!(root_session(session), root_node, data)
     end
-    onjs(session, html, js"""
-    (html)=> {
-        const dom = $(dom)
-        dom.replaceChild(html, dom.childNodes[0])
-    }""")
-    return dom
+    return root_node
 end

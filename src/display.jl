@@ -1,5 +1,5 @@
 
-const CURRENT_SESSION = Ref{Session}()
+const CURRENT_SESSION = Ref{Union{Nothing, Session}}(nothing)
 
 
 function show_in_iframe(server, session, app)
@@ -22,23 +22,34 @@ end
 Base.showable(::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, ::App) = true
 
 function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
-    if isassigned(CURRENT_SESSION)
+    if !isnothing(CURRENT_SESSION[])
         # We render in a subsession
-        session = Session(CURRENT_SESSION[])
+        parent = CURRENT_SESSION[]
+        sub = Session(parent)
+        dom = session_dom(sub, app)
     else
         session = Session()
         if use_parent_session(session)
             CURRENT_SESSION[] = session
+            empty_app = App(()-> nothing)
+            sub = Session(session)
+            # root_node = DOM.span(DOM.div())
+            init_dom = session_dom(session, empty_app)
+            sub_dom = session_dom(sub, app)
+            # update_session_dom!(session, root_node, app)
+            dom = DOM.div(init_dom, sub_dom)
+        else
+            dom = session_dom(session, app)
         end
     end
-    domy = JSServe.session_dom(session, app)
-    show(io, Hyperscript.Pretty(domy))
+    show(io, Hyperscript.Pretty(dom))
 end
 
 function iframe_html(server::Server, session::Session, route::String)
     # Display the route we just added in an iframe inline:
     url = online_url(server, route)
     remote_origin = online_url(server, "")
+    style = "position: relative; display: block; width: 100%; height: 100%; padding: 0; overflow: hidden; border: none"
     style = "position: relative; display: block; width: 100%; height: 100%; padding: 0; overflow: hidden; border: none"
     return DOM.div(
         js"""

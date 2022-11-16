@@ -41,6 +41,22 @@ function js_type(type::String, @nospecialize(x))
     )
 end
 
+struct Retain
+    value::Any
+end
+
+object_identity(retain::Retain) = object_identity(retain.value)
+
+function serialize_cached(context::SerializationContext, retain::Retain)
+    if isnothing(object_identity(retain))
+        error("Can only retain types with `JSServe.object_identity`. To fix, overload `JSServe.object_identity(x::$(typeof(value)))` to return a unique value")
+    end
+    return add_cached!(context.session, context.message_cache, retain) do
+        serialized = serialize_js(context, retain.value)
+        return js_type("Retain", serialized)
+    end
+end
+
 serialize_js(@nospecialize(x)) = x
 serialize_js(array::AbstractVector{T}) where {T<:Union{String, Number}} = js_type("TypedVector", array)
 serialize_js(array::AbstractVector{UInt8}) = js_type("Uint8Array", to_bytevec(array))
@@ -50,21 +66,26 @@ serialize_js(array::AbstractVector{Float16}) = serialize_js(convert(Vector{Float
 serialize_js(array::AbstractVector{Float32}) = js_type("Float32Array", to_bytevec(array))
 serialize_js(array::AbstractVector{Float64}) = js_type("Float64Array", to_bytevec(array))
 
+function serialize_js(context, asset::Asset)
+    return js_type("Asset", Dict(:es6module => asset.es6module, :url => url(context.session.asset_server, asset)))
+end
+
 function serialize_cached(context::SerializationContext, asset::Asset)
     return add_cached!(context.session, context.message_cache, asset) do
-        return js_type("Asset", Dict(:es6module => asset.es6module, :url => url(context.session.asset_server, asset)))
+        return serialize_js(context, asset)
     end
+end
+
+function serialize_js(context, obs::Observable)
+    return js_type("Observable", Dict(:id => obs.id, :value => serialize_js(obs[])))
 end
 
 function serialize_cached(context::SerializationContext, obs::Observable)
     return add_cached!(context.session, context.message_cache, obs) do
         root = root_session(context.session)
-        get!(root.observables, obs.id) do
-            updater = JSUpdateObservable(root, obs.id)
-            on(updater, root, obs)
-            return obs
-        end
-        return js_type("Observable", Dict(:id => obs.id, :value => serialize_cached(context, obs[])))
+        updater = JSUpdateObservable(root, obs.id)
+        on(updater, root, obs)
+        return serialize_js(context, obs)
     end
 end
 

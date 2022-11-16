@@ -121,8 +121,11 @@ include("no-server.jl")
 include("http.jl")
 
 function default_asset_server()
-    # return HTTPAssetServer()
-    return NoServer()
+    if isdefined(Main, :IJulia)
+        return NoServer()
+    else
+        return HTTPAssetServer()
+    end
 end
 
 function local_path(asset::Asset)

@@ -54,19 +54,20 @@ function run_connection_loop(server::Server, session::Session, websocket::WebSoc
     try
         @debug("opening ws connection for session: $(session.id)")
         while !isclosed(websocket)
-            bytes = receive(websocket)
+            bytes = save_read(websocket)
             # nothing means the browser closed the connection so we're done
             isnothing(bytes) && break
             try
                 process_message(session, bytes)
             catch e
                 # Only print any internal error to not close the connection
-                Base.showerror(stderr, e, Base.catch_backtrace())
+                @warn "error while processing received msg" exception=(e, Base.catch_backtrace())
             end
         end
+        println("its closed noah")
     finally
         # This always needs to happen, which is why we need a try catch!
-        @debug("Closing: $(session.id)")
+        @info("Closing: $(session.id)")
         close(session)
     end
 end

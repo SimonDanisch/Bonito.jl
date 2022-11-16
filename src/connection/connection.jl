@@ -38,11 +38,15 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
     data = deserialize_binary(bytes)
     typ = data["msg_type"]
     if typ == UpdateObservable
-        obs = get(session.observables, data["id"], nothing)
+        obs = get(session.session_cache, data["id"], nothing)
         if isnothing(obs)
             @warn "Observable $(data["id"]) not found :( "
         else
-            Base.invokelatest(update_nocycle!, obs, data["payload"])
+            if obs isa Retain
+                Base.invokelatest(update_nocycle!, obs.value, data["payload"])
+            else
+                Base.invokelatest(update_nocycle!, obs, data["payload"])
+            end
         end
     elseif typ == JavascriptError
         show(stderr, JSException(data))
@@ -64,7 +68,8 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
     elseif typ == CloseSession
         sub = get_session(session, data["session"])
         if !isnothing(sub)
-            if data["subsession"]
+            @show data["subsession"]
+            if data["subsession"] != "root"
                 println("closing $(sub.id)")
                 close(sub)
             else
@@ -96,6 +101,10 @@ function default_connection()
         return WebSocketConnection()
     end
 end
+
+use_parent_session(::Session) = false
+use_parent_session(::Session{IJuliaConnection}) = true
+use_parent_session(::Session{WebSocketConnection}) = false
 
 const ACTIVE_SESSIONS = Dict{String, Session}()
 

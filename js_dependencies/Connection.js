@@ -76,7 +76,6 @@ export function send_warning(message) {
 }
 
 export function send_done_loading(session) {
-    console.log("done loading")
     send_to_julia({
         msg_type: JSDoneLoading,
         session,

@@ -18,10 +18,6 @@ function Base.isopen(c::IJuliaConnection)
     return haskey(IJulia[].CommManager.comms, c.comm.id)
 end
 
-
-use_parent_session(::Session) = false
-use_parent_session(::Session{IJuliaConnection}) = true
-
 function setup_connect(session::Session{IJuliaConnection})
     IJulia[] = Base.loaded_modules[IJULIA_PKG_ID]
     expr = quote

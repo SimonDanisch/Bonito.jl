@@ -9,10 +9,17 @@ function fused_messages!(session::Session)
     return Dict(:msg_type=>FusedMessage, :payload=>messages)
 end
 
+open!(connection) = nothing
+
 function init_session(session::Session)
-    println("initing session :)")
+    println("initing session: $(session.id)")
     put!(session.connection_ready, true)
-    send(session, fused_messages!(session))
+    open!(session.connection)
+    @assert isopen(session)
+    if !isempty(session.message_queue)
+        println("sending queued messages: $(length(session.message_queue))")
+        send(session, fused_messages!(session))
+    end
 end
 
 session(session::Session) = session
@@ -46,14 +53,14 @@ function add_cached!(create_cached_object::Function, session::Session, send_to_j
 
         # Now we need to figure out if the root session has the object cached already
         # The root session has our object cached already.
+        session.session_cache[key] = nothing # session needs to reference this to "own" it
         if haskey(root.session_cache, key)
             # in this case, we just add the key to send to js, so that the JS side can associate the object with this session
-            send_to_js[key] = nothing
+            send_to_js[key] = "tracking-only"
             return result
         end
         # Nobody has the object cached, so we
         # we add this session as the owner, but also add it to the root session
-        session.session_cache[key] = nothing
         send_to_js[key] = create_cached_object()
         root.session_cache[key] = object
         return result
@@ -71,14 +78,13 @@ function delete_cached!(root::Session, key::String)
         error("Deleting key that doesn't belong to any cached object")
     end
     # We don't delete assets for now (since they remain loaded on the page anyways)
-    root.session_cache[key] isa Asset && return
+    # And of course not Retain, since that's the whole point of it
+    root.session_cache[key] isa Union{Retain, Asset} && return
     # We don't do reference counting, but we check if any child still holds a reference to the object we want to delete
-    if !any(((id, s),)-> child_haskey(s, key), root.children)
+    has_ref = any(((id, s),)-> child_haskey(s, key), root.children)
+    if !has_ref
         # So only delete it if nobody has it anymore!
         delete!(root.session_cache, key)
-        if haskey(root.observables, key) # if we have an observable, we also need to remove the observable here
-            delete!(root.observables, key)
-        end
     end
 end
 
@@ -103,12 +109,14 @@ function Base.close(session::Session)
         for key in keys(session.session_cache)
             delete_cached!(root, key)
         end
+        evaljs(root, js"""
+            JSServe.free_session($(session.id))
+        """)
     end
     # delete_cached! only deletes in the root session so we need to still empty the session_cache:
     empty!(session.session_cache)
 
     close(session.connection)
-    empty!(session.observables)
     empty!(session.on_document_load)
     empty!(session.message_queue)
     empty!(session.session_cache)
@@ -258,55 +266,8 @@ function evaljs_value(with_session, js; error_on_closed=true, time_out=100.0)
     evaljs_value(session(with_session), js; error_on_closed=error_on_closed, time_out=time_out)
 end
 
-"""
-    register_resource!(session::Session, domlike)
 
-Walks dom like structures and registers all resources (Observables, Assets Depencies)
-with the session.
-"""
-register_resource!(session::Session, @nospecialize(obj), resources=nothing) = nothing # do nothing for unknown type
-
-function register_resource!(session::Session, list::Union{Tuple, AbstractVector, Pair}, resources=nothing)
-    for elem in list
-        register_resource!(session, elem, resources)
-    end
-end
-
-function register_resource!(session::Session, dict::Union{NamedTuple, AbstractDict}, resources=nothing)
-    for (k, v) in pairs(dict)
-        register_resource!(session, v, resources)
-        register_resource!(session, k, resources)
-    end
-end
-
-function register_resource!(session::Session, jss::JSCode, resources=nothing)
-    register_resource!(session, jss.source, resources)
-end
-
-function register_resource!(session::Session, node::Node, resources=nothing)
-    walk_dom(node) do x
-        register_resource!(session, x, resources)
-    end
-end
-
-function register_resource!(session::Session, observable::Observable, resources=nothing)
-    if !haskey(session.observables, observable.id)
-        session.observables[observable.id] = (true, observable)
-        # Register on the JS side by sending the current value
-        updater = JSUpdateObservable(session, observable.id)
-        on(updater, session, observable)
-        # Make sure we register on the js side
-        send(session, payload=observable[], id=observable.id, msg_type=RegisterObservable)
-    end
-end
-
-function register_resource!(session::Session, asset::Asset, resources=nothing)
-    isnothing(resources) || push!(resources, asset)
-    push!(session.dependencies, asset)
-    return asset
-end
-
-function session_dom(session::Session, app::App)
+function session_dom(session::Session, app::App; init=true)
     dom = jsrender(session, app.handler(session, (target="/",)))
     body = nothing
     head = nothing
@@ -327,8 +288,8 @@ function session_dom(session::Session, app::App)
         dom = DOM.div(dom, id=session.id)
     end
 
-    init_connection = jsrender(session, JSServe.setup_connect(session))
-    init_server = jsrender(session, JSServe.setup_asset_server(session.asset_server))
+    init_connection = setup_connect(session)
+    init_server = setup_asset_server(session.asset_server)
 
     # TODO, just sent them once connection opens?
     all_messages = fused_messages!(session)
@@ -344,17 +305,24 @@ function session_dom(session::Session, app::App)
     end
 
     init_session = """
-    console.log("running init session")
     function on_connection_open(){
     $(on_open)
     }
-    JSServe.init_session('$(session.id)', on_connection_open, $(issubsession));
+    JSServe.init_session('$(session.id)', on_connection_open, $(repr(issubsession ? "sub" : "root")));
     """
     js = []
     if !issubsession
         push!(js, jsrender(session, JSServeLib))
     end
-    push!(js, DOM.script(init_session, type="module"), init_connection, init_server)
+    if init
+        push!(js, DOM.script(init_session, type="module"))
+    end
+    if !isnothing(init_connection)
+        push!(js, jsrender(session, init_connection))
+    end
+    if !isnothing(init_server)
+        push!(js, jsrender(session, init_server))
+    end
     pushfirst!(children(head), js...)
     return dom
 end
