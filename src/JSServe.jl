@@ -55,7 +55,7 @@ end
 export Page, Session, App, DOM, @js_str
 export Slider, Button
 
-import .HTTPServer: browser_display
-export browser_display
+import .HTTPServer: browser_display, configure_server!
+export browser_display, configure_server!
 
 end # module

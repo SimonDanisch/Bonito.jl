@@ -329,8 +329,6 @@ function get_server()
     return GLOBAL_SERVER[]
 end
 
-
-
 """
     configure_server!(;
             listen_url::String=JSSERVE_CONFIGURATION.listen_url[],
