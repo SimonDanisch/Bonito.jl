@@ -159,7 +159,6 @@ function bundle!(asset::Asset)
     needs_bundling(asset) || return
     path = asset.local_path
     bundled = bundle_path(asset)
-    println("bundling...")
     Deno_jll.deno() do exe
         write(bundled, read(`$exe bundle $(path)`))
     end

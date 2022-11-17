@@ -68,7 +68,6 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
     elseif typ == CloseSession
         sub = get_session(session, data["session"])
         if !isnothing(sub)
-            @show data["subsession"]
             if data["subsession"] != "root"
                 println("closing $(sub.id)")
                 close(sub)

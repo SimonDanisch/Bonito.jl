@@ -68,7 +68,7 @@ function delegate(routes::Routes, application, request::Request, args...)
             return apply_handler(f, context, args...)
         end
     end
-    println("DIdn't find no route!! $(request.target)")
+    @debug("Didn't find route for $(request.target)")
     # If no route is found we have a classic case of 404!
     # What a classic this response!
     return response_404("Didn't find route for $(request.target)")
@@ -220,7 +220,6 @@ function Server(
         routes = Routes(),
         websocket_routes = Routes()
     )
-    @show verbose
     server = Server(
         url, port,
         Ref{Task}(), Ref{TCPServer}(),

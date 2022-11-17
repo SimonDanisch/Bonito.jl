@@ -1,50 +1,3 @@
-
-const CURRENT_SESSION = Ref{Union{Nothing, Session}}(nothing)
-
-
-function show_in_iframe(server, session, app)
-    session_route = "/$(session.id)"
-    # Our default is to display the app in an IFrame, which is a bit complicated
-    # we need to resize the iframe based on its content, which is a bit complicated
-    # because we can't directly access it. So we sent a message here
-    # to the parent iframe, for which we register an
-    # event handler via resize_iframe_parent, which then
-    # resizes the parent iframe accordingly
-    app_wrapped = App() do session::Session, request
-        on_document_load(session, js"JSServe.resize_iframe_parent($(session.id))")
-        html_dom = Base.invokelatest(app.handler, session, request)
-        return html_dom
-    end
-    route!(server, session_route => app_wrapped)
-    return jsrender(session, iframe_html(server, session, session_route))
-end
-
-Base.showable(::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, ::App) = true
-
-function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
-    if !isnothing(CURRENT_SESSION[])
-        # We render in a subsession
-        parent = CURRENT_SESSION[]
-        sub = Session(parent)
-        dom = session_dom(sub, app)
-    else
-        session = Session()
-        if use_parent_session(session)
-            CURRENT_SESSION[] = session
-            empty_app = App(()-> nothing)
-            sub = Session(session)
-            # root_node = DOM.span(DOM.div())
-            init_dom = session_dom(session, empty_app)
-            sub_dom = session_dom(sub, app)
-            # update_session_dom!(session, root_node, app)
-            dom = DOM.div(init_dom, sub_dom)
-        else
-            dom = session_dom(session, app)
-        end
-    end
-    show(io, Hyperscript.Pretty(dom))
-end
-
 function iframe_html(server::Server, session::Session, route::String)
     # Display the route we just added in an iframe inline:
     url = online_url(server, route)
@@ -79,6 +32,49 @@ function iframe_html(server::Server, session::Session, route::String)
     )
 end
 
+function show_in_iframe(server, session, app)
+    session_route = "/$(session.id)"
+    # Our default is to display the app in an IFrame, which is a bit complicated
+    # we need to resize the iframe based on its content, which is a bit complicated
+    # because we can't directly access it. So we sent a message here
+    # to the parent iframe, for which we register an
+    # event handler via resize_iframe_parent, which then
+    # resizes the parent iframe accordingly
+    app_wrapped = App() do session::Session, request
+        on_document_load(session, js"JSServe.resize_iframe_parent($(session.id))")
+        html_dom = Base.invokelatest(app.handler, session, request)
+        return html_dom
+    end
+    route!(server, session_route => app_wrapped)
+    return jsrender(session, iframe_html(server, session, session_route))
+end
+
+Base.showable(::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, ::App) = true
+
+const CURRENT_SESSION = Ref{Union{Nothing, Session}}(nothing)
+
+function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
+    if !isnothing(CURRENT_SESSION[])
+        # We render in a subsession
+        parent = CURRENT_SESSION[]
+        sub = Session(parent)
+        dom = session_dom(sub, app)
+    else
+        session = Session()
+        if use_parent_session(session)
+            CURRENT_SESSION[] = session
+            empty_app = App(()-> nothing)
+            sub = Session(session)
+            init_dom = session_dom(session, empty_app)
+            sub_dom = session_dom(sub, app)
+            dom = DOM.div(init_dom, sub_dom)
+        else
+            dom = session_dom(session, app)
+        end
+    end
+    show(io, Hyperscript.Pretty(dom))
+end
+
 function node_html(io::IO, session::Session, node::Hyperscript.Node)
     js_dom = DOM.div(jsrender(session, node), id="application-dom")
     return show(io, MIME"text/html"(), Hyperscript.Pretty(js_dom))
@@ -86,6 +82,7 @@ end
 
 """
     page_html(session::Session, html_body)
+
 Embeds the html_body in a standalone html document!
 """
 function page_html(io::IO, session::Session, app::App)
@@ -105,9 +102,4 @@ end
 
 function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
     show(IOContext(io), MIME"text/html"(), app)
-end
-
-function show_as_html(io::IO, session::Session, dom)
-    println(io, "<!doctype html>")
-    show(io, MIME"text/html"(), Hyperscript.Pretty(html_body))
 end
