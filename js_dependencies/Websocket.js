@@ -1,6 +1,7 @@
 
 const session_websocket = [];
 let websocket_config = undefined;
+window.session_websocket = session_websocket
 
 function websocket_url(session_id, proxy_url) {
     // something like http://127.0.0.1:8081/
@@ -21,25 +22,35 @@ function ensure_connection() {
         console.log("Length of websocket 0");
         // try to connect again!
         setup_connection();
-    }
-    // check if we have a connection now!
-    if (session_websocket.length == 0) {
-        console.log(
-            "Length of websocket 0 after setup_connection. We assume server is offline"
-        );
-        // still no connection...
-        // Display a warning, that we lost conenction!
-        var popup = document.getElementById("WEBSOCKET_CONNECTION_WARNING");
-        if (!popup) {
-            const doc_root = document.getElementById("application-dom");
-            const popup = document.createElement("div");
-            popup.id = "WEBSOCKET_CONNECTION_WARNING";
-            popup.innerText = "Lost connection to server!";
-            doc_root.appendChild(popup);
+            // check if we have a connection now!
+        if (session_websocket.length == 0) {
+            console.log(
+                "Length of websocket 0 after setup_connection. We assume server is offline"
+            );
+            // still no connection...
+            // Display a warning, that we lost conenction!
+            var popup = document.getElementById("WEBSOCKET_CONNECTION_WARNING");
+            if (!popup) {
+                const doc_root = document.getElementById("application-dom");
+                const popup = document.createElement("div");
+                popup.id = "WEBSOCKET_CONNECTION_WARNING";
+                popup.innerText = "Lost connection to server!";
+                doc_root.appendChild(popup);
+            }
+            return 'offline';
+        } else {
+            return isopen() ? 'ok' : 'offline'
         }
-        return false;
+    } else {
+        if (isopen()) {
+            return 'ok'
+        } else {
+            // session_websocket.length != 0 && !isopen()
+            // so we pop the closed connection, and try again!
+            session_websocket.pop()
+            return ensure_connection()
+        }
     }
-    return true;
 }
 
 function isopen() {
@@ -53,8 +64,9 @@ function isopen() {
 }
 
 function websocket_send(binary_data) {
-    const has_conenction = ensure_connection();
-    if (has_conenction) {
+    const status = ensure_connection();
+    console.log(`ws status: ${status}`)
+    if (status === 'ok') {
         if (isopen()) {
             session_websocket[0].send(binary_data);
             return true;
@@ -100,9 +112,12 @@ export function setup_connection(config_input) {
             }
             JSServe.on_connection_close();
             console.log("Wesocket close code: " + evt.code);
+            console.log(evt);
         };
+
         websocket.onerror = function (event) {
-            console.error("WebSocket error observed:" + event);
+            console.error("WebSocket error observed:");
+            console.log(event)
             if (tries <= 1) {
                 while (session_websocket.length > 0) {
                     session_websocket.pop();

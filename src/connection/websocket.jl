@@ -42,12 +42,12 @@ end
 function Base.close(ws::WebSocketConnection)
     isnothing(ws.socket) && return
     try
-        # https://github.com/JuliaWeb/HTTP.jl/issues/649
-        isclosed(ws.socket) || close(ws)
+        socket = ws.socket
         ws.socket = nothing
+        isclosed(socket) || close(socket)
     catch e
         if !WebSockets.isok(e)
-            @warn "error while clsosing websocket" exception=(e, Base.catch_backtrace())
+            @warn "error while closing websocket" exception=(e, Base.catch_backtrace())
         end
     end
 end
