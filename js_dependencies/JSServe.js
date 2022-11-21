@@ -10,6 +10,7 @@ const {
     on_connection_close,
     send_close_session,
     register_on_connection_open,
+    send_pingpong,
 } = Connection;
 
 const {
@@ -67,6 +68,7 @@ const JSServe = {
     on_connection_close,
     send_close_session,
     register_on_connection_open,
+    send_pingpong,
 
     Sessions,
     deserialize_cached,

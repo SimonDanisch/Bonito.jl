@@ -8,6 +8,7 @@ const RegisterObservable = "5"
 const JSDoneLoading = "8"
 const FusedMessage = "9"
 const CloseSession = "10"
+const PingPong = "11"
 
 
 function get_session(session::Session, id::String)
@@ -80,6 +81,9 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         else
             error("Sub session with id $(data["session"]) not found")
         end
+    elseif typ == PingPong
+        # Ping back that pong!!
+        send(session, msg_type=PingPong)
     else
         @error "Unrecognized message: $(typ) with type: $(typeof(typ))"
     end

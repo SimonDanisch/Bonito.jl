@@ -65,7 +65,6 @@ function isopen() {
 
 function websocket_send(binary_data) {
     const status = ensure_connection();
-    console.log(`ws status: ${status}`)
     if (status === 'ok') {
         if (isopen()) {
             session_websocket[0].send(binary_data);
@@ -79,6 +78,12 @@ function websocket_send(binary_data) {
         return undefined;
     }
 }
+
+function send_pings() {
+    JSServe.send_pingpong()
+    setTimeout(send_pings, 5000)
+}
+
 
 export function setup_connection(config_input) {
     let tries = 0;
@@ -103,6 +108,7 @@ export function setup_connection(config_input) {
                 })
             };
             JSServe.on_connection_open(websocket_send);
+            send_pings()
         };
 
         websocket.onclose = function (evt) {

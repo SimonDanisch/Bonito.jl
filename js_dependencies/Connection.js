@@ -11,6 +11,7 @@ const RegisterObservable = "5";
 const JSDoneLoading = "8";
 const FusedMessage = "9";
 const CloseSession = "10";
+const PingPong = "11";
 
 const CONNECTION = {
     send_message: undefined,
@@ -55,6 +56,12 @@ export function send_to_julia(message) {
         console.log("Trying to send messages while connection is offline");
     }
 }
+
+export function send_pingpong() {
+    console.log("sending ping")
+    send_to_julia({ msg_type: PingPong });
+}
+
 
 export function send_error(message, exception) {
     console.error(message);
@@ -118,6 +125,10 @@ export function process_message(data) {
                 break;
             case FusedMessage:
                 data.payload.forEach(process_message);
+                break;
+            case PingPong:
+                // just getting a ping, nothing to do here :)
+                console.log("getting pong")
                 break;
             default:
                 throw new Error(
