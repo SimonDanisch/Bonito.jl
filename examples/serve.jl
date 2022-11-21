@@ -20,3 +20,4 @@ end
 isdefined(Main, :server) && close(server)
 
 server = JSServe.Server(app, "127.0.0.1", 8081)
+wait(server)
