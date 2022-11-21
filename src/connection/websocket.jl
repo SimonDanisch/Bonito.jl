@@ -4,11 +4,13 @@ using HTTP.WebSockets: receive, isclosed
 using HTTP.WebSockets
 
 mutable struct WebSocketConnection <: FrontendConnection
+    server::Union{Nothing, Server}
     socket::Union{Nothing, WebSocket}
     lock::ReentrantLock
 end
 
-WebSocketConnection() = WebSocketConnection(nothing, ReentrantLock())
+WebSocketConnection() = WebSocketConnection(nothing, nothing, ReentrantLock())
+WebSocketConnection(server::Server) = WebSocketConnection(server, nothing, ReentrantLock())
 
 const MATCH_HEX = r"[\da-f]"
 const MATCH_UUID4 = MATCH_HEX^8 * r"-" * (MATCH_HEX^4 * r"-")^3 * MATCH_HEX^12
@@ -82,7 +84,7 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
     println("WS session id: $(session_id)")
     session = look_up_session(session_id)
     # Look up the connection in our sessions
-    if !(isnothing(session))
+    if !isnothing(session)
         if isopen(session)
             # Would be nice to not error here - but I think this should never
             # Happen, and if it happens, we need to debug it!
@@ -98,11 +100,16 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
 end
 
 function setup_connect(session::Session{WebSocketConnection})
-    register_session(session)
+    register_session!(session)
     connection = session.connection
-    server = HTTPServer.get_server()
+    if isnothing(connection.server)
+        connection.server = HTTPServer.get_server()
+    end
+    server = connection.server
+
     HTTPServer.websocket_route!(server, r"/" * MATCH_UUID4 => connection)
-    proxy_url = "http://127.0.0.1:$(server.port)"
+
+    proxy_url = online_url(server, "")
 
     return js"""
         $(Websocket).then(WS => {

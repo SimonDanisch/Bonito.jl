@@ -56,44 +56,6 @@ function Base.map(f, session::Session, observables::Observable...; result=Observ
     return result
 end
 
-render_subsession(p::Session, data::Union{AbstractString, Number}) = (p, DOM.span(string(data)))
-
-function render_subsession(parent::Session, app::App)
-    sub = Session(parent)
-    return sub, session_dom(sub, app; init=false)
-end
-
-function render_subsession(parent::Session, dom::Node)
-    render_subsession(parent, App(()-> dom))
-end
-
-function update_session_dom!(parent::Session, root_node, data)
-    sub, html = render_subsession(parent, data)
-    message = Dict(
-        :messages => fused_messages!(sub),
-        :html => html,
-    )
-    b64str = serialize_string(sub, message)
-
-    evaljs(parent, js"""
-        function callback(dom) {
-            const b64str = $(b64str)
-            function callback() {
-                return JSServe.decode_base64_message(b64str).then(message => {
-                    const { messages, html } = message;
-                    const dom = $(root_node)
-                    console.log(dom.childNodes[dom.childNodes.length-1])
-                    dom.replaceChild(html, dom.childNodes[dom.childNodes.length-1])
-                    JSServe.process_message(messages)
-                    console.log("obs session done: " + $(sub.id))
-                })
-            }
-            JSServe.init_session($(sub.id), callback, 'obs-sub')
-        }
-        JSServe.on_node_available(callback, $(uuid(root_node)))
-    """)
-end
-
 function jsrender(session::Session, obs::Observable)
     root_node = DOM.span(DOM.div())
     on(session, obs; update=true) do data

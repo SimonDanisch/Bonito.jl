@@ -239,6 +239,16 @@ function Server(
     return server
 end
 
+function Server(
+        app::App,
+        url::String, port::Int;
+        verbose = false,
+    )
+    server = Server(url, port; verbose=verbose)
+    route!(server, "/" => app)
+    return server
+end
+
 function isrunning(application::Server)
     return (isassigned(application.server_task) &&
         isassigned(application.server_connection) &&

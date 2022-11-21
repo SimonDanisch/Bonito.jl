@@ -1,7 +1,7 @@
 import * as MsgPack from "https://cdn.esm.sh/v66/@msgpack/msgpack@2.7.2/es2021/msgpack.js";
 import * as Pako from "https://cdn.esm.sh/v66/pako@2.0.4/es2021/pako.js";
 import { Observable } from "./Observables.js";
-import { deserialize_cached, GLOBAL_OBJECT_CACHE } from "./Sessions.js";
+import { deserialize_cached, update_session_dom } from "./Sessions.js";
 import { send_error } from "./Connection.js";
 
 export class Retain {
@@ -25,7 +25,8 @@ export function materialize_node(cache, data) {
                 node.setAttribute(key, data[key]);
             }
         });
-        data.children.forEach((child) => {
+        const children = deserialize(cache, data.children)
+        children.forEach((child) => {
             node.append(materialize_node(cache, child));
         });
         return node;
@@ -58,7 +59,6 @@ function lookup_cached(cache, key) {
     throw new Error(`Key ${key} not found! ${object}`)
 }
 
-
 function deserialize_datatype(cache, type, payload) {
     switch (type) {
         case "TypedVector":
@@ -66,7 +66,10 @@ function deserialize_datatype(cache, type, payload) {
         case "CacheKey":
             return lookup_cached(cache, payload);
         case "DomNodeFull":
-            return materialize_node(cache, payload);
+            console.log(payload)
+            const xx =  materialize_node(cache, payload);
+            console.log(xx)
+            return xx
         case "Asset":
             if (payload.es6module) {
                 return import(payload.url)
@@ -116,7 +119,11 @@ function deserialize_datatype(cache, type, payload) {
 }
 
 export function deserialize(cache, data) {
-    if (Array.isArray(data)) {
+    if (!data) {
+        return data
+    } else if (data.node_to_update) {
+        return update_session_dom(data)
+    } else if (Array.isArray(data)) {
         return data.map((x) => deserialize(cache, x));
     } else if (is_dict(data)) {
         if ("__javascript_type__" in data) {

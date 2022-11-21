@@ -28,6 +28,10 @@ using Base: RefValue
 
 include("types.jl")
 include("HTTPServer/HTTPServer.jl")
+
+import .HTTPServer: browser_display, configure_server!
+using .HTTPServer: Server, html, online_url, route!
+
 include("js_source.jl")
 include("session.jl")
 include("jsrender.jl")
@@ -54,8 +58,6 @@ end
 # Core functionality
 export Page, Session, App, DOM, @js_str
 export Slider, Button
-
-import .HTTPServer: browser_display, configure_server!
-export browser_display, configure_server!
+export browser_display, configure_server!, Server, html, route!
 
 end # module

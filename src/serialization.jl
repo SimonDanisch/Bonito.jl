@@ -66,7 +66,9 @@ serialize_js(array::AbstractVector{Float16}) = serialize_js(convert(Vector{Float
 serialize_js(array::AbstractVector{Float32}) = js_type("Float32Array", to_bytevec(array))
 serialize_js(array::AbstractVector{Float64}) = js_type("Float64Array", to_bytevec(array))
 
-function serialize_js(context, asset::Asset)
+serialize_js(context::SerializationContext, any) = serialize_js(any)
+
+function serialize_js(context::SerializationContext, asset::Asset)
     return js_type("Asset", Dict(:es6module => asset.es6module, :url => url(context.session.asset_server, asset)))
 end
 
@@ -76,8 +78,8 @@ function serialize_cached(context::SerializationContext, asset::Asset)
     end
 end
 
-function serialize_js(context, obs::Observable)
-    return js_type("Observable", Dict(:id => obs.id, :value => serialize_js(obs[])))
+function serialize_js(context::SerializationContext, obs::Observable)
+    return js_type("Observable", Dict(:id => obs.id, :value => serialize_js(context, obs[])))
 end
 
 function serialize_cached(context::SerializationContext, obs::Observable)
@@ -113,6 +115,16 @@ function serialize_cached(context::SerializationContext, node::Hyperscript.Node{
     merge!(vals, serialize_cached(context, getfield(node, :attrs)))
     return js_type("DomNodeFull", vals)
 end
+
+function serialize_js(context::SerializationContext, node::Hyperscript.Node{Hyperscript.HTMLSVG})
+    vals = Dict(
+        "tag" => getfield(node, :tag),
+        "children" => serialize_cached(context, getfield(node, :children))
+    )
+    merge!(vals, serialize_cached(context, getfield(node, :attrs)))
+    return js_type("DomNodeFull", vals)
+end
+
 
 object_identity(asset::Asset) = unique_file_key(asset)
 object_identity(observable::Observable) = observable.id

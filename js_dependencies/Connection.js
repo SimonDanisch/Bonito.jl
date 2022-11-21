@@ -93,6 +93,11 @@ export function send_close_session(session, subsession) {
 }
 
 export function process_message(data) {
+    if (!data) {
+        // there are messages, that will be processed in Sessions.js (e.g. `update_session_dom`).
+        // in that case, `deserialize_cached` will return null, which is then fed by the connection into process_message
+        return // in that case we ignore the message
+    }
     try {
         switch (data.msg_type) {
             case UpdateObservable:

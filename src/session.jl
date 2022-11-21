@@ -123,6 +123,7 @@ function Base.close(session::Session)
     # remove all listeners that where created for this session
     foreach(off, session.deregister_callbacks)
     empty!(session.deregister_callbacks)
+    unregister_session!(session)
     return
 end
 
@@ -140,6 +141,16 @@ function Sockets.send(session::Session, message::Dict{Symbol, Any})
         write(session.connection, binary)
     else
         push!(session.message_queue, message)
+    end
+end
+
+function send_serialized(session::Session, serialized_message::Dict{Symbol, Any})
+    if isready(session)
+        @assert isempty(session.message_queue)
+        binary = transcode(GzipCompressor, MsgPack.pack(serialized_message))
+        write(session.connection, binary)
+    else
+        push!(session.message_queue, serialized_message)
     end
 end
 
@@ -266,9 +277,12 @@ function evaljs_value(with_session, js; error_on_closed=true, time_out=100.0)
     evaljs_value(session(with_session), js; error_on_closed=error_on_closed, time_out=time_out)
 end
 
-
 function session_dom(session::Session, app::App; init=true)
-    dom = jsrender(session, app.handler(session, (target="/",)))
+    dom = jsrender(session, Base.invokelatest(app.handler, session, (target="/",)))
+    session_dom(session, dom; init=init)
+end
+
+function session_dom(session::Session, dom::Node; init=true)
     body = nothing
     head = nothing
     walk_dom(dom) do x
@@ -291,31 +305,31 @@ function session_dom(session::Session, app::App; init=true)
     init_connection = setup_connect(session)
     init_server = setup_asset_server(session.asset_server)
 
-    # TODO, just sent them once connection opens?
-    all_messages = fused_messages!(session)
     issubsession = !isnothing(parent(session))
-    on_open = if !isempty(all_messages)
-        msg_b64_str = serialize_string(session, all_messages)
-        """
-            const all_messages = `$(msg_b64_str)`
-            return JSServe.decode_base64_message(all_messages).then(JSServe.process_message)
-        """
-    else
-        ""
-    end
-
-    init_session = """
-    function on_connection_open(){
-    $(on_open)
-    }
-    JSServe.init_session('$(session.id)', on_connection_open, $(repr(issubsession ? "sub" : "root")));
-    """
     js = []
     if !issubsession
         push!(js, jsrender(session, JSServeLib))
     end
     if init
-        push!(js, DOM.script(init_session, type="module"))
+        # TODO, just sent them once connection opens?
+        all_messages = fused_messages!(session)
+        on_open = if !isempty(all_messages)
+            msg_b64_str = serialize_string(session, all_messages)
+            """
+                const all_messages = `$(msg_b64_str)`
+                return JSServe.decode_base64_message(all_messages).then(JSServe.process_message)
+            """
+        else
+            ""
+        end
+
+        init_session = """
+        function on_connection_open(){
+        $(on_open)
+        }
+        JSServe.init_session('$(session.id)', on_connection_open, $(repr(issubsession ? "sub" : "root")));
+        """
+    push!(js, DOM.script(init_session, type="module"))
     end
     if !isnothing(init_connection)
         push!(js, jsrender(session, init_connection))
@@ -325,4 +339,48 @@ function session_dom(session::Session, app::App; init=true)
     end
     pushfirst!(children(head), js...)
     return dom
+end
+
+render_subsession(p::Session, data::Union{AbstractString, Number}) = (p, DOM.span(string(data)))
+
+function render_subsession(parent::Session, app::App)
+    sub = Session(parent)
+    return sub, session_dom(sub, app; init=false)
+end
+
+function render_subsession(parent::Session, dom::Node)
+    sub = Session(parent)
+    dom_rendered = jsrender(sub, dom)
+    return sub, session_dom(sub, dom_rendered; init=false)
+end
+
+function update_session_dom!(parent::Session, node_to_update, app_or_dom)
+    sub, html = render_subsession(parent, app_or_dom)
+
+    if sub === parent
+        obs = Observable(html)
+        evaljs(parent, js"""
+            const dom = $(node_to_update)
+            while (dom.firstChild) {
+                dom.removeChild(dom.lastChild);
+            }
+            dom.append($(obs).value)
+        """)
+    else
+        session_data = Dict(
+            :messages => fused_messages!(sub),
+            :html => html
+        )
+        ctx = SerializationContext(sub)
+        data = serialize_cached(ctx, session_data)
+
+        message = Dict(
+            :session_id => sub.id,
+            :data => data,
+            :cache => ctx.message_cache,
+            :node_to_update => uuid(node_to_update)
+        )
+
+        send_serialized(parent, message)
+    end
 end

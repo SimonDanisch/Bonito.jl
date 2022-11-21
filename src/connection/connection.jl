@@ -105,6 +105,7 @@ use_parent_session(::Session) = false
 use_parent_session(::Session{IJuliaConnection}) = true
 use_parent_session(::Session{WebSocketConnection}) = false
 
+# Global session lookup, for e.g. websocket connection, or HTTP Apps
 const ACTIVE_SESSIONS = Dict{String, Session}()
 
 function look_up_session(id::String)
@@ -115,6 +116,10 @@ function look_up_session(id::String)
     end
 end
 
-function register_session(session::Session)
+function register_session!(session::Session)
     get!(ACTIVE_SESSIONS, session.id, session)
+end
+
+function unregister_session!(session::Session)
+    delete!(ACTIVE_SESSIONS, session.id)
 end

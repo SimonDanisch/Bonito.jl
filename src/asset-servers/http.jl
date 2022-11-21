@@ -4,6 +4,7 @@ mutable struct HTTPAssetServer <: AbstractAssetServer
 end
 
 HTTPAssetServer() = HTTPAssetServer(Dict{String, String}(), nothing)
+HTTPAssetServer(server::Server) = HTTPAssetServer(Dict{String, String}(), server)
 
 function url(server::HTTPAssetServer, asset::Asset)
     file = local_path(asset)
@@ -35,9 +36,15 @@ function setup_asset_server(asset_server::HTTPAssetServer)
     return
 end
 
-function apply_handler(app::App, context)
+function HTTPServer.apply_handler(app::App, context)
     server = context.application
-    session = insert_session!(server)
+    asset_server = HTTPAssetServer(server)
+    connection = WebSocketConnection(server)
+    session = Session(connection; asset_server=asset_server)
+    register_session!(session)
     html_dom = Base.invokelatest(app.handler, session, context.request)
-    return html(page_html(session, html_dom))
+    html_str = sprint() do io
+        page_html(io, session, jsrender(session, html_dom))
+    end
+    return html(html_str)
 end

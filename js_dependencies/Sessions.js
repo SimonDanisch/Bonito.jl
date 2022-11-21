@@ -1,5 +1,12 @@
 import { deserialize, Retain } from "./Protocol.js";
-import { register_on_connection_open, send_error, send_close_session, send_warning, send_done_loading } from "./Connection.js";
+import {
+    register_on_connection_open,
+    send_error,
+    send_close_session,
+    send_warning,
+    send_done_loading,
+    process_message
+} from "./Connection.js";
 
 const SESSIONS = {};
 // global object cache with refcounting
@@ -7,23 +14,22 @@ const SESSIONS = {};
 // Right now, should only contain Observables + Assets
 const GLOBAL_OBJECT_CACHE = {};
 
-const FREE_JOBS_QUEUE = []
-let ALLOW_FREEING_OBJECTS = true
+const FREE_JOBS_QUEUE = [];
+let ALLOW_FREEING_OBJECTS = true;
 
 function while_locking_free(f, id) {
-    ALLOW_FREEING_OBJECTS = false
+    ALLOW_FREEING_OBJECTS = false;
     function cleanup() {
-        ALLOW_FREEING_OBJECTS = true
+        ALLOW_FREEING_OBJECTS = true;
         while (FREE_JOBS_QUEUE.length > 0) {
-            const job = FREE_JOBS_QUEUE.pop()
-            job()
+            const job = FREE_JOBS_QUEUE.pop();
+            job();
         }
     }
-    const promise = Promise.resolve(f())
-    promise.then(x=> {
-        cleanup()
-    })
-
+    const promise = Promise.resolve(f());
+    promise.then((x) => {
+        cleanup();
+    });
 }
 
 export function lookup_observable(id) {
@@ -36,13 +42,14 @@ export function lookup_observable(id) {
 
 function is_still_referenced(id) {
     for (const session_id in JSServe.Sessions.SESSIONS) {
-        const [tracked_objects, allow_delete] = JSServe.Sessions.SESSIONS[session_id]
+        const [tracked_objects, allow_delete] =
+            JSServe.Sessions.SESSIONS[session_id];
         if (allow_delete && tracked_objects.has(id)) {
             // don't free if a session still holds onto it
             return true;
         }
     }
-    return false
+    return false;
 }
 
 function free_object(id) {
@@ -50,15 +57,15 @@ function free_object(id) {
     if (data) {
         if (data.constructor == Promise) {
             // Promise => Module. We don't free Modules, since they'll be cached by the active page anyways
-            return
+            return;
         }
         if (data instanceof Retain) {
             // Retain is a reserved type to never free an object from a session
-            return
+            return;
         }
         if (!is_still_referenced(id)) {
             // nobody holds on to this id anymore!!
-            delete GLOBAL_OBJECT_CACHE[id]
+            delete GLOBAL_OBJECT_CACHE[id];
         }
         return;
     } else {
@@ -70,31 +77,37 @@ function free_object(id) {
 }
 
 function update_session_cache(session_id, new_session_cache) {
-    const [tracked_objects, allow_delete] = SESSIONS[session_id]
-    const cache = deserialize(GLOBAL_OBJECT_CACHE, new_session_cache)
+    const [tracked_objects, allow_delete] = SESSIONS[session_id];
+    const cache = deserialize(GLOBAL_OBJECT_CACHE, new_session_cache);
     for (const key in cache) {
         // always keep track of usage in session cache
         tracked_objects.add(key);
         // object can be nothing, which mean we already have it in GLOBAL_OBJECT_CACHE
-        const new_object = cache[key]
+        const new_object = cache[key];
         if (new_object == "tracking-only") {
             if (!(key in GLOBAL_OBJECT_CACHE)) {
-                throw new Error(`Key ${key} only send for tracking, but not already tracked!!!`)
+                throw new Error(
+                    `Key ${key} only send for tracking, but not already tracked!!!`
+                );
             }
         } else {
             if (!(key in GLOBAL_OBJECT_CACHE)) {
-                GLOBAL_OBJECT_CACHE[key] = new_object
+                GLOBAL_OBJECT_CACHE[key] = new_object;
             } else {
-                console.warn(`${key} in session cache and send again!!`)
+                console.warn(`${key} in session cache and send again!!`);
             }
         }
     }
 }
 
 export function deserialize_cached(message) {
-    const { session_id, session_cache, data } = message;
-    update_session_cache(session_id, session_cache);
-    return deserialize(GLOBAL_OBJECT_CACHE, data)
+    if (message.node_to_update) {
+        return update_session_dom(message)
+    } else {
+        const { session_id, session_cache, data } = message;
+        update_session_cache(session_id, session_cache);
+        return deserialize(GLOBAL_OBJECT_CACHE, data);
+    }
 }
 
 let DELETE_OBSERVER = undefined;
@@ -109,8 +122,8 @@ export function track_deleted_sessions() {
             mutations.forEach((mutation) => {
                 mutation.removedNodes.forEach((x) => {
                     if (x.id in SESSIONS) {
-                        const status = SESSIONS[x.id][1]
-                        if (status == 'delete') {
+                        const status = SESSIONS[x.id][1];
+                        if (status == "delete") {
                             to_delete.add(x.id);
                         }
                     } else {
@@ -121,11 +134,13 @@ export function track_deleted_sessions() {
             // removal occured from elements not matching the id!
             if (removal_occured) {
                 Object.keys(SESSIONS).forEach((id) => {
-                    const allow_delete = SESSIONS[id][1]
-                    if (allow_delete == 'delete') {
+                    const allow_delete = SESSIONS[id][1];
+                    if (allow_delete == "delete") {
                         if (!document.getElementById(id)) {
-                            console.log(`adding session to delete candidates: ${id}`)
-                        // the ROOT session may survive without being in the dom anymore
+                            console.log(
+                                `adding session to delete candidates: ${id}`
+                            );
+                            // the ROOT session may survive without being in the dom anymore
                             to_delete.add(id);
                         }
                     }
@@ -147,23 +162,23 @@ export function track_deleted_sessions() {
 }
 
 export function init_session(session_id, on_connection_open, session_status) {
-    while_locking_free(()=> {
-        console.log(`init session: ${session_id}, ${session_status}`)
+    while_locking_free(() => {
+        console.log(`init session: ${session_id}, ${session_status}`);
         track_deleted_sessions();
-        const tracked_items = new Set()
+        const tracked_items = new Set();
         SESSIONS[session_id] = [tracked_items, session_status];
-        if (session_status == 'root') {
+        if (session_status == "root") {
             return register_on_connection_open(on_connection_open, session_id);
         } else {
-            const maybe_promise = on_connection_open()
-            const promise = Promise.resolve(maybe_promise)
-            return promise.then((x)=> {
-                send_done_loading(session_id)
-                SESSIONS[session_id] = [tracked_items, 'delete'];
-                console.log(`session ${session_id} fully initialized`)
-            })
+            const maybe_promise = on_connection_open();
+            const promise = Promise.resolve(maybe_promise);
+            return promise.then((x) => {
+                send_done_loading(session_id);
+                SESSIONS[session_id] = [tracked_items, "delete"];
+                console.log(`session ${session_id} fully initialized`);
+            });
         }
-    }, session_id)
+    }, session_id);
 }
 
 export function close_session(session_id) {
@@ -175,29 +190,62 @@ export function close_session(session_id) {
     }
     if (allow_delete) {
         send_close_session(session_id, allow_delete);
-        SESSIONS[session_id] = [session_cache, false]
+        SESSIONS[session_id] = [session_cache, false];
     }
     return;
 }
 
 export function free_session(session_id) {
-    function free_session_impl() {
-        console.log(`actually freeing session ${session_id}`)
+    function free_objects() {
+        console.log(`actually freeing session ${session_id}`);
         const [tracked_objects, subsession] = SESSIONS[session_id];
-        tracked_objects.forEach(key => {
+        tracked_objects.forEach((key) => {
             free_object(key);
-        })
-        tracked_objects.clear()
+        });
+        tracked_objects.clear();
         delete SESSIONS[session_id];
     }
     if (ALLOW_FREEING_OBJECTS) {
-        free_session_impl()
+        free_objects();
     } else {
-        FREE_JOBS_QUEUE.push(free_session_impl)
+        FREE_JOBS_QUEUE.push(free_objects);
     }
 }
 
-export {
-    SESSIONS,
-    GLOBAL_OBJECT_CACHE
+function on_node_available(node_id) {
+    return new Promise(resolve => {
+        function test_node() {
+            const node = document.querySelector(`[data-jscall-id="${node_id}"]`)
+            if (node) {
+                resolve(node)
+            } else {
+                setTimeout(test_node, 500, node_id)
+            }
+        }
+        test_node()
+    })
 }
+
+export function update_session_dom(message) {
+    const { session_id, data, cache, node_to_update } = message;
+    console.log(cache)
+    console.log(data)
+    on_node_available(node_to_update).then(dom => {
+        function callback() {
+            update_session_cache(session_id, cache)
+            const message = deserialize(GLOBAL_OBJECT_CACHE, data)
+            const { messages, html } = message;
+            while (dom.firstChild) {
+                dom.removeChild(dom.lastChild);
+            }
+            dom.append(html)
+            process_message(messages);
+            console.log("obs session done: " + session_id);
+        }
+        console.log("initializing session!!")
+        init_session(session_id, callback, "update-session-dom");
+    })
+    return
+}
+
+export { SESSIONS, GLOBAL_OBJECT_CACHE };

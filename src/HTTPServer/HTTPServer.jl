@@ -11,4 +11,6 @@ include("helper.jl")
 include("implementation.jl")
 include("browser-display.jl")
 
+export route!, Server, html
+
 end

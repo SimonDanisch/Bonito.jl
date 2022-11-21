@@ -47,16 +47,6 @@ function update_dom_node(dom, html) {
     }
 }
 
-function on_node_available(func, node_id) {
-    const node = document.querySelector(`[data-jscall-id="${node_id}"]`)
-    if (node) {
-        console.log("yay, node is here!")
-        func(node)
-    } else {
-        console.log(`not available, trying again: ${node_id}`)
-        setTimeout(on_node_available, 500, func, node_id)
-    }
-}
 
 const JSServe = {
     Protocol,
@@ -85,7 +75,6 @@ const JSServe = {
     // Util
     update_node_attribute,
     update_dom_node,
-    on_node_available
 };
 
 window.JSServe = JSServe;
