@@ -78,12 +78,12 @@ function free_object(id) {
 
 function update_session_cache(session_id, new_session_cache) {
     const [tracked_objects, allow_delete] = SESSIONS[session_id];
-    const cache = deserialize(GLOBAL_OBJECT_CACHE, new_session_cache);
-    for (const key in cache) {
-        // always keep track of usage in session cache
+    const new_jl_objects = deserialize(new_session_cache);
+    for (const key in new_jl_objects) {
+        // always keep track of usage in session
         tracked_objects.add(key);
-        // object can be nothing, which mean we already have it in GLOBAL_OBJECT_CACHE
-        const new_object = cache[key];
+        // object can be "tracking-only", which mean we already have it in GLOBAL_OBJECT_CACHE
+        const new_object = new_jl_objects[key];
         if (new_object == "tracking-only") {
             if (!(key in GLOBAL_OBJECT_CACHE)) {
                 throw new Error(
@@ -106,7 +106,7 @@ export function deserialize_cached(message) {
     } else {
         const { session_id, session_cache, data } = message;
         update_session_cache(session_id, session_cache);
-        return deserialize(GLOBAL_OBJECT_CACHE, data);
+        return deserialize(data);
     }
 }
 
@@ -228,12 +228,10 @@ function on_node_available(node_id) {
 
 export function update_session_dom(message) {
     const { session_id, data, cache, node_to_update } = message;
-    console.log(cache)
-    console.log(data)
     on_node_available(node_to_update).then(dom => {
         function callback() {
             update_session_cache(session_id, cache)
-            const message = deserialize(GLOBAL_OBJECT_CACHE, data)
+            const message = deserialize(data)
             const { messages, html } = message;
             while (dom.firstChild) {
                 dom.removeChild(dom.lastChild);

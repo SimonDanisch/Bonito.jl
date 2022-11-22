@@ -312,20 +312,19 @@ function session_dom(session::Session, dom::Node; init=true)
     end
     if init
         # TODO, just sent them once connection opens?
-        all_messages = fused_messages!(session)
-        on_open = if !isempty(all_messages)
-            msg_b64_str = serialize_string(session, all_messages)
-            """
-                const all_messages = `$(msg_b64_str)`
-                return JSServe.decode_base64_message(all_messages).then(JSServe.process_message)
-            """
-        else
-            ""
-        end
+        # all_messages = fused_messages!(session)
+        # on_open = if !isempty(all_messages)
+        #     msg_b64_str = serialize_string(session, all_messages)
+        #     """
+        #         const all_messages = `$(msg_b64_str)`
+        #         return JSServe.decode_base64_message(all_messages).then(JSServe.process_message)
+        #     """
+        # else
+        #     ""
+        # end
 
         init_session = """
         function on_connection_open(){
-        $(on_open)
         }
         JSServe.init_session('$(session.id)', on_connection_open, $(repr(issubsession ? "sub" : "root")));
         """
@@ -339,6 +338,10 @@ function session_dom(session::Session, dom::Node; init=true)
     end
     pushfirst!(children(head), js...)
     return dom
+end
+
+function render_subsession(p::Session, data)
+    return render_subsession(p, DOM.span(data))
 end
 
 render_subsession(p::Session, data::Union{AbstractString, Number}) = (p, DOM.span(string(data)))
@@ -357,7 +360,7 @@ end
 function update_session_dom!(parent::Session, node_to_update, app_or_dom)
     sub, html = render_subsession(parent, app_or_dom)
 
-    if sub === parent
+    if sub === parent # String/Number
         obs = Observable(html)
         evaljs(parent, js"""
             const dom = $(node_to_update)

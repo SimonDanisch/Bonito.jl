@@ -1,7 +1,11 @@
 import * as MsgPack from "https://cdn.esm.sh/v66/@msgpack/msgpack@2.7.2/es2021/msgpack.js";
 import * as Pako from "https://cdn.esm.sh/v66/pako@2.0.4/es2021/pako.js";
 import { Observable } from "./Observables.js";
-import { deserialize_cached, update_session_dom } from "./Sessions.js";
+import {
+    deserialize_cached,
+    GLOBAL_OBJECT_CACHE,
+    update_session_dom,
+} from "./Sessions.js";
 import { send_error } from "./Connection.js";
 
 export class Retain {
@@ -10,12 +14,12 @@ export class Retain {
     }
 }
 
-export function materialize_node(cache, data) {
+export function materialize_node(data) {
     // if is a node attribute
     if (Array.isArray(data)) {
-        return data.map(x=> materialize_node(cache, x));
+        return data.map((x) => materialize_node(x));
     } else if (data.__javascript_type__) {
-        return materialize_node(cache, data.payload);
+        return materialize_node(data.payload);
     } else if (data.tag) {
         const node = document.createElement(data.tag);
         Object.keys(data).forEach((key) => {
@@ -25,9 +29,9 @@ export function materialize_node(cache, data) {
                 node.setAttribute(key, data[key]);
             }
         });
-        const children = deserialize(cache, data.children)
+        const children = deserialize(data.children);
         children.forEach((child) => {
-            node.append(materialize_node(cache, child));
+            node.append(materialize_node(child));
         });
         return node;
     } else {
@@ -47,38 +51,35 @@ function array_to_buffer(array) {
     );
 }
 
-function lookup_cached(cache, key) {
-    const object = cache[key];
+function lookup_cached(key) {
+    const object = GLOBAL_OBJECT_CACHE[key];
     if (object) {
         if (object instanceof Retain) {
-            return object.value
+            return object.value;
         } else {
             return object;
         }
     }
-    throw new Error(`Key ${key} not found! ${object}`)
+    throw new Error(`Key ${key} not found! ${object}`);
 }
 
-function deserialize_datatype(cache, type, payload) {
+function deserialize_datatype(type, payload) {
     switch (type) {
         case "TypedVector":
-            return payload;
+            return deserialize(payload);
         case "CacheKey":
-            return lookup_cached(cache, payload);
+            return lookup_cached(payload);
         case "DomNodeFull":
-            console.log(payload)
-            const xx =  materialize_node(cache, payload);
-            console.log(xx)
-            return xx
+            return materialize_node(payload);
         case "Asset":
             if (payload.es6module) {
-                return import(payload.url)
+                return import(payload.url);
             } else {
                 return fetch(payload.url); // return url for now
             }
         case "JSCode":
-            const source = payload.source
-            const objects = deserialize(cache, payload.interpolated_objects)
+            const source = payload.source;
+            const objects = deserialize(payload.interpolated_objects);
             const lookup_interpolated = (id) => objects[id];
             // create a new func, that has __lookup_cached as argument
             const eval_func = new Function(
@@ -88,20 +89,20 @@ function deserialize_datatype(cache, type, payload) {
             );
             // return a closure, that when called runs the code!
             return () => {
-                try{
-                    return eval_func(lookup_interpolated, JSServe)
+                try {
+                    return eval_func(lookup_interpolated, JSServe);
                 } catch (err) {
-                    console.log(`error in closure from: ${payload.julia_file}`)
-                    console.log(`Source:`)
-                    console.log(source)
-                    throw err
+                    console.log(`error in closure from: ${payload.julia_file}`);
+                    console.log(`Source:`);
+                    console.log(source);
+                    throw err;
                 }
-            }
+            };
         case "Observable":
-            const value = deserialize(cache, payload.value);
+            const value = deserialize(payload.value);
             return new Observable(payload.id, value);
         case "Retain":
-            const real_value = deserialize(cache, payload);
+            const real_value = deserialize(payload);
             return new Retain(real_value);
         case "Uint8Array":
             return payload;
@@ -118,25 +119,21 @@ function deserialize_datatype(cache, type, payload) {
     }
 }
 
-export function deserialize(cache, data) {
+export function deserialize(data) {
     if (!data) {
-        return data
+        return data;
     } else if (data.node_to_update) {
-        return update_session_dom(data)
+        return update_session_dom(data);
     } else if (Array.isArray(data)) {
-        return data.map((x) => deserialize(cache, x));
+        return data.map((x) => deserialize(x));
     } else if (is_dict(data)) {
         if ("__javascript_type__" in data) {
-            return deserialize_datatype(
-                cache,
-                data.__javascript_type__,
-                data.payload
-            );
+            return deserialize_datatype(data.__javascript_type__, data.payload);
         } else {
             const result = {};
             for (let k in data) {
                 if (data.hasOwnProperty(k)) {
-                    result[k] = deserialize(cache, data[k]);
+                    result[k] = deserialize(data[k]);
                 }
             }
             return result;
@@ -158,7 +155,7 @@ export function base64encode(data_as_uint8array) {
             so we split off the beginning:
             */
             const len = 37; //length of "data:application/octet-stream;base64,"
-            const base64url = reader.result
+            const base64url = reader.result;
             // now that we're done, resolve our promise!
             resolve(base64url.slice(len, base64url.length));
         };
@@ -168,21 +165,23 @@ export function base64encode(data_as_uint8array) {
 }
 
 export function base64decode(base64_str) {
-    return new Promise(resolve => {
-        fetch("data:application/octet-stream;base64," + base64_str).then(response => {
-            response.arrayBuffer().then(array => {
-                resolve(new Uint8Array(array))
-            })
-        })
-    })
+    return new Promise((resolve) => {
+        fetch("data:application/octet-stream;base64," + base64_str).then(
+            (response) => {
+                response.arrayBuffer().then((array) => {
+                    resolve(new Uint8Array(array));
+                });
+            }
+        );
+    });
 }
 
 export function decode_binary_message(binary) {
-    return deserialize_cached(decode_binary(binary))
+    return deserialize_cached(decode_binary(binary));
 }
 
 export function decode_base64_message(base64_string) {
-    return base64decode(base64_string).then(decode_binary_message)
+    return base64decode(base64_string).then(decode_binary_message);
 }
 
 export function decode_binary(binary) {

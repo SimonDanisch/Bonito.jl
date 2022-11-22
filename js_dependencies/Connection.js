@@ -58,7 +58,6 @@ export function send_to_julia(message) {
 }
 
 export function send_pingpong() {
-    console.log("sending ping")
     send_to_julia({ msg_type: PingPong });
 }
 
@@ -128,7 +127,6 @@ export function process_message(data) {
                 break;
             case PingPong:
                 // just getting a ping, nothing to do here :)
-                console.log("getting pong")
                 break;
             default:
                 throw new Error(
