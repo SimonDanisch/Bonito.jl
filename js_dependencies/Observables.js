@@ -11,7 +11,7 @@ class Observable {
         this.#callbacks.forEach((callback) => {
             try {
                 const deregister = callback(value);
-                if (deregister) {
+                if (deregister == false) {
                     this.#callbacks.splice(
                         this.#callbacks.indexOf(callback),
                         1

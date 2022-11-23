@@ -277,9 +277,15 @@ function evaljs_value(with_session, js; error_on_closed=true, time_out=100.0)
     evaljs_value(session(with_session), js; error_on_closed=error_on_closed, time_out=time_out)
 end
 
+function rendered_dom(session::Session, app::App, target=(; target="/"))
+    app.session[] = session
+    dom = Base.invokelatest(app.handler, session, target)
+    return jsrender(session, dom)
+end
+
 function session_dom(session::Session, app::App; init=true)
-    dom = jsrender(session, Base.invokelatest(app.handler, session, (target="/",)))
-    session_dom(session, dom; init=init)
+    dom = rendered_dom(session, app)
+    return session_dom(session, dom; init=init)
 end
 
 function session_dom(session::Session, dom::Node; init=true)
@@ -311,24 +317,10 @@ function session_dom(session::Session, dom::Node; init=true)
         push!(js, jsrender(session, JSServeLib))
     end
     if init
-        # TODO, just sent them once connection opens?
-        # all_messages = fused_messages!(session)
-        # on_open = if !isempty(all_messages)
-        #     msg_b64_str = serialize_string(session, all_messages)
-        #     """
-        #         const all_messages = `$(msg_b64_str)`
-        #         return JSServe.decode_base64_message(all_messages).then(JSServe.process_message)
-        #     """
-        # else
-        #     ""
-        # end
-
         init_session = """
-        function on_connection_open(){
-        }
-        JSServe.init_session('$(session.id)', on_connection_open, $(repr(issubsession ? "sub" : "root")));
+        JSServe.init_session('$(session.id)', ()=> null, $(repr(issubsession ? "sub" : "root")));
         """
-    push!(js, DOM.script(init_session, type="module"))
+        push!(js, DOM.script(init_session, type="module"))
     end
     if !isnothing(init_connection)
         push!(js, jsrender(session, init_connection))
@@ -357,17 +349,25 @@ function render_subsession(parent::Session, dom::Node)
     return sub, session_dom(sub, dom_rendered; init=false)
 end
 
-function update_session_dom!(parent::Session, node_to_update, app_or_dom)
+function update_session_dom!(parent::Session, node_to_update::Union{String, Node}, app_or_dom)
     sub, html = render_subsession(parent, app_or_dom)
+    if node_to_update isa String # session id of old session to update
+        query_selector = Dict("by_id" => node_to_update)
+    else
+        # Or we have a node
+        str = "[data-jscall-id=$(repr(uuid(node_to_update)))]"
+        query_selector = Dict("query_selector" => str)
+    end
 
     if sub === parent # String/Number
         obs = Observable(html)
         evaljs(parent, js"""
-            const dom = $(node_to_update)
-            while (dom.firstChild) {
-                dom.removeChild(dom.lastChild);
-            }
-            dom.append($(obs).value)
+            JSServe.Sessions.on_node_available($query_selector).then(dom => {
+                while (dom.firstChild) {
+                    dom.removeChild(dom.lastChild);
+                }
+                dom.append($(obs).value)
+            })
         """)
     else
         session_data = Dict(
@@ -376,14 +376,21 @@ function update_session_dom!(parent::Session, node_to_update, app_or_dom)
         )
         ctx = SerializationContext(sub)
         data = serialize_cached(ctx, session_data)
-
         message = Dict(
             :session_id => sub.id,
             :data => data,
             :cache => ctx.message_cache,
-            :node_to_update => uuid(node_to_update)
+            :dom_node_selector => query_selector
         )
-
         send_serialized(parent, message)
     end
+end
+
+function update_app!(old_app::App, new_app::App)
+    if isnothing(old_app.session[])
+        error("Old app has to be displayed first, to actually update it")
+    end
+    old_session = old_app.session[]
+    parent = root_session(old_session)
+    update_session_dom!(parent, old_session.id, new_app)
 end

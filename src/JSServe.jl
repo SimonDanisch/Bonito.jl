@@ -26,11 +26,13 @@ using URIs
 
 using Base: RefValue
 
+function update_app! end
+
 include("types.jl")
 include("HTTPServer/HTTPServer.jl")
 
 import .HTTPServer: browser_display, configure_server!
-using .HTTPServer: Server, html, online_url, route!
+using .HTTPServer: Server, html, online_url, route!, get_server
 
 include("js_source.jl")
 include("session.jl")

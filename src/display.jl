@@ -42,8 +42,7 @@ function show_in_iframe(server, session, app)
     # resizes the parent iframe accordingly
     app_wrapped = App() do session::Session, request
         on_document_load(session, js"JSServe.resize_iframe_parent($(session.id))")
-        html_dom = Base.invokelatest(app.handler, session, request)
-        return html_dom
+        return Base.invokelatest(app.handler, session, request)
     end
     route!(server, session_route => app_wrapped)
     return jsrender(session, iframe_html(server, session, session_route))
@@ -85,7 +84,7 @@ end
 
 Embeds the html_body in a standalone html document!
 """
-function page_html(io::IO, session::Session, app::Union{Node, App})
+function page_html(io::IO, session::Session, app_node::Union{Node, App})
     dom = session_dom(session, app_node)
     println(io, "<!doctype html>")
     show(io, MIME"text/html"(), Hyperscript.Pretty(dom))

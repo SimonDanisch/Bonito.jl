@@ -98,5 +98,5 @@ export {
     Sessions,
     deserialize_cached,
     init_session,
-    free_session
+    free_session,
 };

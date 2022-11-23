@@ -1,37 +1,3 @@
-
-"""
-    App(handler)
-
-calls handler with the session and the http request object.
-f is expected to return a valid DOM object,
-so something renderable by jsrender, e.g. `DOM.div`.
-"""
-struct App
-    handler::Function
-    function App(handler::Function)
-        if hasmethod(handler, Tuple{Session, HTTP.Request})
-            return new(handler)
-        elseif hasmethod(handler, Tuple{Session})
-            return new((session, request) -> handler(session))
-        elseif hasmethod(handler, Tuple{HTTP.Request})
-            return new((session, request) -> handler(request))
-        elseif hasmethod(handler, Tuple{})
-           return new((session, request) -> handler())
-        else
-            error("""
-            Handler function must have the following signature:
-                handler() -> DOM
-                handler(session::Session) -> DOM
-                handler(request::Request) -> DOM
-                handler(session, request) -> DOM
-            """)
-        end
-    end
-    function App(dom_object)
-        return new((s, r)-> dom_object)
-    end
-end
-
 """
 The string part of JSCode.
 """
@@ -175,7 +141,6 @@ function Session(connection=default_connection();
     )
 end
 
-
 function Session(parent::Session;
             id=string(uuid4()),
             asset_server=parent.asset_server,
@@ -209,6 +174,41 @@ function Session(parent::Session;
     )
     root.children[id] = session
     return session
+end
+
+"""
+    App(handler)
+
+calls handler with the session and the http request object.
+f is expected to return a valid DOM object,
+so something renderable by jsrender, e.g. `DOM.div`.
+"""
+struct App
+    handler::Function
+    session::Base.RefValue{Union{Session, Nothing}}
+    function App(handler::Function)
+        session = Base.RefValue{Union{Session, Nothing}}(nothing)
+        if hasmethod(handler, Tuple{Session, HTTP.Request})
+            return new(handler, session)
+        elseif hasmethod(handler, Tuple{Session})
+            return new((session, request) -> handler(session), session)
+        elseif hasmethod(handler, Tuple{HTTP.Request})
+            return new((session, request) -> handler(request), session)
+        elseif hasmethod(handler, Tuple{})
+           return new((session, request) -> handler(), session)
+        else
+            error("""
+            Handler function must have the following signature:
+                handler() -> DOM
+                handler(session::Session) -> DOM
+                handler(request::Request) -> DOM
+                handler(session, request) -> DOM
+            """)
+        end
+    end
+    function App(dom_object)
+        return new((s, r)-> dom_object, Base.RefValue{Union{Session, Nothing}}(nothing))
+    end
 end
 
 struct Routes

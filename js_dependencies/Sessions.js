@@ -101,7 +101,7 @@ function update_session_cache(session_id, new_session_cache) {
 }
 
 export function deserialize_cached(message) {
-    if (message.node_to_update) {
+    if (message.dom_node_selector) {
         return update_session_dom(message)
     } else {
         const { session_id, session_cache, data } = message;
@@ -212,14 +212,19 @@ export function free_session(session_id) {
     }
 }
 
-function on_node_available(node_id) {
+export function on_node_available(query_selector) {
     return new Promise(resolve => {
         function test_node() {
-            const node = document.querySelector(`[data-jscall-id="${node_id}"]`)
+            let node;
+            if (query_selector.by_id) {
+                node = document.getElementById(query_selector.by_id)
+            } else {
+                node = document.querySelector(query_selector.query_selector)
+            }
             if (node) {
                 resolve(node)
             } else {
-                setTimeout(test_node, 500, node_id)
+                setTimeout(test_node, 500, query_selector)
             }
         }
         test_node()
@@ -227,8 +232,8 @@ function on_node_available(node_id) {
 }
 
 export function update_session_dom(message) {
-    const { session_id, data, cache, node_to_update } = message;
-    on_node_available(node_to_update).then(dom => {
+    const { session_id, data, cache, dom_node_selector } = message;
+    on_node_available(dom_node_selector).then(dom => {
         function callback() {
             update_session_cache(session_id, cache)
             const message = deserialize(data)

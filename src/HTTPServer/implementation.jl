@@ -14,7 +14,7 @@ mutable struct Server
     websocket_routes::Routes
 end
 
-Routes(pairs::Pair...) = Routes([pairs...])
+Routes(pairs::Pair...) = Routes(Pair{Any, Any}[pairs...])
 
 # Priorities, so that e.g. r".*" doesn't catch absolut matches by e.g a string
 pattern_priority(x::Pair) = pattern_priority(x[1])
@@ -22,29 +22,31 @@ pattern_priority(x::String) = 1
 pattern_priority(x::Tuple) = 2
 pattern_priority(x::Regex) = 3
 
-function Base.setindex!(routes::Routes, f, pattern)
+function route!(routes::Routes, pattern_func::Pair)
+    pattern, func = pattern_func
     idx = findfirst(pair-> pair[1] == pattern, routes.table)
+    old = nothing
     if idx !== nothing
-        routes.table[idx] = pattern => f
+        old = routes.table[idx][2]
+        routes.table[idx] = pattern_func
     else
-        push!(routes.table, pattern => f)
+        push!(routes.table, pattern_func)
     end
     # Sort for priority so that exact string matches come first
     sort!(routes.table, by = pattern_priority)
-    # return if it was inside already!
-    return isnothing(idx)
+    # return old route (nothing if new)
+    return old
 end
 
-function route!(application::Server, pattern_f::Pair)
-    application.routes[pattern_f[1]] = pattern_f[2]
+function route!(application::Server, pattern_func::Pair)
+    return route!(application.routes, pattern_func)
+end
+function websocket_route!(application::Server, pattern_func::Pair)
+    route!(application.websocket_routes, pattern_func)
 end
 
-function route!(f, application::Server, pattern)
-    route!(application, pattern => f)
-end
-
-function websocket_route!(application::Server, pattern_f::Pair)
-    application.websocket_routes[pattern_f[1]] = pattern_f[2]
+function route!(func, application::Server, pattern)
+    route!(application, Pair{Any, Any}(pattern, func))
 end
 
 apply_handler(f, args...) = f(args...)
@@ -87,96 +89,28 @@ end
 
 The local url to reach the server, on the server
 """
-function local_url(server::Server, url)
-    return string("http://", server.url, ":", server.port, url)
+function local_url(server::Server, url; protocol="http://")
+    return string(protocol, server.url, ":", server.port, url)
 end
 
 """
     online_url(server::Server, url)
 The url to connect to the server from the internet.
-Needs to have `JSSERVE_CONFIGURATION.external_url` set to the IP or dns route of the server
+Needs to have `SERVER_CONFIGURATION.external_url` set to the IP or dns route of the server
 """
-function online_url(server::Server, url)
-    base_url = JSSERVE_CONFIGURATION.external_url[]
+function online_url(server::Server, url; protocol="http://")
+    base_url = SERVER_CONFIGURATION.external_url[]
     if isempty(base_url)
-        local_url(server, url)
+        local_url(server, url; protocol=protocol)
     else
         base_url * url
     end
 end
 
-function websocket_request()
-    headers = [
-        "Host" => "localhost",
-        "User-Agent" => "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0",
-        "Accept" => "*/*",
-        "Accept-Encoding" => "gzip, deflate, br",
-        "Accept-Language" => "de,en-US;q=0.7,en;q=0.3",
-        "Cache-Control" => "no-cache",
-        "Connection" => "keep-alive, Upgrade",
-        "Dnt" => "1",
-        "Origin" => "https://localhost",
-        "Pragma" => "no-cache",
-        "Sec-Websocket-Extensions" => "permessage-deflate",
-        "Sec-Websocket-Key" => "BL3d8I8KC5faPjubRM0riA==",
-        "Sec-Websocket-Version" => "13",
-        "Upgrade" => "websocket",
-    ]
-    msg = HTTP.Request(
-        "GET",
-        "/",
-        headers,
-        UInt8[],
-        parent = nothing,
-        version = v"1.1.0"
-    )
-    return Stream(msg, IOBuffer())
-end
-
-"""
-warmup(application::Server)
-
-Warms up the application, by sending a couple of request.
-"""
-function warmup(application::Server)
-    yield() # yield to server task to give it a chance to get started
-    task = application.server_task[]
-    if Base.istaskdone(task)
-        error("Webserver doesn't serve! Error: $(fetch(task))")
-    end
-    # Make a websocket request
-    stream = websocket_request()
-    try
-        @async stream_handler(application, stream)
-        write(stream, "blaaa")
-    catch e
-        # TODO make it not error so we can test this properly
-        # This will error, since its not a propper websocket request
-        @debug "Error in stream_handler" exception=e
-    end
-    target = register_local_file(JSServeLib.path) # http target part
-    asset_url = local_url(application, target)
-    request = Request("GET", target)
-
-    delegate(application.routes, application, request)
-
-    if Base.istaskdone(task)
-        error("Webserver doesn't serve! Error: $(fetch(task))")
-    end
-    resp = HTTP.get(asset_url, readtimeout=500, retries=1)
-    if resp.status != 200
-        error("Webserver didn't start succesfully")
-    end
-    return
-end
-
 function stream_handler(application::Server, stream::Stream)
-    println("got request")
     if HTTP.WebSockets.isupgrade(stream.message)
-        println("is websocket")
         try
             HTTP.WebSockets.upgrade(stream; binary=true) do ws
-                println("upgrading to ws")
                 delegate(
                     application.websocket_routes, application, stream.message, ws
                 )
@@ -205,7 +139,6 @@ function stream_handler(application::Server, stream::Stream)
     end
 end
 
-
 """
 Server(
         dom, url::String, port::Int;
@@ -229,13 +162,10 @@ function Server(
 
     try
         start(server; verbose=verbose)
-        # warmup server!
-        # warmup(application)
     catch e
         close(server)
         rethrow(e)
     end
-
     return server
 end
 
@@ -312,7 +242,7 @@ end
 
 const GLOBAL_SERVER = Ref{Server}()
 
-const JSSERVE_CONFIGURATION = (
+const SERVER_CONFIGURATION = (
     # The URL used to which the default server listens to
     listen_url = Ref("127.0.0.1"),
     # The Port to which the default server listens to
@@ -331,9 +261,9 @@ const JSSERVE_CONFIGURATION = (
 function get_server()
     if !isassigned(GLOBAL_SERVER) || istaskdone(GLOBAL_SERVER[].server_task[])
         GLOBAL_SERVER[] = Server(
-            JSSERVE_CONFIGURATION.listen_url[],
-            JSSERVE_CONFIGURATION.listen_port[],
-            verbose=JSSERVE_CONFIGURATION.verbose[]
+            SERVER_CONFIGURATION.listen_url[],
+            SERVER_CONFIGURATION.listen_port[],
+            verbose=SERVER_CONFIGURATION.verbose[]
         )
     end
     return GLOBAL_SERVER[]
@@ -341,8 +271,8 @@ end
 
 """
     configure_server!(;
-            listen_url::String=JSSERVE_CONFIGURATION.listen_url[],
-            listen_port::Integer=JSSERVE_CONFIGURATION.listen_port[],
+            listen_url::String=SERVER_CONFIGURATION.listen_url[],
+            listen_port::Integer=SERVER_CONFIGURATION.listen_port[],
             forwarded_port::Integer=listen_port,
             external_url=nothing,
             content_delivery_url=nothing
@@ -352,12 +282,12 @@ Configures the parameters for the automatically started server.
 
     Parameters:
 
-    * listen_url=JSSERVE_CONFIGURATION.listen_url[]
+    * listen_url=SERVER_CONFIGURATION.listen_url[]
         The address the server listens to.
         must be 0.0.0.0, 127.0.0.1, ::, ::1, or localhost.
         If not set differently by an ENV variable, will default to 127.0.0.1
 
-    * listen_port::Integer=JSSERVE_CONFIGURATION.listen_port[],
+    * listen_port::Integer=SERVER_CONFIGURATION.listen_port[],
         The Port to which the default server listens to
         If not set differently by an ENV variable, will default to 9284
 
@@ -380,7 +310,7 @@ Configures the parameters for the automatically started server.
 function configure_server!(;
         listen_url=nothing,
         # The Port to which the default server listens to
-        listen_port::Integer=JSSERVE_CONFIGURATION.listen_port[],
+        listen_port::Integer=SERVER_CONFIGURATION.listen_port[],
         # if port gets forwarded to some other port, set it here!
         forwarded_port::Integer=listen_port,
         # The url from which the server is reachable.
@@ -401,7 +331,7 @@ function configure_server!(;
             # if we serve to an external url, server must listen to 0.0.0.0
             listen_url = "0.0.0.0"
         else
-            listen_url = JSSERVE_CONFIGURATION.listen_url[]
+            listen_url = SERVER_CONFIGURATION.listen_url[]
         end
     end
 
@@ -415,17 +345,16 @@ function configure_server!(;
         end
     end
     # set the config!
-    JSSERVE_CONFIGURATION.listen_url[] = listen_url
-    JSSERVE_CONFIGURATION.external_url[] = external_url
-    JSSERVE_CONFIGURATION.listen_port[] = listen_port
+    SERVER_CONFIGURATION.listen_url[] = listen_url
+    SERVER_CONFIGURATION.external_url[] = external_url
+    SERVER_CONFIGURATION.listen_port[] = listen_port
     if content_delivery_url === nothing
-        JSSERVE_CONFIGURATION.content_delivery_url[] = external_url
+        SERVER_CONFIGURATION.content_delivery_url[] = external_url
     else
-        JSSERVE_CONFIGURATION.content_delivery_url[] = content_delivery_url
+        SERVER_CONFIGURATION.content_delivery_url[] = content_delivery_url
     end
     return
 end
-
 
 function server_defaults()
      url = if haskey(ENV, "JULIA_WEBIO_BASEURL")
@@ -436,12 +365,11 @@ function server_defaults()
     if endswith(url, "/")
         url = url[1:end-1]
     end
-    JSSERVE_CONFIGURATION.listen_url[] = get(ENV, "JSSERVE_LISTEN_URL", "127.0.0.1")
-    JSSERVE_CONFIGURATION.external_url[] = url
-    JSSERVE_CONFIGURATION.content_delivery_url[] = url
+    SERVER_CONFIGURATION.listen_url[] = get(ENV, "JSSERVE_LISTEN_URL", "127.0.0.1")
+    SERVER_CONFIGURATION.external_url[] = url
+    SERVER_CONFIGURATION.content_delivery_url[] = url
 
     if haskey(ENV, "WEBIO_HTTP_PORT")
-        JSSERVE_CONFIGURATION.listen_port[] = parse(Int, ENV["WEBIO_HTTP_PORT"])
+        SERVER_CONFIGURATION.listen_port[] = parse(Int, ENV["WEBIO_HTTP_PORT"])
     end
-
 end

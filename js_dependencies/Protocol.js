@@ -122,7 +122,7 @@ function deserialize_datatype(type, payload) {
 export function deserialize(data) {
     if (!data) {
         return data;
-    } else if (data.node_to_update) {
+    } else if (data.dom_node_selector) {
         return update_session_dom(data);
     } else if (Array.isArray(data)) {
         return data.map((x) => deserialize(x));

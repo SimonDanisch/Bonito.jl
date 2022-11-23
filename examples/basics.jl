@@ -1,3 +1,4 @@
+using Markdown
 md"""
 # What is JSServe?
 
@@ -10,13 +11,12 @@ md"""
 
 using JSServe, Observables
 using JSServe: @js_str, Session, App, onjs, onload, Button
-using JSServe: TextField, Slider, linkjs, get_server
-using JSServe.DOM
-using JSServe: JSON3
+using JSServe: TextField, Slider, linkjs
 JSServe.browser_display()
 
 app = App(DOM.h1("Hello World"))
 display(app)
+
 
 md"""
 # Interaction with observables
@@ -32,11 +32,17 @@ display(app)
 
 color[] = "green"
 
-
 app = App() do
-    button = DOM.div("click me", onclick=js"update_obs($(color), 'blue')")
+    color = Observable("red")
+    on(println, color)
+    button = DOM.div("click me", onclick=js"""(e)=> {
+        const color = '#' + ((1<<24)*Math.random() | 0).toString(16)
+        console.log(color)
+        $(color).notify(color)
+    }""")
+    style = map(x-> "color: $(x)", color)
     return DOM.div(
-        button, DOM.h1("Hello World", style=map(x-> "color: $(x)", color))
+        button, DOM.h1("Hello World", style=style)
     )
 end
 display(app)
@@ -46,7 +52,8 @@ md"""
 """
 
 app = App() do session::Session
-    button = DOM.div("click me", onclick=js"JSServe.update_obs($(color), 'blue')")
+    color = Observable("red")
+    button = DOM.div("click me", onclick=js"e=> $(color).notify('blue')")
     onload(session, button, js"""function load(button){
         window.alert('Hi from JavaScript');
     }""")
@@ -66,9 +73,12 @@ md"""
 # Including assets & Widgets
 """
 
-MUI = JSServe.Asset("//cdn.muicss.com/mui-0.10.1/css/mui.min.css")
+MUI = JSServe.Asset("https://cdn.muicss.com/mui-0.10.1/css/mui.min.css")
 sliderstyle = JSServe.Asset(joinpath(@__DIR__, "sliderstyle.css"))
 image = JSServe.Asset(joinpath(@__DIR__, "assets", "julia.png"))
+s = JSServe.HTTPServer.get_server();
+
+JSServe.url(Session(asset_server=JSServe.HTTPAssetServer(s)).asset_server, MUI)
 
 app = App() do
     button = JSServe.Button("hi", class="mui-btn mui-btn--primary")
@@ -92,26 +102,50 @@ md"""
 """
 
 app = App() do
-    button = DOM.div("click me", onclick=js"JSServe.update_obs($(color), 'blue')")
+    color = Observable("red")
+    on(println, color)
+    button = DOM.div("click me", onclick=js"""(e)=> {
+        const color = '#' + ((1<<24)*Math.random() | 0).toString(16)
+        console.log(color)
+        $(color).notify(color)
+    }""")
+    style = map(x-> "color: $(x)", color)
     return DOM.div(
-        button, DOM.h1("Hello World", style=map(x-> "color: $(x)", color))
+        button, DOM.h1("Hello World", style=style)
     )
 end
 display(app)
 
-JSServe.route!(get_server(), "/example1" => app)
+JSServe.route!(JSServe.get_server(), "/example1" => app)
 
-app = App() do session::Session
-    slider = JSServe.Slider(1:10, class="slider m-4")
-    squared = map(slider) do slidervalue
-        return slidervalue^2
+begin
+    @eval JSServe.HTTPServer function Base.display(bd::BrowserDisplay, app::App)
+        server = bd.server
+        session_url = "/browser-display78"
+        old_app = route!(server, Pair{Any, Any}(session_url, app))
+        if isnothing(old_app) || isnothing(old_app.session[])
+            openurl(online_url(server, session_url))
+        else
+            update_app!(old_app, app)
+        end
+        return
     end
-    class = "p-2 rounded border-2 border-gray-600 m-4"
-    v1 = DOM.div(slider.value, class=class)
-    v2 = DOM.div(squared, class=class)
-    dom = DOM.div(JSServe.TailwindCSS, slider, sliderstyle, v1, v2)
-    # statemap for static serving
-    return JSServe.record_state_map(session, (s, r)-> dom)
+end
+
+
+begin
+    app = App() do session::Session
+        slider = JSServe.Slider(1:10, class="slider m-4")
+        squared = map(slider) do slidervalue
+            return slidervalue^2
+        end
+        class = "p-2 rounded border-2 border-gray-600 m-4"
+        v1 = DOM.div(slider.value, class=class)
+        v2 = DOM.div(squared, class=class)
+        dom = DOM.div(JSServe.TailwindCSS, "meep11", slider, sliderstyle, v1, v2)
+        # statemap for static serving
+        return dom
+    end
 end
 
 export_path = joinpath(@__DIR__, "demo")
@@ -121,3 +155,9 @@ JSServe.export_standalone(app, export_path, clear_folder=true)
 using LiveServer
 cd(export_path)
 LiveServer.serve()
+
+
+using WGLMakie
+
+
+scatter(rand(Point2f, 10))

@@ -115,6 +115,7 @@ dependency_path(paths...) = joinpath(@__DIR__, "..", "..", "js_dependencies", pa
 
 const JSServeLib = ES6Module(dependency_path("JSServe.js"))
 const Websocket = ES6Module(dependency_path("Websocket.js"))
+const TailwindCSS = Asset(dependency_path("tailwind.min.css"))
 
 include("mimetypes.jl")
 include("no-server.jl")

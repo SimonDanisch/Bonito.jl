@@ -51,17 +51,14 @@ function openurl(url::String)
     @warn("Can't find a way to open a browser, open $(url) manually!")
 end
 
-function Base.display(bd::BrowserDisplay, dom::App)
+function Base.display(bd::BrowserDisplay, app::App)
     server = bd.server
-    session_url = "/browser-display2"
-    is_new_route = route!(server, session_url) do context
-        html_str = sprint() do io
-            show(io, MIME"text/html"(), dom)
-        end
-        return html(html_str)
-    end
-    # if is_new_route
+    session_url = "/browser-display"
+    old_app = route!(server, Pair{Any, Any}(session_url, app))
+    if isnothing(old_app) || isnothing(old_app.session[]) || !isopen(old_app.session[])
         openurl(online_url(server, session_url))
-    # end
+    else
+        update_app!(old_app, app)
+    end
     return
 end

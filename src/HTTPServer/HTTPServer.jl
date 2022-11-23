@@ -5,7 +5,7 @@ using HTTP: Response, Request
 using HTTP.Streams: Stream
 import Sockets: send, TCPServer
 using Sockets
-using ..JSServe: App
+using ..JSServe: App, update_app!
 
 include("helper.jl")
 include("implementation.jl")

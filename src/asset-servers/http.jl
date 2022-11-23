@@ -8,6 +8,9 @@ HTTPAssetServer(server::Server) = HTTPAssetServer(Dict{String, String}(), server
 
 function url(server::HTTPAssetServer, asset::Asset)
     file = local_path(asset)
+    if isempty(file)
+        return asset.online_path
+    end
     target = normpath(abspath(expanduser(file)))
     key = "/assetserver/" * unique_file_key(target)
     get!(()-> target, server.registered_files, key)
@@ -42,9 +45,9 @@ function HTTPServer.apply_handler(app::App, context)
     connection = WebSocketConnection(server)
     session = Session(connection; asset_server=asset_server)
     register_session!(session)
-    html_dom = Base.invokelatest(app.handler, session, context.request)
+    html_dom = rendered_dom(session, app, context.request)
     html_str = sprint() do io
-        page_html(io, session, jsrender(session, html_dom))
+        page_html(io, session, html_dom)
     end
     return html(html_str)
 end
