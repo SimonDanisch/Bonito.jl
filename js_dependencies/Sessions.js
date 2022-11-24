@@ -104,8 +104,8 @@ export function deserialize_cached(message) {
     if (message.dom_node_selector) {
         return update_session_dom(message)
     } else {
-        const { session_id, session_cache, data } = message;
-        update_session_cache(session_id, session_cache);
+        const { session_id, session_objects, data } = message;
+        update_session_cache(session_id, session_objects);
         return deserialize(data);
     }
 }
@@ -182,7 +182,7 @@ export function init_session(session_id, on_connection_open, session_status) {
 }
 
 export function close_session(session_id) {
-    const [session_cache, allow_delete] = SESSIONS[session_id];
+    const [session_objects, allow_delete] = SESSIONS[session_id];
     const root_node = document.getElementById(session_id);
     if (root_node) {
         root_node.style.display = "none";
@@ -190,7 +190,7 @@ export function close_session(session_id) {
     }
     if (allow_delete) {
         send_close_session(session_id, allow_delete);
-        SESSIONS[session_id] = [session_cache, false];
+        SESSIONS[session_id] = [session_objects, false];
     }
     return;
 }

@@ -2,7 +2,7 @@
 function jsrender(session::Session, button::Button)
     return jsrender(session, DOM.button(
         button.content,
-        onclick = js"$(button.value).notify(true);";
+        onclick = js"event=> $(button.value).notify(true);";
         button.attributes...
     ))
 end

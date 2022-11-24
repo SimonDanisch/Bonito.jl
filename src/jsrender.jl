@@ -1,5 +1,6 @@
 """
     jsrender([::Session], x::Any)
+
 Internal render method to create a valid dom. Registers used observables with a session
 And makes sure the dom only contains valid elements. Overload jsrender(::YourType)
 To enable putting YourType into a dom element/div.

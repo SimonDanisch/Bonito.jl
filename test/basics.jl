@@ -163,8 +163,8 @@ end
     end;
 
     @test session.children[sub.id] === sub
-    @test sub.session_cache[obs2.id] == nothing
-    @test haskey(session.session_cache, obs2.id)
+    @test sub.session_objects[obs2.id] == nothing
+    @test haskey(session.session_objects, obs2.id)
     @test haskey(session.observables, obs2.id)
     JSServe.evaljs_value(session, js"""(()=>{
         return JSServe.Sessions.GLOBAL_OBJECT_CACHE[$(obs2.id)][1]
@@ -172,7 +172,7 @@ end
 
     obs[] = App(()-> DOM.div("hoehoe", js"console.log('please delete old session?')"));
     @test !haskey(session.children, sub.id)
-    @test !haskey(session.session_cache, obs2.id)
+    @test !haskey(session.session_objects, obs2.id)
     @test !haskey(session.observables, obs2.id)
 
     @test JSServe.evaljs_value(session, js"""(()=>{
@@ -215,15 +215,15 @@ end
     @test JSServe.root_session(session) !== session
 
     # Session shouldn't own, color
-    @test !haskey(session.session_cache, color.id)
-    @test session.session_cache[new_obs.id] == nothing
-    @test haskey(parent.session_cache, new_obs.id)
+    @test !haskey(session.session_objects, color.id)
+    @test session.session_objects[new_obs.id] == nothing
+    @test haskey(parent.session_objects, new_obs.id)
     close(session)
 
-    @test isempty(session.session_cache)
+    @test isempty(session.session_objects)
     @test !isopen(session)
     # New obs the session brought in should stay:
-    @test !haskey(parent.session_cache, new_obs.id)
-    @test haskey(parent.session_cache, color.id)
+    @test !haskey(parent.session_objects, new_obs.id)
+    @test haskey(parent.session_objects, color.id)
 
 end

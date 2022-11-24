@@ -73,6 +73,7 @@ function serialize_js(context::SerializationContext, asset::Asset)
 end
 
 function serialize_cached(context::SerializationContext, asset::Asset)
+    bundle!(asset) # no-op if not needed
     return add_cached!(context.session, context.message_cache, asset) do
         return serialize_js(context, asset)
     end
@@ -162,7 +163,7 @@ function serialize_cached(session::Session, @nospecialize(obj))
     data = serialize_cached(ctx, obj)
     return Dict(
         :session_id => session.id,
-        :session_cache => ctx.message_cache,
+        :session_objects => ctx.message_cache,
         :data => data)
 end
 

@@ -16,6 +16,8 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
             sub = Session(session)
             init_dom = session_dom(session, empty_app)
             sub_dom = session_dom(sub, app)
+            # first time rendering in a subsession, we combine init of parent session
+            # with the dom we're rendering right now
             dom = DOM.div(init_dom, sub_dom)
         else
             dom = session_dom(session, app)

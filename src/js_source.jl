@@ -93,11 +93,6 @@ function jsrender(session::Session, js::JSCode)
     else
         # reverse lookup and serialize elements
         interpolated_objects = Dict(v => k for (k, v) in objects)
-        data = Dict(
-            :interpolated_objects => interpolated_objects,
-            :source => code,
-            :julia_file => js.file
-        )
         data_str = serialize_string(session, interpolated_objects)
         src = """
         // JSCode from $(js.file)

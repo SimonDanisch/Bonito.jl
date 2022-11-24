@@ -13,8 +13,10 @@ open!(connection) = nothing
 
 function init_session(session::Session)
     put!(session.connection_ready, true)
+    # open the connection for e.g. subconnection, which just have an open flag
     open!(session.connection)
     @assert isopen(session)
+    # We send all queued up messages once the onnection is open
     if !isempty(session.message_queue) || !isempty(session.on_document_load)
         send(session, fused_messages!(session))
     end
@@ -39,20 +41,20 @@ function add_cached!(create_cached_object::Function, session::Session, send_to_j
     key = object_identity(object)::String
     result = js_type("CacheKey", key)
     # If already in session, there's nothing we need to do, since we've done the work the first time we added the object
-    haskey(session.session_cache, key) && return result
+    haskey(session.session_objects, key) && return result
     # Now, we have two code paths, depending on whether we have a child session or a root session
     root = root_session(session)
     if root === session # we are root, so we simply cache the object (we already checked it's not cached yet)
         send_to_js[key] = create_cached_object()
-        session.session_cache[key] = object
+        session.session_objects[key] = object
         return result
     else
         # This session is a child session.
 
         # Now we need to figure out if the root session has the object cached already
         # The root session has our object cached already.
-        session.session_cache[key] = nothing # session needs to reference this to "own" it
-        if haskey(root.session_cache, key)
+        session.session_objects[key] = nothing # session needs to reference this to "own" it
+        if haskey(root.session_objects, key)
             # in this case, we just add the key to send to js, so that the JS side can associate the object with this session
             send_to_js[key] = "tracking-only"
             return result
@@ -60,35 +62,35 @@ function add_cached!(create_cached_object::Function, session::Session, send_to_j
         # Nobody has the object cached, so we
         # we add this session as the owner, but also add it to the root session
         send_to_js[key] = create_cached_object()
-        root.session_cache[key] = object
+        root.session_objects[key] = object
         return result
     end
 end
 
 function child_haskey(child::Session, key)
-    haskey(child.session_cache, key) && return true
+    haskey(child.session_objects, key) && return true
     return any(((id, s),)-> child_haskey(s, key), child.children)
 end
 
 function delete_cached!(root::Session, key::String)
-    if !haskey(root.session_cache, key)
+    if !haskey(root.session_objects, key)
         # This should uncover any fault in our caching logic!
         error("Deleting key that doesn't belong to any cached object")
     end
     # We don't delete assets for now (since they remain loaded on the page anyways)
     # And of course not Retain, since that's the whole point of it
-    root.session_cache[key] isa Union{Retain, Asset} && return
+    root.session_objects[key] isa Union{Retain, Asset} && return
     # We don't do reference counting, but we check if any child still holds a reference to the object we want to delete
     has_ref = any(((id, s),)-> child_haskey(s, key), root.children)
     if !has_ref
         # So only delete it if nobody has it anymore!
-        delete!(root.session_cache, key)
+        delete!(root.session_objects, key)
     end
 end
 
 function Base.empty!(session::Session)
     root = root_session(session)
-    for key in keys(session.session_cache)
+    for key in keys(session.session_objects)
         delete_cached!(root, key)
     end
     # remove all listeners that where created for this session
@@ -104,20 +106,20 @@ function Base.close(session::Session)
         # We need to remove our session from the parent first, otherwise `delete_cached!`
         # will think our session still holds the value, which would prevent it from deleting
         delete!(parent(session).children, session.id)
-        for key in keys(session.session_cache)
+        for key in keys(session.session_objects)
             delete_cached!(root, key)
         end
         evaljs(root, js"""
             JSServe.free_session($(session.id))
         """)
     end
-    # delete_cached! only deletes in the root session so we need to still empty the session_cache:
-    empty!(session.session_cache)
+    # delete_cached! only deletes in the root session so we need to still empty the session_objects:
+    empty!(session.session_objects)
 
     close(session.connection)
     empty!(session.on_document_load)
     empty!(session.message_queue)
-    empty!(session.session_cache)
+    empty!(session.session_objects)
     # remove all listeners that where created for this session
     foreach(off, session.deregister_callbacks)
     empty!(session.deregister_callbacks)
@@ -134,6 +136,7 @@ Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
     if isready(session)
+        # if connection is open, we should never queue up messages
         @assert isempty(session.message_queue)
         binary = serialize_binary(session, message)
         write(session.connection, binary)
@@ -152,11 +155,13 @@ function send_serialized(session::Session, serialized_message::Dict{Symbol, Any}
     end
 end
 
+Base.isopen(session::Session) = isopen(session.connection)
+
 function Base.isready(session::Session)
     return isready(session.connection_ready) && isopen(session)
 end
 
-Base.isopen(session::Session) = isopen(session.connection)
+
 
 """
     onjs(session::Session, obs::Observable, func::JSCode)
@@ -286,20 +291,16 @@ function session_dom(session::Session, app::App; init=true)
     return session_dom(session, dom; init=init)
 end
 
-function session_dom(session::Session, dom::Node; init=true)
-    body = nothing
-    head = nothing
-    walk_dom(dom) do x
-        x isa Node || return
-        t = Hyperscript.tag(x)
-        if t == "body"
-            body = x
-        elseif t == "head"
-            head = x
-        end
-        !isnothing(body) && !isnothing(head) && return Break()
-    end
 
+
+function session_dom(session::Session, dom::Node; init=true)
+    # the dom we can render may be anything between a
+    # dom fragment or a full page with head & body etc.
+    # If we have a head & body, we want to append our initialization
+    # code and dom nodes to the right places, so we need to extract those
+    head, body, dom = find_head_body(dom)
+
+    # if nothing is found, we just use one div and append to that
     if isnothing(head) && isnothing(body)
         body = dom
         head = dom
@@ -316,19 +317,20 @@ function session_dom(session::Session, dom::Node; init=true)
     end
 
     if init
-        init_session = """
-        JSServe.init_session('$(session.id)', ()=> null, $(repr(issubsession ? "sub" : "root")));
+        init_session = js"""
+        JSServe.init_session($(session.id), ()=> null, $(repr(issubsession ? "sub" : "root")));
         """
-        data_url = to_data_url(init_session, "application/javascript")
-        push!(js, DOM.script(src=data_url, type="module"))
+        push!(js, jsrender(session, init_session))
     end
 
     if !isnothing(init_connection)
         push!(js, jsrender(session, init_connection))
     end
+
     if !isnothing(init_server)
         push!(js, jsrender(session, init_server))
     end
+    #
     pushfirst!(children(head), js...)
     return dom
 end
@@ -352,6 +354,7 @@ end
 
 function update_session_dom!(parent::Session, node_to_update::Union{String, Node}, app_or_dom)
     sub, html = render_subsession(parent, app_or_dom)
+
     if node_to_update isa String # session id of old session to update
         query_selector = Dict("by_id" => node_to_update)
     else
@@ -361,6 +364,7 @@ function update_session_dom!(parent::Session, node_to_update::Union{String, Node
     end
 
     if sub === parent # String/Number
+        # wrap into observable, so that the whole node gets transfered
         obs = Observable(html)
         evaljs(parent, js"""
             JSServe.Sessions.on_node_available($query_selector, 1).then(dom => {

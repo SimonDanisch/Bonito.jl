@@ -63,9 +63,9 @@ function record_states(session::Session, dom::Hyperscript.Node)
     empty!(session.message_queue)
     independent = filter(is_independant, widgets)
     independent_states = Dict{String, Any}()
+
     while_disconnected(session) do
         for widget in independent
-            @show widget
             state = Dict{Any, Dict{Symbol,Any}}()
             for value in value_range(widget)
                 state[value] = record_values(session, widget) do

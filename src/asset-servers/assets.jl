@@ -103,6 +103,7 @@ function to_data_url(file_path; mime = file_mimetype(file_path))
         open(file_path, "r") do io
             write(iob64_encode, io)
         end
+        close(iob64_encode)
     end
 end
 
@@ -110,11 +111,10 @@ function to_data_url(source::String, mime::String)
     return sprint() do io
         print(io, "data:$(mime);base64,")
         iob64_encode = Base64EncodePipe(io)
-        # why do we need two \n to not get cut off?
-        println(iob64_encode, source * "\n")
+        print(iob64_encode, source)
+        close(iob64_encode)
     end
 end
-
 
 """
     dependency_path(paths...)
@@ -127,6 +127,7 @@ const JSServeLib = ES6Module(dependency_path("JSServe.js"))
 const Websocket = ES6Module(dependency_path("Websocket.js"))
 const TailwindCSS = Asset(dependency_path("tailwind.min.css"))
 const Styling = Asset(dependency_path("styling.css"))
+const MarkdownCSS = Asset(dependency_path("markdown.css"))
 
 include("mimetypes.jl")
 include("no-server.jl")

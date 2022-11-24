@@ -35,6 +35,24 @@ function walk_dom(f, x::Node, visited = IdDict())
     end
 end
 
+function find_head_body(dom::Node)
+    head = nothing
+    body = nothing
+    walk_dom(dom) do x
+        !(x isa Node) && return
+        t = Hyperscript.tag(x)
+        if t == "body"
+            body = x
+        elseif t == "head"
+            head = x
+        end
+        # if we found head & body, we can exit!
+        !isnothing(body) && !isnothing(head) && return Break()
+    end
+
+    return head, body, dom
+end
+
 const mime_order = MIME.((
     "text/html", "text/latex", "image/svg+xml", "image/png",
     "image/jpeg", "text/markdown", "application/javascript", "text/plain"

@@ -17,6 +17,23 @@ function url(server::HTTPAssetServer, asset::Asset)
     return JSServe.HTTPServer.online_url(server.server, key)
 end
 
+const ASSET_URL_REGEX = r"http://.*/assetserver/([a-z0-9]+-.*?):([\d]+):[\d]+"
+
+function js_to_local_url(server::HTTPAssetServer, url::AbstractString)
+    key_regex = r"(/assetserver/[a-z0-9]+-.*?):([\d]+):[\d]+"
+    m = match(key_regex, url)
+    key = m[1]
+    path = server.registered_files[string(key)]
+    return path * ":" * m[2]
+end
+
+function js_to_local_stacktrace(server::HTTPAssetServer, line::AbstractString)
+    function to_url(matched_url)
+        js_to_local_url(server, matched_url)
+    end
+    return replace(line, ASSET_URL_REGEX => to_url)
+end
+
 function (server::HTTPAssetServer)(context)
     path = context.request.target
     rf = server.registered_files

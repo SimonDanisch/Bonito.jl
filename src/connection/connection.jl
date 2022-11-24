@@ -79,7 +79,7 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
     data = deserialize_binary(bytes)
     typ = data["msg_type"]
     if typ == UpdateObservable
-        obs = get(session.session_cache, data["id"], nothing)
+        obs = get(session.session_objects, data["id"], nothing)
         if isnothing(obs)
             @warn "Observable $(data["id"]) not found :( "
         else
@@ -90,12 +90,12 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
             end
         end
     elseif typ == JavascriptError
-        show(stderr, JSException(data))
+        show(stderr, JSException(session, data))
     elseif typ == JavascriptWarning
         @warn "Error in Javascript: $(data["message"])\n)"
     elseif typ == JSDoneLoading
         if data["exception"] !== "null"
-            exception = JSException(data)
+            exception = JSException(session, data)
             show(stderr, exception)
             session.init_error[] = exception
         else

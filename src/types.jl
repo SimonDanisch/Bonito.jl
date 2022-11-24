@@ -45,27 +45,9 @@ struct JSException <: Exception
     stacktrace::Vector{String}
 end
 
-function replace_url(match_str)
-    key_regex = r"(/assetserver/[a-z0-9]+-.*?):([\d]+):[\d]+"
-    m = match(key_regex, match_str)
-    key = m[1]
-    path = assetserver_to_localfile(string(key))
-    return path * ":" * m[2]
-end
 
-const ASSET_URL_REGEX = r"http://.*/assetserver/([a-z0-9]+-.*?):([\d]+):[\d]+"
-
-"""
-Creates a Julia exception from data passed to us by the frondend!
-"""
-function JSException(js_data::AbstractDict)
-    stacktrace = String[]
-    if js_data["stacktrace"] !== nothing
-        for line in split(js_data["stacktrace"], "\n")
-            push!(stacktrace, replace(line, ASSET_URL_REGEX => replace_url))
-        end
-    end
-    return JSException(js_data["exception"], js_data["message"], stacktrace)
+function js_to_local_stacktrace(asset_server, matched_url)
+    return matched_url
 end
 
 function Base.show(io::IO, exception::JSException)
@@ -107,7 +89,20 @@ struct Session{Connection <: FrontendConnection}
     js_comm::Observable{Union{Nothing, Dict{String, Any}}}
     on_close::Observable{Bool}
     deregister_callbacks::Vector{Observables.ObserverFunction}
-    session_cache::Dict{String, Any}
+    session_objects::Dict{String, Any}
+end
+
+"""
+Creates a Julia exception from data passed to us by the frondend!
+"""
+function JSException(session::Session, js_data::AbstractDict)
+    stacktrace = String[]
+    if js_data["stacktrace"] !== nothing
+        for line in split(js_data["stacktrace"], "\n")
+            push!(stacktrace, js_to_local_stacktrace(session.asset_server, line))
+        end
+    end
+    return JSException(js_data["exception"], js_data["message"], stacktrace)
 end
 
 function Session(connection=default_connection();
@@ -121,7 +116,7 @@ function Session(connection=default_connection();
                 js_comm=Observable{Union{Nothing, Dict{String, Any}}}(nothing),
                 on_close=Observable(false),
                 deregister_callbacks=Observables.ObserverFunction[],
-                session_cache=Dict{String, Any}())
+                session_objects=Dict{String, Any}())
 
     return Session(
         Base.RefValue{Union{Nothing, Session}}(nothing),
@@ -137,7 +132,7 @@ function Session(connection=default_connection();
         js_comm,
         on_close,
         deregister_callbacks,
-        session_cache
+        session_objects
     )
 end
 
@@ -152,7 +147,7 @@ function Session(parent::Session;
             js_comm=Observable{Union{Nothing, Dict{String, Any}}}(nothing),
             on_close=Observable(false),
             deregister_callbacks=Observables.ObserverFunction[],
-            session_cache=Dict{String, Any}())
+            session_objects=Dict{String, Any}())
 
     root = root_session(parent)
     connection = SubConnection(root)
@@ -170,7 +165,7 @@ function Session(parent::Session;
         js_comm,
         on_close,
         deregister_callbacks,
-        session_cache
+        session_objects
     )
     root.children[id] = session
     return session
