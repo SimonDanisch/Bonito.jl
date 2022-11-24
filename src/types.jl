@@ -192,6 +192,9 @@ end
 
 """
 The application one serves
+
+The server event loop can be brought to the foreground with
+`wait(server::Server)`.
 """
 struct Server
     url::String

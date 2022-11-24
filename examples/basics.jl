@@ -100,6 +100,7 @@ end
 display(app)
 
 JSServe.route!(get_server(), "/example1" => app)
+#wait(get_server()) # This call will block execution of the script and bring the server event loop to the foreground
 
 app = App() do session::Session
     slider = JSServe.Slider(1:10, class="slider m-4")

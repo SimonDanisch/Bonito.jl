@@ -322,3 +322,8 @@ function insert_session!(server::Server, session=Session())
     server.sessions[session.id] = session
     return session
 end
+
+"""Wait on the server task, i.e. block execution by bringing the server event loop to the foreground."""
+function Base.wait(server::Server)
+    wait(server.server_task[])
+end
