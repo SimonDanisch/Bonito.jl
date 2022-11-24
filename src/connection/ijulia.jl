@@ -39,15 +39,15 @@ function setup_connection(session::Session{IJuliaConnection})
 
     id = session.id
     return js"""
-        (() => {
-            console.log("setting up IJulia")
+        const init_ijulia = () => {
+            console.log("setting up IJulia");
             if (!window.Jupyter) {
-                throw "Jupyter not loaded"
+                throw new Error("Jupyter not loaded");
             }
-            const plugin_name = $(JSServe.PLUGIN_NAME)
-            const comm_manager = Jupyter.notebook.kernel.comm_manager
-            comm_manager.unregister_target(plugin_name)
-            comm_manager.register_target(plugin_name, () => {})
+            const plugin_name = $(JSServe.PLUGIN_NAME);
+            const comm_manager = Jupyter.notebook.kernel.comm_manager;
+            comm_manager.unregister_target(plugin_name);
+            comm_manager.register_target(plugin_name, () => {});
             const comm = comm_manager.new_comm(
                 plugin_name, // target_name
                 {session_id: $(session.id)}, // data
@@ -55,14 +55,15 @@ function setup_connection(session::Session{IJuliaConnection})
                 undefined, // metadata
                 undefined, // comm_id
                 undefined, // buffers
-            )
+            );
             comm.on_msg((msg) => {
                 JSServe.decode_base64_message(msg.content.data.data).then(JSServe.process_message)
             });
 
             JSServe.on_connection_open((binary) => {
                 JSServe.base64encode(binary).then(x=> comm.send(x))
-            })
-        })()
+            });
+        }
+        init_ijulia();
     """
 end

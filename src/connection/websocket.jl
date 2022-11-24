@@ -77,11 +77,10 @@ end
     handles a new websocket connection to a session
 """
 function (connection::WebSocketConnection)(context, websocket::WebSocket)
-    println("Got the WS")
     request = context.request; application = context.application
     uri = URIs.URI(request.target).path
     session_id = URIs.splitpath(uri)[1]
-    println("WS session id: $(session_id)")
+    @debug("WS session id: $(session_id)")
     session = look_up_session(session_id)
     # Look up the connection in our sessions
     if !isnothing(session)

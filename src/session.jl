@@ -318,7 +318,7 @@ function session_dom(session::Session, dom::Node; init=true)
 
     if init
         init_session = js"""
-        JSServe.init_session($(session.id), ()=> null, $(repr(issubsession ? "sub" : "root")));
+        JSServe.init_session($(session.id), ()=> null, $(issubsession ? "sub" : "root"));
         """
         push!(js, jsrender(session, init_session))
     end
