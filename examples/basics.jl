@@ -119,21 +119,6 @@ display(app)
 JSServe.route!(JSServe.get_server(), "/example1" => app)
 
 begin
-    @eval JSServe.HTTPServer function Base.display(bd::BrowserDisplay, app::App)
-        server = bd.server
-        session_url = "/browser-display78"
-        old_app = route!(server, Pair{Any, Any}(session_url, app))
-        if isnothing(old_app) || isnothing(old_app.session[])
-            openurl(online_url(server, session_url))
-        else
-            update_app!(old_app, app)
-        end
-        return
-    end
-end
-
-
-begin
     app = App() do session::Session
         slider = JSServe.Slider(1:10, class="slider m-4")
         squared = map(slider) do slidervalue
@@ -145,12 +130,14 @@ begin
         dom = DOM.div(JSServe.TailwindCSS, "meep11", slider, sliderstyle, v1, v2)
         # statemap for static serving
         return dom
-    end
+    end;
 end
 
 export_path = joinpath(@__DIR__, "demo")
 mkdir(export_path)
-JSServe.export_standalone(app, export_path, clear_folder=true)
+routes = JSServe.Routes()
+routes["/"] = app
+JSServe.export_static(export_path, routes)
 
 using LiveServer
 cd(export_path)

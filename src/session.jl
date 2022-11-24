@@ -12,12 +12,10 @@ end
 open!(connection) = nothing
 
 function init_session(session::Session)
-    println("initing session: $(session.id)")
     put!(session.connection_ready, true)
     open!(session.connection)
     @assert isopen(session)
-    if !isempty(session.message_queue)
-        println("sending queued messages: $(length(session.message_queue))")
+    if !isempty(session.message_queue) || !isempty(session.on_document_load)
         send(session, fused_messages!(session))
     end
 end
@@ -308,7 +306,7 @@ function session_dom(session::Session, dom::Node; init=true)
         dom = DOM.div(dom, id=session.id)
     end
 
-    init_connection = setup_connect(session)
+    init_connection = setup_connection(session)
     init_server = setup_asset_server(session.asset_server)
 
     issubsession = !isnothing(parent(session))
@@ -316,12 +314,15 @@ function session_dom(session::Session, dom::Node; init=true)
     if !issubsession
         push!(js, jsrender(session, JSServeLib))
     end
+
     if init
         init_session = """
         JSServe.init_session('$(session.id)', ()=> null, $(repr(issubsession ? "sub" : "root")));
         """
-        push!(js, DOM.script(init_session, type="module"))
+        data_url = to_data_url(init_session, "application/javascript")
+        push!(js, DOM.script(src=data_url, type="module"))
     end
+
     if !isnothing(init_connection)
         push!(js, jsrender(session, init_connection))
     end
@@ -362,7 +363,7 @@ function update_session_dom!(parent::Session, node_to_update::Union{String, Node
     if sub === parent # String/Number
         obs = Observable(html)
         evaljs(parent, js"""
-            JSServe.Sessions.on_node_available($query_selector).then(dom => {
+            JSServe.Sessions.on_node_available($query_selector, 1).then(dom => {
                 while (dom.firstChild) {
                     dom.removeChild(dom.lastChild);
                 }

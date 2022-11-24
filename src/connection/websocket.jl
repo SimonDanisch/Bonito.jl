@@ -99,9 +99,8 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
     end
 end
 
-function setup_connect(session::Session{WebSocketConnection})
-    register_session!(session)
-    connection = session.connection
+
+function setup_connection(session::Session, connection::WebSocketConnection)
     if isnothing(connection.server)
         connection.server = HTTPServer.get_server()
     end
@@ -116,4 +115,9 @@ function setup_connect(session::Session{WebSocketConnection})
             WS.setup_connection({proxy_url: $(proxy_url), session_id: $(session.id)})
         })
     """
+end
+
+function setup_connection(session::Session{WebSocketConnection})
+    register_session!(session)
+    return setup_connection(session, session.connection)
 end

@@ -212,9 +212,9 @@ export function free_session(session_id) {
     }
 }
 
-export function on_node_available(query_selector) {
+export function on_node_available(query_selector, timeout) {
     return new Promise(resolve => {
-        function test_node() {
+        function test_node(timeout) {
             let node;
             if (query_selector.by_id) {
                 node = document.getElementById(query_selector.by_id)
@@ -224,16 +224,18 @@ export function on_node_available(query_selector) {
             if (node) {
                 resolve(node)
             } else {
-                setTimeout(test_node, 500, query_selector)
+                const new_timeout = 2*timeout
+                console.log(new_timeout)
+                setTimeout(test_node, new_timeout, new_timeout)
             }
         }
-        test_node()
+        test_node(timeout)
     })
 }
 
 export function update_session_dom(message) {
     const { session_id, data, cache, dom_node_selector } = message;
-    on_node_available(dom_node_selector).then(dom => {
+    on_node_available(dom_node_selector, 1).then(dom => {
         function callback() {
             update_session_cache(session_id, cache)
             const message = deserialize(data)

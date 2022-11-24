@@ -8,6 +8,8 @@ mutable struct IJuliaConnection <: FrontendConnection
     comm::Union{Nothing, IJuliaComm}
 end
 
+IJuliaConnection() = IJuliaConnection(nothing)
+
 function Base.write(connection::IJuliaConnection, bytes::AbstractVector{UInt8})
     comm = connection.comm
     IJulia[].send_comm(comm, Dict("data" => Base64.base64encode(bytes)))
@@ -18,7 +20,7 @@ function Base.isopen(c::IJuliaConnection)
     return haskey(IJulia[].CommManager.comms, c.comm.id)
 end
 
-function setup_connect(session::Session{IJuliaConnection})
+function setup_connection(session::Session{IJuliaConnection})
     IJulia[] = Base.loaded_modules[IJULIA_PKG_ID]
     expr = quote
         function IJulia.CommManager.register_comm(comm::CommManager.Comm{$(QuoteNode(PLUGIN_NAME))}, message)

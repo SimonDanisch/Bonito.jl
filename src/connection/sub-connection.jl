@@ -12,6 +12,6 @@ Base.isopen(connection::SubConnection) = connection.isopen
 Base.close(connection::SubConnection) = (connection.isopen = false)
 open!(connection::SubConnection) = (connection.isopen = true)
 
-function setup_connect(session::Session{SubConnection})
+function setup_connection(session::Session{SubConnection})
     return nothing
 end

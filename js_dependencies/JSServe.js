@@ -24,7 +24,7 @@ const {
     decode_base64_message,
 } = Protocol;
 
-const { init_session, deserialize_cached, free_session } =
+const { init_session, deserialize_cached, free_session, lookup_observable } =
     Sessions;
 
 function update_node_attribute(node, attribute, value) {
@@ -77,6 +77,7 @@ const JSServe = {
     // Util
     update_node_attribute,
     update_dom_node,
+    lookup_observable,
 };
 
 window.JSServe = JSServe;

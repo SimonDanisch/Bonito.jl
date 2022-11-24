@@ -6,7 +6,7 @@ function value_range end
 function update_value!(x, value) end
 
 function extract_widgets(dom_root)
-    result = []
+    result = Base.IdSet()
     walk_dom(dom_root) do x
         if is_widget(x)
             push!(result, x)
@@ -47,12 +47,11 @@ function record_values(f, session, widget)
 end
 
 function while_disconnected(f, session::Session)
-    connection = session.connection[]
-    session.connection[] = nothing
+    if isopen(session)
+        error("Session shouldnt be open")
+    end
     f()
-    session.connection[] = connection
 end
-
 
 function record_states(session::Session, dom::Hyperscript.Node)
     widgets = extract_widgets(dom)
@@ -66,6 +65,7 @@ function record_states(session::Session, dom::Hyperscript.Node)
     independent_states = Dict{String, Any}()
     while_disconnected(session) do
         for widget in independent
+            @show widget
             state = Dict{Any, Dict{Symbol,Any}}()
             for value in value_range(widget)
                 state[value] = record_values(session, widget) do
@@ -83,13 +83,13 @@ function record_states(session::Session, dom::Hyperscript.Node)
         const statemap = $(independent_states)
         const observables = $(observable_ids)
         observables.forEach(id => {
-            $(JSServeLib).on_update(id, function (val) {
+            JSServe.lookup_observable(id).on((val) => {
                 // messages to send for this state of that observable
                 const messages = statemap[id][val]
                 // not all states trigger events
                 // so some states won't have any messages recorded
                 if (messages){
-                    $(JSServeLib).process_message(messages)
+                    JSServe.process_message(messages)
                 }
             })
         })
@@ -138,6 +138,12 @@ function export_standalone(app::App, folder::String;
     else
         return html_str, session
     end
+end
+
+function export_static(folder::String, app::App)
+    routes = Routes()
+    routes["/"] = app
+    export_static(folder, routes)
 end
 
 function export_static(folder::String, routes::Routes)

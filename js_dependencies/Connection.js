@@ -61,7 +61,6 @@ export function send_pingpong() {
     send_to_julia({ msg_type: PingPong });
 }
 
-
 export function send_error(message, exception) {
     console.error(message);
     console.error(exception);

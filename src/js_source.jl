@@ -83,10 +83,6 @@ function print_js_code(io::IO, jsss::AbstractVector{JSCode}, objects::IdDict)
 end
 
 function jsrender(session::Session, js::JSCode)
-    # data_str = serialize_string(session, js)
-    # Deserialize JSCode type and call it to run it!
-    # TODO, stacktraces become truely terrible like this
-
     objects = IdDict()
     # Print code while collecting all interpolated objects in an IdDict
     code = sprint() do io
@@ -104,17 +100,14 @@ function jsrender(session::Session, js::JSCode)
         )
         data_str = serialize_string(session, interpolated_objects)
         src = """
-            // JSCode from $(js.file)
-            const data_str = '$(data_str)'
-            JSServe.base64decode(data_str).then(binary=> {
-                const message = JSServe.decode_binary(binary);
-                const objects = JSServe.deserialize_cached(message)
-                function __lookup_interpolated(id) {
-                    return objects[id];
-                }
-                $code
-            })
+        // JSCode from $(js.file)
+        const data_str = '$(data_str)'
+        JSServe.decode_base64_message(data_str).then(objects=> {
+            const __lookup_interpolated = (id) => objects[id]
+            $code
+        })
         """
     end
-    return DOM.script(src, type="module")
+    data_url = to_data_url(src, "application/javascript")
+    return DOM.script(src=data_url, type="module")
 end

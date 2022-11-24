@@ -106,6 +106,16 @@ function to_data_url(file_path; mime = file_mimetype(file_path))
     end
 end
 
+function to_data_url(source::String, mime::String)
+    return sprint() do io
+        print(io, "data:$(mime);base64,")
+        iob64_encode = Base64EncodePipe(io)
+        # why do we need two \n to not get cut off?
+        println(iob64_encode, source * "\n")
+    end
+end
+
+
 """
     dependency_path(paths...)
 
@@ -116,13 +126,14 @@ dependency_path(paths...) = joinpath(@__DIR__, "..", "..", "js_dependencies", pa
 const JSServeLib = ES6Module(dependency_path("JSServe.js"))
 const Websocket = ES6Module(dependency_path("Websocket.js"))
 const TailwindCSS = Asset(dependency_path("tailwind.min.css"))
+const Styling = Asset(dependency_path("styling.css"))
 
 include("mimetypes.jl")
 include("no-server.jl")
 include("http.jl")
 
 function default_asset_server()
-    if isdefined(Main, :IJulia)
+    if isdefined(Main, :IJulia) || isdefined(Main, :PlutoRunner)
         return NoServer()
     else
         return HTTPAssetServer()
