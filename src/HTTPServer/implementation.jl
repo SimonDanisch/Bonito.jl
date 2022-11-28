@@ -382,3 +382,12 @@ function server_defaults()
         SERVER_CONFIGURATION.listen_port[] = parse(Int, ENV["WEBIO_HTTP_PORT"])
     end
 end
+
+"""
+    wait(server::Server)
+
+Wait on the server task, i.e. block execution by bringing the server event loop to the foreground.
+"""
+function Base.wait(server::Server)
+    wait(server.server_task[])
+end

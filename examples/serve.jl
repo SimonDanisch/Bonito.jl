@@ -24,5 +24,5 @@ end
 
 server = JSServe.Server(app, "127.0.0.1", 8081)
 JSServe.HTTPServer.start(server)
-
 # JSServe.HTTPServer.route!(server, "/" => app) # Overwrite app after changing it
+wait(server)
