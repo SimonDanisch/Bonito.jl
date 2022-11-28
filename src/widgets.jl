@@ -50,7 +50,7 @@ end
 
 # TODO, clean this up
 const noUiSlider = ES6Module("https://esm.sh/v99/nouislider@15.6.1/es2022/nouislider.js")
-const noUiSliderCSS = Asset(dependency_path("noUiSlider.css"))
+const noUiSliderCSS = Asset(dependency_path("noUISlider.css"))
 
 function jsrender(session::Session, slider::RangeSlider)
     args = (slider.range, slider.connect, slider.orientation,
