@@ -90,7 +90,10 @@ end
 The local url to reach the server, on the server
 """
 function local_url(server::Server, url; protocol="http://")
-    return string(protocol, server.url, ":", server.port, url)
+    # TODO, tell me again, why electron only accepts localhost in the url?
+    # And is there a clean way to "normalize" an url like that, so that no one complains?
+    base_url = server.url == "0.0.0.0" ? "localhost" : server.url
+    return string(protocol, base_url, ":", server.port, url)
 end
 
 """
@@ -170,7 +173,7 @@ function Server(
 end
 
 function Server(
-        app::App,
+        app::Union{Function, App},
         url::String, port::Int;
         verbose = false,
     )
@@ -193,9 +196,15 @@ function Base.close(application::Server)
     end
     # For good measures, wait until the task finishes!
     if isassigned(application.server_task)
+        task = application.server_task[]
         try
-            wait(application.server_task[])
-            @assert !Base.isdone(application.server_connection[])
+            # Somehow wait(task) deadlocks when there is still an open page?
+            # Really weird, especially since I can't make an MWE ... (Windows, Julia 1.8.2, HTTP@v1.5.5)
+            # TODO, do we hold on to resources in the stream handler??
+            while !isdone(task)
+                sleep(0.01)
+            end
+            @assert !Base.isdone(task)
         catch e
             @debug "Server task failed with an (expected) exception on close" exception=e
         end

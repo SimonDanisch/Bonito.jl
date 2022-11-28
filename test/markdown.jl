@@ -17,7 +17,7 @@ function test_handler(session, req)
     linkjs(session, s1.value, s2.value)
 
     onjs(session, s1.value, js"""function (v){
-        var updated = JSServe.update_obs($(test_observable), {onjs: v});
+        var updated = $(test_observable).notify({onjs: v});
         console.log(updated);
     }""")
 
@@ -104,7 +104,7 @@ function test_current_session(app)
                 do_input = js"""
                     var tfield = document.querySelector('input[type=\"textfield\"]');
                     tfield.value = $(str);
-                    tfield.onchange();
+                    tfield.onchange({srcElement: tfield});
                 """
                 val = test_value(app, do_input)
                 @test val["textfield"] == str
@@ -151,34 +151,20 @@ global dom = nothing
 inline_display = JSServe.App() do session, req
     global test_session = session
     global dom = test_handler(session, req)
-    return DOM.div(JSTest, dom)
+    return dom
 end;
 electron_disp = electrondisplay(inline_display);
 app = TestSession(URI("http://localhost:8555/show"),
-                  JSServe.GLOBAL_SERVER[], electron_disp, test_session)
-app.dom = dom
+                  JSServe.HTTPServer.GLOBAL_SERVER[], electron_disp, test_session)
+app.dom = dom;
+app.initialized = false
+wait(app)
 
 @testset "electron inline display" begin
     test_current_session(app)
 end
 close(app)
 
-@testset "webio mime" begin
-    ENV["JULIA_WEBIO_BASEURL"] = "https://google.de/"
-    JSServe.__init__()
-    @test JSServe.JSSERVE_CONFIGURATION.external_url[] == "https://google.de"
-    @test JSServe.JSSERVE_CONFIGURATION.content_delivery_url[] == "https://google.de"
-    html_webio = sprint(io-> show(io, MIME"application/vnd.jsserve.application+html"(), inline_display))
-    #@test occursin("proxy_url = 'https://google.de';", html_webio)
-    # @test JSServe.url("/test") == "https://google.de/test"
-    JSServe.JSSERVE_CONFIGURATION.external_url[] = ""
-    JSServe.JSSERVE_CONFIGURATION.content_delivery_url[] = ""
-    # @test JSServe.url("/test") == "/test" # back to relative urls
-    html_webio = sprint(io-> show(io, MIME"application/vnd.jsserve.application+html"(), inline_display))
-    # We open the display server with the above TestSession
-    # TODO electrontests should do this!
-    check_and_close_display()
-end
 
 @testset "Electron standalone" begin
     testsession(test_handler, port=8555) do app
@@ -257,31 +243,12 @@ end
     end
 
     testsession(test_handler, port=8555) do app
-        # Lets not be too porcelainy about this ...
-        md_js_dom = js"document.getElementById('application-dom').children[0]"
-        @test evaljs(app, js"$(md_js_dom).children.length") == 1
-        md_children = js"$(md_js_dom).children[0].children[0].children"
+        id = app.session.id
+        md_js_dom = js"document.getElementById($(id)).children[0]"
+        @test evaljs(app, js"$(md_js_dom).children.length") == 5
+        md_children = js"$(md_js_dom).children[4].children"
         @test evaljs(app, js"$(md_children).length") == 23
         @test occursin("This is the first footnote.", evaljs(app, js"$(md_children)[22].innerText"))
         @test evaljs(app, js"$(md_children)[2].children[0].children[0].tagName") == "IMG"
-    end
-end
-
-@testset "range slider" begin
-    function test_handler(session, req)
-        rslider = JSServe.RangeSlider(1:100; value=[10, 80])
-        start = map(first, rslider)
-        stop = map(last, rslider)
-        return DOM.div(rslider, start, stop, id="rslider")
-    end
-    testsession(test_handler, port=8555) do app
-        # Lets not be too porcelainy about this ...
-        rslider = getfield(app.dom, :children)[1]
-        @test rslider[] == [10, 80]
-        rslider_html = js"document.getElementById('rslider')"
-        @test evaljs(app, js"$(rslider_html).children.length") == 3
-        @test evaljs(app, js"$(rslider_html).children[1].innerText") == "10"
-        @test evaljs(app, js"$(rslider_html).children[2].innerText") == "80"
-        rslider[] = [20, 70]
     end
 end

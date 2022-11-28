@@ -56,7 +56,7 @@ end
         # Dont start this!
         testing_started[] && return DOM.div()
         onjs(session, obs, js"""function (v) {
-            var t = JSServe.update_obs($(counter), JSServe.get_observable($(counter)) + 1);
+            var t = $(counter).notify($(counter).value + 1);
         }""")
 
         for i in 1:2
@@ -101,12 +101,15 @@ end
 
 @testset "Dependencies" begin
     jss = js"""function (v) {
-        console.log($(JSTest));
+        console.log($(JSServe.JSServeLib));
     }"""
-    div = DOM.div(onclick=jss)
+    app = App() do
+        DOM.div(onclick=jss)
+    end
     s = JSServe.Session()
-    JSServe.register_resource!(s, div)
-    @test JSTest.assets[1] in s.dependencies
+    dom = sess
+    JSServe.serialize_binary(s, div)
+    @test JSTest in values(s.session_objects)
 end
 
 @testset "relocatable" begin
@@ -118,16 +121,13 @@ end
         JSServe.TailwindCSS => "css",
         JSServe.Styling => "css",
     ]
-    for (dep, ext) in deps
-        @test (dep isa Asset) || (dep isa Dependency)
-        assets = dep isa Asset ? [dep] : dep.assets
-        for asset in assets
-            @test isempty(asset.online_path)
-            @test getfield(asset, :local_path) isa RelocatableFolders.Path
-            @test asset.local_path isa String
-            @test ispath(asset.local_path)
-            @test asset.media_type == Symbol(ext)
-        end
+    for (asset, ext) in deps
+        @test asset isa Asset
+        @test isempty(asset.online_path)
+        @test getfield(asset, :local_path) isa RelocatableFolders.Path
+        @test asset.local_path isa String
+        @test ispath(asset.local_path)
+        @test asset.media_type == Symbol(ext)
     end
 
     # make sure that assets with `String` or with `RelocatableFolders.Path` behave consistently
@@ -139,6 +139,38 @@ end
     end
 end
 
-@testset "tryrun" begin
-    @test JSServe.tryrun(`fake_command`) == false
+@testset "range slider" begin
+    function test_handler(session, req)
+        rslider = JSServe.RangeSlider(1:100; value=[10, 80])
+        start = map(first, rslider)
+        stop = map(last, rslider)
+        return DOM.div(rslider, start, stop, id="rslider")
+    end
+    testsession(test_handler, port=8555) do app
+        # Lets not be too porcelainy about this ...
+        rslider = getfield(app.dom, :children)[1]
+        @test rslider[] == [10, 80]
+        rslider_html = js"document.getElementById('rslider')"
+        @test evaljs(app, js"$(rslider_html).children.length") == 3
+        @test evaljs(app, js"$(rslider_html).children[1].innerText") == "10"
+        @test evaljs(app, js"$(rslider_html).children[2].innerText") == "80"
+        rslider[] = [20, 70]
+    end
+end
+
+@testset "webio mime" begin
+    ENV["JULIA_WEBIO_BASEURL"] = "https://google.de/"
+    JSServe.__init__()
+    @test JSServe.JSSERVE_CONFIGURATION.external_url[] == "https://google.de"
+    @test JSServe.JSSERVE_CONFIGURATION.content_delivery_url[] == "https://google.de"
+    html_webio = sprint(io-> show(io, MIME"application/vnd.jsserve.application+html"(), inline_display))
+    #@test occursin("proxy_url = 'https://google.de';", html_webio)
+    # @test JSServe.url("/test") == "https://google.de/test"
+    JSServe.JSSERVE_CONFIGURATION.external_url[] = ""
+    JSServe.JSSERVE_CONFIGURATION.content_delivery_url[] = ""
+    # @test JSServe.url("/test") == "/test" # back to relative urls
+    html_webio = sprint(io-> show(io, MIME"application/vnd.jsserve.application+html"(), inline_display))
+    # We open the display server with the above TestSession
+    # TODO electrontests should do this!
+    check_and_close_display()
 end

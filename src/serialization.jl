@@ -87,7 +87,8 @@ function serialize_cached(context::SerializationContext, obs::Observable)
     return add_cached!(context.session, context.message_cache, obs) do
         root = root_session(context.session)
         updater = JSUpdateObservable(root, obs.id)
-        on(updater, root, obs)
+        deregister = on(updater, root, obs)
+        push!(context.session.deregister_callbacks, deregister)
         return serialize_js(context, obs)
     end
 end

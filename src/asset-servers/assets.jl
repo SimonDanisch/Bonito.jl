@@ -150,8 +150,19 @@ function local_path(asset::Asset)
     end
 end
 
+function get_deps_path(name)
+    folder = abspath(first(Base.DEPOT_PATH), "jsserve")
+    isdir(folder) || mkpath(folder)
+    return joinpath(folder, name)
+end
+
 function bundle_path(asset::Asset)
-    path, ext = splitext(asset.local_path)
+    asset_path = if isempty(asset.local_path)
+        get_deps_path(basename(asset.online_path))
+    else
+        asset.local_path
+    end
+    path, ext = splitext(asset_path)
     return string(path, ".bundled", ext)
 end
 
@@ -170,7 +181,7 @@ end
 
 function bundle!(asset::Asset)
     needs_bundling(asset) || return
-    path = asset.local_path
+    path = get_path(asset)
     bundled = bundle_path(asset)
     Deno_jll.deno() do exe
         write(bundled, read(`$exe bundle $(path)`))

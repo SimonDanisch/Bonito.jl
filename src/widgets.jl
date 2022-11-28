@@ -48,10 +48,9 @@ function jsrender(session::Session, tb::Checkbox)
     ))
 end
 
-# const noUiSlider = Dependency(
-#     :noUiSlider,
-#     [dependency_path("nouislider.min.js"), dependency_path("nouislider.min.css")]
-# )
+# TODO, clean this up
+const noUiSlider = ES6Module("https://esm.sh/v99/nouislider@15.6.1/es2022/nouislider.js")
+const noUiSliderCSS = Asset(dependency_path("noUiSlider.css"))
 
 function jsrender(session::Session, slider::RangeSlider)
     args = (slider.range, slider.connect, slider.orientation,
@@ -73,19 +72,24 @@ function jsrender(session::Session, slider::RangeSlider)
         )
     end
     rangediv = DOM.div()
-    create_slider = js"""function create_slider(style){
+    create_slider = js"""
+    function create_slider(style){
         const range = $(rangediv);
         range.noUiSlider.updateOptions(style, true);
     }"""
     onload(session, rangediv, js"""function onload(range){
         const style = $(style[]);
-        $(noUiSlider).create(range, style);
-        range.noUiSlider.on('update', function (values, handle, unencoded, tap, positions){
-            $(slider.value).notify([parseFloat(values[0]), parseFloat(values[1])]);
-        });
+        $(noUiSlider).then(NUS=> {
+            console.log(NUS)
+            NUS.create(range, style);
+            console.log(range)
+            range.noUiSlider.on('update', function (values, handle, unencoded, tap, positions){
+                $(slider.value).notify([parseFloat(values[0]), parseFloat(values[1])]);
+            });
+        })
     }""")
     onjs(session, style, create_slider)
-    return rangediv
+    return DOM.div(jsrender(session, noUiSliderCSS), rangediv)
 end
 
 

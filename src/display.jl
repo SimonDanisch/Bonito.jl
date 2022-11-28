@@ -20,10 +20,12 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
             # with the dom we're rendering right now
             dom = DOM.div(init_dom, sub_dom)
         else
+            sub = session
             dom = session_dom(session, app)
         end
     end
     show(io, Hyperscript.Pretty(dom))
+    return sub
 end
 
 function node_html(io::IO, session::Session, node::Hyperscript.Node)

@@ -1,16 +1,13 @@
-using Electron, JSServe, URIParser
+using Electron, JSServe
 using JSServe.HTTP: Request
-using JSServe: Session, Dependency, @js_str, JSCode
-import JSServe: start, evaljs, evaljs_value
+import JSServe.HTTPServer: start, isrunning
+using URIParser
+using JSServe: Session, @js_str, JSCode
+import JSServe: evaljs, evaljs_value
 using JSServe.Hyperscript: Node, HTMLSVG
 using JSServe.DOM
 using Base: RefValue
 using Test
-
-"""
-Our Javascript library, defining a few JS helper functions!
-"""
-const JSTest = Dependency(:Test, [joinpath(@__DIR__, "Test.js")])
 
 """
     TestSession(handler)
@@ -57,26 +54,27 @@ function check_and_close_display()
     # For some reason, when running code in Atom, it happens very easily,
     # That JSServe display server gets started!
     # Maybe better to PR an option in JSServe to prohibit starting it in the first place
-    if isassigned(JSServe.GLOBAL_SERVER) && JSServe.isrunning(JSServe.GLOBAL_SERVER[])
+    if isassigned(JSServe.HTTPServer.GLOBAL_SERVER) && isrunning(JSServe.HTTPServer.GLOBAL_SERVER[])
         @warn "closing JSServe display server, which interfers with testing!"
-        close(JSServe.GLOBAL_SERVER[])
+        close(JSServe.HTTPServer.GLOBAL_SERVER[])
     end
 end
 
 function TestSession(handler; url="0.0.0.0", port=8081, timeout=300)
     check_and_close_display()
     testsession = TestSession(URI(string("http://localhost:", port)))
-    testsession.server = JSServe.Server(url, port) do session, request
+    app = App() do session, request
         try
             dom = handler(session, request)
             testsession.dom = dom
             testsession.session = session
             testsession.request = request
-            return DOM.div(JSTest, dom)
+            return dom
         catch e
             testsession.error_in_handler = (e, Base.catch_backtrace())
         end
     end
+    testsession.server = JSServe.Server(app, url, port)
     try
         start(testsession; timeout=timeout)
         return testsession
@@ -119,7 +117,7 @@ end
 Wait for testsession to be fully loaded!
 Note, if you call wait on a fully loaded test
 """
-function wait(testsession::TestSession; timeout=300)
+function Base.wait(testsession::TestSession; timeout=300)
     testsession.initialized && return true
     if !testsession.window.exists
         error("Window isn't open, can't wait for testsession to be initialized")
@@ -145,7 +143,7 @@ function wait(testsession::TestSession; timeout=300)
     on_timeout = "Timed out when waiting for JS to being loaded! Likely an error happend on the JS side, or your testsession is taking longer than $(timeout) seconds. If no error in console, try increasing timeout!"
     tstart = time()
     while time() - tstart < timeout
-        if isready(testsession.session.connection_ready)
+        if isready(testsession.session)
             # Error on js during init! We can't continue like this :'(
             if testsession.session.init_error[] !== nothing
                 throw(testsession.session.init_error[])
@@ -167,7 +165,7 @@ function reload!(testsession::TestSession; timeout=300)
     check_and_close_display()
     testsession.initialized = true # we need to put it to true, otherwise handler will block!
     # Make 100% sure we're serving something, since otherwise, well block forever
-    @assert JSServe.isrunning(testsession.server)
+    @assert isrunning(testsession.server)
     # Extra long time out for compilation!
     response = JSServe.HTTP.get(string(testsession.url), readtimeout=500)
     @assert response.status == 200
@@ -185,10 +183,10 @@ end
 Start the testsession and make sure everything is loaded correctly.
 Will close all connections, if any error occurs!
 """
-function JSServe.start(testsession::TestSession; timeout=300)
+function start(testsession::TestSession; timeout=300)
     check_and_close_display()
     try
-        if !JSServe.isrunning(testsession.server)
+        if isrunning(testsession.server)
             start(testsession.server)
         end
         if !isdefined(testsession, :window) || !testsession.window.exists
@@ -211,12 +209,10 @@ function Base.close(testsession::TestSession)
     if isdefined(testsession, :server)
         close(testsession.server)
     end
-
     if isdefined(testsession, :window)
         # testsession.window.app.exists && close(testsession.window.app)
         testsession.window.exists && close(testsession.window)
     end
-
     testsession.initialized = false
 end
 
@@ -247,25 +243,6 @@ macro wait_for(condition, timeout=5)
         end
         @test $(esc(condition))
     end
-end
-
-"""
-    trigger_keyboard_press(testsession::TestSession, code::String, element=nothing)
-Triggers a keyboard press on `element`! If element is `nothing`, the event will be
-triggered for the whole `document`!
-Find out the key code string to pass at `http://keycode.info/`
-"""
-function trigger_keyboard_press(testsession::TestSession, code::String, element=nothing)
-    JSTest.trigger_keyboard_press(testsession.session, code, element)
-end
-
-"""
-    trigger_mouse_move(testsession::TestSession, code::String, position::Tuple{Int, Int}, element=nothing)
-Triggers a MouseMove event! If element == nothing, it will try to trigger on any canvas element
-found in the DOM.
-"""
-function trigger_mouse_move(testsession::TestSession, position::Tuple{Int, Int}, element=nothing)
-    JSTest.trigger_mouse_move(testsession.session, position, element)
 end
 
 """
