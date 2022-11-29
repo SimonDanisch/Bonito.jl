@@ -68,7 +68,7 @@ function run_connection_loop(server::Server, session::Session, websocket::WebSoc
         end
     finally
         # This always needs to happen, which is why we need a try catch!
-        @info("Closing: $(session.id)")
+        @debug("Closing: $(session.id)")
         close(session)
     end
 end
