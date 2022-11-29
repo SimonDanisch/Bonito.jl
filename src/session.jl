@@ -1,3 +1,28 @@
+function show_session(io::IO, session::Session{T}) where T
+    println(io, "Session{$T}:")
+    println(io, "  id: $(session.id)")
+    println(io, "  parent: $(typeof(session.parent[]))")
+    if !isempty(session.children)
+        println(io, "children: $(length(session.children))")
+    end
+    println(io, "  connection: $(isopen(session.connection) ? "open" : "closed")")
+    println(io, "  isready: $(isready(session))")
+    println(io, "  asset_server: $(typeof(session.asset_server))")
+    println(io, "  queued messages: $(length(session.message_queue))")
+    if !isnothing(session.init_error[])
+        println(io, "  session failed to initialize:")
+        showerror(io, session.init_error[])
+    end
+end
+
+function Base.show(io::IO, ::MIME"text/plain", session::Session{T}) where T
+    show_session(io, session)
+end
+
+function Base.show(io::IO, session::Session{T}) where T
+    show_session(io, session)
+end
+
 function fused_messages!(session::Session)
     messages = []
     append!(messages, session.message_queue)
@@ -239,7 +264,7 @@ Evals `js` code and returns the jsonified value.
 Blocks until value is returned. May block indefinitely, when called with a session
 that doesn't have a connection to the browser.
 """
-function evaljs_value(session::Session, js; error_on_closed=true, time_out=10.0)
+function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
     if error_on_closed && !isopen(session)
         error("Session is not open and would result in this function to indefinitely block.
         It may unblock, if the browser is still connecting and opening the session later on. If this is expected,
@@ -250,8 +275,11 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=10.0)
     comm.val = nothing
     js_with_result = js"""
     try{
-        const result = $(js);
-        $(comm).notify({result: result});
+        const maybe_promise = $(js);
+        // support returning a promise:
+        Promise.resolve(maybe_promise).then(result=> {
+            $(comm).notify({result});
+        })
     }catch(e){
         $(comm).notify({error: e.toString()});
     }
@@ -260,11 +288,8 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=10.0)
     evaljs(session, js_with_result)
     # TODO, have an on error callback, that triggers when evaljs goes wrong
     # (e.g. because of syntax error that isn't caught by the above try catch!)
-
-    tstart = time()
-    while (time() - tstart < time_out) && isnothing(comm[])
-        yield()
-    end
+    # TODO do this with channels, but we still dont have a way to timeout for wait(channel)... so...
+    wait_for(()-> !isnothing(comm[]); timeout=timeout)
     value = comm[]
     if isnothing(value)
         error("Timed out")
@@ -276,8 +301,8 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=10.0)
     end
 end
 
-function evaljs_value(with_session, js; error_on_closed=true, time_out=100.0)
-    evaljs_value(session(with_session), js; error_on_closed=error_on_closed, time_out=time_out)
+function evaljs_value(with_session, js; error_on_closed=true, timeout=100.0)
+    evaljs_value(session(with_session), js; error_on_closed=error_on_closed, timeout=timeout)
 end
 
 function rendered_dom(session::Session, app::App, target=(; target="/"))
@@ -290,8 +315,6 @@ function session_dom(session::Session, app::App; init=true)
     dom = rendered_dom(session, app)
     return session_dom(session, dom; init=init)
 end
-
-
 
 function session_dom(session::Session, dom::Node; init=true)
     # the dom we can render may be anything between a
@@ -398,4 +421,8 @@ function update_app!(old_app::App, new_app::App)
     old_session = old_app.session[]
     parent = root_session(old_session)
     update_session_dom!(parent, old_session.id, new_app)
+end
+
+function wait_for_ready(session::Session; timeout=10)
+    wait_for(()-> isready(session); timeout=timeout)
 end

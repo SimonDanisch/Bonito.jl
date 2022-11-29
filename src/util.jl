@@ -82,3 +82,13 @@ function styled_slider(slider, value; class="")
                 DOM.span(value, class="p-1");
                 class="w-64 p-2 items-center " * class)
 end
+
+function wait_for(condition; timeout=10)
+    tstart = time()
+    while true
+        condition() && return :success
+        (time() - tstart > timeout) && return :timed_out
+        yield()
+    end
+    return
+end
