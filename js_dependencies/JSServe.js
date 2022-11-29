@@ -80,6 +80,7 @@ const JSServe = {
     lookup_observable,
 };
 
+// @ts-ignore
 window.JSServe = JSServe;
 
 export {
