@@ -1,3 +1,26 @@
+using JSServe: Observable, Retain, CacheKey, decode_extension_and_addbits
+using JSServe, MsgPack, Test
+
+@testset "MsgPack" begin
+    data = [
+        Observable([1, Dict("a" => rand(1000))]),
+        Dict(:a => rand(Float32, 1000), "b" => rand(Float16, 10^6)),
+        rand(Int, 100),
+        [rand(12), Retain(Observable([2,3,4])), CacheKey("kdjaksjd")]
+    ]
+
+    unpacked = JSServe.decode_extension_and_addbits(MsgPack.unpack(MsgPack.pack(data)))
+    @test data[1].val == unpacked[1].val
+    @test data[2][:a] == unpacked[2]["a"]
+    @test data[2]["b"] == unpacked[2]["b"]
+
+    @test data[3] == unpacked[3]
+    @test data[4][1] == unpacked[4][1]
+    @test data[4][2].value.val == unpacked[4][2].value.val
+    @test data[4][3] == unpacked[4][3]
+
+end
+
 
 @testset "Serialization format" begin
     session = Session()

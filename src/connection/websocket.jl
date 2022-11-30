@@ -98,7 +98,6 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
     end
 end
 
-
 function setup_connection(session::Session, connection::WebSocketConnection)
     if isnothing(connection.server)
         connection.server = HTTPServer.get_server()

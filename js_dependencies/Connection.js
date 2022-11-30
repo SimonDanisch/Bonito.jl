@@ -1,5 +1,5 @@
 import { encode_binary } from "./Protocol.js";
-import { lookup_observable } from "./Sessions.js";
+import { lookup_observable, update_session_dom } from "./Sessions.js";
 
 // Save some bytes by using ints for switch variable
 const UpdateObservable = "0";
@@ -126,6 +126,10 @@ export function process_message(data) {
                 break;
             case PingPong:
                 // just getting a ping, nothing to do here :)
+                break;
+            case "UpdateSession":
+                // just getting a ping, nothing to do here :)
+                update_session_dom(data)
                 break;
             default:
                 throw new Error(

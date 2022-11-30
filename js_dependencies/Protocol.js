@@ -1,12 +1,12 @@
-import * as MsgPack from "https://cdn.esm.sh/v66/@msgpack/msgpack@2.7.2/es2021/msgpack.js";
+// https://www.npmjs.com/package/@msgpack/msgpack
+import * as MsgPack from "http://cdn.esm.sh/v97/@msgpack/msgpack@2.8.0/es2022/msgpack.js";
 import * as Pako from "https://cdn.esm.sh/v66/pako@2.0.4/es2021/pako.js";
 import { Observable } from "./Observables.js";
 import {
     deserialize_cached,
     GLOBAL_OBJECT_CACHE,
-    update_session_dom,
+    update_session_cache,
 } from "./Sessions.js";
-import { send_error } from "./Connection.js";
 
 export class Retain {
     constructor(value) {
@@ -14,34 +14,13 @@ export class Retain {
     }
 }
 
-export function materialize_node(data) {
-    // if is a node attribute
-    if (Array.isArray(data)) {
-        return data.map((x) => materialize_node(x));
-    } else if (data.__javascript_type__) {
-        return materialize_node(data.payload);
-    } else if (data.tag) {
-        const node = document.createElement(data.tag);
-        Object.keys(data).forEach((key) => {
-            if (key == "class") {
-                node.className = data[key];
-            } else if (key != "children" && key != "tag") {
-                node.setAttribute(key, data[key]);
-            }
-        });
-        const children = deserialize(data.children);
-        children.forEach((child) => {
-            node.append(materialize_node(child));
-        });
-        return node;
-    } else {
-        // anything else is used as is!
-        return data;
-    }
-}
+const EXTENSION_CODEC = new MsgPack.ExtensionCodec();
 
-function is_dict(value) {
-    return value && typeof value === "object";
+/**
+ * @param {Uint8Array} uint8array
+ */
+function unpack(uint8array) {
+    return MsgPack.decode(uint8array, { extensionCodec: EXTENSION_CODEC })
 }
 
 function array_to_buffer(array) {
@@ -50,6 +29,87 @@ function array_to_buffer(array) {
         array.byteLength + array.byteOffset
     );
 }
+/**
+ * @param {Uint8ArrayConstructor} ArrayType
+ * @param {Uint8Array} uint8array
+ */
+function reinterpret_array(ArrayType, uint8array) {
+    if (ArrayType === Uint8Array) {
+        return uint8array;
+    } else {
+        // console.log(ArrayType)
+        // console.log(uint8array.byteOffset)
+        // console.log(uint8array.byteLength)
+        return new ArrayType(array_to_buffer(uint8array))
+        // return new ArrayType(
+        //     uint8array.buffer,
+        //     uint8array.byteOffset,
+        //     uint8array.byteLength
+        // );
+    }
+}
+
+function register_ext_array(type_tag, array_type) {
+    EXTENSION_CODEC.register({
+        type: type_tag,
+        decode: (uint8array) =>
+            reinterpret_array(array_type, uint8array),
+    });
+}
+
+register_ext_array(0x11, Int8Array);
+register_ext_array(0x12, Uint8Array);
+register_ext_array(0x13, Int16Array);
+register_ext_array(0x14, Uint16Array);
+register_ext_array(0x15, Int32Array);
+register_ext_array(0x16, Uint32Array);
+register_ext_array(0x17, Float32Array);
+register_ext_array(0x18, Float64Array);
+
+function register_ext(type_tag, constructor) {
+    EXTENSION_CODEC.register({
+        type: type_tag,
+        decode: constructor,
+    });
+}
+
+register_ext(100, (uint_8_array) => {
+    const [id, value] = unpack(uint_8_array);
+    return new Observable(id, value);
+});
+
+register_ext(101, (uint_8_array) => {
+    const [es6module, url] = unpack(uint_8_array);
+    if (es6module) {
+        return import(url);
+    } else {
+        return fetch(url); // return url for now
+    }
+});
+
+register_ext(102, (uint_8_array) => {
+    const [interpolated_objects, source, julia_file] =
+        unpack(uint_8_array);
+    const lookup_interpolated = (id) => interpolated_objects[id];
+    // create a new func, that has __lookup_cached as argument
+    const eval_func = new Function("__lookup_interpolated", "JSServe", source);
+    // return a closure, that when called runs the code!
+    return () => {
+        try {
+            return eval_func(lookup_interpolated, JSServe);
+        } catch (err) {
+            console.log(`error in closure from: ${julia_file}`);
+            console.log(`Source:`);
+            console.log(source);
+            throw err;
+        }
+    };
+});
+
+register_ext(103, (uint_8_array) => {
+    const real_value = unpack(uint_8_array);
+    return new Retain(real_value);
+});
 
 function lookup_cached(key) {
     const object = GLOBAL_OBJECT_CACHE[key];
@@ -63,86 +123,36 @@ function lookup_cached(key) {
     throw new Error(`Key ${key} not found! ${object}`);
 }
 
-function deserialize_datatype(type, payload) {
-    switch (type) {
-        case "TypedVector":
-            return deserialize(payload);
-        case "CacheKey":
-            return lookup_cached(payload);
-        case "DomNodeFull":
-            return materialize_node(payload);
-        case "Asset":
-            if (payload.es6module) {
-                return import(payload.url);
-            } else {
-                return fetch(payload.url); // return url for now
-            }
-        case "JSCode":
-            const source = payload.source;
-            const objects = deserialize(payload.interpolated_objects);
-            const lookup_interpolated = (id) => objects[id];
-            // create a new func, that has __lookup_cached as argument
-            const eval_func = new Function(
-                "__lookup_interpolated",
-                "JSServe",
-                source
-            );
-            // return a closure, that when called runs the code!
-            return () => {
-                try {
-                    return eval_func(lookup_interpolated, JSServe);
-                } catch (err) {
-                    console.log(`error in closure from: ${payload.julia_file}`);
-                    console.log(`Source:`);
-                    console.log(source);
-                    throw err;
-                }
-            };
-        case "Observable":
-            const value = deserialize(payload.value);
-            return new Observable(payload.id, value);
-        case "Retain":
-            const real_value = deserialize(payload);
-            return new Retain(real_value);
-        case "Uint8Array":
-            return payload;
-        case "Int32Array":
-            return new Int32Array(array_to_buffer(payload));
-        case "Uint32Array":
-            return new Uint32Array(array_to_buffer(payload));
-        case "Float32Array":
-            return new Float32Array(array_to_buffer(payload));
-        case "Float64Array":
-            return new Float64Array(array_to_buffer(payload));
-        default:
-            send_error("Can't deserialize custom type: " + type, null);
-    }
-}
+register_ext(104, (uint_8_array) => {
+    const key = unpack(uint_8_array);
+    return lookup_cached(key);
+});
 
-export function deserialize(data) {
-    if (!data) {
-        return data;
-    } else if (data.dom_node_selector) {
-        return update_session_dom(data);
-    } else if (Array.isArray(data)) {
-        return data.map((x) => deserialize(x));
-    } else if (is_dict(data)) {
-        if ("__javascript_type__" in data) {
-            return deserialize_datatype(data.__javascript_type__, data.payload);
+register_ext(105, (uint_8_array) => {
+    const [tag, children, attributes] = unpack(uint_8_array);
+    const node = document.createElement(tag);
+    Object.keys(attributes).forEach((key) => {
+        if (key == "class") {
+            node.className = attributes[key];
         } else {
-            const result = {};
-            for (let k in data) {
-                if (data.hasOwnProperty(k)) {
-                    result[k] = deserialize(data[k]);
-                }
-            }
-            return result;
+            node.setAttribute(key, attributes[key]);
         }
-    } else {
-        // Numbers, strings etc
-        return data;
-    }
-}
+    });
+    children.forEach((child) => node.append(child));
+    return node;
+});
+
+register_ext(106, (uint_8_array) => {
+    const [session_id, objects] = unpack(uint_8_array);
+    update_session_cache(session_id, objects);
+    return session_id
+});
+
+register_ext(107, (uint_8_array) => {
+    const [session_id, message] = unpack(uint_8_array);
+    return message
+});
+
 
 export function base64encode(data_as_uint8array) {
     // Use a FileReader to generate a base64 data URI
@@ -186,20 +196,10 @@ export function decode_base64_message(base64_string) {
 
 export function decode_binary(binary) {
     const msg_binary = Pako.inflate(binary);
-    return MsgPack.decode(msg_binary);
+    return unpack(msg_binary);
 }
 
 export function encode_binary(data) {
     const binary = MsgPack.encode(data);
     return Pako.deflate(binary);
-}
-
-export function load_module_from_bytes(code_ui8_array) {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => import(reader.result).then(resolve);
-        reader.readAsDataURL(
-            new Blob([code_ui8_array], { type: "text/javascript" })
-        );
-    });
 }

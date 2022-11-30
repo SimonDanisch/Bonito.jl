@@ -28,7 +28,6 @@ function setup_connection(session::Session{DebugConnection})
     return nothing
 end
 
-
 @testset "Page rendering & cleanup" begin
     connection = DebugConnection()
     open_session = JSServe.Session(connection; asset_server=JSServe.NoServer())

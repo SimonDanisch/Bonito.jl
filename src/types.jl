@@ -90,6 +90,8 @@ struct Session{Connection <: FrontendConnection}
     on_close::Observable{Bool}
     deregister_callbacks::Vector{Observables.ObserverFunction}
     session_objects::Dict{String, Any}
+    # For rendering Hyperscript.Node, and giving them a unique id inside the session
+    dom_uuid_counter::RefValue{Int}
 end
 
 """
@@ -132,7 +134,8 @@ function Session(connection=default_connection();
         js_comm,
         on_close,
         deregister_callbacks,
-        session_objects
+        session_objects,
+        RefValue(0)
     )
 end
 
@@ -165,7 +168,8 @@ function Session(parent::Session;
         js_comm,
         on_close,
         deregister_callbacks,
-        session_objects
+        session_objects,
+        RefValue(0)
     )
     root.children[id] = session
     return session

@@ -46,6 +46,7 @@ include("hyperscript_integration.jl")
 include("display.jl")
 include("markdown_integration.jl")
 include("serialization.jl")
+include("msgpack.jl")
 include("offline.jl")
 
 function has_html_display()

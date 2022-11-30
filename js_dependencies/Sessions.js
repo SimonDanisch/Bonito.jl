@@ -41,9 +41,8 @@ export function lookup_observable(id) {
 }
 
 function is_still_referenced(id) {
-    for (const session_id in JSServe.Sessions.SESSIONS) {
-        const [tracked_objects, allow_delete] =
-            JSServe.Sessions.SESSIONS[session_id];
+    for (const session_id in SESSIONS) {
+        const [tracked_objects, allow_delete] = SESSIONS[session_id];
         if (allow_delete && tracked_objects.has(id)) {
             // don't free if a session still holds onto it
             return true;
@@ -76,37 +75,12 @@ function free_object(id) {
     return;
 }
 
-function update_session_cache(session_id, new_session_cache) {
-    const [tracked_objects, allow_delete] = SESSIONS[session_id];
-    const new_jl_objects = deserialize(new_session_cache);
-    for (const key in new_jl_objects) {
-        // always keep track of usage in session
-        tracked_objects.add(key);
-        // object can be "tracking-only", which mean we already have it in GLOBAL_OBJECT_CACHE
-        const new_object = new_jl_objects[key];
-        if (new_object == "tracking-only") {
-            if (!(key in GLOBAL_OBJECT_CACHE)) {
-                throw new Error(
-                    `Key ${key} only send for tracking, but not already tracked!!!`
-                );
-            }
-        } else {
-            if (!(key in GLOBAL_OBJECT_CACHE)) {
-                GLOBAL_OBJECT_CACHE[key] = new_object;
-            } else {
-                console.warn(`${key} in session cache and send again!!`);
-            }
-        }
-    }
-}
-
 export function deserialize_cached(message) {
     if (message.dom_node_selector) {
         return update_session_dom(message)
     } else {
-        const { session_id, session_objects, data } = message;
-        update_session_cache(session_id, session_objects);
-        return deserialize(data);
+        const [session_id, data ] = message;
+        return data;
     }
 }
 
@@ -234,23 +208,48 @@ export function on_node_available(query_selector, timeout) {
 }
 
 export function update_session_dom(message) {
-    const { session_id, data, cache, dom_node_selector } = message;
+    const { session_id, messages, html, dom_node_selector } = message;
     on_node_available(dom_node_selector, 1).then(dom => {
-        function callback() {
-            update_session_cache(session_id, cache)
-            const message = deserialize(data)
-            const { messages, html } = message;
-            while (dom.firstChild) {
-                dom.removeChild(dom.lastChild);
-            }
-            dom.append(html)
-            process_message(messages);
-            console.log("obs session done: " + session_id);
+        while (dom.firstChild) {
+            dom.removeChild(dom.lastChild);
         }
-        console.log("initializing session!!")
-        init_session(session_id, callback, "update-session-dom");
+        dom.append(html)
+        process_message(messages);
+        console.log("obs session done: " + session_id);
     })
     return
+}
+
+export function update_session_cache(session_id, new_jl_objects) {
+    function update_cache(tracked_objects) {
+        for (const key in new_jl_objects) {
+            // always keep track of usage in session
+            tracked_objects.add(key);
+            // object can be "tracking-only", which mean we already have it in GLOBAL_OBJECT_CACHE
+            const new_object = new_jl_objects[key];
+            if (new_object == "tracking-only") {
+                if (!(key in GLOBAL_OBJECT_CACHE)) {
+                    throw new Error(
+                        `Key ${key} only send for tracking, but not already tracked!!!`
+                    );
+                }
+            } else {
+                if (!(key in GLOBAL_OBJECT_CACHE)) {
+                    GLOBAL_OBJECT_CACHE[key] = new_object;
+                } else {
+                    console.warn(`${key} in session cache and send again!!`);
+                }
+            }
+        }
+    }
+
+    const session = SESSIONS[session_id];
+
+    if (session) {
+        update_cache(session[0])
+    } else {
+        init_session(session_id, ()=> update_cache(SESSIONS[session_id][0]), "update-session-dom")
+    }
 }
 
 export { SESSIONS, GLOBAL_OBJECT_CACHE };

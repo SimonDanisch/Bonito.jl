@@ -159,6 +159,7 @@ function render_node(session::Session, node::Node)
             new_attributes[k] = rendered
         end
     end
+    # Don't copy node if nothing has changed!
     if attributes_changed || children_changed
         return Node(
             Hyperscript.context(node),
@@ -183,3 +184,47 @@ function uuid(node::Node)
 end
 
 jsrender(x::Hyperscript.Styled) = x
+
+struct SerializedNode
+    tag::String
+    children::Vector{Any}
+    attributes::Dict{String, Any}
+end
+
+function SerializedNode(session::Session, any)
+    node = jsrender(session, any)
+    if node isa Node
+        return SerializedNode(session, node)
+    else
+        return node
+    end
+end
+
+function SerializedNode(session::Session, node::Node)
+    # give each node a unique id inside the dom
+    node_children = children(node)
+    node_attrs = Hyperscript.attrs(node)
+    tag = Hyperscript.tag(node)
+
+    isempty(node_children) && isempty(node_attrs) && return SerializedNode(tag, node_children, node_attrs)
+
+    new_attributes = Dict{String, Any}()
+    newchildren = map(child-> SerializedNode(session, child), node_children)
+    for (k, v) in node_attrs
+        rendered = attribute_render(session, node, k, v)
+        # We code nothing to mean omitting the attribute!
+        if is_boolean_attribute(k)
+            if rendered isa Bool
+                if rendered
+                    # only add attribute if true!
+                    new_attributes[k] = true
+                end
+            else
+                error("Boolean attribute $(k) expects a boolean! Found: $(typeof(rendered))")
+            end
+        else
+            new_attributes[k] = rendered
+        end
+    end
+    return SerializedNode(tag, newchildren, new_attributes)
+end

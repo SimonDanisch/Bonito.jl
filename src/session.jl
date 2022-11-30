@@ -62,9 +62,9 @@ If not cached already, we call `create_cached_object` to create a serialized for
 We return nothing if already cached, or the serialized object if not cached.
 We also handle the part of adding things to the message_cache from the serialization context.
 """
-function add_cached!(create_cached_object::Function, session::Session, send_to_js::Dict{String, Any}, @nospecialize(object))
+function add_cached!(create_cached_object::Function, session::Session, send_to_js::Dict{String, Any}, @nospecialize(object))::CacheKey
     key = object_identity(object)::String
-    result = js_type("CacheKey", key)
+    result = CacheKey(key)
     # If already in session, there's nothing we need to do, since we've done the work the first time we added the object
     haskey(session.session_objects, key) && return result
     # Now, we have two code paths, depending on whether we have a child session or a root session
@@ -170,7 +170,7 @@ function Sockets.send(session::Session, message::Dict{Symbol, Any})
     end
 end
 
-function send_serialized(session::Session, serialized_message::Dict{Symbol, Any})
+function send_serialized(session::Session, serialized_message)
     if isready(session)
         @assert isempty(session.message_queue)
         binary = transcode(GzipCompressor, MsgPack.pack(serialized_message))
@@ -375,6 +375,17 @@ function render_subsession(parent::Session, dom::Node)
     return sub, session_dom(sub, dom_rendered; init=false)
 end
 
+struct SerializedMessage
+    bytes::Vector{UInt8}
+end
+
+function SerializedMessage(session::Session, message)
+    ctx = SerializationContext(session)
+    message_data = serialize_cached(ctx, message)
+    bytes = MsgPack.pack([SessionCache(session.id, ctx.message_cache), message_data])
+    return SerializedMessage(bytes)
+end
+
 function update_session_dom!(parent::Session, node_to_update::Union{String, Node}, app_or_dom)
     sub, html = render_subsession(parent, app_or_dom)
 
@@ -398,18 +409,14 @@ function update_session_dom!(parent::Session, node_to_update::Union{String, Node
             })
         """)
     else
-        session_data = Dict(
-            :messages => fused_messages!(sub),
-            :html => html
+        session_update = Dict(
+            "msg_type" => "UpdateSession",
+            "session_id" => sub.id,
+            "messages" => fused_messages!(sub),
+            "html" => html,
+            "dom_node_selector" => query_selector
         )
-        ctx = SerializationContext(sub)
-        data = serialize_cached(ctx, session_data)
-        message = Dict(
-            :session_id => sub.id,
-            :data => data,
-            :cache => ctx.message_cache,
-            :dom_node_selector => query_selector
-        )
+        message = SerializedMessage(sub, session_update)
         send_serialized(parent, message)
     end
 end
