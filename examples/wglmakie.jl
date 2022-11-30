@@ -1,14 +1,14 @@
-using JSServe
-using WGLMakie
+using JSServe, WGLMakie
 using GeometryBasics
 using FileIO
-using WGLMakie: px
 using JSServe: @js_str, onjs, App, Slider
 using JSServe.DOM
-
 JSServe.browser_display()
 
 set_theme!(resolution=(1200, 800))
+
+hbox(args...) = DOM.div(args...)
+vbox(args...) = DOM.div(args...)
 
 app = App() do
     return hbox(
@@ -22,17 +22,14 @@ app = App() do
         vbox(
             scatter(1:4, marker='☼'),
             scatter(1:4, marker=['☼', '◒', '◑', '◐']),
-            scatter(1:4, marker="☼◒◑◐"),
-            # scatter(1:4, marker=rand(RGBf, 10, 10), markersize=20px),
-            scatter(1:4, markersize=20px),
-            scatter(1:4, markersize=20, markerspace=Pixel),
-            scatter(1:4, markersize=LinRange(20, 60, 4), markerspace=Pixel),
-            scatter(1:4, marker='▲', markersize=0.3, rotations=LinRange(0, pi, 4)),
+            scatter(1:4, marker=rand(RGBf, 10, 10), markersize=20),
+            scatter(1:4, markersize=20),
+            scatter(1:4, markersize=20, markerspace=:pixel),
+            scatter(1:4, markersize=LinRange(20, 60, 4), markerspace=:pixel),
+            scatter(1:4, marker='▲', markersize=0.3, markerspace=:data, rotations=LinRange(0, pi, 4)),
         )
     )
 end
-
-display(app)
 
 app = App() do
     return DOM.div(
@@ -45,7 +42,6 @@ app = App() do
     )
 end
 
-display(app)
 
 
 app = App() do
@@ -61,7 +57,6 @@ app = App() do
     )
 end
 
-display(app)
 
 app = App() do
     x = Point2f[(1, 1), (2, 2), (3, 2), (4, 4)]
@@ -76,19 +71,15 @@ app = App() do
     )
 end
 
-display(app)
-
 app = App() do
-    data = AbstractPlotting.peaks()
+    data = Makie.peaks()
     return hbox(vbox(
-        surface(-10..10, -10..10, data, show_axis=false),
+        surface(-10..10, -10..10, data, axis=(; show_axis=false)),
         surface(-10..10, -10..10, data, color=rand(size(data)...))),
         vbox(surface(-10..10, -10..10, data, color=rand(RGBf, size(data)...)),
         surface(-10..10, -10..10, data, colormap=:magma, colorrange=(0.0, 2.0)),
     ))
 end
-
-display(app)
 
 app = App() do
     return vbox(
@@ -101,7 +92,7 @@ app = App() do
     )
 end
 
-display(app)
+using WGLMakie: volume
 
 app = App() do
     return hbox(vbox(
@@ -115,21 +106,16 @@ app = App() do
     ))
 end
 
-display(app)
-
-
 app = App() do
-    cat = FileIO.load(MakieGallery.assetpath("cat.obj"))
-    tex = FileIO.load(MakieGallery.assetpath("diffusemap.png"))
+    cat = FileIO.load(Makie.assetpath("cat.obj"))
+    tex = FileIO.load(Makie.assetpath("diffusemap.png"))
     return hbox(vbox(
-        AbstractPlotting.mesh(Circle(Point2f(0), 1f0)),
-        AbstractPlotting.poly(decompose(Point2f, Circle(Point2f(0), 1f0)))), vbox(
-        AbstractPlotting.mesh(cat, color=tex),
-        AbstractPlotting.mesh([(0.0, 0.0), (0.5, 1.0), (1.0, 0.0)]; color=[:red, :green, :blue], shading=false)
+        Makie.mesh(Circle(Point2f(0), 1f0)),
+        Makie.poly(decompose(Point2f, Circle(Point2f(0), 1f0)))), vbox(
+        Makie.mesh(cat, color=tex),
+        Makie.mesh([(0.0, 0.0), (0.5, 1.0), (1.0, 0.0)]; color=[:red, :green, :blue], shading=false)
     ))
 end
-
-display(app)
 
 function n_times(f, n=10, interval=0.5)
     obs = Observable(f(1))
@@ -160,70 +146,27 @@ end
 
 app = App() do
     s1 = annotations(n_times(i-> map(j-> ("$j", Point2f(j*30, 0)), 1:i)), textsize=20,
-                      limits=Rect2f(30, 0, 320, 50))
+                      axis=(;limits=(30, 320, -5, 5)))
     s2 = scatter(n_times(i-> Point2f.((1:i).*30, 0)), markersize=20px,
-                  limits=Rect2f(30, 0, 320, 50))
-    s3 = linesegments(n_times(i-> Point2f.((2:2:2i).*30, 0)), limits=Rect2f(30, 0, 620, 50))
-    s4 = lines(n_times(i-> Point2f.((2:2:2i).*30, 0)), limits=Rect2f(30, 0, 620, 50))
+                  axis=(;limits=(30, 320, -5, 5)))
+    s3 = linesegments(n_times(i-> Point2f.((2:2:2i).*30, 0)), axis=(;limits=(30, 620, -5, 5)))
+    s4 = lines(n_times(i-> Point2f.((2:2:2i).*30, 0)), axis=(;limits=(30, 620, -5, 5)))
     return hbox(s1, s2, s3, s4)
 end
 
-display(app)
-
-
 app = App() do
     outer_padding = 30
-    scene, layout = layoutscene(
-        outer_padding, resolution=(1200, 700),
-        backgroundcolor=RGBf(0.98, 0.98, 0.98)
+    fig = Figure(
+        figure_padding =outer_padding, resolution=(1200, 700),
+        backgroundcolor = RGBf(0.98, 0.98, 0.98)
     )
-    ax1 = layout[1, 1] = LAxis(scene, title="Sine")
+    ax1 = Axis(fig[1,1], title="Sine")
     xx = 0:0.2:4pi
     line1 = lines!(ax1, sin.(xx), xx, color=:red)
     scat1 = scatter!(ax1, sin.(xx) .+ 0.2 .* randn.(), xx,
         color=(:red, 0.5), markersize=15px, marker='■')
-    return scene
+    return fig
 end
-
-display(app)
-
-
-app = App() do
-    scene = Scene(resolution=(1000, 1000));
-    campixel!(scene);
-
-    maingl = GridLayout(scene, alignmode=Outside(30))
-
-    las = Array{LAxis,2}(undef, 4, 4)
-
-    for i in 1:4, j in 1:4
-        las[i, j] = maingl[i, j] = LAxis(scene)
-    end
-
-    las[4, 1].attributes.aspect = AxisAspect(1)
-    las[4, 2].attributes.aspect = AxisAspect(2)
-    las[4, 3].attributes.aspect = AxisAspect(0.5)
-    las[4, 4].attributes.aspect = nothing
-    las[1, 1].attributes.maxsize = (Inf, Inf)
-    las[1, 2].attributes.aspect = nothing
-    las[1, 3].attributes.aspect = nothing
-
-    subgl = gridnest!(maingl, 1, 1)
-    cb1 = subgl[:, 2] = LColorbar(scene, width=30, height=Relative(0.66))
-
-    subgl2 = gridnest!(maingl, 1:2, 1:2)
-    cb2 = subgl2[:, 3] = LColorbar(scene, width=30, height=Relative(0.66))
-
-    subgl3 = gridnest!(maingl, 1:3, 1:3)
-    cb3 = subgl3[:, 4] = LColorbar(scene, width=30, height=Relative(0.66))
-
-    subgl4 = gridnest!(maingl, 1:4, 1:4)
-    cb4 = subgl4[:, 5] = LColorbar(scene, width=30, height=Relative(0.66))
-    return scene
-
-end
-
-display(app)
 
 
 app = App() do
@@ -232,10 +175,9 @@ app = App() do
     chars = [collect('a':'z'); 0:9;]
     char2 = [collect('A':'Z'); 0:9;]
     tex1 = map(x->map(j-> ("$(chars[rand(1:length(chars))])", Point2f(j*30, 0)), 1:36), sl)
+    on(println, tex1)
     tex2 = map(x->map(j-> ("$(char2[rand(1:length(char2))])", Point2f(j*30, 1)), 1:36), sl)
-    scene = annotations(tex1, textsize=20, limits=rect, show_axis=false)
-    annotations!(scene, tex2, textsize=20, limits=rect, show_axis=false)
-    return DOM.div(sl, scene)
+    fig, ax, pl = text(tex1, textsize=20)
+    text!(ax, tex2, textsize=20)
+    return DOM.div(sl, fig)
 end
-
-display(app)
