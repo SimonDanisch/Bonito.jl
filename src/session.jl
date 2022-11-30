@@ -160,6 +160,10 @@ Send values to the frontend via JSON for now
 Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
+    send(session, SerializedMessage(session, message))
+end
+
+function Sockets.send(session::Session, message::SerializedMessage)
     if isready(session)
         # if connection is open, we should never queue up messages
         @assert isempty(session.message_queue)
@@ -167,16 +171,6 @@ function Sockets.send(session::Session, message::Dict{Symbol, Any})
         write(session.connection, binary)
     else
         push!(session.message_queue, message)
-    end
-end
-
-function send_serialized(session::Session, serialized_message)
-    if isready(session)
-        @assert isempty(session.message_queue)
-        binary = transcode(GzipCompressor, MsgPack.pack(serialized_message))
-        write(session.connection, binary)
-    else
-        push!(session.message_queue, serialized_message)
     end
 end
 
@@ -375,17 +369,6 @@ function render_subsession(parent::Session, dom::Node)
     return sub, session_dom(sub, dom_rendered; init=false)
 end
 
-struct SerializedMessage
-    bytes::Vector{UInt8}
-end
-
-function SerializedMessage(session::Session, message)
-    ctx = SerializationContext(session)
-    message_data = serialize_cached(ctx, message)
-    bytes = MsgPack.pack([SessionCache(session.id, ctx.message_cache), message_data])
-    return SerializedMessage(bytes)
-end
-
 function update_session_dom!(parent::Session, node_to_update::Union{String, Node}, app_or_dom)
     sub, html = render_subsession(parent, app_or_dom)
 
@@ -402,10 +385,7 @@ function update_session_dom!(parent::Session, node_to_update::Union{String, Node
         obs = Observable(html)
         evaljs(parent, js"""
             JSServe.Sessions.on_node_available($query_selector, 1).then(dom => {
-                while (dom.firstChild) {
-                    dom.removeChild(dom.lastChild);
-                }
-                dom.append($(obs).value)
+                dom.parentNode.replaceChild($(obs).value, dom)
             })
         """)
     else
@@ -417,7 +397,7 @@ function update_session_dom!(parent::Session, node_to_update::Union{String, Node
             "dom_node_selector" => query_selector
         )
         message = SerializedMessage(sub, session_update)
-        send_serialized(parent, message)
+        send(parent, message)
     end
 end
 

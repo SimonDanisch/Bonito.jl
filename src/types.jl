@@ -67,6 +67,10 @@ mutable struct SubConnection <: FrontendConnection
     isopen::Bool
 end
 
+struct SerializedMessage
+    bytes::Vector{UInt8}
+end
+
 """
 A web session with a user
 """
@@ -79,7 +83,7 @@ struct Session{Connection <: FrontendConnection}
     connection::Connection
     # The way we serve any file asset
     asset_server::AbstractAssetServer
-    message_queue::Vector{Dict{Symbol, Any}}
+    message_queue::Vector{SerializedMessage}
     # Code that gets evalued last after all other messages, when session gets connected
     on_document_load::Vector{JSCode}
     connection_ready::Channel{Bool}
@@ -92,6 +96,13 @@ struct Session{Connection <: FrontendConnection}
     session_objects::Dict{String, Any}
     # For rendering Hyperscript.Node, and giving them a unique id inside the session
     dom_uuid_counter::RefValue{Int}
+end
+
+function SerializedMessage(session::Session, message)
+    ctx = SerializationContext(session)
+    message_data = serialize_cached(ctx, message)
+    bytes = MsgPack.pack([SessionCache(session.id, ctx.message_cache), message_data])
+    return SerializedMessage(bytes)
 end
 
 """
@@ -110,7 +121,7 @@ end
 function Session(connection=default_connection();
                 id=string(uuid4()),
                 asset_server=default_asset_server(),
-                message_queue=Dict{Symbol, Any}[],
+                message_queue=SerializedMessage[],
                 on_document_load=JSCode[],
                 connection_ready=Channel{Bool}(1),
                 on_connection_ready=init_session,
@@ -142,7 +153,7 @@ end
 function Session(parent::Session;
             id=string(uuid4()),
             asset_server=parent.asset_server,
-            message_queue=Dict{Symbol, Any}[],
+            message_queue=SerializedMessage[],
             on_document_load=JSCode[],
             connection_ready=Channel{Bool}(1),
             on_connection_ready=init_session,

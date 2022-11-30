@@ -168,7 +168,6 @@ app = App() do
     return fig
 end
 
-
 app = App() do
     sl = JSServe.Slider(1:10)
     rect = Rect2f(0, -5, 1025, 10)

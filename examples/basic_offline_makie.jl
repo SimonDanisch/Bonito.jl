@@ -26,7 +26,8 @@ app = App() do session
     sliders = rows(m_slider, h_slider)
     dom = DOM.div(JSServe.Styling, JSServe.TailwindCSS, columns(sliders, plot))
     return JSServe.record_states(session, dom)
-end;
+end
+
 
 # mkdir("simple")
 JSServe.export_static("simple", app)

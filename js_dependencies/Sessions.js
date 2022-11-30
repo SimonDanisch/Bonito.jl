@@ -76,8 +76,8 @@ function free_object(id) {
 }
 
 export function deserialize_cached(message) {
-    if (message.dom_node_selector) {
-        return update_session_dom(message)
+    if (message.msg_type) {
+        return message
     } else {
         const [session_id, data ] = message;
         return data;
@@ -97,7 +97,7 @@ export function track_deleted_sessions() {
                 mutation.removedNodes.forEach((x) => {
                     if (x.id in SESSIONS) {
                         const status = SESSIONS[x.id][1];
-                        if (status == "delete") {
+                        if (status === "delete") {
                             to_delete.add(x.id);
                         }
                     } else {
@@ -108,10 +108,10 @@ export function track_deleted_sessions() {
             // removal occured from elements not matching the id!
             if (removal_occured) {
                 Object.keys(SESSIONS).forEach((id) => {
-                    const allow_delete = SESSIONS[id][1];
-                    if (allow_delete == "delete") {
+                    const status = SESSIONS[id][1];
+                    if (status === "delete") {
                         if (!document.getElementById(id)) {
-                            console.log(
+                            console.debug(
                                 `adding session to delete candidates: ${id}`
                             );
                             // the ROOT session may survive without being in the dom anymore
@@ -156,14 +156,14 @@ export function init_session(session_id, on_connection_open, session_status) {
 }
 
 export function close_session(session_id) {
-    const [session_objects, allow_delete] = SESSIONS[session_id];
+    const [session_objects, status] = SESSIONS[session_id];
     const root_node = document.getElementById(session_id);
     if (root_node) {
         root_node.style.display = "none";
         root_node.parentNode.removeChild(root_node);
     }
-    if (allow_delete) {
-        send_close_session(session_id, allow_delete);
+    if (status === "delete") {
+        send_close_session(session_id, status);
         SESSIONS[session_id] = [session_objects, false];
     }
     return;
@@ -210,10 +210,7 @@ export function on_node_available(query_selector, timeout) {
 export function update_session_dom(message) {
     const { session_id, messages, html, dom_node_selector } = message;
     on_node_available(dom_node_selector, 1).then(dom => {
-        while (dom.firstChild) {
-            dom.removeChild(dom.lastChild);
-        }
-        dom.append(html)
+        dom.parentNode.replaceChild(html, dom)
         process_message(messages);
         console.log("obs session done: " + session_id);
     })
@@ -248,6 +245,7 @@ export function update_session_cache(session_id, new_jl_objects) {
     if (session) {
         update_cache(session[0])
     } else {
+        // we can update the session cache for a not yet registered session, which we then need to register first:
         init_session(session_id, ()=> update_cache(SESSIONS[session_id][0]), "update-session-dom")
     }
 }

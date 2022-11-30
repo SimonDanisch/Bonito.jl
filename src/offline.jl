@@ -34,13 +34,8 @@ function record_values(f, session, widget)
     empty!(session.message_queue)
     try
         f()
-        messages = filter(session.message_queue) do msg
-            # filter out the event that triggers updating the obs
-            # we actually update on js already
-            !(msg[:msg_type] == UpdateObservable &&
-                msg[:id] == observe(widget).id)
-        end
-        return Dict(:msg_type => FusedMessage, :payload => messages)
+        messages = copy(session.message_queue)
+        return Dict("msg_type" => FusedMessage, "payload" => messages)
     catch e
         Base.showerror(stderr, e)
     end
@@ -66,7 +61,7 @@ function record_states(session::Session, dom::Hyperscript.Node)
 
     while_disconnected(session) do
         for widget in independent
-            state = Dict{Any, Dict{Symbol,Any}}()
+            state = Dict{Any, Dict{String, Any}}()
             for value in value_range(widget)
                 state[value] = record_values(session, widget) do
                     update_value!(widget, value)

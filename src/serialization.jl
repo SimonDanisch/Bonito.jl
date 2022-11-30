@@ -38,13 +38,18 @@ function serialize_cached(context::SerializationContext, asset::Asset)
     end
 end
 
+struct SerializedObservable
+    id::String
+    value::Any
+end
+
 function serialize_cached(context::SerializationContext, obs::Observable)
     return add_cached!(context.session, context.message_cache, obs) do
         root = root_session(context.session)
         updater = JSUpdateObservable(root, obs.id)
         deregister = on(updater, root, obs)
         push!(context.session.deregister_callbacks, deregister)
-        return obs
+        return SerializedObservable(obs.id, serialize_cached(context, obs[]))
     end
 end
 
@@ -132,6 +137,10 @@ serialize_cached(::SerializationContext, native::AbstractVector{<: Number}) = na
 function serialize_binary(session::Session, @nospecialize(obj))
     data = serialize_cached(session, obj)
     return transcode(GzipCompressor, MsgPack.pack(data))
+end
+
+function serialize_binary(session::Session, msg::SerializedMessage)
+    return transcode(GzipCompressor, MsgPack.pack(msg))
 end
 
 function serialize_string(session::Session, @nospecialize(obj))

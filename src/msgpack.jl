@@ -33,10 +33,9 @@ function MsgPack.to_msgpack(EXT::MsgPack.ExtensionType, x::AbstractVector{Float1
 end
 
 const OBSERVABLE_TAG = Int8(100)
-MsgPack.msgpack_type(::Type{<: Observable}) = MsgPack.ExtensionType()
-function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::Observable)
-    val = Observables.to_value(x)
-    return MsgPack.Extension(OBSERVABLE_TAG, pack([x.id, val]))
+MsgPack.msgpack_type(::Type{<: SerializedObservable}) = MsgPack.ExtensionType()
+function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedObservable)
+    return MsgPack.Extension(OBSERVABLE_TAG, pack([x.id, x.value]))
 end
 
 const ASSET_TAG = Int8(101)
