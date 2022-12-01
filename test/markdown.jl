@@ -153,6 +153,7 @@ inline_display = JSServe.App() do session, req
     global dom = test_handler(session, req)
     return dom
 end;
+JSServe.CURRENT_SESSION[] = nothing
 electron_disp = electrondisplay(inline_display);
 app = TestSession(URI("http://localhost:8555/show"),
                   JSServe.HTTPServer.GLOBAL_SERVER[], electron_disp, test_session)

@@ -112,7 +112,7 @@ function delete_cached!(root::Session, key::String)
         object = pop!(root.session_objects, key)
         if object isa Observable
             # unregister all listeners updating the session
-            filter!(object.listeners) do f
+            filter!(object.listeners) do (prio, f)
                 !(f isa JSUpdateObservable && f.session === root)
             end
         end
@@ -394,7 +394,10 @@ function update_session_dom!(parent::Session, node_to_update::Union{String, Node
         obs = Observable(html)
         evaljs(parent, js"""
             JSServe.Sessions.on_node_available($query_selector, 1).then(dom => {
-                dom.parentNode.replaceChild($(obs).value, dom)
+                while (dom.childElementCount > 0) {
+                    dom.removeChild(dom.firstChild)
+                }
+                dom.append($(obs).value)
             })
         """)
     else

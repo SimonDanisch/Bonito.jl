@@ -102,6 +102,13 @@ function decode_extension_and_addbits(ext::MsgPack.Extension)
         elseif  RETAIN_TAG == ext.type
             value = MsgPack.unpack(ext.data)
             return Retain(decode_extension_and_addbits(value))
+        elseif  SESSION_CACHE_TAG == ext.type
+            value = decode_extension_and_addbits(MsgPack.unpack(ext.data))
+            return SessionCache(value...)
+        elseif  JSCODE_TAG == ext.type
+            value = decode_extension_and_addbits(MsgPack.unpack(ext.data))
+            # MsgPack.Extension(JSCODE_TAG, pack([x.interpolated_objects, x.source, x.julia_file]))
+            return JSCode([JSString(value[2])], value[3])
         else
             idx = Int(ext.type - 0x10)
             if checkbounds(Bool, JSTypedArrayEltypes, idx)

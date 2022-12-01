@@ -1,7 +1,6 @@
-import { deserialize, Retain } from "./Protocol.js";
+import { Retain } from "./Protocol.js";
 import {
     register_on_connection_open,
-    send_error,
     send_close_session,
     send_warning,
     send_done_loading,

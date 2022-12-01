@@ -6,14 +6,17 @@
     sdom = JSServe.session_dom(session, dom)
     msg = JSServe.fused_messages!(session)
     data = JSServe.serialize_cached(session, msg)
+    decoded = JSServe.deserialize(msg[:payload][1]) |> JSServe.decode_extension_and_addbits
     @test haskey(session.session_objects, obs1.id)
     # Obs registered correctly
     @test obs1.listeners[1][2] isa JSServe.JSUpdateObservable
-    @test haskey(data[:session_objects], obs1.id)
+    session_cache = decoded[1]
+    @test session_cache isa JSServe.SessionCache
+    @test haskey(session_cache.objects, obs1.id)
 
     # Will deregisters correctly on session close
     @test session.deregister_callbacks[1].observable === obs1
-    @test occursin("JSServe.update_node_attribute", string(msg[:payload][1][:payload]))
+    @test occursin("JSServe.update_node_attribute", string(decoded[2]["payload"]))
 end
 
 struct DebugConnection <: JSServe.FrontendConnection
@@ -28,7 +31,7 @@ function setup_connection(session::Session{DebugConnection})
     return nothing
 end
 
-@testset "Page rendering & cleanup" begin
+@testset "Session & Subsession rendering & cleanup" begin
     connection = DebugConnection()
     open_session = JSServe.Session(connection; asset_server=JSServe.NoServer())
     put!(open_session.connection_ready, true)
@@ -60,9 +63,13 @@ end
         @test open_session.session_objects[JSServe.object_identity(JSServe.noUiSlider)] === JSServe.noUiSlider
     end
 
-    for obs_field in (:range, :value, :connect, :orientation, :tooltips, :ticks)
+    @testset "observable $(obs_field)" for obs_field in (:range, :value, :connect, :orientation, :tooltips, :ticks)
         obs = getfield(rslider, obs_field)
         @test length(obs.listeners) == 1
+        if obs_field == :value
+            @test haskey(open_session.session_objects, obs.id)
+            @test obs.listeners[1][2] isa JSServe.JSUpdateObservable
+        end
     end
 
     @testset "closing" begin
@@ -91,7 +98,6 @@ end
         close(session)
         @test !haskey(open_session.children, session.id)
     end
-
 end
 
 

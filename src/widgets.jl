@@ -80,9 +80,7 @@ function jsrender(session::Session, slider::RangeSlider)
     onload(session, rangediv, js"""function onload(range){
         const style = $(style[]);
         $(noUiSlider).then(NUS=> {
-            console.log(NUS)
             NUS.create(range, style);
-            console.log(range)
             range.noUiSlider.on('update', function (values, handle, unencoded, tap, positions){
                 $(slider.value).notify([parseFloat(values[0]), parseFloat(values[1])]);
             });
