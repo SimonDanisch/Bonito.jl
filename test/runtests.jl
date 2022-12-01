@@ -50,7 +50,7 @@ function test_value(app, statement)
 end
 
 @testset "JSServe" begin
-    # @testset "serialization" begin; include("serialization.jl"); end
+    @testset "serialization" begin; include("serialization.jl"); end
     @testset "checkbox" begin; include("checkbox.jl"); end
     # @testset "various" begin; include("various.jl"); end
     @testset "markdown" begin; include("markdown.jl"); end
