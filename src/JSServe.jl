@@ -60,7 +60,7 @@ function has_html_display()
 end
 
 # Core functionality
-export Page, Session, App, DOM, @js_str
+export Page, Session, App, DOM, @js_str, ES6Module
 export Slider, Button
 export browser_display, configure_server!, Server, html, route!
 

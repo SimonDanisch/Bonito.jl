@@ -10,3 +10,5 @@
 yarn.lock
 package.json
 node_modules
+docs/build
+docs/Manifest.toml

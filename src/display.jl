@@ -2,6 +2,15 @@ Base.showable(::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}
 
 const CURRENT_SESSION = Ref{Union{Nothing, Session}}(nothing)
 
+function Page()
+    old_session = CURRENT_SESSION[]
+    if !isnothing(old_session)
+        close(old_session)
+    end
+    CURRENT_SESSION[] = nothing
+    return
+end
+
 function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
     if !isnothing(CURRENT_SESSION[])
         # We render in a subsession
@@ -10,7 +19,7 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
         dom = session_dom(sub, app)
     else
         session = Session()
-        if use_parent_session(session)
+        if _use_parent_session(session)
             CURRENT_SESSION[] = session
             empty_app = App(()-> nothing)
             sub = Session(session)

@@ -1,5 +1,20 @@
+# JSServe Introduction
+
+```@setup 1
+using JSServe
+JSServe.Page()
+```
+
+```@example 1
 using JSServe
 
+App() do
+    DOM.h1("hello world")
+end
+```
+
+
+```@example 1
 # Javascript & CSS dependencies can be declared locally and
 # freely interpolated in the DOM / js string, and will make sure it loads
 # Note, that they will be a `Promise` though, so to use them you need to call `module.then(module=> ...)`.
@@ -33,3 +48,4 @@ app = App() do session, request
     """)
     return dom
 end
+```

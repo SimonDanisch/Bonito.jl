@@ -1,6 +1,5 @@
 # Assets
 
-
 ```julia
 some_file = Asset("path/to/local/file")
 # ES6Module creates an Asset with the flags set appropriately to
@@ -11,9 +10,13 @@ jsmodule = ES6Module("path/to/local/es6module.js")::Asset
 js"""
 // this will result in importing jsmodule
 // Doing this in many places will only import jsmodule once
-const {the, funcs, you, want} = $(jsmodule)
+$(jsmodule).then(jsmodule=> {
+    // Do something with the module :)
+})
 // This will give you the raw bytes as a Uint8Array
-const raw_file_bytes = $(some_file)
+$(some_file).then(raw_bytes => {
+    // do something with bytes
+})
 """
 
 # This will resolve to a valid URL depending on the used asset server

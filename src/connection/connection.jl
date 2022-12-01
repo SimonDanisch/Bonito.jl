@@ -37,6 +37,7 @@ This is handy for IJulia/Pluto, since the parent session just needs to be initia
 JSServe.use_parent_session(::Session{MyConnection}) = false/false
 ```
 """
+FrontendConnection
 
 # Save some bytes by using ints for switch variable
 const UpdateObservable = "0"
@@ -49,7 +50,6 @@ const JSDoneLoading = "8"
 const FusedMessage = "9"
 const CloseSession = "10"
 const PingPong = "11"
-
 
 function get_session(session::Session, id::String)
     session.id == id && return session
@@ -186,6 +186,14 @@ register_connection!(WebSocketConnection) do
     return WebSocketConnection()
 end
 
+register_connection!(NoConnection) do
+    if isdefined(Main, :Documenter)
+        force_subsession!(true)
+        return NoConnection()
+    end
+    return nothing
+end
+
 register_connection!(IJuliaConnection) do
     isdefined(Main, :IJulia) && IJuliaConnection()
     return nothing
@@ -206,6 +214,20 @@ function default_connection()
             isnothing(conn_or_nothing) || return conn_or_nothing
         end
         error("No connection found. This can only happen if someone messed with `JSServe.AVAILABLE_CONNECTIONS`")
+    end
+end
+
+const FORCE_SUBSESSION_RENDERING = Base.RefValue(false)
+
+function force_subsession!(use_subsession::Bool=false)
+    FORCE_SUBSESSION_RENDERING[] = use_subsession
+end
+
+function _use_parent_session(session::Session)
+    if FORCE_SUBSESSION_RENDERING[]
+        return true
+    else
+        return use_parent_session(session)
     end
 end
 

@@ -2,6 +2,11 @@
 
 ## Connection
 
+```@setup 1
+using JSServe
+JSServe.Page()
+```
+
 
 ```Julia
 
