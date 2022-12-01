@@ -32,12 +32,16 @@ function while_locking_free(f, id) {
     });
 }
 
-export function lookup_observable(id) {
-    const object = GLOBAL_OBJECT_CACHE[id];
-    if (!object) {
-        send_error(`Could not find ${id} in global cache.`);
+export function lookup_global_object(key) {
+    const object = GLOBAL_OBJECT_CACHE[key];
+    if (object) {
+        if (object instanceof Retain) {
+            return object.value;
+        } else {
+            return object;
+        }
     }
-    return object;
+    throw new Error(`Key ${key} not found! ${object}`);
 }
 
 function is_still_referenced(id) {

@@ -32,12 +32,16 @@ update_value!(slider::Slider, value) = (slider.value[] = value)
 
 function record_values(f, session, widget)
     empty!(session.message_queue)
+    wid = observe(widget).id
+    session.ignore_message[] = (msg) -> (msg[:msg_type] == UpdateObservable && msg[:id] == wid)
     try
         f()
         messages = copy(session.message_queue)
         return Dict("msg_type" => FusedMessage, "payload" => messages)
     catch e
         Base.showerror(stderr, e)
+    finally
+        session.ignore_message[] = (msg)-> false
     end
 end
 
@@ -77,10 +81,14 @@ function record_states(session::Session, dom::Hyperscript.Node)
     statemap_script = js"""
         const statemap = $(independent_states)
         const observables = $(observable_ids)
+        console.log(statemap)
         observables.forEach(id => {
-            JSServe.lookup_observable(id).on((val) => {
+            JSServe.lookup_global_object(id).on((val) => {
                 // messages to send for this state of that observable
                 const messages = statemap[id][val]
+                console.log(id)
+                console.log(val)
+                console.log(messages)
                 // not all states trigger events
                 // so some states won't have any messages recorded
                 if (messages){

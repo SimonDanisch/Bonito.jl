@@ -1,5 +1,5 @@
 import { encode_binary } from "./Protocol.js";
-import { lookup_observable, update_session_dom } from "./Sessions.js";
+import { lookup_global_object, update_session_dom } from "./Sessions.js";
 
 // Save some bytes by using ints for switch variable
 const UpdateObservable = "0";
@@ -26,11 +26,11 @@ Registers a callback that gets called
 export function register_on_connection_open(callback, session_id) {
     CONNECTION.connection_open_callback = function () {
         // `callback` CAN return a promise. If not, we turn it into one!
-        const promise = Promise.resolve(callback())
+        const promise = Promise.resolve(callback());
         // once the callback promise resolves, we're FINALLY done and call done_loading
         // which will signal the Julia side that EVERYTHING is set up!
-        promise.then(() => send_done_loading(session_id))
-    }
+        promise.then(() => send_done_loading(session_id));
+    };
 }
 
 export function on_connection_open(send_message_callback) {
@@ -39,7 +39,7 @@ export function on_connection_open(send_message_callback) {
     // Once connection open, we send all messages that have queued up
     CONNECTION.queue.forEach((message) => send_to_julia(message));
     // then we signal, that our connection is open and unqueued, which can run further callbacks!
-    CONNECTION.connection_open_callback()
+    CONNECTION.connection_open_callback();
 }
 
 export function on_connection_close() {
@@ -47,7 +47,7 @@ export function on_connection_close() {
 }
 
 export function send_to_julia(message) {
-    const {send_message, status} = CONNECTION;
+    const { send_message, status } = CONNECTION;
     if (send_message && status === "open") {
         send_message(encode_binary(message));
     } else if (status === "closed") {
@@ -89,11 +89,11 @@ export function send_done_loading(session) {
 }
 
 export function send_close_session(session, subsession) {
-    console.log(`closing ${session}`)
+    console.log(`closing ${session}`);
     send_to_julia({
         msg_type: CloseSession,
         session,
-        subsession
+        subsession,
     });
 }
 
@@ -101,7 +101,7 @@ export function process_message(data) {
     if (!data) {
         // there are messages, that will be processed in Sessions.js (e.g. `update_session_dom`).
         // in that case, `deserialize_cached` will return null, which is then fed by the connection into process_message
-        return // in that case we ignore the message
+        return; // in that case we ignore the message
     }
     try {
         switch (data.msg_type) {
@@ -109,7 +109,7 @@ export function process_message(data) {
                 // this is a bit annoying...Better would be to let deserialization look up the observable
                 // and just do data.observable.notify
                 // But this is more efficient, which matters for such hot function (i think, lol)
-                const observable = lookup_observable(data.id);
+                const observable = lookup_global_object(data.id);
                 observable.notify(data.payload, true);
                 break;
             case OnjsCallback:
@@ -129,7 +129,7 @@ export function process_message(data) {
                 break;
             case "UpdateSession":
                 // just getting a ping, nothing to do here :)
-                update_session_dom(data)
+                update_session_dom(data);
                 break;
             default:
                 throw new Error(
@@ -149,5 +149,5 @@ export {
     JavascriptWarning,
     RegisterObservable,
     JSDoneLoading,
-    FusedMessage
+    FusedMessage,
 };

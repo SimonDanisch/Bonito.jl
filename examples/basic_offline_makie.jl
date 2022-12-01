@@ -14,8 +14,8 @@ cat = decompose(Point3f, load(Makie.assetpath("cat.obj")))
 # Create a little interactive app
 app = App() do session
     global sess = session
-    global markersize = JSServe.Slider(range(1, stop=2, length=2))
-    hue_slider = JSServe.Slider(1:2)
+    global markersize = JSServe.Slider(range(1, stop=2, length=10))
+    hue_slider = JSServe.Slider(1:120)
     color = map(hue_slider) do hue
         HSV(hue, 0.5, 0.5)
     end
@@ -27,7 +27,6 @@ app = App() do session
     dom = DOM.div(JSServe.Styling, JSServe.TailwindCSS, columns(sliders, plot))
     return JSServe.record_states(session, dom)
 end
-
 
 # mkdir("simple")
 JSServe.export_static("simple", app)

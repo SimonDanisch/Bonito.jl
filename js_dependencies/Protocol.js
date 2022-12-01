@@ -4,8 +4,8 @@ import * as Pako from "https://cdn.esm.sh/v66/pako@2.0.4/es2021/pako.js";
 import { Observable } from "./Observables.js";
 import {
     deserialize_cached,
-    GLOBAL_OBJECT_CACHE,
     update_session_cache,
+    lookup_global_object,
 } from "./Sessions.js";
 
 export class Retain {
@@ -20,7 +20,7 @@ const EXTENSION_CODEC = new MsgPack.ExtensionCodec();
  * @param {Uint8Array} uint8array
  */
 function unpack(uint8array) {
-    return MsgPack.decode(uint8array, { extensionCodec: EXTENSION_CODEC })
+    return MsgPack.decode(uint8array, { extensionCodec: EXTENSION_CODEC });
 }
 
 function array_to_buffer(array) {
@@ -40,7 +40,7 @@ function reinterpret_array(ArrayType, uint8array) {
         // console.log(ArrayType)
         // console.log(uint8array.byteOffset)
         // console.log(uint8array.byteLength)
-        return new ArrayType(array_to_buffer(uint8array))
+        return new ArrayType(array_to_buffer(uint8array));
         // return new ArrayType(
         //     uint8array.buffer,
         //     uint8array.byteOffset,
@@ -52,8 +52,7 @@ function reinterpret_array(ArrayType, uint8array) {
 function register_ext_array(type_tag, array_type) {
     EXTENSION_CODEC.register({
         type: type_tag,
-        decode: (uint8array) =>
-            reinterpret_array(array_type, uint8array),
+        decode: (uint8array) => reinterpret_array(array_type, uint8array),
     });
 }
 
@@ -88,8 +87,7 @@ register_ext(101, (uint_8_array) => {
 });
 
 register_ext(102, (uint_8_array) => {
-    const [interpolated_objects, source, julia_file] =
-        unpack(uint_8_array);
+    const [interpolated_objects, source, julia_file] = unpack(uint_8_array);
     const lookup_interpolated = (id) => interpolated_objects[id];
     // create a new func, that has __lookup_cached as argument
     const eval_func = new Function("__lookup_interpolated", "JSServe", source);
@@ -111,21 +109,9 @@ register_ext(103, (uint_8_array) => {
     return new Retain(real_value);
 });
 
-function lookup_cached(key) {
-    const object = GLOBAL_OBJECT_CACHE[key];
-    if (object) {
-        if (object instanceof Retain) {
-            return object.value;
-        } else {
-            return object;
-        }
-    }
-    throw new Error(`Key ${key} not found! ${object}`);
-}
-
 register_ext(104, (uint_8_array) => {
     const key = unpack(uint_8_array);
-    return lookup_cached(key);
+    return lookup_global_object(key);
 });
 
 register_ext(105, (uint_8_array) => {
@@ -145,14 +131,13 @@ register_ext(105, (uint_8_array) => {
 register_ext(106, (uint_8_array) => {
     const [session_id, objects] = unpack(uint_8_array);
     update_session_cache(session_id, objects);
-    return session_id
+    return session_id;
 });
 
 register_ext(107, (uint_8_array) => {
     const [session_id, message] = unpack(uint_8_array);
-    return message
+    return message;
 });
-
 
 export function base64encode(data_as_uint8array) {
     // Use a FileReader to generate a base64 data URI

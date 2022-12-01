@@ -24,7 +24,7 @@ const {
     decode_base64_message,
 } = Protocol;
 
-const { init_session, deserialize_cached, free_session, lookup_observable } =
+const { init_session, deserialize_cached, free_session, lookup_global_object } =
     Sessions;
 
 function update_node_attribute(node, attribute, value) {
@@ -77,7 +77,7 @@ const JSServe = {
     // Util
     update_node_attribute,
     update_dom_node,
-    lookup_observable,
+    lookup_global_object,
 };
 
 // @ts-ignore

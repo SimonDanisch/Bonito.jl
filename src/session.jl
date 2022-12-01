@@ -109,7 +109,13 @@ function delete_cached!(root::Session, key::String)
     has_ref = any(((id, s),)-> child_haskey(s, key), root.children)
     if !has_ref
         # So only delete it if nobody has it anymore!
-        delete!(root.session_objects, key)
+        object = pop!(root.session_objects, key)
+        if object isa Observable
+            # unregister all listeners updating the session
+            filter!(object.listeners) do f
+                !(f isa JSUpdateObservable && f.session === root)
+            end
+        end
     end
 end
 
@@ -160,6 +166,9 @@ Send values to the frontend via JSON for now
 Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
+    if session.ignore_message[](message)
+        return
+    end
     send(session, SerializedMessage(session, message))
 end
 

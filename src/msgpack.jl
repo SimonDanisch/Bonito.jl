@@ -38,6 +38,11 @@ function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedObservable)
     return MsgPack.Extension(OBSERVABLE_TAG, pack([x.id, x.value]))
 end
 
+MsgPack.msgpack_type(::Type{<: Observable}) = MsgPack.ExtensionType()
+function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::Observable)
+    return MsgPack.Extension(OBSERVABLE_TAG, pack([x.id, x[]]))
+end
+
 const ASSET_TAG = Int8(101)
 MsgPack.msgpack_type(::Type{SerializedAsset}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedAsset)

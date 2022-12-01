@@ -3,6 +3,11 @@ struct SerializationContext
     session::Session
 end
 
+struct SerializedObservable
+    id::String
+    value::Any
+end
+
 function SerializationContext(session::Session)
     return SerializationContext(Dict{String, Any}(), session)
 end
@@ -12,17 +17,16 @@ struct CacheKey
 end
 
 struct Retain
-    value::Any
+    value::Union{Observable, SerializedObservable} # For now, restricted to observable!
 end
 
 object_identity(retain::Retain) = object_identity(retain.value)
 
 function serialize_cached(context::SerializationContext, retain::Retain)
-    if isnothing(object_identity(retain))
-        error("Can only retain types with `JSServe.object_identity`. To fix, overload `JSServe.object_identity(x::$(typeof(value)))` to return a unique value")
-    end
     return add_cached!(context.session, context.message_cache, retain) do
-        return retain
+        obs = retain.value
+        register_observable!(context.session, obs)
+        return Retain(SerializedObservable(obs.id, serialize_cached(context, obs[])))
     end
 end
 
@@ -38,17 +42,22 @@ function serialize_cached(context::SerializationContext, asset::Asset)
     end
 end
 
-struct SerializedObservable
-    id::String
-    value::Any
+
+function register_observable!(session::Session, obs::Observable; deregister=true)
+    root = root_session(session)
+    if !haskey(root.session_objects, obs.id)
+        updater = JSUpdateObservable(root, obs.id)
+        deregister_cb = on(updater, root, obs)
+        # if deregister
+        #     push!(session.deregister_callbacks, deregister_cb)
+        # end
+    end
+    return
 end
 
 function serialize_cached(context::SerializationContext, obs::Observable)
     return add_cached!(context.session, context.message_cache, obs) do
-        root = root_session(context.session)
-        updater = JSUpdateObservable(root, obs.id)
-        deregister = on(updater, root, obs)
-        push!(context.session.deregister_callbacks, deregister)
+        register_observable!(context.session, obs)
         return SerializedObservable(obs.id, serialize_cached(context, obs[]))
     end
 end

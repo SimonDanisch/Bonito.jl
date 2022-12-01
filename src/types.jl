@@ -96,6 +96,7 @@ struct Session{Connection <: FrontendConnection}
     session_objects::Dict{String, Any}
     # For rendering Hyperscript.Node, and giving them a unique id inside the session
     dom_uuid_counter::RefValue{Int}
+    ignore_message::RefValue{Function}
 end
 
 function SerializedMessage(session::Session, message)
@@ -146,7 +147,8 @@ function Session(connection=default_connection();
         on_close,
         deregister_callbacks,
         session_objects,
-        RefValue(0)
+        RefValue(0),
+        RefValue{Function}(x-> false)
     )
 end
 
@@ -180,7 +182,8 @@ function Session(parent::Session;
         on_close,
         deregister_callbacks,
         session_objects,
-        RefValue(0)
+        RefValue(0),
+        RefValue{Function}(x-> false)
     )
     root.children[id] = session
     return session
