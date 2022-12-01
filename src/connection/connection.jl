@@ -135,13 +135,77 @@ include("ijulia.jl")
 include("pluto.jl")
 include("no-connection.jl")
 
-function default_connection()
+const AVAILABLE_CONNECTIONS = Pair{DataType, Function}[]
+
+"""
+    register_connection!(condition::Function, ::Type{<: FrontendConnection})
+
+Registers a new Connection type.
+
+condition is a function that should return `nothing`, if the connection type shouldn't be used, and an initialized Connection, if the conditions are right.
+E.g. The IJulia connection should only be used inside an IJulia notebook so it's registered like this:
+```julia
+register_connection!(IJuliaConnection) do
     if isdefined(Main, :IJulia)
         return IJuliaConnection()
-    elseif isdefined(Main, :PlutoRunner)
-        return PlutoConnection()
+    end
+    return nothing
+end
+```
+The last connection registered take priority, so if you register a new connection last in your Package, and always return it,
+You will overwrite the connection type for any other package.
+If you want to force usage temporary, try:
+```julia
+force_connection(YourConnectionType()) do
+    ...
+end
+# which is the same as:
+force_connection!(YourConnectionType())
+...
+force_connection!()
+```
+"""
+function register_connection!(condition::Function, ::Type{C}) where C <: FrontendConnection
+    register_type!(condition, C, AVAILABLE_CONNECTIONS)
+    return
+end
+
+const FORCED_CONNECTION = Base.RefValue{Union{Nothing, FrontendConnection}}(nothing)
+
+function force_connection!(conn::Union{Nothing, FrontendConnection}=nothing)
+    force_type!(conn, FORCED_CONNECTION)
+end
+
+function force_connection(f, conn::Union{Nothing, FrontendConnection})
+    force_type(f, conn, FORCED_CONNECTION)
+end
+
+# Websocket is the fallback, so it's registered first (lower priority),
+# and never returns nothing
+register_connection!(WebSocketConnection) do
+    return WebSocketConnection()
+end
+
+register_connection!(IJuliaConnection) do
+    isdefined(Main, :IJulia) && IJuliaConnection()
+    return nothing
+end
+
+register_connection!(PlutoConnection) do
+    isdefined(Main, :PlutoRunner) && return PlutoConnection()
+    return nothing
+end
+
+function default_connection()
+    if !isnothing(FORCED_CONNECTION[])
+        return FORCED_CONNECTION[]
     else
-        return WebSocketConnection()
+        ac = AVAILABLE_CONNECTIONS
+        for i in length(ac):-1:1 # start from last inserted
+            conn_or_nothing = ac[i][2]()::Union{FrontendConnection, Nothing}
+            isnothing(conn_or_nothing) || return conn_or_nothing
+        end
+        error("No connection found. This can only happen if someone messed with `JSServe.AVAILABLE_CONNECTIONS`")
     end
 end
 

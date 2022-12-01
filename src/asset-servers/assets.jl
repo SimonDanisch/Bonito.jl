@@ -133,14 +133,6 @@ include("mimetypes.jl")
 include("no-server.jl")
 include("http.jl")
 
-function default_asset_server()
-    if isdefined(Main, :IJulia) || isdefined(Main, :PlutoRunner)
-        return NoServer()
-    else
-        return HTTPAssetServer()
-    end
-end
-
 function local_path(asset::Asset)
     if asset.es6module
         bundle!(asset)
@@ -188,4 +180,68 @@ function bundle!(asset::Asset)
     end
     asset.last_bundled[] = Dates.now(UTC) # Filesystem.mtime(file) is in UTC
     return
+end
+
+
+
+const AVAILABLE_ASSET_SERVERS = Pair{DataType, Function}[]
+
+"""
+    register_asset_server!(condition::Function, ::Type{<: AbstractAssetServer})
+
+Registers a new asset server type.
+`condition` is a function that should return `nothing`, if the asset server type shouldn't be used, and an initialized asset server object, if the conditions are right.
+E.g. The `JSServe.NoServer` be used inside an IJulia notebook so it's registered like this:
+```julia
+register_asset_server!(NoServer) do
+    if isdefined(Main, :IJulia)
+        return NoServer()
+    end
+    return nothing
+end
+```
+The last asset server registered takes priority, so if you register a new connection last in your Package, and always return it,
+You will overwrite the connection type for any other package.
+If you want to force usage temporary, try:
+```julia
+force_asset_server(YourAssetServer()) do
+    ...
+end
+# which is the same as:
+force_asset_server!(YourAssetServer())
+...
+force_asset_server!()
+```
+"""
+function register_asset_server!(condition::Function, ::Type{C}) where C <: AbstractAssetServer
+    register_type!(condition, C, AVAILABLE_ASSET_SERVERS)
+    return
+end
+
+const FORCED_ASSET_SERVER = Base.RefValue{Union{Nothing, AbstractAssetServer}}(nothing)
+
+function force_asset_server!(conn::Union{Nothing, AbstractAssetServer}=nothing)
+    force_type!(conn, FORCED_ASSET_SERVER)
+end
+
+function force_asset_server(f, conn::Union{Nothing, AbstractAssetServer})
+    force_type(f, conn, FORCED_ASSET_SERVER)
+end
+
+# HTTPAssetServer is the fallback, so it's registered first (lower priority),
+# and never returns nothing
+register_asset_server!(HTTPAssetServer) do
+    return HTTPAssetServer()
+end
+
+register_asset_server!(NoServer) do
+    if isdefined(Main, :IJulia) || isdefined(Main, :PlutoRunner)
+        return NoServer()
+    else
+        return  nothing
+    end
+end
+
+function default_asset_server()
+    return default_type(FORCED_ASSET_SERVER, AVAILABLE_ASSET_SERVERS)
 end
