@@ -1,20 +1,21 @@
 using HTTP, JSServe, Observables
 using HTTP.WebSockets: WebSocket, isclosed, receive, send
 
+## Overloading Connection
 mutable struct WSConnection <: JSServe.FrontendConnection
     socket::Union{Nothing, WebSocket}
 end
 
+# Overload basic function
 function Base.write(ws::WSConnection, binary)
     HTTP.WebSockets.send(ws.socket, binary)
 end
-
 function Base.close(ws::WSConnection)
     close(ws.socket)
 end
-
 Base.isopen(ws::WSConnection) = !isnothing(ws.socket) && !isclosed(ws.socket)
 
+# Setup the julia side of things
 function JSServe.setup_connection(session::Session{WSConnection})
     connection = session.connection
     # TODO, just insert a route, or close/reopen webserver
@@ -28,6 +29,8 @@ function JSServe.setup_connection(session::Session{WSConnection})
             JSServe.process_message(session, bytes)
         end
     end
+
+    # Return the javascript you need to set things up
     return js"""
     // Javascript needed to connect to
     const websocket = new WebSocket($("ws://$(url):$(port)"))
