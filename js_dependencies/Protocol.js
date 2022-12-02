@@ -90,18 +90,25 @@ register_ext(102, (uint_8_array) => {
     const [interpolated_objects, source, julia_file] = unpack(uint_8_array);
     const lookup_interpolated = (id) => interpolated_objects[id];
     // create a new func, that has __lookup_cached as argument
-    const eval_func = new Function("__lookup_interpolated", "JSServe", source);
-    // return a closure, that when called runs the code!
-    return () => {
-        try {
-            return eval_func(lookup_interpolated, JSServe);
-        } catch (err) {
-            console.log(`error in closure from: ${julia_file}`);
-            console.log(`Source:`);
-            console.log(source);
-            throw err;
-        }
-    };
+    try {
+        const eval_func = new Function("__lookup_interpolated", "JSServe", source);
+        // return a closure, that when called runs the code!
+        return () => {
+            try {
+                return eval_func(lookup_interpolated, JSServe);
+            } catch (err) {
+                console.log(`error in closure from: ${julia_file}`);
+                console.log(`Source:`);
+                console.log(source);
+                throw err;
+            }
+        };
+    } catch (err) {
+        console.log(`error in closure from: ${julia_file}`);
+        console.log(`Source:`);
+        console.log(source);
+        throw err;
+    }
 });
 
 register_ext(103, (uint_8_array) => {

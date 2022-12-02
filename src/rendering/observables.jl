@@ -57,9 +57,9 @@ function Base.map(f, session::Session, observables::Observable...; result=Observ
 end
 
 function jsrender(session::Session, obs::Observable)
-    root_node = DOM.span(DOM.div())
+    root_node = DOM.span()
     on(session, obs; update=true) do data
-        update_session_dom!(root_session(session), root_node, data)
+        update_session_dom!(root_session(session), root_node, data; replace=false)
     end
     return root_node
 end

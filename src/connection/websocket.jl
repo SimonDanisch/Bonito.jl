@@ -7,10 +7,11 @@ mutable struct WebSocketConnection <: FrontendConnection
     server::Union{Nothing, Server}
     socket::Union{Nothing, WebSocket}
     lock::ReentrantLock
+    session::Union{Nothing, Session{WebSocketConnection}}
 end
 
-WebSocketConnection() = WebSocketConnection(nothing, nothing, ReentrantLock())
-WebSocketConnection(server::Server) = WebSocketConnection(server, nothing, ReentrantLock())
+WebSocketConnection() = WebSocketConnection(nothing, nothing, ReentrantLock(), nothing)
+WebSocketConnection(server::Server) = WebSocketConnection(server, nothing, ReentrantLock(), nothing)
 
 const MATCH_HEX = r"[\da-f]"
 const MATCH_UUID4 = MATCH_HEX^8 * r"-" * (MATCH_HEX^4 * r"-")^3 * MATCH_HEX^12
@@ -81,27 +82,28 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
     uri = URIs.URI(request.target).path
     session_id = URIs.splitpath(uri)[1]
     @debug("WS session id: $(session_id)")
-    session = look_up_session(session_id)
-    # Look up the connection in our sessions
-    if !isnothing(session)
-        if isopen(session)
-            # Would be nice to not error here - but I think this should never
-            # Happen, and if it happens, we need to debug it!
-            error("Session already has connection")
-        end
-        connection.socket = websocket
-        run_connection_loop(application, session, websocket)
-    else
-        # This happens when an old session trys to reconnect to a new app
-        # We somehow need to figure out better, how to recognize this
-        @debug("Unregistered session id: $session_id.")
+    session = connection.session
+    if isnothing(session)
+        error("Websocket connection skipped setup")
     end
+    @assert session_id == session.id
+    # Look up the connection in our sessions
+    if isopen(session)
+        # Would be nice to not error here - but I think this should never
+        # Happen, and if it happens, we need to debug it!
+        error("Session already has connection")
+    end
+    connection.socket = websocket
+    run_connection_loop(application, session, websocket)
+
 end
 
 function setup_connection(session::Session, connection::WebSocketConnection)
     if isnothing(connection.server)
+        # Use our global singleton server
         connection.server = HTTPServer.get_server()
     end
+    connection.session = session
     server = connection.server
 
     HTTPServer.websocket_route!(server, r"/" * MATCH_UUID4 => connection)
@@ -116,6 +118,5 @@ function setup_connection(session::Session, connection::WebSocketConnection)
 end
 
 function setup_connection(session::Session{WebSocketConnection})
-    register_session!(session)
     return setup_connection(session, session.connection)
 end

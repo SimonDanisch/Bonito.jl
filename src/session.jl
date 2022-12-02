@@ -15,26 +15,31 @@ function show_session(io::IO, session::Session{T}) where T
     end
 end
 
-function Base.show(io::IO, ::MIME"text/plain", session::Session{T}) where T
-    show_session(io, session)
+Base.show(io::IO, ::MIME"text/plain", session::Session) = show_session(io, session)
+Base.show(io::IO, session::Session) = show_session(io, session)
+
+function wait_for_ready(session::Session; timeout=10)
+    wait_for(()-> isready(session); timeout=timeout)
 end
 
-function Base.show(io::IO, session::Session{T}) where T
-    show_session(io, session)
-end
-
-function fused_messages!(session::Session)
-    messages = []
+function get_messages!(session::Session, messages=[])
     append!(messages, session.message_queue)
     for js in session.on_document_load
         push!(messages, Dict(:msg_type=>EvalJavascript, :payload=>js))
     end
     empty!(session.on_document_load)
     empty!(session.message_queue)
-    return Dict(:msg_type=>FusedMessage, :payload=>messages)
+    root = root_session(session)
+    if root !== session
+        get_messages!(root, messages)
+    end
+    return messages
 end
 
-open!(connection) = nothing
+function fused_messages!(session::Session)
+    messages = get_messages!(session)
+    return Dict(:msg_type=>FusedMessage, :payload=>messages)
+end
 
 function init_session(session::Session)
     put!(session.connection_ready, true)
@@ -53,70 +58,18 @@ Base.parent(session::Session) = session.parent[]
 
 root_session(session::Session) = isnothing(parent(session)) ? session : root_session(parent(session))
 
-
-"""
-    add_cached!(create_cached_object::Function, session::Session, message_cache::Dict{String, Any}, key::String)
-
-Checks if key is already cached by the session or it's root session (we skip any child session between root -> this session).
-If not cached already, we call `create_cached_object` to create a serialized form of the object corresponding to `key` and cache it.
-We return nothing if already cached, or the serialized object if not cached.
-We also handle the part of adding things to the message_cache from the serialization context.
-"""
-function add_cached!(create_cached_object::Function, session::Session, send_to_js::Dict{String, Any}, @nospecialize(object))::CacheKey
-    key = object_identity(object)::String
-    result = CacheKey(key)
-    # If already in session, there's nothing we need to do, since we've done the work the first time we added the object
-    haskey(session.session_objects, key) && return result
-    # Now, we have two code paths, depending on whether we have a child session or a root session
-    root = root_session(session)
-    if root === session # we are root, so we simply cache the object (we already checked it's not cached yet)
-        send_to_js[key] = create_cached_object()
-        session.session_objects[key] = object
-        return result
-    else
-        # This session is a child session.
-
-        # Now we need to figure out if the root session has the object cached already
-        # The root session has our object cached already.
-        session.session_objects[key] = nothing # session needs to reference this to "own" it
-        if haskey(root.session_objects, key)
-            # in this case, we just add the key to send to js, so that the JS side can associate the object with this session
-            send_to_js[key] = "tracking-only"
-            return result
-        end
-        # Nobody has the object cached, so we
-        # we add this session as the owner, but also add it to the root session
-        send_to_js[key] = create_cached_object()
-        root.session_objects[key] = object
-        return result
+function get_session(session::Session, id::String)
+    session.id == id && return session
+    if haskey(session.children, id)
+        return session.children[id]
     end
-end
-
-function child_haskey(child::Session, key)
-    haskey(child.session_objects, key) && return true
-    return any(((id, s),)-> child_haskey(s, key), child.children)
-end
-
-function delete_cached!(root::Session, key::String)
-    if !haskey(root.session_objects, key)
-        # This should uncover any fault in our caching logic!
-        error("Deleting key that doesn't belong to any cached object")
+    # recurse
+    for (key, sub) in session.children
+        s = get_session(sub, id)
+        isnothing(s) || return s
     end
-    # We don't delete assets for now (since they remain loaded on the page anyways)
-    # And of course not Retain, since that's the whole point of it
-    root.session_objects[key] isa Union{Retain, Asset} && return
-    # We don't do reference counting, but we check if any child still holds a reference to the object we want to delete
-    has_ref = any(((id, s),)-> child_haskey(s, key), root.children)
-    if !has_ref
-        # So only delete it if nobody has it anymore!
-        object = pop!(root.session_objects, key)
-        if object isa Observable
-            # unregister all listeners updating the session
-            filter!(object.listeners) do (prio, f)
-                !(f isa JSUpdateObservable && f.session === root)
-            end
-        end
-    end
+    # Nothing found...
+    return nothing
 end
 
 function Base.empty!(session::Session)
@@ -154,7 +107,6 @@ function Base.close(session::Session)
     # remove all listeners that where created for this session
     foreach(off, session.deregister_callbacks)
     empty!(session.deregister_callbacks)
-    unregister_session!(session)
     return
 end
 
@@ -166,7 +118,7 @@ Send values to the frontend via JSON for now
 Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
-    if session.ignore_message[](message)
+    if session.ignore_message[](message)::Bool
         return
     end
     send(session, SerializedMessage(session, message))
@@ -188,8 +140,6 @@ Base.isopen(session::Session) = isopen(session.connection)
 function Base.isready(session::Session)
     return isready(session.connection_ready) && isopen(session)
 end
-
-
 
 """
     onjs(session::Session, obs::Observable, func::JSCode)
@@ -308,12 +258,6 @@ function evaljs_value(with_session, js; error_on_closed=true, timeout=100.0)
     evaljs_value(session(with_session), js; error_on_closed=error_on_closed, timeout=timeout)
 end
 
-function rendered_dom(session::Session, app::App, target=(; target="/"))
-    app.session[] = session
-    dom = Base.invokelatest(app.handler, session, target)
-    return jsrender(session, dom)
-end
-
 function session_dom(session::Session, app::App; init=true)
     dom = rendered_dom(session, app)
     return session_dom(session, dom; init=init)
@@ -330,7 +274,7 @@ function session_dom(session::Session, dom::Node; init=true)
     if isnothing(head) && isnothing(body)
         body = dom
         head = dom
-        dom = DOM.div(dom, id=session.id)
+        dom = DOM.div(dom, id=session.id, dataJscallId="jsserver-application-dom")
     end
 
     init_connection = setup_connection(session)
@@ -378,50 +322,40 @@ function render_subsession(parent::Session, dom::Node)
     return sub, session_dom(sub, dom_rendered; init=false)
 end
 
-function update_session_dom!(parent::Session, node_to_update::Union{String, Node}, app_or_dom)
+function update_session_dom!(parent::Session, node_to_update::Union{String, Node}, app_or_dom; replace=true)
     sub, html = render_subsession(parent, app_or_dom)
+    # Or we have a node
+    id = node_to_update isa String ? node_to_update : uuid(node_to_update)
+    str = "[data-jscall-id=$(repr(id))]"
+    query_selector = Dict("query_selector" => str)
 
-    if node_to_update isa String # session id of old session to update
-        query_selector = Dict("by_id" => node_to_update)
-    else
-        # Or we have a node
-        str = "[data-jscall-id=$(repr(uuid(node_to_update)))]"
-        query_selector = Dict("query_selector" => str)
-    end
 
     if sub === parent # String/Number
         # wrap into observable, so that the whole node gets transfered
         obs = Observable(html)
         evaljs(parent, js"""
             JSServe.Sessions.on_node_available($query_selector, 1).then(dom => {
-                while (dom.childElementCount > 0) {
-                    dom.removeChild(dom.firstChild)
-                }
-                dom.append($(obs).value)
+                const html = $(obs).value
+                console.log(dom)
+                console.log(html)
+                JSServe.update_or_replace(dom, html, $replace)
             })
         """)
     else
+        # We need to manually do the serialization,
+        # Since we send it via the parent, but serialization needs to happen
+        # for `sub`.
+        # sub is not open yet, and only opens if we send the below message for initialization
+        # which is why we need to send it via the parent session
         session_update = Dict(
             "msg_type" => "UpdateSession",
             "session_id" => sub.id,
             "messages" => fused_messages!(sub),
             "html" => html,
+            "replace" => replace,
             "dom_node_selector" => query_selector
         )
         message = SerializedMessage(sub, session_update)
         send(parent, message)
     end
-end
-
-function update_app!(old_app::App, new_app::App)
-    if isnothing(old_app.session[])
-        error("Old app has to be displayed first, to actually update it")
-    end
-    old_session = old_app.session[]
-    parent = root_session(old_session)
-    update_session_dom!(parent, old_session.id, new_app)
-end
-
-function wait_for_ready(session::Session; timeout=10)
-    wait_for(()-> isready(session); timeout=timeout)
 end

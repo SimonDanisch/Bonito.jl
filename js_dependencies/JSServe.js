@@ -14,17 +14,15 @@ const {
 } = Connection;
 
 const {
-    deserialize,
     base64decode,
     base64encode,
     decode_binary,
     encode_binary,
-    materialize_node,
     decode_binary_message,
     decode_base64_message,
 } = Protocol;
 
-const { init_session, deserialize_cached, free_session, lookup_global_object } =
+const { init_session, deserialize_cached, free_session, lookup_global_object, update_or_replace } =
     Sessions;
 
 function update_node_attribute(node, attribute, value) {
@@ -51,12 +49,10 @@ function update_dom_node(dom, html) {
 
 const JSServe = {
     Protocol,
-    deserialize,
     base64decode,
     base64encode,
     decode_binary,
     encode_binary,
-    materialize_node,
     decode_binary_message,
     decode_base64_message,
 
@@ -78,6 +74,7 @@ const JSServe = {
     update_node_attribute,
     update_dom_node,
     lookup_global_object,
+    update_or_replace
 };
 
 // @ts-ignore
@@ -85,7 +82,6 @@ window.JSServe = JSServe;
 
 export {
     Protocol,
-    deserialize,
     base64decode,
     base64encode,
     decode_binary,

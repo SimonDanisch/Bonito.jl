@@ -37,11 +37,6 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
     return sub
 end
 
-function node_html(io::IO, session::Session, node::Hyperscript.Node)
-    js_dom = DOM.div(jsrender(session, node), id="application-dom")
-    return show(io, MIME"text/html"(), Hyperscript.Pretty(js_dom))
-end
-
 """
     page_html(session::Session, html_body)
 

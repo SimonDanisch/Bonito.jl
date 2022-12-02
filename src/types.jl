@@ -153,39 +153,14 @@ function Session(connection=default_connection();
 end
 
 function Session(parent::Session;
-            id=string(uuid4()),
             asset_server=parent.asset_server,
-            message_queue=SerializedMessage[],
-            on_document_load=JSCode[],
-            connection_ready=Channel{Bool}(1),
-            on_connection_ready=init_session,
-            init_error=Ref{Union{Nothing, JSException}}(nothing),
-            js_comm=Observable{Union{Nothing, Dict{String, Any}}}(nothing),
-            on_close=Observable(false),
-            deregister_callbacks=Observables.ObserverFunction[],
-            session_objects=Dict{String, Any}())
+            on_connection_ready=init_session)
 
     root = root_session(parent)
     connection = SubConnection(root)
-    session = Session(
-        Base.RefValue{Union{Nothing, Session}}(root),
-        Dict{String, Session{SubConnection}}(),
-        id,
-        connection,
-        asset_server,
-        message_queue,
-        on_document_load,
-        connection_ready,
-        on_connection_ready,
-        init_error,
-        js_comm,
-        on_close,
-        deregister_callbacks,
-        session_objects,
-        RefValue(0),
-        RefValue{Function}(x-> false)
-    )
-    root.children[id] = session
+    session = Session(connection; asset_server=asset_server, on_connection_ready)
+    session.parent[] = root
+    root.children[session.id] = session
     return session
 end
 

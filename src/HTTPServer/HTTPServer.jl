@@ -10,7 +10,8 @@ using ..JSServe: App, update_app!
 include("helper.jl")
 include("implementation.jl")
 include("browser-display.jl")
+include("mimetypes.jl")
 
-export route!, Server, html
+export route!, Server, html, file_mimetype
 
 end

@@ -62,3 +62,12 @@ function Base.display(bd::BrowserDisplay, app::App)
     end
     return
 end
+
+function has_html_display()
+    for display in Base.Multimedia.displays
+        # Ugh, why would textdisplay say it supports HTML??
+        display isa TextDisplay && continue
+        displayable(display, MIME"text/html"()) && return true
+    end
+    return false
+end

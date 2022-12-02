@@ -17,6 +17,5 @@ function Base.close(ws::PlutoConnection)
 end
 
 function setup_connection(session::Session{PlutoConnection})
-    register_session!(session)
     return setup_connection(session, session.connection.connection)
 end

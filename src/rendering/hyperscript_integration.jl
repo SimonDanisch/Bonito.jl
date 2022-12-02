@@ -19,11 +19,11 @@ end
 Dome node with unique ID, to make it easier to interpolate it.
 """
 function um(tag, args...; kw...)
-    m(tag, args..., dataJscallId = get_unique_dom_id(); kw...)
+    m(tag, args...; dataJscallId = get_unique_dom_id(), kw...)
 end
 
 function m_unesc(tag, args...; kw...)
-    m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, tag, args..., dataJscallId = get_unique_dom_id(); kw...)
+    m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, tag, args...; dataJscallId = get_unique_dom_id(), kw...)
 end
 
 for node in [:a, :abbr, :address, :area, :article, :aside, :audio, :b,

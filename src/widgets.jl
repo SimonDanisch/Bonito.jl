@@ -121,15 +121,12 @@ function jsrender(session::Session, table::Table)
     return DOM.table(header, body; class=table.class)
 end
 
-# const ace = Dependency(
-#     :ace,
-#     ["https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"]
-# )
+const ACE = ES6Module("https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js")
 
 struct CodeEditor
     theme::String
     language::String
-    options::Dict{Symbol, Any}
+    options::Dict{String, Any}
     onchange::Observable{String}
     element::Hyperscript.Node{Hyperscript.HTMLSVG}
 end
@@ -152,21 +149,31 @@ Defaults for `editor_options`:
 )
 ```
 """
-function CodeEditor(language::String; initial_source="", theme="chrome", editor_options...)
+function CodeEditor(language::String; width=500, height=500, initial_source="", theme="chrome", editor_options...)
     defaults = Dict(
-        :autoScrollEditorIntoView => true,
-        :copyWithEmptySelection => true,
-        :wrapBehavioursEnabled => true,
-        :useSoftTabs => true,
-        :enableMultiselect => true,
-        :showLineNumbers => false,
-        :fontSize => 16,
-        :wrap => 80,
-        :mergeUndoDeltas => "always"
+        "autoScrollEditorIntoView" => true,
+        "copyWithEmptySelection" => true,
+        "wrapBehavioursEnabled" => true,
+        "useSoftTabs" => true,
+        "enableMultiselect" => true,
+        "showLineNumbers" => false,
+        "fontSize" => 16,
+        "wrap" => 80,
+        "mergeUndoDeltas" => "always"
     )
-    options = Dict{Symbol, Any}(merge(Dict(editor_options), defaults))
+    user_opts = Dict{String, Any}(string(k) => v for (k,v) in editor_options)
+    options = Dict{String, Any}(merge(user_opts, defaults))
     onchange = Observable(initial_source)
-    element = DOM.div("", id="editor")
+    style = """
+        position: "absolute";
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: $(width)px;
+        height: $(height)px;
+    """
+    element = DOM.div(""; style=style)
     return CodeEditor(theme, language, options, onchange, element)
 end
 
@@ -175,9 +182,11 @@ function jsrender(session::Session, editor::CodeEditor)
     language = "ace/mode/$(editor.language)"
     onload(session, editor.element, js"""
         function (element){
-            var editor = $ace.edit(element);
+            const editor = ace.edit(element, {
+                mode: $(language)
+            });
+            console.log(element)
             editor.setTheme($theme);
-            editor.session.setMode($language);
             editor.resize();
             // use setOptions method to set several options at once
             editor.setOptions($(editor.options));
@@ -185,11 +194,12 @@ function jsrender(session::Session, editor::CodeEditor)
             editor.session.on('change', function(delta) {
                 $(editor.onchange).notify(editor.getValue());
             });
-
-            editor.session.setValue($(editor.onchange[]));
+            editor.session.setValue($(editor.onchange).value);
         }
     """)
-    return editor.element
+
+    ace = DOM.script(src="https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js")
+    return DOM.div(ace, editor.element)
 end
 
 # Ok, this is bad piracy, but I donno how else to make the display nice for now!

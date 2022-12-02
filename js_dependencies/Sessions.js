@@ -210,10 +210,21 @@ export function on_node_available(query_selector, timeout) {
     })
 }
 
+export function update_or_replace(node, new_html, replace) {
+    if (replace) {
+        node.parentNode.replaceChild(new_html, node)
+    } else {
+        while (node.childElementCount > 0) {
+            node.removeChild(node.firstChild)
+        }
+        node.append(new_html)
+    }
+}
+
 export function update_session_dom(message) {
-    const { session_id, messages, html, dom_node_selector } = message;
+    const { session_id, messages, html, dom_node_selector, replace } = message;
     on_node_available(dom_node_selector, 1).then(dom => {
-        dom.parentNode.replaceChild(html, dom)
+        update_or_replace(dom, html, replace)
         process_message(messages);
         console.log("obs session done: " + session_id);
     })
