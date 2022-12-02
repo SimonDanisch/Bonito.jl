@@ -1,3 +1,5 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+Hyperscript = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
 JSServe = "824d6782-a2ef-11e9-3a09-e5662e0c26f9"
+Observables = "510215fc-4207-5dde-b226-833fc4488ee2"
