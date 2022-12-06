@@ -27,13 +27,26 @@ update_value!(x::Dependant, value) = update_value!(x.value, value)
 
 # Implement interface for slider!
 is_widget(::Slider) = true
-value_range(slider::Slider) = slider.range[]
-update_value!(slider::Slider, value) = (slider.value[] = value)
+value_range(slider::Slider) = 1:length(slider.range[])
+update_value!(slider::Slider, idx) = (slider[] = slider.range[][idx])
+to_watch(slider::Slider) = slider.attributes[:index_observable].id
+to_watch(x) = observe(x).id
+
 
 function record_values(f, session, widget)
     empty!(session.message_queue)
-    wid = observe(widget).id
-    session.ignore_message[] = (msg) -> (msg[:msg_type] == UpdateObservable && msg[:id] == wid)
+    wid = to_watch(widget)
+    session.ignore_message[] = (msg) -> begin
+        if msg[:msg_type] == UpdateObservable
+            if msg[:id] == wid
+                return true
+            else
+                println("updating: $(msg[:id]), with $(msg[:payload])")
+            end
+        end
+        return false
+    end
+
     try
         f()
         messages = copy(session.message_queue)
@@ -55,6 +68,7 @@ end
 function record_states(session::Session, dom::Hyperscript.Node)
     widgets = extract_widgets(dom)
     rendered = jsrender(session, dom)
+    session_dom(session, rendered)
     # We'll mess with the message_queue to record the statemap
     # So we copy the current message queue and disconnect the session!
 
@@ -62,7 +76,6 @@ function record_states(session::Session, dom::Hyperscript.Node)
     empty!(session.message_queue)
     independent = filter(is_independant, widgets)
     independent_states = Dict{String, Any}()
-
     while_disconnected(session) do
         for widget in independent
             state = Dict{Any, Dict{String, Any}}()
@@ -71,12 +84,12 @@ function record_states(session::Session, dom::Hyperscript.Node)
                     update_value!(widget, value)
                 end
             end
-            independent_states[observe(widget).id] = state
+            independent_states[to_watch(widget)] = state
         end
     end
 
     append!(session.message_queue, msgs)
-    observable_ids = Observables.obsid.(observe.(independent))
+    observable_ids = to_watch.(independent)
 
     statemap_script = js"""
         const statemap = $(independent_states)
@@ -85,9 +98,8 @@ function record_states(session::Session, dom::Hyperscript.Node)
         observables.forEach(id => {
             JSServe.lookup_global_object(id).on((val) => {
                 // messages to send for this state of that observable
-                const messages = statemap[id][val]
-                console.log(id)
                 console.log(val)
+                const messages = statemap[id][val]
                 console.log(messages)
                 // not all states trigger events
                 // so some states won't have any messages recorded
@@ -151,7 +163,7 @@ end
 
 function export_static(folder::String, routes::Routes)
     isdir(folder) || mkpath(folder)
-    asset_server = AssetFolder(folder)
+    asset_server = NoServer()
     connection = JSServe.NoConnection()
     session = Session(connection; asset_server=asset_server)
     for (route, app) in routes.routes

@@ -23,12 +23,6 @@ function unpack(uint8array) {
     return MsgPack.decode(uint8array, { extensionCodec: EXTENSION_CODEC });
 }
 
-function array_to_buffer(array) {
-    return array.buffer.slice(
-        array.byteOffset,
-        array.byteLength + array.byteOffset
-    );
-}
 /**
  * @param {Uint8ArrayConstructor} ArrayType
  * @param {Uint8Array} uint8array
@@ -37,15 +31,15 @@ function reinterpret_array(ArrayType, uint8array) {
     if (ArrayType === Uint8Array) {
         return uint8array;
     } else {
-        // console.log(ArrayType)
-        // console.log(uint8array.byteOffset)
-        // console.log(uint8array.byteLength)
-        return new ArrayType(array_to_buffer(uint8array));
-        // return new ArrayType(
-        //     uint8array.buffer,
-        //     uint8array.byteOffset,
-        //     uint8array.byteLength
-        // );
+        const bo = uint8array.byteOffset
+        const bpe = ArrayType.BYTES_PER_ELEMENT
+        const new_array_length = uint8array.byteLength / bpe
+        const buffer = uint8array.buffer.slice(bo, bo + uint8array.byteLength)
+        return new ArrayType(
+            buffer,
+            0,
+            new_array_length
+        );
     }
 }
 

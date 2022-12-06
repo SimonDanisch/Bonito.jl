@@ -336,8 +336,6 @@ function update_session_dom!(parent::Session, node_to_update::Union{String, Node
         evaljs(parent, js"""
             JSServe.Sessions.on_node_available($query_selector, 1).then(dom => {
                 const html = $(obs).value
-                console.log(dom)
-                console.log(html)
                 JSServe.update_or_replace(dom, html, $replace)
             })
         """)

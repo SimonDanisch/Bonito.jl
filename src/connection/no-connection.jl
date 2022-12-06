@@ -12,7 +12,6 @@ function setup_connection(session::Session{NoConnection})
     # as part of the initialization
     messages = fused_messages!(session)
     b64_str = serialize_string(session, messages)
-    println("Jooo: $(length(messages))")
     return js"""
         JSServe.on_connection_open((w)=> null)
         const session_messages = $(b64_str)

@@ -10,11 +10,11 @@ rows(args...; class="") = DOM.div(args..., class=class * " flex flex-row")
 css_color(c) = "background-color: #$(hex(c))"
 
 # get a somewhat interesting point cloud:
-cat = decompose(Point3f, load(Makie.assetpath("cat.obj")))
+cat = decompose(Point3f, FileIO.load(Makie.assetpath("cat.obj")))
 # Create a little interactive app
 app = App() do session
     global sess = session
-    global markersize = JSServe.Slider(range(1, stop=2, length=10))
+    global markersize = JSServe.Slider(range(5, stop=100, length=2))
     hue_slider = JSServe.Slider(1:120)
     color = map(hue_slider) do hue
         HSV(hue, 0.5, 0.5)

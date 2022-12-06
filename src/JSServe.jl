@@ -55,5 +55,8 @@ include("offline.jl")
 export Page, Session, App, DOM, @js_str, ES6Module
 export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor
 export browser_display, configure_server!, Server, html, route!
+export Observable, on, onany
+export linkjs, evaljs, evaljs_value, onjs
+
 
 end # module

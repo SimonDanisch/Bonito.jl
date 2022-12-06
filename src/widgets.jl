@@ -26,17 +26,54 @@ function jsrender(session::Session, ni::NumberInput)
 end
 
 function jsrender(session::Session, slider::Slider)
-    return jsrender(session, DOM.input(
+    # Hacky, but don't want to Pr WidgetsBase yet
+
+    values = get!(slider.attributes, :value_array) do
+        map(collect, session, slider.range)
+    end
+    initial_idx = findfirst((==)(slider.value[]), slider.range[])
+    index = get!(slider.attributes, :index_observable) do
+        return Observable(initial_idx)
+    end
+    onjs(session, index, js"""(index) => {
+        const values = $(values).value
+        $(slider.value).notify(values[index - 1])
+    }
+    """)
+    result = jsrender(session, DOM.input(
         type = "range",
-        min = map(first, slider.range),
-        max = map(last, slider.range),
-        value = slider.value,
-        step = map(step, slider.range),
+        min = 1,
+        max = map(length, slider.range),
+        value = index,
+        step = 1,
         oninput = js"""(event)=> {
-            $(slider.value).notify(parseFloat(event.srcElement.value))
+            $(index).notify(parseInt(event.srcElement.value))
         }""";
         slider.attributes...
     ))
+
+    return result
+end
+
+function Base.setindex!(slider::Slider, value)
+    # should be only numbers right now, which should also be sorted
+    # This may change once we allow `Slider(array)` in WidgetsBase
+    values = get!(slider.attributes, :value_array) do
+        map(collect, slider.range)
+    end
+    idx = findfirst(x-> x >= value, values[])
+
+    if isnothing(idx)
+        @warn("Value $(value) out of range for the values of slider (highest value: $(last(values[]))). Setting to highest value!")
+        idx = length(values[])
+    end
+
+    index = get!(slider.attributes, :index_observable) do
+        return Observable(idx)
+    end
+    index[] = idx
+    slider.value[] = values[][idx] # for offline connection
+    return idx
 end
 
 function jsrender(session::Session, tb::Checkbox)

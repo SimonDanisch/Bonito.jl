@@ -1,9 +1,12 @@
+# using JSServe, Markdown
+
+# JSServe.browser_display()
 function test_handler(session, req)
     global test_observable
     test_observable = Observable(Dict{String, Any}())
     test_session = session
 
-    s1 = JSServe.Slider(1:100)
+    global s1 = JSServe.Slider(1:100)
     s2 = JSServe.Slider(1:100)
     b = JSServe.Button("hi"; dataTestId="hi_button")
 
@@ -17,8 +20,7 @@ function test_handler(session, req)
     linkjs(session, s1.value, s2.value)
 
     onjs(session, s1.value, js"""function (v){
-        var updated = $(test_observable).notify({onjs: v});
-        console.log(updated);
+        $(test_observable).notify({onjs: v});
     }""")
 
     on(t) do value
@@ -34,6 +36,9 @@ function test_handler(session, req)
 
     number_input = JSServe.NumberInput(66.0)
     number_result = DOM.div(number_input.value, dataTestId="number_result")
+
+
+    linked_value = DOM.div(s2.value, dataTestId="linked_value")
 
     dom = md"""
     # IS THIS REAL?
@@ -57,10 +62,10 @@ function test_handler(session, req)
     Type something for the list: $(t)
 
     some list $(textresult)
+    $(linked_value)
     """
     return DOM.div(dom)
 end
-
 
 function test_current_session(app)
     dom = children(app.dom)[1]
@@ -130,7 +135,7 @@ function test_current_session(app)
         slider1 = dom.content[2].content[2]
         slider2 = dom.content[3].content[2]
         slider1_js = js"document.querySelectorAll('input[type=\"range\"]')[0]"
-        slider2_js = js"document.querySelectorAll('input[type=\"range\"]')[1]"
+        slider2_js = query_testid("linked_value")
         sliderresult = query_testid("slider_result")
 
         @testset "set via julia" begin
@@ -138,7 +143,7 @@ function test_current_session(app)
                 slider1[] = i
                 @test evaljs(app, js"$(slider1_js).value") == "$i"
                 # Test linkjs
-                @test evaljs(app, js"$(slider2_js).value") == "$i"
+                @test evaljs(app, js"$(slider2_js).innerText") == "$i"
                 @test slider2[] == i
                 evaljs(app, js"$(sliderresult).innerText") == "$i"
             end
@@ -160,12 +165,11 @@ app = TestSession(URI("http://localhost:8555/show"),
 app.dom = dom;
 app.initialized = false
 wait(app)
-
+Electron.toggle_devtools(app.window)
 @testset "electron inline display" begin
     test_current_session(app)
 end
 close(app)
-
 
 @testset "Electron standalone" begin
     testsession(test_handler, port=8555) do app
