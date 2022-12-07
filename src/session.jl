@@ -118,10 +118,11 @@ Send values to the frontend via JSON for now
 Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
+    serialized = SerializedMessage(session, message)
     if session.ignore_message[](message)::Bool
         return
     end
-    send(session, SerializedMessage(session, message))
+    send(session, serialized)
 end
 
 function Sockets.send(session::Session, message::SerializedMessage)

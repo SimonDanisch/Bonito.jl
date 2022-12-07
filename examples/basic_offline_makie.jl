@@ -2,7 +2,7 @@ using JSServe, WGLMakie, Makie, Colors, FileIO
 using JSServe.DOM
 
 function styled_slider(slider, value)
-    rows(slider, DOM.span(value, class="p-1"), class="w-64 p-2 items-center")
+    rows(slider, DOM.span(map(x-> round(x, digits=2), value), class="p-1"), class="w-64 p-2 items-center")
 end
 
 columns(args...; class="") = DOM.div(args..., class=class * " flex flex-col")
@@ -13,8 +13,7 @@ css_color(c) = "background-color: #$(hex(c))"
 cat = decompose(Point3f, FileIO.load(Makie.assetpath("cat.obj")))
 # Create a little interactive app
 app = App() do session
-    global sess = session
-    global markersize = JSServe.Slider(range(5, stop=100, length=2))
+    markersize = JSServe.Slider(range(10, stop=100, length=100))
     hue_slider = JSServe.Slider(1:120)
     color = map(hue_slider) do hue
         HSV(hue, 0.5, 0.5)

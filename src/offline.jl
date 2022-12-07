@@ -36,6 +36,8 @@ to_watch(x) = observe(x).id
 function record_values(f, session, widget)
     empty!(session.message_queue)
     wid = to_watch(widget)
+    objects = copy(session.session_objects)
+    empty!(session.session_objects)
     session.ignore_message[] = (msg) -> begin
         if msg[:msg_type] == UpdateObservable
             if msg[:id] == wid
@@ -54,6 +56,7 @@ function record_values(f, session, widget)
     catch e
         Base.showerror(stderr, e)
     finally
+        merge!(session.session_objects, objects)
         session.ignore_message[] = (msg)-> false
     end
 end
@@ -68,12 +71,12 @@ end
 function record_states(session::Session, dom::Hyperscript.Node)
     widgets = extract_widgets(dom)
     rendered = jsrender(session, dom)
-    session_dom(session, rendered)
     # We'll mess with the message_queue to record the statemap
     # So we copy the current message queue and disconnect the session!
-
-    msgs = copy(session.message_queue)
-    empty!(session.message_queue)
+    # we need to serialize the message so that all observables etc are registered
+    # TODO, this is a bit of a bad design, since we mixed serialization with session resource registration
+    # Which makes sense in most parts, but breaks together, e.g. here
+    msg_serialized = SerializedMessage(session, fused_messages!(session))
     independent = filter(is_independant, widgets)
     independent_states = Dict{String, Any}()
     while_disconnected(session) do
@@ -88,7 +91,7 @@ function record_states(session::Session, dom::Hyperscript.Node)
         end
     end
 
-    append!(session.message_queue, msgs)
+    push!(session.message_queue, msg_serialized)
     observable_ids = to_watch.(independent)
 
     statemap_script = js"""
@@ -98,9 +101,7 @@ function record_states(session::Session, dom::Hyperscript.Node)
         observables.forEach(id => {
             JSServe.lookup_global_object(id).on((val) => {
                 // messages to send for this state of that observable
-                console.log(val)
                 const messages = statemap[id][val]
-                console.log(messages)
                 // not all states trigger events
                 // so some states won't have any messages recorded
                 if (messages){
