@@ -16,11 +16,21 @@ export class Retain {
 
 const EXTENSION_CODEC = new MsgPack.ExtensionCodec();
 
+window.EXTENSION_CODEC = EXTENSION_CODEC;
+
 /**
  * @param {Uint8Array} uint8array
  */
 function unpack(uint8array) {
     return MsgPack.decode(uint8array, { extensionCodec: EXTENSION_CODEC });
+}
+
+/**
+ * @param {any} object
+ * @return {Uint8Array}
+ */
+function pack(object) {
+    return MsgPack.encode(object, { extensionCodec: EXTENSION_CODEC });
 }
 
 /**
@@ -31,15 +41,11 @@ function reinterpret_array(ArrayType, uint8array) {
     if (ArrayType === Uint8Array) {
         return uint8array;
     } else {
-        const bo = uint8array.byteOffset
-        const bpe = ArrayType.BYTES_PER_ELEMENT
-        const new_array_length = uint8array.byteLength / bpe
-        const buffer = uint8array.buffer.slice(bo, bo + uint8array.byteLength)
-        return new ArrayType(
-            buffer,
-            0,
-            new_array_length
-        );
+        const bo = uint8array.byteOffset;
+        const bpe = ArrayType.BYTES_PER_ELEMENT;
+        const new_array_length = uint8array.byteLength / bpe;
+        const buffer = uint8array.buffer.slice(bo, bo + uint8array.byteLength);
+        return new ArrayType(buffer, 0, new_array_length);
     }
 }
 
@@ -47,6 +53,13 @@ function register_ext_array(type_tag, array_type) {
     EXTENSION_CODEC.register({
         type: type_tag,
         decode: (uint8array) => reinterpret_array(array_type, uint8array),
+        encode: (object) => {
+            if (object instanceof array_type) {
+                return new Uint8Array(object.buffer, object.byteOffset, object.byteLength)
+            } else {
+                return null
+            }
+        },
     });
 }
 
@@ -59,12 +72,35 @@ register_ext_array(0x16, Uint32Array);
 register_ext_array(0x17, Float32Array);
 register_ext_array(0x18, Float64Array);
 
-function register_ext(type_tag, constructor) {
+function register_ext(type_tag, decode, encode) {
     EXTENSION_CODEC.register({
         type: type_tag,
-        decode: constructor,
+        decode,
+        encode,
     });
 }
+
+class JLArray {
+    constructor(size, array) {
+        this.size = size;
+        this.array = array;
+    }
+}
+
+register_ext(
+    99,
+    (uint_8_array) => {
+        const [size, array] = unpack(uint_8_array);
+        return new JLArray(size, array);
+    },
+    (object) => {
+        if (object instanceof JLArray) {
+            return pack([object.size, object.array]);
+        } else {
+            return null;
+        }
+    }
+);
 
 register_ext(100, (uint_8_array) => {
     const [id, value] = unpack(uint_8_array);
@@ -85,7 +121,11 @@ register_ext(102, (uint_8_array) => {
     const lookup_interpolated = (id) => interpolated_objects[id];
     // create a new func, that has __lookup_cached as argument
     try {
-        const eval_func = new Function("__lookup_interpolated", "JSServe", source);
+        const eval_func = new Function(
+            "__lookup_interpolated",
+            "JSServe",
+            source
+        );
         // return a closure, that when called runs the code!
         return () => {
             try {
@@ -186,6 +226,5 @@ export function decode_binary(binary) {
 }
 
 export function encode_binary(data) {
-    const binary = MsgPack.encode(data);
-    return Pako.deflate(binary);
+    return Pako.deflate(pack(data));
 }

@@ -33,6 +33,12 @@ function MsgPack.to_msgpack(EXT::MsgPack.ExtensionType, x::AbstractVector{Float1
     return MsgPack.to_msgpack(EXT, convert(Vector{Float32}, x))
 end
 
+const ARRAY_TAG = Int8(99)
+MsgPack.msgpack_type(::Type{<: AbstractArray{<: Union{Float16, JSTypedNumber}}}) = MsgPack.ExtensionType()
+function MsgPack.to_msgpack(EXT::MsgPack.ExtensionType, x::AbstractArray{<: Union{Float16, JSTypedNumber}})
+    return MsgPack.Extension(ARRAY_TAG, pack(Any[UInt32[size(x)...], vec(x)]))
+end
+
 const OBSERVABLE_TAG = Int8(100)
 MsgPack.msgpack_type(::Type{<: SerializedObservable}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedObservable)
@@ -100,16 +106,19 @@ function decode_extension_and_addbits(ext::MsgPack.Extension)
         elseif CACHE_KEY_TAG == ext.type
             key = MsgPack.unpack(ext.data)
             return CacheKey(key)
-        elseif  RETAIN_TAG == ext.type
+        elseif RETAIN_TAG == ext.type
             value = MsgPack.unpack(ext.data)
             return Retain(decode_extension_and_addbits(value))
-        elseif  SESSION_CACHE_TAG == ext.type
+        elseif SESSION_CACHE_TAG == ext.type
             value = decode_extension_and_addbits(MsgPack.unpack(ext.data))
             return SessionCache(value...)
-        elseif  JSCODE_TAG == ext.type
+        elseif JSCODE_TAG == ext.type
             value = decode_extension_and_addbits(MsgPack.unpack(ext.data))
             # MsgPack.Extension(JSCODE_TAG, pack([x.interpolated_objects, x.source, x.julia_file]))
             return JSCode([JSString(value[2])], value[3])
+        elseif ARRAY_TAG == ext.type
+            unpacked = decode_extension_and_addbits(MsgPack.unpack(ext.data))
+            return reshape(unpacked[2], map(Int, unpacked[1])...)
         else
             idx = Int(ext.type - 0x10)
             if checkbounds(Bool, JSTypedArrayEltypes, idx)

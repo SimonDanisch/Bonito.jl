@@ -2,10 +2,19 @@ import { send_to_julia, UpdateObservable, send_error } from "./Connection.js";
 
 class Observable {
     #callbacks = [];
+
+    /**
+     * @param {string} id
+     * @param {any} value
+     */
     constructor(id, value) {
         this.id = id;
         this.value = value;
     }
+    /**
+     * @param {any} value
+     * @param {boolean} dont_notify_julia
+     */
     notify(value, dont_notify_julia) {
         this.value = value;
         this.#callbacks.forEach((callback) => {
@@ -34,6 +43,10 @@ class Observable {
             });
         }
     }
+
+    /**
+     * @param {any} callback
+     */
     on(callback) {
         this.#callbacks.push(callback);
     }

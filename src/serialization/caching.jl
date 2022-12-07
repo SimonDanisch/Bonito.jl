@@ -99,7 +99,7 @@ function serialize_cached(session::Session, @nospecialize(obj))
 end
 
 serialize_cached(::SerializationContext, native::MSGPACK_NATIVE_TYPES) = native
-serialize_cached(::SerializationContext, native::AbstractVector{<: Number}) = native
+serialize_cached(::SerializationContext, native::AbstractArray{<: Number}) = native
 
 
 """
