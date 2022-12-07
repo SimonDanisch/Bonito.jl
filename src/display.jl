@@ -2,12 +2,19 @@ Base.showable(::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}
 
 const CURRENT_SESSION = Ref{Union{Nothing, Session}}(nothing)
 
-function Page()
+function Page(; offline=false, exportable=true)
     old_session = CURRENT_SESSION[]
     if !isnothing(old_session)
         close(old_session)
     end
     CURRENT_SESSION[] = nothing
+    if offline
+        force_connection!(NoConnection())
+    end
+    if exportable
+        force_asset_server!(NoServer())
+    end
+    force_subsession!(true)
     return
 end
 

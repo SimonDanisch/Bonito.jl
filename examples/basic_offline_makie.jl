@@ -2,7 +2,7 @@ using JSServe, WGLMakie, Makie, Colors, FileIO
 using JSServe.DOM
 
 function styled_slider(slider, value)
-    rows(slider, DOM.span(map(x-> round(x, digits=2), value), class="p-1"), class="w-64 p-2 items-center")
+    rows(slider, DOM.span(value, class="p-1"), class="w-64 p-2 items-center")
 end
 
 columns(args...; class="") = DOM.div(args..., class=class * " flex flex-col")

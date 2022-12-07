@@ -243,3 +243,29 @@ end
 function Base.show(io::IO, m::MIME"text/html", widget::WidgetsBase.AbstractWidget)
     show(io, m, App(widget))
 end
+
+struct Dropdown
+    options::Observable{Vector{Any}}
+    option::Observable{Any}
+    option_index::Observable{Int}
+end
+
+function Dropdown(options; index=1)
+    option_index = convert(Observable{Int}, index)
+    options = convert(Observable{Vector{Any}}, options)
+    option = Observable{Any}(options[][option_index[]])
+    onany(option_index, options) do index, options
+        option[] = options[index]
+        return
+    end
+    return Dropdown(options, option, option_index)
+end
+
+function jsrender(session::Session, dropdown::Dropdown)
+    dropdown_onchange = js"""(e)=> {
+        const element = e.srcElement;
+        ($(dropdown.option_index)).notify(element.selectedIndex + 1);
+    }"""
+    dom = map(options-> map(DOM.option, options), session, dropdown.options)[]
+    return DOM.select(dom; class="bandpass-dropdown", onclick=dropdown_onchange)
+end

@@ -8,9 +8,7 @@ function update_value!(x, value) end
 function extract_widgets(dom_root)
     result = Base.IdSet()
     walk_dom(dom_root) do x
-        if is_widget(x)
-            push!(result, x)
-        end
+        is_widget(x) && push!(result, x)
     end
     return result
 end
@@ -32,38 +30,54 @@ update_value!(slider::Slider, idx) = (slider[] = slider.range[][idx])
 to_watch(slider::Slider) = slider.attributes[:index_observable].id
 to_watch(x) = observe(x).id
 
+# Implement interface for Dropdown
+
+is_widget(::Dropdown) = true
+value_range(d::Dropdown) = 1:length(d.options[])
+update_value!(d::Dropdown, value) = (d.option_index[] = value)
+to_watch(d::Dropdown) = d.option_index.id
 
 function record_values(f, session, widget)
-    empty!(session.message_queue)
     wid = to_watch(widget)
-    objects = copy(session.session_objects)
-    empty!(session.session_objects)
-    session.ignore_message[] = (msg) -> begin
+    root = root_session(session)
+    function ignore_message(msg)
         if msg[:msg_type] == UpdateObservable
-            if msg[:id] == wid
-                return true
-            else
-                println("updating: $(msg[:id]), with $(msg[:payload])")
-            end
+            # Ignore all messages that directly update the observable we watch
+            # because otherwise, that will trigger itself recursively, once those messages are applied
+            # via `$(wid).on(x=> ....)`
+            msg[:id] == wid && return true
         end
         return false
+    end
+    function do_session(f)
+        # if we're recording for a subsession, we need to apply the operations to both sessions
+        session !== root && f(root)
+        f(session)
+    end
+    do_session() do s
+        empty!(s.message_queue)
+        s.ignore_message[] = ignore_message
     end
 
     try
         f()
-        messages = copy(session.message_queue)
+        messages = SerializedMessage[]
+        do_session() do s
+            append!(messages, s.message_queue)
+        end
         return Dict("msg_type" => FusedMessage, "payload" => messages)
     catch e
         Base.showerror(stderr, e)
     finally
-        merge!(session.session_objects, objects)
-        session.ignore_message[] = (msg)-> false
+        do_session() do s
+            s.ignore_message[] = (msg)-> false
+        end
     end
 end
 
 function while_disconnected(f, session::Session)
     if isopen(session)
-        error("Session shouldnt be open")
+        error("Session shouldn't be open")
     end
     f()
 end
@@ -78,6 +92,7 @@ function record_states(session::Session, dom::Hyperscript.Node)
     # Which makes sense in most parts, but breaks together, e.g. here
     msg_serialized = SerializedMessage(session, fused_messages!(session))
     independent = filter(is_independant, widgets)
+
     independent_states = Dict{String, Any}()
     while_disconnected(session) do
         for widget in independent
@@ -97,7 +112,6 @@ function record_states(session::Session, dom::Hyperscript.Node)
     statemap_script = js"""
         const statemap = $(independent_states)
         const observables = $(observable_ids)
-        console.log(statemap)
         observables.forEach(id => {
             JSServe.lookup_global_object(id).on((val) => {
                 // messages to send for this state of that observable
