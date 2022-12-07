@@ -40,6 +40,9 @@ function jsrender(session::Session, slider::Slider)
         $(slider.value).notify(values[index - 1])
     }
     """)
+    attributes = copy(slider.attributes)
+    delete!(attributes, :value_array)
+    delete!(attributes, :index_observable)
     result = jsrender(session, DOM.input(
         type = "range",
         min = 1,
@@ -49,7 +52,7 @@ function jsrender(session::Session, slider::Slider)
         oninput = js"""(event)=> {
             $(index).notify(parseInt(event.srcElement.value))
         }""";
-        slider.attributes...
+        attributes...
     ))
 
     return result

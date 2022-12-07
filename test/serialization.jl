@@ -50,10 +50,9 @@ end
         testsession(handler, port=8558) do app
             roundtripped_js = evaljs(app, js"""$data""")
 
-            for (key, value) in round_tripped
+            for (key, value) in roundtripped_js
                 @test value isa MsgPack.Extension
-                if occursin("vec", key)
-                else
+                if !occursin("vec", key)
                     @test value.type == 99
                 end
             end
