@@ -151,6 +151,30 @@ function _use_parent_session(session::Session)
     end
 end
 
+
+function default_connection()
+    return default_type(FORCED_CONNECTION, AVAILABLE_CONNECTIONS)
+end
+
+use_parent_session(::Session) = false
+use_parent_session(::Session{IJuliaConnection}) = true
+use_parent_session(::Session{PlutoConnection}) = true
+use_parent_session(::Session{WebSocketConnection}) = false
+
+# HTTPAssetServer is the fallback, so it's registered first (lower priority),
+# and never returns nothing
+register_asset_server!(HTTPAssetServer) do
+    return HTTPAssetServer()
+end
+
+register_asset_server!(NoServer) do
+    if isdefined(Main, :IJulia) || isdefined(Main, :PlutoRunner) | isdefined(Main, :Documenter)
+        return NoServer()
+    else
+        return  nothing
+    end
+end
+
 # Websocket is the fallback, so it's registered first (lower priority),
 # and never returns nothing
 register_connection!(WebSocketConnection) do
@@ -175,28 +199,20 @@ register_connection!(PlutoConnection) do
     return nothing
 end
 
-function default_connection()
-    return default_type(FORCED_CONNECTION, AVAILABLE_CONNECTIONS)
+# Just a placeholder type to register a connection
+struct JuliaHub <: FrontendConnection end
+
+function on_julia_hub()
+    jhub = ["JULIAHUB_USERNAME", "JH_APP_URL", "JULIAHUB_USEREMAIL"]
+    return all(x-> haskey(ENV, x), jhub)
 end
 
-
-
-# HTTPAssetServer is the fallback, so it's registered first (lower priority),
-# and never returns nothing
-register_asset_server!(HTTPAssetServer) do
-    return HTTPAssetServer()
-end
-
-register_asset_server!(NoServer) do
-    if isdefined(Main, :IJulia) || isdefined(Main, :PlutoRunner) | isdefined(Main, :Documenter)
-        return NoServer()
-    else
-        return  nothing
+register_connection!(JuliaHub) do
+    if on_julia_hub()
+        port = 9284
+        proxy = ENV["JH_APP_URL"] * "proxy/$(port)"
+        JSServe.configure_server!(listen_url="0.0.0.0", listen_port=port, forwarded_port=80, external_url=proxy)
     end
+    # Still return nothing to let others decide e.g. if we're using IJulia/PlutoConnection
+    return nothing
 end
-
-
-use_parent_session(::Session) = false
-use_parent_session(::Session{IJuliaConnection}) = true
-use_parent_session(::Session{PlutoConnection}) = true
-use_parent_session(::Session{WebSocketConnection}) = false
