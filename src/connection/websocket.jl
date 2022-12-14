@@ -7,7 +7,7 @@ mutable struct WebSocketConnection <: FrontendConnection
     server::Union{Nothing, Server}
     socket::Union{Nothing, WebSocket}
     lock::ReentrantLock
-    session::Union{Nothing, Session{WebSocketConnection}}
+    session::Union{Nothing, Session}
 end
 
 WebSocketConnection() = WebSocketConnection(nothing, nothing, ReentrantLock(), nothing)
