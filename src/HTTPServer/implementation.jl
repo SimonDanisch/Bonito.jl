@@ -217,11 +217,12 @@ function try_listen(url, port)
         ioserver = Sockets.listen(address)
         return port, ioserver
     catch e
-        if e isa Base.IOError && e.code == -4091 #address already in use
-            return try_listen(url, port+1)
-        else
-            rethrow(e)
+        if e isa Base.IOError
+            if e.code == -4091 || e.code == -98#address already in use
+                return try_listen(url, port+1)
+            end
         end
+        rethrow(e)
     end
 end
 

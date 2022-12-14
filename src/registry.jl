@@ -190,7 +190,7 @@ register_connection!(NoConnection) do
 end
 
 register_connection!(IJuliaConnection) do
-    isdefined(Main, :IJulia) && IJuliaConnection()
+    isdefined(Main, :IJulia) && return IJuliaConnection()
     return nothing
 end
 
