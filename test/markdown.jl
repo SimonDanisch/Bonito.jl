@@ -1,9 +1,12 @@
+# using JSServe, Markdown
+
+# JSServe.browser_display()
 function test_handler(session, req)
     global test_observable
     test_observable = Observable(Dict{String, Any}())
     test_session = session
 
-    s1 = JSServe.Slider(1:100)
+    global s1 = JSServe.Slider(1:100)
     s2 = JSServe.Slider(1:100)
     b = JSServe.Button("hi"; dataTestId="hi_button")
 
@@ -17,8 +20,7 @@ function test_handler(session, req)
     linkjs(session, s1.value, s2.value)
 
     onjs(session, s1.value, js"""function (v){
-        var updated = JSServe.update_obs($(test_observable), {onjs: v});
-        console.log(updated);
+        $(test_observable).notify({onjs: v});
     }""")
 
     on(t) do value
@@ -34,6 +36,9 @@ function test_handler(session, req)
 
     number_input = JSServe.NumberInput(66.0)
     number_result = DOM.div(number_input.value, dataTestId="number_result")
+
+
+    linked_value = DOM.div(s2.value, dataTestId="linked_value")
 
     dom = md"""
     # IS THIS REAL?
@@ -57,10 +62,10 @@ function test_handler(session, req)
     Type something for the list: $(t)
 
     some list $(textresult)
+    $(linked_value)
     """
     return DOM.div(dom)
 end
-
 
 function test_current_session(app)
     dom = children(app.dom)[1]
@@ -104,7 +109,7 @@ function test_current_session(app)
                 do_input = js"""
                     var tfield = document.querySelector('input[type=\"textfield\"]');
                     tfield.value = $(str);
-                    tfield.onchange();
+                    tfield.onchange({srcElement: tfield});
                 """
                 val = test_value(app, do_input)
                 @test val["textfield"] == str
@@ -130,7 +135,7 @@ function test_current_session(app)
         slider1 = dom.content[2].content[2]
         slider2 = dom.content[3].content[2]
         slider1_js = js"document.querySelectorAll('input[type=\"range\"]')[0]"
-        slider2_js = js"document.querySelectorAll('input[type=\"range\"]')[1]"
+        slider2_js = query_testid("linked_value")
         sliderresult = query_testid("slider_result")
 
         @testset "set via julia" begin
@@ -138,7 +143,7 @@ function test_current_session(app)
                 slider1[] = i
                 @test evaljs(app, js"$(slider1_js).value") == "$i"
                 # Test linkjs
-                @test evaljs(app, js"$(slider2_js).value") == "$i"
+                @test evaljs(app, js"$(slider2_js).innerText") == "$i"
                 @test slider2[] == i
                 evaljs(app, js"$(sliderresult).innerText") == "$i"
             end
@@ -151,34 +156,20 @@ global dom = nothing
 inline_display = JSServe.App() do session, req
     global test_session = session
     global dom = test_handler(session, req)
-    return DOM.div(JSTest, dom)
+    return dom
 end;
+JSServe.CURRENT_SESSION[] = nothing
 electron_disp = electrondisplay(inline_display);
 app = TestSession(URI("http://localhost:8555/show"),
-                  JSServe.GLOBAL_SERVER[], electron_disp, test_session)
-app.dom = dom
-
+                  JSServe.HTTPServer.GLOBAL_SERVER[], electron_disp, test_session)
+app.dom = dom;
+app.initialized = false
+wait(app)
+Electron.toggle_devtools(app.window)
 @testset "electron inline display" begin
     test_current_session(app)
 end
 close(app)
-
-@testset "webio mime" begin
-    ENV["JULIA_WEBIO_BASEURL"] = "https://google.de/"
-    JSServe.__init__()
-    @test JSServe.JSSERVE_CONFIGURATION.external_url[] == "https://google.de"
-    @test JSServe.JSSERVE_CONFIGURATION.content_delivery_url[] == "https://google.de"
-    html_webio = sprint(io-> show(io, MIME"application/vnd.jsserve.application+html"(), inline_display))
-    #@test occursin("proxy_url = 'https://google.de';", html_webio)
-    # @test JSServe.url("/test") == "https://google.de/test"
-    JSServe.JSSERVE_CONFIGURATION.external_url[] = ""
-    JSServe.JSSERVE_CONFIGURATION.content_delivery_url[] = ""
-    # @test JSServe.url("/test") == "/test" # back to relative urls
-    html_webio = sprint(io-> show(io, MIME"application/vnd.jsserve.application+html"(), inline_display))
-    # We open the display server with the above TestSession
-    # TODO electrontests should do this!
-    check_and_close_display()
-end
 
 @testset "Electron standalone" begin
     testsession(test_handler, port=8555) do app
@@ -257,31 +248,12 @@ end
     end
 
     testsession(test_handler, port=8555) do app
-        # Lets not be too porcelainy about this ...
-        md_js_dom = js"document.getElementById('application-dom').children[0]"
-        @test evaljs(app, js"$(md_js_dom).children.length") == 1
-        md_children = js"$(md_js_dom).children[0].children[0].children"
+        id = app.session.id
+        md_js_dom = js"document.getElementById($(id)).children[0]"
+        @test evaljs(app, js"$(md_js_dom).children.length") == 5
+        md_children = js"$(md_js_dom).children[4].children"
         @test evaljs(app, js"$(md_children).length") == 23
         @test occursin("This is the first footnote.", evaljs(app, js"$(md_children)[22].innerText"))
         @test evaljs(app, js"$(md_children)[2].children[0].children[0].tagName") == "IMG"
-    end
-end
-
-@testset "range slider" begin
-    function test_handler(session, req)
-        rslider = JSServe.RangeSlider(1:100; value=[10, 80])
-        start = map(first, rslider)
-        stop = map(last, rslider)
-        return DOM.div(rslider, start, stop, id="rslider")
-    end
-    testsession(test_handler, port=8555) do app
-        # Lets not be too porcelainy about this ...
-        rslider = getfield(app.dom, :children)[1]
-        @test rslider[] == [10, 80]
-        rslider_html = js"document.getElementById('rslider')"
-        @test evaljs(app, js"$(rslider_html).children.length") == 3
-        @test evaljs(app, js"$(rslider_html).children[1].innerText") == "10"
-        @test evaljs(app, js"$(rslider_html).children[2].innerText") == "80"
-        rslider[] = [20, 70]
     end
 end

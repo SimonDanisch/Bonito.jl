@@ -1,100 +1,109 @@
-function fused_messages!(session::Session)
-    messages = []
+function show_session(io::IO, session::Session{T}) where T
+    println(io, "Session{$T}:")
+    println(io, "  id: $(session.id)")
+    println(io, "  parent: $(typeof(session.parent[]))")
+    if !isempty(session.children)
+        println(io, "children: $(length(session.children))")
+    end
+    println(io, "  connection: $(isopen(session.connection) ? "open" : "closed")")
+    println(io, "  isready: $(isready(session))")
+    println(io, "  asset_server: $(typeof(session.asset_server))")
+    println(io, "  queued messages: $(length(session.message_queue))")
+    if !isnothing(session.init_error[])
+        println(io, "  session failed to initialize:")
+        showerror(io, session.init_error[])
+    end
+end
+
+Base.show(io::IO, ::MIME"text/plain", session::Session) = show_session(io, session)
+Base.show(io::IO, session::Session) = show_session(io, session)
+
+function wait_for_ready(session::Session; timeout=10)
+    wait_for(()-> isready(session); timeout=timeout)
+end
+
+function get_messages!(session::Session, messages=[])
     append!(messages, session.message_queue)
     for js in session.on_document_load
         push!(messages, Dict(:msg_type=>EvalJavascript, :payload=>js))
     end
     empty!(session.on_document_load)
     empty!(session.message_queue)
+    root = root_session(session)
+    if root !== session
+        get_messages!(root, messages)
+    end
+    return messages
+end
+
+function fused_messages!(session::Session)
+    messages = get_messages!(session)
     return Dict(:msg_type=>FusedMessage, :payload=>messages)
 end
 
 function init_session(session::Session)
-    evaljs(session, js"""
-        const application_dom = document.getElementById('application-dom')
-        if (application_dom) {
-            application_dom.style.visibility = 'visible'
-        }
-    """)
-    put!(session.js_fully_loaded, true)
-    send(session, fused_messages!(session))
-end
-
-function Session(connection=Base.RefValue{Union{WebSocket, Nothing, IOBuffer}}(nothing); url_serializer=UrlSerializer(), id=string(uuid4()))
-    return Session(
-        connection,
-        Dict{String, Tuple{Bool, Observable}}(),
-        Dict{Symbol, Any}[],
-        Set{Asset}(),
-        JSCode[],
-        id,
-        Channel{Bool}(1),
-        init_session,
-        url_serializer,
-        Ref{Union{Nothing, JSException}}(nothing),
-        Observable{Union{Nothing, Dict{String, Any}}}(nothing),
-        Observable(false),
-        Observables.ObserverFunction[],
-        Dict{String, WeakRef}()
-    )
-end
-
-function Session(session::Session;
-                connection=session.connection,
-                observables=session.observables,
-                message_queue=session.message_queue,
-                dependencies=session.dependencies,
-                on_document_load=session.on_document_load,
-                id=session.id,
-                js_fully_loaded=session.js_fully_loaded,
-                on_websocket_ready=session.on_websocket_ready,
-                url_serializer=session.url_serializer,
-                init_error=session.init_error,
-                js_comm=session.js_comm,
-                on_close=session.on_close,
-                deregister_callbacks=session.deregister_callbacks,
-                unique_object_cache=session.unique_object_cache)
-    return Session(
-        connection,
-        observables,
-        message_queue,
-        dependencies,
-        on_document_load,
-        id,
-        js_fully_loaded,
-        on_websocket_ready,
-        url_serializer,
-        init_error,
-        js_comm,
-        on_close,
-        deregister_callbacks,
-        unique_object_cache
-    )
+    put!(session.connection_ready, true)
+    # open the connection for e.g. subconnection, which just have an open flag
+    open!(session.connection)
+    @assert isopen(session)
+    # We send all queued up messages once the onnection is open
+    if !isempty(session.message_queue) || !isempty(session.on_document_load)
+        send(session, fused_messages!(session))
+    end
 end
 
 session(session::Session) = session
 
+Base.parent(session::Session) = session.parent[]
+
+root_session(session::Session) = isnothing(parent(session)) ? session : root_session(parent(session))
+
+function get_session(session::Session, id::String)
+    session.id == id && return session
+    if haskey(session.children, id)
+        return session.children[id]
+    end
+    # recurse
+    for (key, sub) in session.children
+        s = get_session(sub, id)
+        isnothing(s) || return s
+    end
+    # Nothing found...
+    return nothing
+end
+
+function Base.empty!(session::Session)
+    root = root_session(session)
+    for key in keys(session.session_objects)
+        delete_cached!(root, key)
+    end
+    # remove all listeners that where created for this session
+    foreach(off, session.deregister_callbacks)
+    empty!(session.deregister_callbacks)
+end
+
 function Base.close(session::Session)
-    try
-        # https://github.com/JuliaWeb/HTTP.jl/issues/649
-        if isassigned(session.connection) && !isnothing(session.connection[])
-            close(session.connection[])
+    # unregister all cached objects from parent session
+    root = root_session(session)
+    # If we're a child session, we need to remove all objects trackt in our root session:
+    if session !== root
+        # We need to remove our session from the parent first, otherwise `delete_cached!`
+        # will think our session still holds the value, which would prevent it from deleting
+        delete!(parent(session).children, session.id)
+        for key in keys(session.session_objects)
+            delete_cached!(root, key)
         end
-    catch e
-        if !(e isa Base.IOError)
-            @warn "error while closing websocket!" exception=e
-        end
+        evaljs(root, js"""
+            JSServe.free_session($(session.id))
+        """)
     end
-    try
-        # Errors in `on_close` should not disrupt closing!
-        session.on_close[] = true
-    catch e
-        @warn "error while setting on_close" exception=e
-    end
-    empty!(session.observables)
+    # delete_cached! only deletes in the root session so we need to still empty the session_objects:
+    empty!(session.session_objects)
+
+    close(session.connection)
     empty!(session.on_document_load)
     empty!(session.message_queue)
-    empty!(session.dependencies)
+    empty!(session.session_objects)
     # remove all listeners that where created for this session
     foreach(off, session.deregister_callbacks)
     empty!(session.deregister_callbacks)
@@ -109,21 +118,28 @@ Send values to the frontend via JSON for now
 Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
+    serialized = SerializedMessage(session, message)
+    if session.ignore_message[](message)::Bool
+        return
+    end
+    send(session, serialized)
+end
+
+function Sockets.send(session::Session, message::SerializedMessage)
     if isready(session)
+        # if connection is open, we should never queue up messages
         @assert isempty(session.message_queue)
         binary = serialize_binary(session, message)
-        write(session.connection[], binary)
+        write(session.connection, binary)
     else
         push!(session.message_queue, message)
     end
 end
 
-function Base.isready(session::Session)
-    return isready(session.js_fully_loaded) && isopen(session)
-end
+Base.isopen(session::Session) = isopen(session.connection)
 
-function Base.isopen(session::Session)
-    return isassigned(session.connection) && !isnothing(session.connection[]) && isopen(session.connection[])
+function Base.isready(session::Session)
+    return isready(session.connection_ready) && isopen(session)
 end
 
 """
@@ -134,13 +150,12 @@ If the observable gets updated from the JS side, the calling of `func` will be t
 entirely in javascript, without any communication with the Julia `session`.
 """
 function onjs(session::Session, obs::Observable, func::JSCode)
-    # register the callback with the JS session
-    register_resource!(session, (obs, func))
     send(
         session;
         msg_type=OnjsCallback,
-        id=obs.id,
-        payload=JSCode([JSString("return "), func])
+        obs=obs,
+        # return is needed to since on the JS side this will be wrapped in a function
+        payload=JSCode([JSString("return "), func], func.file)
     )
 end
 
@@ -154,7 +169,9 @@ end
 calls javascript `func` with node, once node has been displayed.
 """
 function onload(session::Session, node::Node, func::JSCode)
-    on_document_load(session, js"($(func))($(node));")
+    wrapped_func = js"($(func))($(node));"
+    # preserver fun.file
+    on_document_load(session, JSCode(wrapped_func.source, func.file))
 end
 
 """
@@ -163,7 +180,6 @@ end
 executes javascript after document is loaded
 """
 function on_document_load(session::Session, js::JSCode)
-    register_resource!(session, js)
     push!(session.on_document_load, js)
 end
 
@@ -175,7 +191,7 @@ Link the observables in Julia, but only as long as the session is active.
 """
 function linkjs(session::Session, a::Observable, b::Observable)
     # register the callback with the JS session
-    onjs(session, a, js"(v) => JSServe.update_obs($b, v)")
+    onjs(session, a, js"""(v) => {$(b).notify(v)}""")
 end
 
 function linkjs(has_session, a::Observable, b::Observable)
@@ -188,7 +204,6 @@ end
 Evaluate a javascript script in `session`.
 """
 function evaljs(session::Session, jss::JSCode)
-    register_resource!(session, jss)
     send(session; msg_type=EvalJavascript, payload=jss)
 end
 
@@ -203,7 +218,7 @@ Evals `js` code and returns the jsonified value.
 Blocks until value is returned. May block indefinitely, when called with a session
 that doesn't have a connection to the browser.
 """
-function evaljs_value(session::Session, js; error_on_closed=true, time_out=10.0)
+function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
     if error_on_closed && !isopen(session)
         error("Session is not open and would result in this function to indefinitely block.
         It may unblock, if the browser is still connecting and opening the session later on. If this is expected,
@@ -214,22 +229,21 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=10.0)
     comm.val = nothing
     js_with_result = js"""
     try{
-        const result = $(js);
-        console.log(result)
-        JSServe.update_obs($(comm), {result: result});
+        const maybe_promise = $(js);
+        // support returning a promise:
+        Promise.resolve(maybe_promise).then(result=> {
+            $(comm).notify({result});
+        })
     }catch(e){
-        JSServe.update_obs($(comm), {error: e.toString()});
+        $(comm).notify({error: e.toString()});
     }
     """
 
     evaljs(session, js_with_result)
     # TODO, have an on error callback, that triggers when evaljs goes wrong
     # (e.g. because of syntax error that isn't caught by the above try catch!)
-
-    tstart = time()
-    while (time() - tstart < time_out) && isnothing(comm[])
-        yield()
-    end
+    # TODO do this with channels, but we still dont have a way to timeout for wait(channel)... so...
+    wait_for(()-> !isnothing(comm[]); timeout=timeout)
     value = comm[]
     if isnothing(value)
         error("Timed out")
@@ -241,67 +255,106 @@ function evaljs_value(session::Session, js; error_on_closed=true, time_out=10.0)
     end
 end
 
-function evaljs_value(with_session, js; error_on_closed=true, time_out=100.0)
-    evaljs_value(session(with_session), js; error_on_closed=error_on_closed, time_out=time_out)
+function evaljs_value(with_session, js; error_on_closed=true, timeout=100.0)
+    evaljs_value(session(with_session), js; error_on_closed=error_on_closed, timeout=timeout)
 end
 
-"""
-    register_resource!(session::Session, domlike)
+function session_dom(session::Session, app::App; init=true)
+    dom = rendered_dom(session, app)
+    return session_dom(session, dom; init=init)
+end
 
-Walks dom like structures and registers all resources (Observables, Assets Depencies)
-with the session.
-"""
-register_resource!(session::Session, @nospecialize(obj)) = nothing # do nothing for unknown type
+function session_dom(session::Session, dom::Node; init=true)
+    # the dom we can render may be anything between a
+    # dom fragment or a full page with head & body etc.
+    # If we have a head & body, we want to append our initialization
+    # code and dom nodes to the right places, so we need to extract those
+    head, body, dom = find_head_body(dom)
 
-function register_resource!(session::Session, list::Union{Tuple, AbstractVector, Pair})
-    for elem in list
-        register_resource!(session, elem)
+    # if nothing is found, we just use one div and append to that
+    if isnothing(head) && isnothing(body)
+        body = dom
+        head = dom
+        dom = DOM.div(dom, id=session.id, dataJscallId="jsserver-application-dom")
     end
-end
 
-function register_resource!(session::Session, dict::Union{NamedTuple, AbstractDict})
-    for (k, v) in pairs(dict)
-        register_resource!(session, v)
-        register_resource!(session, k)
+    init_connection = setup_connection(session)
+    init_server = setup_asset_server(session.asset_server)
+
+    issubsession = !isnothing(parent(session))
+    js = []
+    if !issubsession
+        push!(js, jsrender(session, JSServeLib))
     end
-end
 
-function register_resource!(session::Session, jss::JSCode)
-    register_resource!(session, jss.source)
-end
-
-function register_resource!(session::Session, asset::Union{Asset, Dependency, Observable})
-    push!(session, asset)
-end
-
-function register_resource!(session::Session, node::Node)
-    walk_dom(node) do x
-        register_resource!(session, x)
+    if init
+        init_session = js"""
+        JSServe.init_session($(session.id), ()=> null, $(issubsession ? "sub" : "root"));
+        """
+        push!(js, jsrender(session, init_session))
     end
+
+    if !isnothing(init_connection)
+        push!(js, jsrender(session, init_connection))
+    end
+
+    if !isnothing(init_server)
+        push!(js, jsrender(session, init_server))
+    end
+    #
+    pushfirst!(children(head), js...)
+    return dom
 end
 
-function Base.push!(session::Session, observable::Observable)
-    if !haskey(session.observables, observable.id)
-        session.observables[observable.id] = (true, observable)
-        # Register on the JS side by sending the current value
-        updater = JSUpdateObservable(session, observable.id)
-        on(updater, session, observable)
-        # Make sure we register on the js side
-        send(session, payload=observable[], id=observable.id, msg_type=RegisterObservable)
-    end
+function render_subsession(p::Session, data)
+    return render_subsession(p, DOM.span(data))
 end
 
-function Base.push!(session::Session, dependency::Dependency)
-    for asset in dependency.assets
-        push!(session, asset)
-    end
-    return dependency
+render_subsession(p::Session, data::Union{AbstractString, Number}) = (p, DOM.span(string(data)))
+
+function render_subsession(parent::Session, app::App)
+    sub = Session(parent)
+    return sub, session_dom(sub, app; init=false)
 end
 
-function Base.push!(session::Session, asset::Asset)
-    push!(session.dependencies, asset)
-    if asset.onload !== nothing
-        on_document_load(session, asset.onload)
+function render_subsession(parent::Session, dom::Node)
+    sub = Session(parent)
+    dom_rendered = jsrender(sub, dom)
+    return sub, session_dom(sub, dom_rendered; init=false)
+end
+
+function update_session_dom!(parent::Session, node_to_update::Union{String, Node}, app_or_dom; replace=true)
+    sub, html = render_subsession(parent, app_or_dom)
+    # Or we have a node
+    id = node_to_update isa String ? node_to_update : uuid(node_to_update)
+    str = "[data-jscall-id=$(repr(id))]"
+    query_selector = Dict("query_selector" => str)
+
+
+    if sub === parent # String/Number
+        # wrap into observable, so that the whole node gets transfered
+        obs = Observable(html)
+        evaljs(parent, js"""
+            JSServe.Sessions.on_node_available($query_selector, 1).then(dom => {
+                const html = $(obs).value
+                JSServe.update_or_replace(dom, html, $replace)
+            })
+        """)
+    else
+        # We need to manually do the serialization,
+        # Since we send it via the parent, but serialization needs to happen
+        # for `sub`.
+        # sub is not open yet, and only opens if we send the below message for initialization
+        # which is why we need to send it via the parent session
+        session_update = Dict(
+            "msg_type" => "UpdateSession",
+            "session_id" => sub.id,
+            "messages" => fused_messages!(sub),
+            "html" => html,
+            "replace" => replace,
+            "dom_node_selector" => query_selector
+        )
+        message = SerializedMessage(sub, session_update)
+        send(parent, message)
     end
-    return asset
 end

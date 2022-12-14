@@ -19,11 +19,11 @@ end
 Dome node with unique ID, to make it easier to interpolate it.
 """
 function um(tag, args...; kw...)
-    m(tag, args..., dataJscallId = get_unique_dom_id(); kw...)
+    m(tag, args...; dataJscallId = get_unique_dom_id(), kw...)
 end
 
 function m_unesc(tag, args...; kw...)
-    m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, tag, args..., dataJscallId = get_unique_dom_id(); kw...)
+    m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, tag, args...; dataJscallId = get_unique_dom_id(), kw...)
 end
 
 for node in [:a, :abbr, :address, :area, :article, :aside, :audio, :b,
@@ -78,16 +78,21 @@ function Hyperscript.printescaped(io::IO, x::DontEscape, escapes)
 end
 
 function attribute_render(session::Session, parent, attribute::String, jss::JSCode)
-    register_resource!(session, jss)
-    return string(jss)
+    # add js after parent gets loaded
+    func = js"""function (node) {
+        node[$attribute] = $(jss)
+    }"""
+    # preserve func.file
+    onload(session, parent, JSCode(func.source, jss.file))
+    return ""
 end
 
-function attribute_render(session::Session, parent, attribute::String, jss::Asset)
+function attribute_render(session::Session, parent, attribute::String, asset::Asset)
     if parent isa Hyperscript.Node{Hyperscript.CSS}
         # css seems to require an url object
-        return "url($(url(jss, session.url_serializer)))"
+        return "url($(url(session.asset_server, asset)))"
     else
-        return "$(url(jss, session.url_serializer))"
+        return "$(url(session.asset_server, asset))"
     end
 end
 
@@ -125,11 +130,87 @@ is_boolean_attribute(attribute::String) = attribute in BOOLEAN_ATTRIUTES
 
 function render_node(session::Session, node::Node)
     # give each node a unique id inside the dom
+    node_children = children(node)
+    node_attrs = Hyperscript.attrs(node)
+    isempty(node_children) && isempty(node_attrs) && return node
+
     new_attributes = Dict{String, Any}()
-    newchildren = map(children(node)) do elem
-        return jsrender(session, elem)
+    children_changed = false
+    attributes_changed = false
+    newchildren = map(node_children) do elem
+        new_elem = jsrender(session, elem)
+        children_changed = children_changed || new_elem !== elem
+        return new_elem
     end
-    for (k, v) in Hyperscript.attrs(node)
+    for (k, v) in node_attrs
+        rendered = attribute_render(session, node, k, v)
+        attributes_changed = attributes_changed || rendered !== v
+        # We code nothing to mean omitting the attribute!
+        if is_boolean_attribute(k)
+            if rendered isa Bool
+                if rendered
+                    # only add attribute if true!
+                    new_attributes[k] = true
+                end
+            else
+                error("Boolean attribute $(k) expects a boolean! Found: $(typeof(rendered))")
+            end
+        else
+            new_attributes[k] = rendered
+        end
+    end
+    # Don't copy node if nothing has changed!
+    if attributes_changed || children_changed
+        return Node(
+            Hyperscript.context(node),
+            Hyperscript.tag(node),
+            newchildren,
+            new_attributes)
+    else
+        return node
+    end
+end
+
+# jsrender(session, x) will be called anywhere...
+# if there is nothing sessions specific in the dom, fallback to jsrender without session
+function jsrender(session::Session, node::Node)
+    render_node(session, node)
+end
+
+function uuid(node::Node)
+    return get(Hyperscript.attrs(node), "data-jscall-id") do
+        error("Node $(node) doesn't have a unique id. Make sure to use DOM.$(Hyperscript.tag(node))")
+    end
+end
+
+jsrender(x::Hyperscript.Styled) = x
+
+struct SerializedNode
+    tag::String
+    children::Vector{Any}
+    attributes::Dict{String, Any}
+end
+
+function SerializedNode(session::Session, any)
+    node = jsrender(session, any)
+    if node isa Node
+        return SerializedNode(session, node)
+    else
+        return node
+    end
+end
+
+function SerializedNode(session::Session, node::Node)
+    # give each node a unique id inside the dom
+    node_children = children(node)
+    node_attrs = Hyperscript.attrs(node)
+    tag = Hyperscript.tag(node)
+
+    isempty(node_children) && isempty(node_attrs) && return SerializedNode(tag, node_children, node_attrs)
+
+    new_attributes = Dict{String, Any}()
+    newchildren = map(child-> SerializedNode(session, child), node_children)
+    for (k, v) in node_attrs
         rendered = attribute_render(session, node, k, v)
         # We code nothing to mean omitting the attribute!
         if is_boolean_attribute(k)
@@ -145,35 +226,5 @@ function render_node(session::Session, node::Node)
             new_attributes[k] = rendered
         end
     end
-    return Node(
-        Hyperscript.context(node),
-        Hyperscript.tag(node),
-        newchildren,
-        new_attributes
-    )
+    return SerializedNode(tag, newchildren, new_attributes)
 end
-
-# jsrender(session, x) will be called anywhere...
-# if there is nothing sessions specific in the dom, fallback to jsrender without session
-function jsrender(session::Session, node::Node)
-    render_node(session, node)
-end
-
-function uuid(node::Node)
-    get(Hyperscript.attrs(node), "data-jscall-id") do
-        error("Node $(node) doesn't have a unique id. Make sure to use DOM.$(Hyperscript.tag(node))")
-    end
-end
-
-"""
-    jsrender([::Session], x::Any)
-Internal render method to create a valid dom. Registers used observables with a session
-And makes sure the dom only contains valid elements. Overload jsrender(::YourType)
-To enable putting YourType into a dom element/div.
-You can also overload it to take a session as first argument, to register
-messages with the current web session (e.g. via onjs).
-"""
-jsrender(::Session, x::Any) = jsrender(x)
-jsrender(::Session, x::Symbol) = DOM.p(string(x))
-jsrender(::Session, x::Hyperscript.Styled) = x
-jsrender(x) = x

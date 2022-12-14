@@ -1,7 +1,7 @@
 
 function jsrender(session::Session, md::Markdown.MD)
     md_div = DOM.div(md_html(session, md.content)...; class="markdown-body")
-    return JSServe.jsrender(session, md_div)
+    return jsrender(session, md_div)
 end
 
 function md_html(session::Session, content::Vector)
@@ -182,19 +182,16 @@ end
 
 function replace_expressions(markdown::Markdown.Code, context; eval_julia_code=false)
     if markdown.language == "julia" && eval_julia_code isa Module
-        run = Button(">")
-        result = Observable{Any}(DOM.span(""))
-        on(run) do click
-            expr = parseall(markdown.code)
-            expr = replace_interpolation!(context, expr)
-            evaled = eval_julia_code.eval(expr)
-            result[] = render_result(evaled)
+        hide = occursin("# hide", markdown.code)
+        md_expr = hide ? "" : markdown
+        expr = parseall(markdown.code)
+        expr = replace_interpolation!(context, expr)
+        evaled = eval_julia_code.eval(expr)
+        if !isnothing(evaled)
+            return Markdown.MD([md_expr, evaled])
+        else
+            return md_expr
         end
-        return md"""
-        $(markdown)
-        $(run)
-        $(result)
-        """
     else
         return markdown
     end

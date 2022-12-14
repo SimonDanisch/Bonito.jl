@@ -30,7 +30,7 @@ function JSServe.jsrender(flip::Flip)
         value = flip.label,
         onclick = js"{
             const value = this.last_value;
-            JSServe.update_obs($(flip.value), !value);
+            $(flip.value).notify(!value);
             this.last_value = !value;
         }";
         class="p-1 rounded m-2"

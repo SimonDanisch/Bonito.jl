@@ -1,8 +1,8 @@
 using Hyperscript, Markdown, Test, RelocatableFolders
 using JSServe, Observables
 using JSServe: Session, evaljs, linkjs, div
-using JSServe: onjs, JSString, Asset, Dependency, jsrender
-using JSServe: @js_str, js_type, pointer_identity, uuid, serialize_js, SerializationContext, serialize_binary
+using JSServe: onjs, JSString, Asset, jsrender
+using JSServe: @js_str, uuid, SerializationContext, serialize_binary
 using JSServe.DOM
 using JSServe.HTTP
 using Electron
@@ -49,12 +49,10 @@ function test_value(app, statement)
     fetch(val_t) # fetch the value!
 end
 
-JSServe.JSSERVE_CONFIGURATION.listen_port[] = 8555
-
 @testset "JSServe" begin
     @testset "serialization" begin; include("serialization.jl"); end
     @testset "checkbox" begin; include("checkbox.jl"); end
-    @testset "various" begin; include("various.jl"); end
+    # @testset "various" begin; include("various.jl"); end
     @testset "markdown" begin; include("markdown.jl"); end
     @testset "basics" begin; include("basics.jl"); end
 end

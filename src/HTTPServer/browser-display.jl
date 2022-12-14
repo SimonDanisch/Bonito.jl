@@ -1,4 +1,8 @@
-struct BrowserDisplay <: Base.Multimedia.AbstractDisplay end
+struct BrowserDisplay <: Base.Multimedia.AbstractDisplay
+    server::Server
+end
+
+BrowserDisplay() = BrowserDisplay(get_server())
 
 """
     browser_display()
@@ -47,22 +51,23 @@ function openurl(url::String)
     @warn("Can't find a way to open a browser, open $(url) manually!")
 end
 
-function Base.display(::BrowserDisplay, dom::App)
-    application = get_server()
+function Base.display(bd::BrowserDisplay, app::App)
+    server = bd.server
     session_url = "/browser-display"
-    route_was_present = route!(application, session_url) do context
-        # Serve the actual content
-        session = insert_session!(context.application)
-        html_dom = Base.invokelatest(dom.handler, session, context.request)
-        return html(page_html(session, html_dom))
-    end
-    # Only open url first time!
-    if isempty(application.sessions)
-        openurl(online_url(application, session_url))
+    old_app = route!(server, Pair{Any, Any}(session_url, app))
+    if isnothing(old_app) || isnothing(old_app.session[]) || !isopen(old_app.session[])
+        openurl(online_url(server, session_url))
     else
-        for (id, session) in application.sessions
-            evaljs(session, js"location.reload(true)")
-        end
+        update_app!(old_app, app)
     end
     return
+end
+
+function has_html_display()
+    for display in Base.Multimedia.displays
+        # Ugh, why would textdisplay say it supports HTML??
+        display isa TextDisplay && continue
+        displayable(display, MIME"text/html"()) && return true
+    end
+    return false
 end

@@ -1,37 +1,3 @@
-
-"""
-    App(handler)
-
-calls handler with the session and the http request object.
-f is expected to return a valid DOM object,
-so something renderable by jsrender, e.g. `DOM.div`.
-"""
-struct App
-    handler::Function
-    function App(handler::Function)
-        if hasmethod(handler, Tuple{Session, HTTP.Request})
-            return new(handler)
-        elseif hasmethod(handler, Tuple{Session})
-            return new((session, request) -> handler(session))
-        elseif hasmethod(handler, Tuple{HTTP.Request})
-            return new((session, request) -> handler(request))
-        elseif hasmethod(handler, Tuple{})
-           return new((session, request) -> handler())
-        else
-            error("""
-            Handler function must have the following signature:
-                handler() -> DOM
-                handler(session::Session) -> DOM
-                handler(request::Request) -> DOM
-                handler(session, request) -> DOM
-            """)
-        end
-    end
-    function App(dom_object)
-        return new((s, r)-> dom_object)
-    end
-end
-
 """
 The string part of JSCode.
 """
@@ -52,86 +18,25 @@ jsc.source == [JSString("console.log("), some_julia_variable, JSString("\"")]
 """
 struct JSCode
     source::Vector{Union{JSString, Any}}
+    file::String # location of the js string, a la "path/to/file:line"
 end
+
+JSCode(source) = JSCode(source, "")
 
 """
 Represent an asset stored at an URL.
 We try to always have online & local files for assets
-If one gives an online resource, it will be downloaded, to host it locally.
 """
 struct Asset
+    name::Union{Nothing, String}
+    es6module::Bool
     media_type::Symbol
     # We try to always have online & local files for assets
     # If you only give an online resource, we will download it
     # to also be able to host it locally
     online_path::String
     local_path::Union{String, Path}
-    onload::Union{Nothing, JSCode}
-end
-
-"""
-Encapsulates frontend dependencies. Can be used in the following way:
-
-```Julia
-const noUiSlider = Dependency(
-    :noUiSlider,
-    # js & css dependencies are supported
-    [
-        "https://cdn.jsdelivr.net/gh/leongersen/noUiSlider/distribute/nouislider.min.js",
-        "https://cdn.jsdelivr.net/gh/leongersen/noUiSlider/distribute/nouislider.min.css"
-    ]
-)
-# use the dependency on the frontend:
-evaljs(session, js"\$(noUiSlider).some_function(...)")
-```
-jsrender will make sure that all dependencies get loaded.
-"""
-struct Dependency
-    name::Symbol # The JS Module name that will get loaded
-    assets::Vector{Asset}
-    # The global -> Function name, JSCode -> the actual function code!
-    functions::Dict{Symbol, JSCode}
-end
-
-"""
-    UrlSerializer
-Struct used to encode how an url is rendered
-Fields:
-```julia
-# uses assetserver?
-assetserver::Bool
-# if assetserver == false, we move all assets into asset_folder
-# for someone else to serve them!
-asset_folder::Union{Nothing, String}
-
-absolute::Bool
-# Used to prepend if absolute == true
-content_delivery_url::String
-```
-"""
-struct UrlSerializer
-    # uses assetserver?
-    assetserver::Bool
-    # if assetserver == false, we move all assets into asset_folder
-    # for someone else to serve them!
-    asset_folder::Union{Nothing, String}
-
-    absolute::Bool
-    # Used to prepend if absolute == true
-    content_delivery_url::String
-    # Inlines all content directly into the html
-    # Makes all above options obsolete
-    inline_all::Bool
-end
-
-function UrlSerializer(;
-        proxy = JSSERVE_CONFIGURATION.content_delivery_url[],
-        assetserver=true, asset_folder=nothing, absolute=proxy!="",
-        inline_all=false
-    )
-    return UrlSerializer(
-        assetserver, asset_folder, absolute, proxy, inline_all
-    )
+    last_bundled::Base.RefValue{Union{Nothing, Dates.DateTime}}
 end
 
 struct JSException <: Exception
@@ -140,17 +45,9 @@ struct JSException <: Exception
     stacktrace::Vector{String}
 end
 
-"""
-Creates a Julia exception from data passed to us by the frondend!
-"""
-function JSException(js_data::AbstractDict)
-    stacktrace = String[]
-    if js_data["stacktrace"] !== nothing
-        for line in split(js_data["stacktrace"], "\n")
-            push!(stacktrace, replace(line, ASSET_URL_REGEX => replace_url))
-        end
-    end
-    return JSException(js_data["exception"], js_data["message"], stacktrace)
+
+function js_to_local_stacktrace(asset_server, matched_url)
+    return matched_url
 end
 
 function Base.show(io::IO, exception::JSException)
@@ -162,46 +59,150 @@ function Base.show(io::IO, exception::JSException)
     end
 end
 
+abstract type FrontendConnection end
+abstract type AbstractAssetServer end
+
+mutable struct SubConnection <: FrontendConnection
+    connection::FrontendConnection
+    isopen::Bool
+end
+
+struct SerializedMessage
+    bytes::Vector{UInt8}
+end
+
 """
 A web session with a user
 """
-struct Session
-    # IOBuffer for testing
-    connection::Base.RefValue{Union{Nothing, WebSocket, IOBuffer}}
-    # Bool -> if already registered with Frontend
-    observables::Dict{String, Tuple{Bool, Observable}}
-    message_queue::Vector{Dict{Symbol, Any}}
-    dependencies::Set{Asset}
-    on_document_load::Vector{JSCode}
+struct Session{Connection <: FrontendConnection}
+    parent::RefValue{Union{Session, Nothing}}
+    children::Dict{String, Session{SubConnection}}
     id::String
-    js_fully_loaded::Channel{Bool}
-    on_websocket_ready::Any
-    url_serializer::UrlSerializer
-    # Should be checkd on js_fully_loaded to see if an error occured
+    # The connection to the JS frontend.
+    # Currently can be IJuliaConnection, WebsocketConnection, PlutoConnection, NoConnection
+    connection::Connection
+    # The way we serve any file asset
+    asset_server::AbstractAssetServer
+    message_queue::Vector{SerializedMessage}
+    # Code that gets evalued last after all other messages, when session gets connected
+    on_document_load::Vector{JSCode}
+    connection_ready::Channel{Bool}
+    on_connection_ready::Any
+    # Should be checkd on connection_ready to see if an error occured
     init_error::Ref{Union{Nothing, JSException}}
     js_comm::Observable{Union{Nothing, Dict{String, Any}}}
     on_close::Observable{Bool}
     deregister_callbacks::Vector{Observables.ObserverFunction}
-    unique_object_cache::Dict{String, WeakRef}
+    session_objects::Dict{String, Any}
+    # For rendering Hyperscript.Node, and giving them a unique id inside the session
+    dom_uuid_counter::RefValue{Int}
+    ignore_message::RefValue{Function}
+end
+
+function SerializedMessage(session::Session, message)
+    ctx = SerializationContext(session)
+    message_data = serialize_cached(ctx, message)
+    bytes = MsgPack.pack([SessionCache(session.id, ctx.message_cache), message_data])
+    return SerializedMessage(bytes)
+end
+
+"""
+Creates a Julia exception from data passed to us by the frondend!
+"""
+function JSException(session::Session, js_data::AbstractDict)
+    stacktrace = String[]
+    if js_data["stacktrace"] !== nothing
+        for line in split(js_data["stacktrace"], "\n")
+            push!(stacktrace, js_to_local_stacktrace(session.asset_server, line))
+        end
+    end
+    return JSException(js_data["exception"], js_data["message"], stacktrace)
+end
+
+function Session(connection=default_connection();
+                id=string(uuid4()),
+                asset_server=default_asset_server(),
+                message_queue=SerializedMessage[],
+                on_document_load=JSCode[],
+                connection_ready=Channel{Bool}(1),
+                on_connection_ready=init_session,
+                init_error=Ref{Union{Nothing, JSException}}(nothing),
+                js_comm=Observable{Union{Nothing, Dict{String, Any}}}(nothing),
+                on_close=Observable(false),
+                deregister_callbacks=Observables.ObserverFunction[],
+                session_objects=Dict{String, Any}())
+
+    return Session(
+        Base.RefValue{Union{Nothing, Session}}(nothing),
+        Dict{String, Session{SubConnection}}(),
+        id,
+        connection,
+        asset_server,
+        message_queue,
+        on_document_load,
+        connection_ready,
+        on_connection_ready,
+        init_error,
+        js_comm,
+        on_close,
+        deregister_callbacks,
+        session_objects,
+        RefValue(0),
+        RefValue{Function}(x-> false)
+    )
+end
+
+function Session(parent::Session;
+            asset_server=parent.asset_server,
+            on_connection_ready=init_session)
+
+    root = root_session(parent)
+    connection = SubConnection(root)
+    session = Session(connection; asset_server=asset_server, on_connection_ready)
+    session.parent[] = root
+    root.children[session.id] = session
+    return session
+end
+
+"""
+    App(handler)
+
+calls handler with the session and the http request object.
+f is expected to return a valid DOM object,
+so something renderable by jsrender, e.g. `DOM.div`.
+"""
+struct App
+    handler::Function
+    session::Base.RefValue{Union{Session, Nothing}}
+    function App(handler::Function)
+        session = Base.RefValue{Union{Session, Nothing}}(nothing)
+        if hasmethod(handler, Tuple{Session, HTTP.Request})
+            return new(handler, session)
+        elseif hasmethod(handler, Tuple{Session})
+            return new((session, request) -> handler(session), session)
+        elseif hasmethod(handler, Tuple{HTTP.Request})
+            return new((session, request) -> handler(request), session)
+        elseif hasmethod(handler, Tuple{})
+           return new((session, request) -> handler(), session)
+        else
+            error("""
+            Handler function must have the following signature:
+                handler() -> DOM
+                handler(session::Session) -> DOM
+                handler(request::Request) -> DOM
+                handler(session, request) -> DOM
+            """)
+        end
+    end
+    function App(dom_object)
+        return new((s, r)-> dom_object, Base.RefValue{Union{Session, Nothing}}(nothing))
+    end
 end
 
 struct Routes
-    table::Vector{Pair{Any, Any}}
+    routes::Dict{String, App}
 end
 
+Routes() = Routes(Dict{String, App}())
 
-"""
-The application one serves
-
-The server event loop can be brought to the foreground with
-`wait(server::Server)`.
-"""
-struct Server
-    url::String
-    port::Int
-    sessions::Dict{String, Session}
-    server_task::Ref{Task}
-    server_connection::Ref{TCPServer}
-    routes::Routes
-    websocket_routes::Routes
-end
+Base.setindex!(routes::Routes, app::App, key::String) = (routes.routes[key] = app)

@@ -1,6 +1,7 @@
 *.jl.*.cov
 *.jl.cov
 *.jl.mem
+*.bundled.js
 .DS_Store
 /Manifest.toml
 /dev/
@@ -9,3 +10,5 @@
 yarn.lock
 package.json
 node_modules
+docs/build
+docs/Manifest.toml

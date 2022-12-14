@@ -6,11 +6,9 @@ function value_range end
 function update_value!(x, value) end
 
 function extract_widgets(dom_root)
-    result = []
+    result = Base.IdSet()
     walk_dom(dom_root) do x
-        if is_widget(x)
-            push!(result, x)
-        end
+        is_widget(x) && push!(result, x)
     end
     return result
 end
@@ -27,64 +25,95 @@ update_value!(x::Dependant, value) = update_value!(x.value, value)
 
 # Implement interface for slider!
 is_widget(::Slider) = true
-value_range(slider::Slider) = slider.range[]
-update_value!(slider::Slider, value) = (slider.value[] = value)
+value_range(slider::Slider) = 1:length(slider.range[])
+update_value!(slider::Slider, idx) = (slider[] = slider.range[][idx])
+to_watch(slider::Slider) = slider.attributes[:index_observable].id
+to_watch(x) = observe(x).id
+
+# Implement interface for Dropdown
+
+is_widget(::Dropdown) = true
+value_range(d::Dropdown) = 1:length(d.options[])
+update_value!(d::Dropdown, value) = (d.option_index[] = value)
+to_watch(d::Dropdown) = d.option_index.id
 
 function record_values(f, session, widget)
-    empty!(session.message_queue)
+    wid = to_watch(widget)
+    root = root_session(session)
+    function ignore_message(msg)
+        if msg[:msg_type] == UpdateObservable
+            # Ignore all messages that directly update the observable we watch
+            # because otherwise, that will trigger itself recursively, once those messages are applied
+            # via `$(wid).on(x=> ....)`
+            msg[:id] == wid && return true
+        end
+        return false
+    end
+    function do_session(f)
+        # if we're recording for a subsession, we need to apply the operations to both sessions
+        session !== root && f(root)
+        f(session)
+    end
+    do_session() do s
+        empty!(s.message_queue)
+        s.ignore_message[] = ignore_message
+    end
+
     try
         f()
-        messages = filter(session.message_queue) do msg
-            # filter out the event that triggers updating the obs
-            # we actually update on js already
-            !(msg[:msg_type] == UpdateObservable &&
-                msg[:id] == observe(widget).id)
+        messages = SerializedMessage[]
+        do_session() do s
+            append!(messages, s.message_queue)
         end
-        return Dict(:msg_type => FusedMessage, :payload => messages)
+        return Dict("msg_type" => FusedMessage, "payload" => messages)
     catch e
         Base.showerror(stderr, e)
+    finally
+        do_session() do s
+            s.ignore_message[] = (msg)-> false
+        end
     end
 end
 
 function while_disconnected(f, session::Session)
-    connection = session.connection[]
-    session.connection[] = nothing
+    if isopen(session)
+        error("Session shouldn't be open")
+    end
     f()
-    session.connection[] = connection
 end
-
 
 function record_states(session::Session, dom::Hyperscript.Node)
     widgets = extract_widgets(dom)
     rendered = jsrender(session, dom)
     # We'll mess with the message_queue to record the statemap
     # So we copy the current message queue and disconnect the session!
-
-    msgs = copy(session.message_queue)
-    empty!(session.message_queue)
+    # we need to serialize the message so that all observables etc are registered
+    # TODO, this is a bit of a bad design, since we mixed serialization with session resource registration
+    # Which makes sense in most parts, but breaks together, e.g. here
+    msg_serialized = SerializedMessage(session, fused_messages!(session))
     independent = filter(is_independant, widgets)
+
     independent_states = Dict{String, Any}()
     while_disconnected(session) do
         for widget in independent
-            state = Dict{Any, Dict{Symbol,Any}}()
+            state = Dict{Any, Dict{String, Any}}()
             for value in value_range(widget)
                 state[value] = record_values(session, widget) do
                     update_value!(widget, value)
                 end
             end
-            independent_states[observe(widget).id] = state
+            independent_states[to_watch(widget)] = state
         end
     end
 
-    append!(session.message_queue, msgs)
-    observable_ids = Observables.obsid.(observe.(independent))
+    push!(session.message_queue, msg_serialized)
+    observable_ids = to_watch.(independent)
 
     statemap_script = js"""
         const statemap = $(independent_states)
         const observables = $(observable_ids)
         observables.forEach(id => {
-            console.log(id)
-            JSServe.on_update(id, function (val) {
+            JSServe.lookup_global_object(id).on((val) => {
                 // messages to send for this state of that observable
                 const messages = statemap[id][val]
                 // not all states trigger events
@@ -138,5 +167,28 @@ function export_standalone(app::App, folder::String;
         return html_str, session
     else
         return html_str, session
+    end
+end
+
+function export_static(folder::String, app::App)
+    routes = Routes()
+    routes["/"] = app
+    export_static(folder, routes)
+end
+
+function export_static(folder::String, routes::Routes)
+    isdir(folder) || mkpath(folder)
+    asset_server = NoServer()
+    connection = JSServe.NoConnection()
+    session = Session(connection; asset_server=asset_server)
+    for (route, app) in routes.routes
+        if route == "/"
+            route = "index"
+        end
+        html_file = normpath(joinpath(folder, route) * ".html")
+        isdir(dirname(html_file)) || mkpath(dirname(html_file))
+        open(html_file, "w") do io
+            page_html(io, session, app)
+        end
     end
 end
