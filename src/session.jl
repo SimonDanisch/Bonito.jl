@@ -287,9 +287,28 @@ function session_dom(session::Session, dom::Node; init=true)
         push!(js, jsrender(session, JSServeLib))
     end
 
+    messages = fused_messages!(session)
+
     if init
+        init_messages = if !isempty(messages[:payload])
+            b64_str = serialize_string(session, messages)
+            js"""
+            function init_messages() {
+                const session_messages = $(b64_str)
+                JSServe.decode_base64_message(session_messages).then(JSServe.process_message)
+            }
+            """
+        else
+            js"""
+            function init_messages() {
+
+            }
+            """
+        end
+        b64_str = serialize_string(session, messages)
         init_session = js"""
-        JSServe.init_session($(session.id), ()=> null, $(issubsession ? "sub" : "root"));
+        $(init_messages)
+        JSServe.init_session($(session.id), init_messages, $(issubsession ? "sub" : "root"));
         """
         push!(js, jsrender(session, init_session))
     end
