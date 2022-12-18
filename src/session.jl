@@ -264,6 +264,20 @@ function session_dom(session::Session, app::App; init=true)
     return session_dom(session, dom; init=init)
 end
 
+
+function messages_as_js!(session::Session)
+    messages = fused_messages!(session)
+    init_messages = if !isempty(messages[:payload])
+        b64_str = serialize_string(session, messages)
+        return js"""
+            const session_messages = $(b64_str)
+            JSServe.decode_base64_message(session_messages).then(JSServe.process_message)
+        """
+    else
+        return js""
+    end
+end
+
 function session_dom(session::Session, dom::Node; init=true)
     # the dom we can render may be anything between a
     # dom fragment or a full page with head & body etc.
@@ -287,28 +301,17 @@ function session_dom(session::Session, dom::Node; init=true)
         push!(js, jsrender(session, JSServeLib))
     end
 
-    messages = fused_messages!(session)
 
     if init
-        init_messages = if !isempty(messages[:payload])
-            b64_str = serialize_string(session, messages)
-            js"""
-            function init_messages() {
-                const session_messages = $(b64_str)
-                JSServe.decode_base64_message(session_messages).then(JSServe.process_message)
-            }
-            """
-        else
-            js"""
-            function init_messages() {
-
-            }
-            """
-        end
-        b64_str = serialize_string(session, messages)
+        run_msg_js = messages_as_js!(session)
+        init_messages= js"""
+        function init_messages() {
+            $(run_msg_js)
+        }
+        """
         init_session = js"""
-        $(init_messages)
-        JSServe.init_session($(session.id), init_messages, $(issubsession ? "sub" : "root"));
+            $(init_messages)
+            JSServe.init_session($(session.id), init_messages, $(issubsession ? "sub" : "root"));
         """
         push!(js, jsrender(session, init_session))
     end

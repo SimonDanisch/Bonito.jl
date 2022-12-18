@@ -1,6 +1,7 @@
 function iterate_interpolations(source::String)
     result = Union{Expr, JSString, Symbol}[]
     lastidx = 1; i = 1; lindex = lastindex(source)
+    isempty(source) && return result
     while true
         c = source[i]
         if c == '$'
