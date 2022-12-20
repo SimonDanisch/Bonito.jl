@@ -54,8 +54,8 @@ function record_values(f, session, widget)
         session !== root && f(root)
         f(session)
     end
+
     do_session() do s
-        empty!(s.message_queue)
         s.ignore_message[] = ignore_message
     end
 
@@ -71,6 +71,7 @@ function record_values(f, session, widget)
     finally
         do_session() do s
             s.ignore_message[] = (msg)-> false
+            empty!(s.message_queue) # remove all recorded messages
         end
     end
 end
