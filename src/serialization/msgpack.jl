@@ -3,28 +3,34 @@
 MsgPack.msgpack_type(::Type{Float16}) = MsgPack.FloatType()
 MsgPack.to_msgpack(::MsgPack.FloatType, x::Float16) = Float32(x)
 
-# taken from MsgPack docs... Did I miss a type that natively supports this?
-struct ByteVec{T}
-    bytes::T
-end
-
-Base.length(bv::ByteVec) = sizeof(bv.bytes)
-Base.write(io::IO, bv::ByteVec) = write(io, bv.bytes)
-Base.:(==)(a::ByteVec, b::ByteVec) = a.bytes == b.bytes
-MsgPack.msgpack_type(::Type{<:ByteVec}) = MsgPack.BinaryType()
-MsgPack.to_msgpack(::MsgPack.BinaryType, x::ByteVec) = x
-MsgPack.from_msgpack(::Type{ByteVec}, bytes::Vector{UInt8}) = ByteVec(bytes)
-function ByteVec(array::AbstractVector{T}) where T
-    # copies abstract arrays, but leaves Vector{T} unchanged
-    return ByteVec(convert(Vector{T}, array))
-end
-
 MsgPack.msgpack_type(::Type{<: AbstractVector{<: JSTypedNumber}}) = MsgPack.ExtensionType()
 
-function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::AbstractVector{T}) where T <: JSTypedNumber
-    type = findfirst(isequal(T), JSTypedArrayEltypes) + 0x10
-    # return MsgPack.Extension(Int8(type), convert(Vector{T}, x)) # TODO tag MsgPack for PERFORMANCE!!!
-    return MsgPack.Extension(Int8(type), reinterpret(UInt8, convert(Vector{T}, x)))
+struct FastReinterpret{T, N, A <: AbstractArray} <: AbstractArray{T, N}
+    parent::A
+end
+
+function FastReinterpret{T}(array::AbstractArray{X, N}) where {T, X, N}
+    @assert isbits(X)
+    return FastReinterpret{T, N, typeof(array)}(array)
+end
+
+function Base.write(io::IO, array::FastReinterpret{T}) where T
+    parent = array.parent
+    if isbits(parent)
+        ref = Base.Ref(parent)
+        write(io, ref)
+    elseif parent isa Array
+        write(io, parent)
+    else
+        error("Not supported right now")
+    end
+end
+
+for (index, T) in enumerate(JSTypedArrayEltypes)
+    @eval function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::AbstractVector{$T})
+        # return MsgPack.Extension(Int8(type), convert(Vector{T}, x)) # TODO tag MsgPack for PERFORMANCE!!!
+        return MsgPack.Extension($(Int8(index + 16)), FastReinterpret{UInt8}(x))
+    end
 end
 
 MsgPack.msgpack_type(::Type{<: AbstractVector{Float16}}) = MsgPack.ExtensionType()
