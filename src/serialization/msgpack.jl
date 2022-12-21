@@ -24,7 +24,7 @@ MsgPack.msgpack_type(::Type{<: AbstractVector{<: JSTypedNumber}}) = MsgPack.Exte
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::AbstractVector{T}) where T <: JSTypedNumber
     type = findfirst(isequal(T), JSTypedArrayEltypes) + 0x10
     # return MsgPack.Extension(Int8(type), convert(Vector{T}, x)) # TODO tag MsgPack for PERFORMANCE!!!
-    return MsgPack.Extension(Int8(type), reinterpret(UInt8, convert(Vector{T}, x)))
+    return MsgPack.Extension(Int8(type), collect(reinterpret(UInt8, convert(Vector{T}, x))))
 end
 
 MsgPack.msgpack_type(::Type{<: AbstractVector{Float16}}) = MsgPack.ExtensionType()
