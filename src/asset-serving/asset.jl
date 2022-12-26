@@ -74,7 +74,9 @@ end
 
 function ES6Module(path)
     name = String(splitext(basename(path))[1])
-    return Asset(path; name=name, es6module=true)
+    asset = Asset(path; name=name, es6module=true)
+    JSServe.bundle!(asset)
+    return asset
 end
 
 function CDNSource(name; user=nothing, version=nothing)
