@@ -90,6 +90,7 @@ export function setup_connection(config_input) {
     let tries = 0;
     let websocket;
     function tryconnect(url) {
+        console.log(`tries; ${tries}`)
         if (session_websocket.length != 0) {
             const old_ws = session_websocket.pop();
             old_ws.close();
