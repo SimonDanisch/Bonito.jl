@@ -80,6 +80,7 @@ function websocket_send(binary_data) {
 }
 
 function send_pings() {
+    console.log("pong")
     JSServe.send_pingpong()
     setTimeout(send_pings, 5000)
 }
@@ -89,6 +90,7 @@ export function setup_connection(config_input) {
     let tries = 0;
     let websocket;
     function tryconnect(url) {
+        console.log(`tries; ${tries}`)
         if (session_websocket.length != 0) {
             const old_ws = session_websocket.pop();
             old_ws.close();
@@ -99,6 +101,7 @@ export function setup_connection(config_input) {
 
         websocket.onopen = function () {
             console.log("CONNECTED!!: ", url);
+            tries = 0; // reset tries
             websocket.onmessage = function (evt) {
                 // run this async... (or do we?)
                 new Promise(resolve => {
@@ -124,7 +127,7 @@ export function setup_connection(config_input) {
         websocket.onerror = function (event) {
             console.error("WebSocket error observed:");
             console.log(event)
-            if (tries <= 1) {
+            if (tries <= 10) {
                 while (session_websocket.length > 0) {
                     session_websocket.pop();
                 }

@@ -3,7 +3,7 @@
     obs1 = Observable(1)
     TestLib = JSServe.JSServeLib
     dom = App(DOM.div(test=obs1, onload=js"$(TestLib).lol()"))
-    sdom = JSServe.session_dom(session, dom)
+    sdom = JSServe.session_dom(session, dom; init=false) # Init false to not inline messages
     msg = JSServe.fused_messages!(session)
     data = JSServe.serialize_cached(session, msg)
     decoded = JSServe.deserialize(msg[:payload][1]) |> JSServe.decode_extension_and_addbits

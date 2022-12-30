@@ -6,8 +6,7 @@ using JSServe: @js_str, uuid, SerializationContext, serialize_binary
 using JSServe.DOM
 using JSServe.HTTP
 using Electron
-using ElectronDisplay
-using URIParser
+using URIs
 using Random
 using Hyperscript: children
 using JSServe.MsgPack

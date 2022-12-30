@@ -2,17 +2,38 @@ Base.showable(::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}
 
 const CURRENT_SESSION = Ref{Union{Nothing, Session}}(nothing)
 
-function Page(; offline=false, exportable=true)
+"""
+    Page(;
+        exportable=true,
+        offline=false,
+        server_config...
+    )
+
+A Page can be used for resetting the JSServe state in a multi page display outputs, like it's the case for Pluto/IJulia/Documenter.
+For Documenter, the page needs to be set to `exportable=true, offline=true`, but doesn't need to, since Page defaults to the most common parameters for known Packages.
+Exportable has the effect of inlining all data & js dependencies, so that everything can be loaded in a single HTML object.
+`offline=true` will make the Page not even try to connect to a running Julia
+process, which makes sense for the kind of static export we do in Documenter.
+For convenience, one can also pass additional server configurations, which will directly
+get put into `configure_server!(;server_config...)`.
+Have a look at the docs for `configure_server!` to see the parameters.
+"""
+function Page(; offline=false, exportable=true, server_config...)
     old_session = CURRENT_SESSION[]
+    HTTPServer.configure_server!(; server_config...)
     if !isnothing(old_session)
         close(old_session)
     end
     CURRENT_SESSION[] = nothing
     if offline
         force_connection!(NoConnection())
+    else
+        force_connection!()
     end
     if exportable
         force_asset_server!(NoServer())
+    else
+        force_asset_server!()
     end
     force_subsession!(true)
     return
@@ -66,4 +87,42 @@ end
 
 function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
     show(IOContext(io), MIME"text/html"(), app)
+end
+
+
+
+# Poor mans Require.jl for Electron
+const ELECTRON_PKG_ID = Base.PkgId(Base.UUID("a1bb12fb-d4d1-54b4-b10a-ee7951ef7ad3"), "Electron")
+function Electron()
+    if haskey(Base.loaded_modules, ELECTRON_PKG_ID)
+        return Base.loaded_modules[ELECTRON_PKG_ID]
+    else
+        error("Please Load Electron, if you want to use it!")
+    end
+end
+
+struct ElectronDisplay{EWindow} <: Base.Multimedia.AbstractDisplay
+    window::EWindow # a type parameter here so, that we dont need to depend on Electron Directly!
+end
+
+function ElectronDisplay()
+    w = Electron().Window()
+    Electron().toggle_devtools(w)
+    return ElectronDisplay(w)
+end
+
+Base.displayable(d::ElectronDisplay, ::MIME{Symbol("text/html")}) = true
+
+function Base.display(ed::ElectronDisplay, app::App)
+    d = JSServe.HTTPServer.BrowserDisplay()
+    session_url = "/browser-display"
+    old_app = JSServe.route!(d.server, Pair{Any,Any}(session_url, app))
+    url = JSServe.online_url(d.server, "/browser-display")
+    return Electron().load(ed.window, JSServe.URI(url))
+end
+
+function use_electron_display()
+    disp = ElectronDisplay()
+    Base.Multimedia.pushdisplay(disp)
+    return disp
 end

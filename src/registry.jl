@@ -209,9 +209,18 @@ end
 
 register_connection!(JuliaHub) do
     if on_julia_hub()
-        port = 9284
+        port = 8085
+        url = "0.0.0.0"
         proxy = ENV["JH_APP_URL"] * "proxy/$(port)"
         JSServe.configure_server!(listen_url="0.0.0.0", listen_port=port, forwarded_port=80, external_url=proxy)
+        # If port is already in use, the actual server that gets created may listen on a different port
+        # So we need to update `external_url`, which is a global
+        server = HTTPServer.get_server()
+        port = server.port 
+        proxy = ENV["JH_APP_URL"] * "proxy/$(port)"
+        JSServe.configure_server!(listen_url="0.0.0.0", listen_port=port, forwarded_port=80, external_url=proxy)
+        # easier to not use assetserver on JuliaHub
+        force_asset_server!(NoServer())
     end
     # Still return nothing to let others decide e.g. if we're using IJulia/PlutoConnection
     return nothing

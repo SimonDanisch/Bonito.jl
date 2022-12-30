@@ -1,7 +1,6 @@
 using Electron, JSServe
 using JSServe.HTTP: Request
 import JSServe.HTTPServer: start, isrunning
-using URIParser
 using JSServe: Session, @js_str, JSCode
 import JSServe: evaljs, evaljs_value
 using JSServe.Hyperscript: Node, HTMLSVG
