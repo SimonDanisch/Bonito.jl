@@ -66,6 +66,7 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         end
     elseif typ == PingPong
         # Ping back that pong!!
+        println("ping")
         send(session, msg_type=PingPong)
     else
         @error "Unrecognized message: $(typ) with type: $(typeof(typ))"

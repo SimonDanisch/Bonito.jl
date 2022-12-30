@@ -126,7 +126,7 @@ export function process_message(data) {
                 break;
             case PingPong:
                 // just getting a ping, nothing to do here :)
-                console.debug("ping")
+                console.log("ping");
                 break;
             case "UpdateSession":
                 // just getting a ping, nothing to do here :)
