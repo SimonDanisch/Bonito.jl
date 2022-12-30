@@ -80,6 +80,7 @@ function websocket_send(binary_data) {
 }
 
 function send_pings() {
+    console.debug("pong")
     JSServe.send_pingpong()
     setTimeout(send_pings, 5000)
 }
