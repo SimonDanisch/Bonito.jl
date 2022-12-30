@@ -100,6 +100,7 @@ export function setup_connection(config_input) {
 
         websocket.onopen = function () {
             console.log("CONNECTED!!: ", url);
+            tries = 0; // reset tries
             websocket.onmessage = function (evt) {
                 // run this async... (or do we?)
                 new Promise(resolve => {
@@ -125,7 +126,7 @@ export function setup_connection(config_input) {
         websocket.onerror = function (event) {
             console.error("WebSocket error observed:");
             console.log(event)
-            if (tries <= 1) {
+            if (tries <= 10) {
                 while (session_websocket.length > 0) {
                     session_websocket.pop();
                 }
