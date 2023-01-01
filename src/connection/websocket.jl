@@ -13,6 +13,19 @@ end
 WebSocketConnection() = WebSocketConnection(nothing, nothing, ReentrantLock(), nothing)
 WebSocketConnection(server::Server) = WebSocketConnection(server, nothing, ReentrantLock(), nothing)
 
+"""
+    WebSocketConnection(proxy_url::Function)
+
+Constructor for a websocket behind a proxy!
+"""
+function WebSocketConnection(proxy_url::Function)
+    server = Server("0.0.0.0", 8083)
+    real_port = server.port # can change if already in use
+    server.proxy_url = proxy_url(real_port) # which is why the url needs to be a callbacks
+    return WebSocketConnection(server)
+end
+
+
 const MATCH_HEX = r"[\da-f]"
 const MATCH_UUID4 = MATCH_HEX^8 * r"-" * (MATCH_HEX^4 * r"-")^3 * MATCH_HEX^12
 
@@ -109,7 +122,6 @@ function setup_connection(session::Session, connection::WebSocketConnection)
     HTTPServer.websocket_route!(server, r"/" * MATCH_UUID4 => connection)
 
     proxy_url = online_url(server, "")
-
     return js"""
         $(Websocket).then(WS => {
             WS.setup_connection({proxy_url: $(proxy_url), session_id: $(session.id)})

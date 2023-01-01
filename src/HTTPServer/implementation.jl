@@ -8,6 +8,8 @@ HTTP server with websocket & http routes
 mutable struct Server
     url::String
     port::Int
+    # If behind a proxy, this is the url content is served after the proxy
+    proxy_url::String
     server_task::Ref{Task}
     server_connection::Ref{TCPServer}
     routes::Routes
@@ -102,11 +104,11 @@ The url to connect to the server from the internet.
 Needs to have `SERVER_CONFIGURATION.external_url` set to the IP or dns route of the server
 """
 function online_url(server::Server, url; protocol="http://")
-    base_url = SERVER_CONFIGURATION.external_url[]
+    base_url = server.proxy_url
     if isempty(base_url)
-        local_url(server, url; protocol=protocol)
+        return local_url(server, url; protocol=protocol)
     else
-        base_url * url
+        return base_url * url
     end
 end
 
@@ -154,10 +156,11 @@ function Server(
         url::String, port::Int;
         verbose = false,
         routes = Routes(),
+        proxy_url = "",
         websocket_routes = Routes()
     )
     server = Server(
-        url, port,
+        url, port, proxy_url,
         Ref{Task}(), Ref{TCPServer}(),
         routes,
         websocket_routes
@@ -263,14 +266,15 @@ const SERVER_CONFIGURATION = (
     # if `""`, urls are inserted into HTML in relative form!
     content_delivery_url = Ref(""),
     # Verbosity for logging!
-    verbose = Ref(false)
+    verbose = Ref(false),
 )
 
 function get_server()
     if !isassigned(GLOBAL_SERVER) || istaskdone(GLOBAL_SERVER[].server_task[])
         GLOBAL_SERVER[] = Server(
             SERVER_CONFIGURATION.listen_url[],
-            SERVER_CONFIGURATION.listen_port[],
+            SERVER_CONFIGURATION.listen_port[];
+            proxy_url=SERVER_CONFIGURATION.external_url[],
             verbose=SERVER_CONFIGURATION.verbose[]
         )
     end

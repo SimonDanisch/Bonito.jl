@@ -151,7 +151,6 @@ function _use_parent_session(session::Session)
     end
 end
 
-
 function default_connection()
     return default_type(FORCED_CONNECTION, AVAILABLE_CONNECTIONS)
 end
@@ -175,10 +174,22 @@ register_asset_server!(NoServer) do
     end
 end
 
+function best_proxy(port)
+    if on_julia_hub()
+        return ENV["JH_APP_URL"] * "proxy/$(actual_port)"
+    elseif haskey(ENV, "BINDER_SERVICE_HOST")
+        return ENV["BINDER_SERVICE_HOST"] * "proxy/$actual_port"
+    elseif haskey(ENV, "JPY_SESSION_NAME")
+        return "http://127.0.0.1:8888/proxy/$actual_port"
+    else
+        return "" # no proxy ?"
+    end
+end
+
 # Websocket is the fallback, so it's registered first (lower priority),
 # and never returns nothing
 register_connection!(WebSocketConnection) do
-    return WebSocketConnection()
+    return WebSocketConnection(best_proxy)
 end
 
 register_connection!(NoConnection) do
@@ -204,24 +215,16 @@ struct JuliaHub <: FrontendConnection end
 
 function on_julia_hub()
     jhub = ["JULIAHUB_USERNAME", "JH_APP_URL", "JULIAHUB_USEREMAIL"]
-    return all(x-> haskey(ENV, x), jhub)
+    return all(x -> haskey(ENV, x), jhub)
 end
 
 register_connection!(JuliaHub) do
     if on_julia_hub()
-        port = 8085
-        url = "0.0.0.0"
-        proxy = ENV["JH_APP_URL"] * "proxy/$(port)"
-        JSServe.configure_server!(listen_url="0.0.0.0", listen_port=port, forwarded_port=80, external_url=proxy)
-        # If port is already in use, the actual server that gets created may listen on a different port
-        # So we need to update `external_url`, which is a global
-        server = HTTPServer.get_server()
-        port = server.port 
-        proxy = ENV["JH_APP_URL"] * "proxy/$(port)"
-        JSServe.configure_server!(listen_url="0.0.0.0", listen_port=port, forwarded_port=80, external_url=proxy)
-        # easier to not use assetserver on JuliaHub
+        # This makes it easier to on juliahub, so we don't need a running file server
         force_asset_server!(NoServer())
+        # Create a proxy websocket connection
+        proxy_callback = port -> ENV["JH_APP_URL"] * "proxy/$(port)"
+        return WebSocketConnection(proxy_callback)
     end
-    # Still return nothing to let others decide e.g. if we're using IJulia/PlutoConnection
     return nothing
 end
