@@ -198,19 +198,4 @@ register_connection!(PlutoConnection) do
     return nothing
 end
 
-# Just a placeholder type to register a connection
-struct JuliaHub <: FrontendConnection end
 
-function on_julia_hub()
-    jhub = ["JULIAHUB_USERNAME", "JH_APP_URL", "JULIAHUB_USEREMAIL"]
-    return all(x -> haskey(ENV, x), jhub)
-end
-
-register_connection!(JuliaHub) do
-    if on_julia_hub()
-        # This makes it easier to on juliahub, so we don't need a running file server
-        force_asset_server!(NoServer())
-        return WebSocketConnection()
-    end
-    return nothing
-end

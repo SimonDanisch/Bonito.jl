@@ -36,6 +36,11 @@ function jupyterlab_proxy_url(port)
     end
 end
 
+function on_julia_hub()
+    jhub = ["JULIAHUB_USERNAME", "JH_APP_URL", "JULIAHUB_USEREMAIL"]
+    return all(x -> haskey(ENV, x), jhub)
+end
+
 function find_proxy_in_environment()
     if on_julia_hub()
         # JuliaHub & VSCode
@@ -157,14 +162,13 @@ const SERVER_CONFIGURATION = (
 function singleton_server(;
     listen_url = "127.0.0.1",
     listen_port=SERVER_CONFIGURATION.listen_port[],
-    proxy_url=SERVER_CONFIGURATION.external_url[],
     verbose=SERVER_CONFIGURATION.verbose[])
 
     from_user = SERVER_CONFIGURATION.listen_url[]
     if !isnothing(from_user) # user set the listen url explicitely
         listen_url = from_user # and we respect that!
     end
-    create() = Server(listen_url, listen_port; proxy_url=proxy_url, verbose=verbose)
+    create() = Server(listen_url, listen_port; verbose=verbose)
     if isnothing(GLOBAL_SERVER[])
         GLOBAL_SERVER[] = create()
     elseif istaskdone(GLOBAL_SERVER[].server_task[])
@@ -172,7 +176,7 @@ function singleton_server(;
     else
         server = GLOBAL_SERVER[]
         # re-create if parameters have changed
-        if !(server.proxy_url == proxy_url && server.url == listen_url) # && server.port == listen_port # leave out port since it matters listens
+        if server.url != listen_url # && server.port == listen_port # leave out port since it matters listens
             close(server)
             GLOBAL_SERVER[] = create()
         end
