@@ -85,7 +85,6 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
         error("Websocket connection skipped setup")
     end
     @assert session_id == session.id
-    # Look up the connection in our sessions
     if isopen(session)
         # Would be nice to not error here - but I think this should never
         # Happen, and if it happens, we need to debug it!

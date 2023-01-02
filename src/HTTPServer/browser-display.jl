@@ -1,8 +1,15 @@
-struct BrowserDisplay <: Base.Multimedia.AbstractDisplay
-    server::Server
+mutable struct BrowserDisplay <: Base.Multimedia.AbstractDisplay
+    server::Union{Nothing, Server}
 end
 
-BrowserDisplay() = BrowserDisplay(get_server())
+BrowserDisplay() = BrowserDisplay(nothing)
+
+function server(bd::BrowserDisplay)
+    if isnothing(bd.server)
+        bd.server = get_server()
+    end
+    return bd.server
+end
 
 """
     browser_display()
@@ -52,11 +59,11 @@ function openurl(url::String)
 end
 
 function Base.display(bd::BrowserDisplay, app::App)
-    server = bd.server
+    _server = server(bd)
     session_url = "/browser-display"
-    old_app = route!(server, Pair{Any, Any}(session_url, app))
-    if isnothing(old_app) || isnothing(old_app.session[]) || !isopen(old_app.session[])
-        openurl(online_url(server, session_url))
+    old_app = route!(_server, Pair{Any,Any}(session_url, app))
+    if isnothing(old_app) || isnothing(old_app.session[]) || !isready(old_app.session[])
+        openurl(online_url(_server, session_url))
     else
         update_app!(old_app, app)
     end
