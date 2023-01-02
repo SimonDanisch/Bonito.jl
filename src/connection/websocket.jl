@@ -119,7 +119,7 @@ function setup_connection(session::Session, connection::WebSocketConnection)
     connection.session = session
     server = connection.server
 
-    HTTPServer.websocket_route!(server, r"/" * MATCH_UUID4 => connection)
+    HTTPServer.websocket_route!(server, "/$(session.id)" => connection)
 
     proxy_url = online_url(server, "")
     return js"""
