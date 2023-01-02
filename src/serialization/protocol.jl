@@ -46,7 +46,10 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
             if !isnothing(sub)
                 sub.on_connection_ready(sub)
             else
-                error("Sub session with id $(data["session"]) not found")
+                # This can happen for IJulia output after kernel restart,
+                # since the loaded html will try to init + connect back
+                # TODO, there should be a better way to prevent them from reconnecting
+                @debug("Sub session with id $(data["session"]) not found")
             end
         end
     elseif typ == CloseSession

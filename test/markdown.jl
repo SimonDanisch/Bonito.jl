@@ -162,7 +162,7 @@ JSServe.CURRENT_SESSION[] = nothing
 disp = JSServe.use_electron_display()
 display(inline_display);
 app = TestSession(URI("http://localhost:8555/show"),
-    JSServe.HTTPServer.GLOBAL_SERVER[], disp.window, test_session)
+    JSServe.GLOBAL_SERVER[], disp.window, test_session)
 app.dom = dom;
 app.initialized = false
 wait(app)

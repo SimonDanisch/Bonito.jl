@@ -102,7 +102,7 @@ The local url to reach the server, on the server
 function local_url(server::Server, url; protocol="http://")
     # TODO, tell me again, why electron only accepts localhost in the url?
     # And is there a clean way to "normalize" an url like that, so that no one complains?
-    base_url = server.url == "0.0.0.0" ? "localhost" : server.url
+    base_url = replace(server.url, r"(127.0.0.1)|(0.0.0.0)" => "localhost")
     return string(protocol, base_url, ":", server.port, url)
 end
 

@@ -25,8 +25,9 @@ using URIs
 
 using Base: RefValue
 
-#
+# these are used in HTTPServer and need to be defined already
 function update_app! end
+function get_server end
 
 include("types.jl")
 include("app.jl")
@@ -59,5 +60,21 @@ export browser_display, configure_server!, Server, html, route!
 export Observable, on, onany
 export linkjs, evaljs, evaljs_value, onjs
 
+
+function has_html_display()
+    for display in Base.Multimedia.displays
+        # Ugh, why would textdisplay say it supports HTML??
+        display isa TextDisplay && continue
+        displayable(display, MIME"text/html"()) && return true
+    end
+    return false
+end
+
+function __init__()
+    # Use browser display if no HTML display is available
+    if !has_html_display()
+        browser_display()
+    end
+end
 
 end # module

@@ -139,7 +139,7 @@ function configure_server!(;
     return
 end
 
-const GLOBAL_SERVER = Ref{Server}()
+const GLOBAL_SERVER = Ref{Union{Server, Nothing}}(nothing)
 
 const SERVER_CONFIGURATION = (
     # The URL used to which the default server listens to
@@ -165,8 +165,9 @@ function singleton_server(;
         listen_url = from_user # and we respect that!
     end
     create() = Server(listen_url, listen_port; proxy_url=proxy_url, verbose=verbose)
-
-    if !isassigned(GLOBAL_SERVER) || istaskdone(GLOBAL_SERVER[].server_task[])
+    if isnothing(GLOBAL_SERVER[])
+        GLOBAL_SERVER[] = create()
+    elseif istaskdone(GLOBAL_SERVER[].server_task[])
         GLOBAL_SERVER[] = create()
     else
         server = GLOBAL_SERVER[]

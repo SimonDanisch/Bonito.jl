@@ -157,20 +157,3 @@ end
         rslider[] = [20, 70]
     end
 end
-
-@testset "webio mime" begin
-    ENV["JULIA_WEBIO_BASEURL"] = "https://google.de/"
-    JSServe.__init__()
-    @test JSServe.JSSERVE_CONFIGURATION.external_url[] == "https://google.de"
-    @test JSServe.JSSERVE_CONFIGURATION.content_delivery_url[] == "https://google.de"
-    html_webio = sprint(io-> show(io, MIME"application/vnd.jsserve.application+html"(), inline_display))
-    #@test occursin("proxy_url = 'https://google.de';", html_webio)
-    # @test JSServe.url("/test") == "https://google.de/test"
-    JSServe.JSSERVE_CONFIGURATION.external_url[] = ""
-    JSServe.JSSERVE_CONFIGURATION.content_delivery_url[] = ""
-    # @test JSServe.url("/test") == "/test" # back to relative urls
-    html_webio = sprint(io-> show(io, MIME"application/vnd.jsserve.application+html"(), inline_display))
-    # We open the display server with the above TestSession
-    # TODO electrontests should do this!
-    check_and_close_display()
-end
