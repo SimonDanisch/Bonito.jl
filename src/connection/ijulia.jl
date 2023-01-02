@@ -49,7 +49,7 @@ end
 
 _close(connection::WebSocketConnection) = close(connection)
 _close(comm) = IJulia().close_comm(connection.comm)
-Base.close(connection::IJuliaConnection) = connection(connection.comm)
+Base.close(connection::IJuliaConnection) = _close(connection.comm)
 
 function setup_connection(session::Session{IJuliaConnection})
     setup_connection(session, session.connection.comm)

@@ -1,10 +1,7 @@
 
-# Should only be called if IJulia is loaded!
-function jupyterlab_proxy_url(port)
-    url = IJulia.profile["ip"]
-    if any(x -> contains(url, x), ("127.0.0.1", "localhost"))
-        return "" # localhost needs no proxy
-    end
+# Should only be called if IJulia is loaded!\
+
+function jupyter_running_servers()
     jupyter = IJulia().JUPYTER
     # Man, whats up with jupyter??
     # They switched between versions from stdout to stderr, and also don't produce valid json as output -.-
@@ -13,19 +10,29 @@ function jupyterlab_proxy_url(port)
         json = read(`$jupyter lab list --json`, String)
         if isempty(json)
             # give up -.-
-            return ""
+            return nothing
         end
     end
     json = replace(json, r"[\r\n]+" => "\n")
-    config = IJulia().JSON.parse(split(json, "\n")[1])
-    if !haskey(config, "url")
-        error("Wrongly setup IJulia kernel, or old version of IJulia")
-    end
-    url = string(rstrip(config["url"], '/'), "/proxy/", port)
-    if any(x -> contains(url, x), ("127.0.0.1", "0.0.0.0", "localhost"))
-        return "" # localhost needs no proxy
+    configs = IJulia().JSON.parse.(split(json, "\n"))
+    return configs
+end
+
+function jupyterlab_proxy_url(port)
+    config = jupyter_running_servers()
+    if isnothing(config)
+        @warn "could not automatically figure out jupyter proxy setup"
+        return ""
     else
-        return url
+        # taking first kernel
+        # TODO, how to match kernel?
+        hostname = config[1]["hostname"]
+        # TODO, this seems very fragile
+        if hostname == "0.0.0.0"
+            return string("http://", IJulia().profile["ip"], ":", config[1]["port"], "/proxy/", port)
+        else
+            return ""
+        end
     end
 end
 
