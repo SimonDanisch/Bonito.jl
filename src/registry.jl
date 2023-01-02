@@ -210,9 +210,7 @@ register_connection!(JuliaHub) do
     if on_julia_hub()
         # This makes it easier to on juliahub, so we don't need a running file server
         force_asset_server!(NoServer())
-        # Create a proxy websocket connection
-        proxy_callback = port -> ENV["JH_APP_URL"] * "proxy/$(port)"
-        return WebSocketConnection(proxy_callback)
+        return WebSocketConnection()
     end
     return nothing
 end
