@@ -60,9 +60,7 @@ function IJuliaConnection()
         return IJuliaConnection(nothing)
     else
         # we fall back to create a websocket connection via the proxy url
-        @show url_callback(8081)
         ws_conn = WebSocketConnection(url_callback)
-        @show ws_conn.server.proxy_url
         return IJuliaConnection(ws_conn)
     end
 end
