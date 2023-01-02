@@ -1,9 +1,9 @@
 mutable struct HTTPAssetServer <: AbstractAssetServer
     registered_files::Dict{String, String}
-    server
+    server::Server
 end
 
-HTTPAssetServer() = HTTPAssetServer(Dict{String, String}(), nothing)
+HTTPAssetServer() = HTTPAssetServer(get_server())
 HTTPAssetServer(server::Server) = HTTPAssetServer(Dict{String, String}(), server)
 
 function unique_file_key(path::String)
@@ -54,10 +54,9 @@ function (server::HTTPAssetServer)(context)
     return HTTP.Response(404)
 end
 
+const MATCH_HEX = r"[\da-f]"
+
 function setup_asset_server(asset_server::HTTPAssetServer)
-    if isnothing(asset_server.server)
-        asset_server.server = HTTPServer.get_server()
-    end
     HTTPServer.route!(asset_server.server, r"/assetserver/" * MATCH_HEX^40 * r"-.*" => asset_server)
     return
 end

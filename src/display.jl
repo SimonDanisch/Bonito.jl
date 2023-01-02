@@ -20,7 +20,7 @@ Have a look at the docs for `configure_server!` to see the parameters.
 """
 function Page(; offline=false, exportable=true, server_config...)
     old_session = CURRENT_SESSION[]
-    HTTPServer.configure_server!(; server_config...)
+    configure_server!(; server_config...)
     if !isnothing(old_session)
         close(old_session)
     end

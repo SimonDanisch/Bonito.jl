@@ -19,48 +19,15 @@ mutable struct IJuliaConnection <: FrontendConnection
     comm::Union{Nothing, IJuliaComm, WebSocketConnection}
 end
 
-function jupyterlab_proxy_url(port)
-    jupyter = IJulia().JUPYTER
-    json = read(`$jupyter lab list --json`, String)
-    replace(json, r"[\r\n]+" => "\n")
-    config = IJulia().JSON.parse(split(json, "\n")[1])
-    if !haskey(config, "url")
-        error("Wrongly setup IJulia kernel, or old version of IJulia")
-    end
-    url = string(rstrip(config["url"], '/'), "/proxy/", port)
-    if any(x -> contains(url, x), ("127.0.0.1", "0.0.0.0", "localhost"))
-        return "" # localhost needs no proxy
-    else
-        return url
-    end
-end
-
-function ijulia_proxy_url()
-    return function url_with_port(port)
-        if haskey(ENV, "BINDER_SERVICE_HOST")
-            # binder
-            return ENV["BINDER_SERVICE_HOST"] * "proxy/$port"
-        elseif haskey(ENV, "JPY_SESSION_NAME")
-            # Jupyterhub works differently!
-            # TODO, is JPY_SESSION_NAME reliably in the env for Jupyterlab? So far it seems so!
-            # It definitely isn't there without Jupyterlab
-            # jupyterlab
-            return jupyterlab_proxy_url(port)
-        else
-            # we try a direct IJulia connection without proxy setup (likely only works for IJulia.notebook())
-            return nothing
-        end
-    end
-end
-
 function IJuliaConnection()
-    url_callback = ijulia_proxy_url()
-    if isnothing(url_callback(8888))
+    # This ENV var gets inserted only for jupyterlab, so we should be on `notebook`
+    # Which we can use the IJulia connection for!
+    if !haskey(ENV, "JPY_SESSION_NAME")
         # If empty, we can use the IJulia Connection
         return IJuliaConnection(nothing)
     else
-        # we fall back to create a websocket connection via the proxy url
-        ws_conn = WebSocketConnection(url_callback)
+        # we fall back to create a websocket connection via a proxy url, figured out in `server-defaults.jl`
+        ws_conn = WebSocketConnection()
         return IJuliaConnection(ws_conn)
     end
 end

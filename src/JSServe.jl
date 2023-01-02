@@ -32,8 +32,8 @@ include("types.jl")
 include("app.jl")
 include("HTTPServer/HTTPServer.jl")
 
-import .HTTPServer: browser_display, configure_server!
-using .HTTPServer: Server, html, online_url, route!, get_server, file_mimetype
+import .HTTPServer: browser_display
+using .HTTPServer: Server, html, online_url, route!, file_mimetype, delete_websocket_route!, delete_route!
 
 include("js_source.jl")
 include("session.jl")
@@ -43,6 +43,7 @@ include("rendering/rendering.jl")
 include("asset-serving/asset-serving.jl")
 include("connection/connection.jl")
 include("registry.jl")
+include("server-defaults.jl")
 
 include("serialization/serialization.jl")
 

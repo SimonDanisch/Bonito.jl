@@ -174,22 +174,10 @@ register_asset_server!(NoServer) do
     end
 end
 
-function best_proxy(port)
-    if on_julia_hub()
-        return ENV["JH_APP_URL"] * "proxy/$(actual_port)"
-    elseif haskey(ENV, "BINDER_SERVICE_HOST")
-        return ENV["BINDER_SERVICE_HOST"] * "proxy/$actual_port"
-    elseif haskey(ENV, "JPY_SESSION_NAME")
-        return "http://127.0.0.1:8888/proxy/$actual_port"
-    else
-        return "" # no proxy ?"
-    end
-end
-
 # Websocket is the fallback, so it's registered first (lower priority),
 # and never returns nothing
 register_connection!(WebSocketConnection) do
-    return WebSocketConnection(best_proxy)
+    return WebSocketConnection()
 end
 
 register_connection!(NoConnection) do

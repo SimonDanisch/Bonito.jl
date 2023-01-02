@@ -4,30 +4,14 @@ using HTTP.WebSockets: receive, isclosed
 using HTTP.WebSockets
 
 mutable struct WebSocketConnection <: FrontendConnection
-    server::Union{Nothing, Server}
+    server::Server
     socket::Union{Nothing, WebSocket}
     lock::ReentrantLock
     session::Union{Nothing, Session}
 end
 
-WebSocketConnection() = WebSocketConnection(nothing, nothing, ReentrantLock(), nothing)
+WebSocketConnection() = WebSocketConnection(get_server(), nothing, ReentrantLock(), nothing)
 WebSocketConnection(server::Server) = WebSocketConnection(server, nothing, ReentrantLock(), nothing)
-
-"""
-    WebSocketConnection(proxy_url::Function)
-
-Constructor for a websocket behind a proxy!
-"""
-function WebSocketConnection(proxy_url::Function)
-    server = Server("0.0.0.0", 8083)
-    real_port = server.port # can change if already in use
-    server.proxy_url = proxy_url(real_port) # which is why the url needs to be a callbacks
-    return WebSocketConnection(server)
-end
-
-
-const MATCH_HEX = r"[\da-f]"
-const MATCH_UUID4 = MATCH_HEX^8 * r"-" * (MATCH_HEX^4 * r"-")^3 * MATCH_HEX^12
 
 function save_read(websocket)
     try
@@ -83,6 +67,7 @@ function run_connection_loop(server::Server, session::Session, websocket::WebSoc
     finally
         # This always needs to happen, which is why we need a try catch!
         @debug("Closing: $(session.id)")
+        delete_websocket_route!(server, "/$(session.id)")
         close(session)
     end
 end
@@ -108,14 +93,9 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
     end
     connection.socket = websocket
     run_connection_loop(application, session, websocket)
-
 end
 
 function setup_connection(session::Session, connection::WebSocketConnection)
-    if isnothing(connection.server)
-        # Use our global singleton server
-        connection.server = HTTPServer.get_server()
-    end
     connection.session = session
     server = connection.server
 
