@@ -118,8 +118,9 @@ Base.displayable(d::ElectronDisplay, ::MIME{Symbol("text/html")}) = true
 function Base.display(ed::ElectronDisplay, app::App)
     d = JSServe.HTTPServer.BrowserDisplay()
     session_url = "/browser-display"
-    old_app = JSServe.route!(d.server, Pair{Any,Any}(session_url, app))
-    url = JSServe.online_url(d.server, "/browser-display")
+    s = JSServe.HTTPServer.server(d)
+    old_app = JSServe.route!(s, Pair{Any,Any}(session_url, app))
+    url = JSServe.online_url(s, "/browser-display")
     return Electron().load(ed.window, JSServe.URI(url))
 end
 
