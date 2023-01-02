@@ -20,7 +20,9 @@ Have a look at the docs for `configure_server!` to see the parameters.
 """
 function Page(; offline=false, exportable=true, server_config...)
     old_session = CURRENT_SESSION[]
-    HTTPServer.configure_server!(; server_config...)
+    if !isempty(server_config)
+        configure_server!(; server_config...)
+    end
     if !isnothing(old_session)
         close(old_session)
     end
@@ -116,8 +118,9 @@ Base.displayable(d::ElectronDisplay, ::MIME{Symbol("text/html")}) = true
 function Base.display(ed::ElectronDisplay, app::App)
     d = JSServe.HTTPServer.BrowserDisplay()
     session_url = "/browser-display"
-    old_app = JSServe.route!(d.server, Pair{Any,Any}(session_url, app))
-    url = JSServe.online_url(d.server, "/browser-display")
+    s = JSServe.HTTPServer.server(d)
+    old_app = JSServe.route!(s, Pair{Any,Any}(session_url, app))
+    url = JSServe.online_url(s, "/browser-display")
     return Electron().load(ed.window, JSServe.URI(url))
 end
 

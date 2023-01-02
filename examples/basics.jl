@@ -76,7 +76,7 @@ md"""
 MUI = JSServe.Asset("https://cdn.muicss.com/mui-0.10.1/css/mui.min.css")
 sliderstyle = JSServe.Asset(joinpath(@__DIR__, "sliderstyle.css"))
 image = JSServe.Asset(joinpath(@__DIR__, "assets", "julia.png"))
-s = JSServe.HTTPServer.get_server();
+s = JSServe.get_server();
 
 JSServe.url(Session(asset_server=JSServe.HTTPAssetServer(s)).asset_server, MUI)
 

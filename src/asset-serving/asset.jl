@@ -155,7 +155,12 @@ function bundle!(asset::Asset)
     path = get_path(asset)
     bundled = bundle_path(asset)
     Deno_jll.deno() do exe
-        write(bundled, read(`$exe bundle $(path)`))
+        stdout = IOBuffer()
+        stderr = Base.DevNull()
+        source = sprint() do stdout
+            run(pipeline(`$exe bundle $(path)`; stdout=stdout, stderr=stderr))
+        end
+        write(bundled, source)
     end
     asset.last_bundled[] = Dates.now(UTC) # Filesystem.mtime(file) is in UTC
     return

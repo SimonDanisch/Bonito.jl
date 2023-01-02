@@ -14,7 +14,7 @@ function websocket_url(session_id, proxy_url) {
     if (!ws_url.endsWith("/")) {
         ws_url = ws_url + "/";
     }
-    return ws_url + session_id + "/";
+    return ws_url + session_id;
 }
 
 function ensure_connection() {

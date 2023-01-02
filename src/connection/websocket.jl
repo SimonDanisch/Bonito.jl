@@ -4,17 +4,14 @@ using HTTP.WebSockets: receive, isclosed
 using HTTP.WebSockets
 
 mutable struct WebSocketConnection <: FrontendConnection
-    server::Union{Nothing, Server}
+    server::Server
     socket::Union{Nothing, WebSocket}
     lock::ReentrantLock
     session::Union{Nothing, Session}
 end
 
-WebSocketConnection() = WebSocketConnection(nothing, nothing, ReentrantLock(), nothing)
+WebSocketConnection() = WebSocketConnection(get_server(), nothing, ReentrantLock(), nothing)
 WebSocketConnection(server::Server) = WebSocketConnection(server, nothing, ReentrantLock(), nothing)
-
-const MATCH_HEX = r"[\da-f]"
-const MATCH_UUID4 = MATCH_HEX^8 * r"-" * (MATCH_HEX^4 * r"-")^3 * MATCH_HEX^12
 
 function save_read(websocket)
     try
@@ -70,6 +67,7 @@ function run_connection_loop(server::Server, session::Session, websocket::WebSoc
     finally
         # This always needs to happen, which is why we need a try catch!
         @debug("Closing: $(session.id)")
+        delete_websocket_route!(server, "/$(session.id)")
         close(session)
     end
 end
@@ -87,7 +85,6 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
         error("Websocket connection skipped setup")
     end
     @assert session_id == session.id
-    # Look up the connection in our sessions
     if isopen(session)
         # Would be nice to not error here - but I think this should never
         # Happen, and if it happens, we need to debug it!
@@ -95,21 +92,15 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
     end
     connection.socket = websocket
     run_connection_loop(application, session, websocket)
-
 end
 
 function setup_connection(session::Session, connection::WebSocketConnection)
-    if isnothing(connection.server)
-        # Use our global singleton server
-        connection.server = HTTPServer.get_server()
-    end
     connection.session = session
     server = connection.server
 
-    HTTPServer.websocket_route!(server, r"/" * MATCH_UUID4 => connection)
+    HTTPServer.websocket_route!(server, "/$(session.id)" => connection)
 
     proxy_url = online_url(server, "")
-
     return js"""
         $(Websocket).then(WS => {
             WS.setup_connection({proxy_url: $(proxy_url), session_id: $(session.id)})

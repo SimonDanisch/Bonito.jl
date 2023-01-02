@@ -53,9 +53,9 @@ function check_and_close_display()
     # For some reason, when running code in Atom, it happens very easily,
     # That JSServe display server gets started!
     # Maybe better to PR an option in JSServe to prohibit starting it in the first place
-    if isassigned(JSServe.HTTPServer.GLOBAL_SERVER) && isrunning(JSServe.HTTPServer.GLOBAL_SERVER[])
+    if !isnothing(JSServe.GLOBAL_SERVER[]) && isrunning(JSServe.GLOBAL_SERVER[])
         @warn "closing JSServe display server, which interfers with testing!"
-        close(JSServe.HTTPServer.GLOBAL_SERVER[])
+        close(JSServe.GLOBAL_SERVER[])
     end
 end
 

@@ -8,6 +8,8 @@ HTTP server with websocket & http routes
 mutable struct Server
     url::String
     port::Int
+    # If behind a proxy, this is the url content is served after the proxy
+    proxy_url::String
     server_task::Ref{Task}
     server_connection::Ref{TCPServer}
     routes::Routes
@@ -21,6 +23,14 @@ pattern_priority(x::Pair) = pattern_priority(x[1])
 pattern_priority(x::String) = 1
 pattern_priority(x::Tuple) = 2
 pattern_priority(x::Regex) = 3
+
+delete_route!(server::Server, pattern) = delete_route!(server.routes, pattern)
+delete_websocket_route!(server::Server, pattern) = delete_route!(server.websocket_routes, pattern)
+
+function delete_route!(routes::Routes, pattern)
+    filter!(((key, f),) -> !(key == pattern), routes.table)
+    return
+end
 
 function route!(routes::Routes, pattern_func::Pair)
     pattern, func = pattern_func
@@ -92,7 +102,7 @@ The local url to reach the server, on the server
 function local_url(server::Server, url; protocol="http://")
     # TODO, tell me again, why electron only accepts localhost in the url?
     # And is there a clean way to "normalize" an url like that, so that no one complains?
-    base_url = server.url == "0.0.0.0" ? "localhost" : server.url
+    base_url = replace(server.url, r"(127.0.0.1)|(0.0.0.0)" => "localhost")
     return string(protocol, base_url, ":", server.port, url)
 end
 
@@ -102,11 +112,11 @@ The url to connect to the server from the internet.
 Needs to have `SERVER_CONFIGURATION.external_url` set to the IP or dns route of the server
 """
 function online_url(server::Server, url; protocol="http://")
-    base_url = SERVER_CONFIGURATION.external_url[]
+    base_url = server.proxy_url
     if isempty(base_url)
-        local_url(server, url; protocol=protocol)
+        return local_url(server, url; protocol=protocol)
     else
-        base_url * url
+        return base_url * url
     end
 end
 
@@ -153,11 +163,12 @@ Creates an application that manages the global server state!
 function Server(
         url::String, port::Int;
         verbose = false,
+        proxy_url = "",
         routes = Routes(),
         websocket_routes = Routes()
     )
     server = Server(
-        url, port,
+        url, port, proxy_url,
         Ref{Task}(), Ref{TCPServer}(),
         routes,
         websocket_routes
@@ -246,140 +257,6 @@ function start(server::Server; verbose=false)
         end
     end
     return
-end
-
-const GLOBAL_SERVER = Ref{Server}()
-
-const SERVER_CONFIGURATION = (
-    # The URL used to which the default server listens to
-    listen_url = Ref("127.0.0.1"),
-    # The Port to which the default server listens to
-    listen_port = Ref(9384),
-    # The url Javascript uses to connect to the websocket.
-    # if empty, it will use:
-    # `window.location.protocol + "//" + window.location.host`
-    external_url = Ref(""),
-    # The url prepended to assets when served!
-    # if `""`, urls are inserted into HTML in relative form!
-    content_delivery_url = Ref(""),
-    # Verbosity for logging!
-    verbose = Ref(false)
-)
-
-function get_server()
-    if !isassigned(GLOBAL_SERVER) || istaskdone(GLOBAL_SERVER[].server_task[])
-        GLOBAL_SERVER[] = Server(
-            SERVER_CONFIGURATION.listen_url[],
-            SERVER_CONFIGURATION.listen_port[],
-            verbose=SERVER_CONFIGURATION.verbose[]
-        )
-    end
-    return GLOBAL_SERVER[]
-end
-
-"""
-    configure_server!(;
-            listen_url::String=SERVER_CONFIGURATION.listen_url[],
-            listen_port::Integer=SERVER_CONFIGURATION.listen_port[],
-            forwarded_port::Integer=listen_port,
-            external_url=nothing,
-            content_delivery_url=nothing
-        )
-
-Configures the parameters for the automatically started server.
-
-    Parameters:
-
-    * listen_url=SERVER_CONFIGURATION.listen_url[]
-        The address the server listens to.
-        must be 0.0.0.0, 127.0.0.1, ::, ::1, or localhost.
-        If not set differently by an ENV variable, will default to 127.0.0.1
-
-    * listen_port::Integer=SERVER_CONFIGURATION.listen_port[],
-        The Port to which the default server listens to
-        If not set differently by an ENV variable, will default to 9284
-
-    * forwarded_port::Integer=listen_port,
-        if port gets forwarded to some other port, set it here!
-
-    * external_url=nothing
-        The url from which the server is reachable.
-        If served on "127.0.0.1", this will default to http://localhost:forwarded_port
-        if listen_url is "0.0.0.0", this will default to http://\$(Sockets.getipaddr()):forwarded_port
-        so that the server is reachable inside the local network.
-        If the server should be reachable from some external dns server,
-        this needs to be set here.
-
-    * content_delivery_url=nothing
-        You can server files from another server.
-        Make sure any file referenced from Julia is reachable at
-        content_delivery_url * "/the_file"
-"""
-function configure_server!(;
-        listen_url=nothing,
-        # The Port to which the default server listens to
-        listen_port::Integer=SERVER_CONFIGURATION.listen_port[],
-        # if port gets forwarded to some other port, set it here!
-        forwarded_port::Integer=listen_port,
-        # The url from which the server is reachable.
-        # If served on "127.0.0.1", this will default to
-        # if listen_url is "0.0.0.0", this will default to
-        # Sockets.getipaddr() so that it's the ip address in the local network.
-        # If the server should be reachable from some external dns server,
-        # this needs to be set here
-        external_url=nothing,
-        # You can server files from another server.
-        # Make sure any file referenced from Julia is reachable at
-        # content_delivery_url * "/the_file"
-        content_delivery_url=nothing
-    )
-
-    if isnothing(listen_url)
-        if !isnothing(external_url)
-            # if we serve to an external url, server must listen to 0.0.0.0
-            listen_url = "0.0.0.0"
-        else
-            listen_url = SERVER_CONFIGURATION.listen_url[]
-        end
-    end
-
-    if isnothing(external_url)
-        if listen_url == "0.0.0.0"
-            external_url = string(Sockets.getipaddr(), ":$forwarded_port")
-        elseif listen_url in ("127.0.0.1", "localhost")
-            external_url = "http://localhost:$forwarded_port"
-        else
-            error("Trying to listen to $(listen_url), while only \"127.0.0.1\", \"0.0.0.0\" and \"localhost\" are supported")
-        end
-    end
-    # set the config!
-    SERVER_CONFIGURATION.listen_url[] = listen_url
-    SERVER_CONFIGURATION.external_url[] = external_url
-    SERVER_CONFIGURATION.listen_port[] = listen_port
-    if content_delivery_url === nothing
-        SERVER_CONFIGURATION.content_delivery_url[] = external_url
-    else
-        SERVER_CONFIGURATION.content_delivery_url[] = content_delivery_url
-    end
-    return
-end
-
-function server_defaults()
-     url = if haskey(ENV, "JULIA_WEBIO_BASEURL")
-        ENV["JULIA_WEBIO_BASEURL"]
-    else
-        ""
-    end
-    if endswith(url, "/")
-        url = url[1:end-1]
-    end
-    SERVER_CONFIGURATION.listen_url[] = get(ENV, "JSSERVE_LISTEN_URL", "127.0.0.1")
-    SERVER_CONFIGURATION.external_url[] = url
-    SERVER_CONFIGURATION.content_delivery_url[] = url
-
-    if haskey(ENV, "WEBIO_HTTP_PORT")
-        SERVER_CONFIGURATION.listen_port[] = parse(Int, ENV["WEBIO_HTTP_PORT"])
-    end
 end
 
 """
