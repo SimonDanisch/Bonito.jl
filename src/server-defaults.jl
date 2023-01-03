@@ -184,8 +184,9 @@ function singleton_server(;
     return GLOBAL_SERVER[]
 end
 
-function get_server()
-    proxy_callback = find_proxy_in_environment()
+get_server() = get_server(find_proxy_in_environment())
+
+function get_server(proxy_callback)
     # we have found nothing, so don't do any fancy setup
     if isnothing(proxy_callback)
         return singleton_server()
@@ -197,4 +198,5 @@ function get_server()
         server.proxy_url = proxy_callback(real_port) # which is why the url needs to be a callbacks
         return server
     end
+
 end

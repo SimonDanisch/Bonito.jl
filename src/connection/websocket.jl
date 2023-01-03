@@ -10,7 +10,8 @@ mutable struct WebSocketConnection <: FrontendConnection
     session::Union{Nothing, Session}
 end
 
-WebSocketConnection() = WebSocketConnection(get_server(), nothing, ReentrantLock(), nothing)
+WebSocketConnection(proxy_callback::Function) = WebSocketConnection(get_server(proxy_callback))
+WebSocketConnection() = WebSocketConnection(get_server())
 WebSocketConnection(server::Server) = WebSocketConnection(server, nothing, ReentrantLock(), nothing)
 
 function save_read(websocket)
