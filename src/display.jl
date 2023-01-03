@@ -4,8 +4,8 @@ const CURRENT_SESSION = Ref{Union{Nothing, Session}}(nothing)
 
 """
     Page(;
-        exportable=true,
-        offline=false,
+        offline=false, exportable=true,
+        connection::Union{Nothing, FrontendConnection}=nothing,
         server_config...
     )
 
@@ -18,7 +18,11 @@ For convenience, one can also pass additional server configurations, which will 
 get put into `configure_server!(;server_config...)`.
 Have a look at the docs for `configure_server!` to see the parameters.
 """
-function Page(; offline=false, exportable=true, server_config...)
+function Page(;
+        offline=false, exportable=true,
+        connection::Union{Nothing, FrontendConnection}=nothing,
+        server_config...)
+
     old_session = CURRENT_SESSION[]
     if !isempty(server_config)
         configure_server!(; server_config...)
@@ -36,6 +40,9 @@ function Page(; offline=false, exportable=true, server_config...)
         force_asset_server!(NoServer())
     else
         force_asset_server!()
+    end
+    if !isnothing(connection)
+        force_connection!(connection)
     end
     force_subsession!(true)
     return
