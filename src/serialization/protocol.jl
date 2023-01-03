@@ -56,11 +56,9 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         sub = get_session(session, data["session"])
         if !isnothing(sub)
             if data["subsession"] != "root"
-                println("closing $(sub.id)")
                 close(sub)
             else
                 # We only empty root sessions, since they will be reused
-                println("empty root!")
                 @assert root_session(sub) === sub
                 empty!(sub)
             end
