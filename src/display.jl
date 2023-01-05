@@ -58,7 +58,7 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
         session = Session()
         if _use_parent_session(session)
             CURRENT_SESSION[] = session
-            empty_app = App(()-> nothing)
+            empty_app = App(nothing)
             sub = Session(session)
             init_dom = session_dom(session, empty_app)
             sub_dom = session_dom(sub, app)

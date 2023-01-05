@@ -97,6 +97,40 @@ export function send_close_session(session, subsession) {
     });
 }
 
+// JS DOESN't HAVE LOCKS ?????
+export class Lock {
+    constructor() {
+        this.locked = false;
+        this.queue = [];
+    }
+    unlock() {
+        this.locked = false;
+        while (this.queue.length > 0) {
+            const job = this.queue.pop();
+            this.lock(job);
+        }
+    }
+    lock(func) {
+        if (this.locked) {
+            this.queue.push(func);
+        } else {
+            this.locked = true;
+            // func may return a promise that needs resolval first
+            const maybe_promise = Promise.resolve(func());
+            maybe_promise.then((x) => {
+                this.unlock();
+            });
+        }
+    }
+}
+
+const MESSAGE_PROCESS_LOCK = new Lock();
+
+// Makes sure, we process all messages in order... Used in initilization in session.jl
+export function with_message_lock(func) {
+    MESSAGE_PROCESS_LOCK.lock(func)
+}
+
 export function process_message(data) {
     if (!data) {
         // there are messages, that will be processed in Sessions.js (e.g. `update_session_dom`).
@@ -142,6 +176,7 @@ export function process_message(data) {
     }
 }
 
+
 export {
     UpdateObservable,
     OnjsCallback,
@@ -150,5 +185,5 @@ export {
     JavascriptWarning,
     RegisterObservable,
     JSDoneLoading,
-    FusedMessage,
+    FusedMessage
 };

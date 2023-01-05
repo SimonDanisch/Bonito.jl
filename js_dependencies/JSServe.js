@@ -11,6 +11,7 @@ const {
     send_close_session,
     register_on_connection_open,
     send_pingpong,
+    with_message_lock
 } = Connection;
 
 const {
@@ -22,8 +23,13 @@ const {
     decode_base64_message,
 } = Protocol;
 
-const { init_session, deserialize_cached, free_session, lookup_global_object, update_or_replace } =
-    Sessions;
+const {
+    init_session,
+    deserialize_cached,
+    free_session,
+    lookup_global_object,
+    update_or_replace,
+} = Sessions;
 
 function update_node_attribute(node, attribute, value) {
     if (node) {
@@ -65,6 +71,7 @@ const JSServe = {
     send_close_session,
     register_on_connection_open,
     send_pingpong,
+    with_message_lock,
 
     Sessions,
     deserialize_cached,
@@ -93,6 +100,7 @@ export {
     on_connection_open,
     on_connection_close,
     register_on_connection_open,
+    with_message_lock,
     Sessions,
     deserialize_cached,
     init_session,

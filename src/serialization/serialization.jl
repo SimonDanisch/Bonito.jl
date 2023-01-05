@@ -12,11 +12,6 @@ function serialize_binary(session::Session, msg::SerializedMessage)
     return transcode(GzipCompressor, MsgPack.pack(msg))
 end
 
-function serialize_string(session::Session, @nospecialize(obj))
-    binary = serialize_binary(session, obj)
-    return Base64.base64encode(binary)
-end
-
 function deserialize_binary(bytes::AbstractVector{UInt8})
     message_msgpacked = transcode(GzipDecompressor, bytes)
     return MsgPack.unpack(message_msgpacked)
@@ -24,4 +19,14 @@ end
 
 function deserialize(msg::SerializedMessage)
     MsgPack.unpack(msg.bytes)
+end
+
+function serialize_string(session::Session, @nospecialize(obj))
+    binary = serialize_binary(session, obj)
+    return Base64.base64encode(binary)
+end
+
+function deserialize_string(b64str::String)
+    bytes = Base64.base64decode(b64str)
+    return deserialize_binary(bytes)
 end

@@ -1,10 +1,12 @@
 import { Retain } from "./Protocol.js";
+import { Lock } from "./Connection.js";
+
 import {
     register_on_connection_open,
     send_close_session,
     send_warning,
     send_done_loading,
-    process_message
+    process_message,
 } from "./Connection.js";
 
 const SESSIONS = {};
@@ -13,23 +15,14 @@ const SESSIONS = {};
 // Right now, should only contain Observables + Assets
 const GLOBAL_OBJECT_CACHE = {};
 
-const FREE_JOBS_QUEUE = [];
-let ALLOW_FREEING_OBJECTS = true;
-
-function while_locking_free(f, id) {
-    ALLOW_FREEING_OBJECTS = false;
-    function cleanup() {
-        ALLOW_FREEING_OBJECTS = true;
-        while (FREE_JOBS_QUEUE.length > 0) {
-            const job = FREE_JOBS_QUEUE.pop();
-            job();
-        }
-    }
-    const promise = Promise.resolve(f());
-    promise.then((x) => {
-        cleanup();
-    });
-}
+// Lock synchronizing the freeing of session objects and initializing of sessions.
+// Needed for the case, when e.g. a `session1` just gets initialized async, and another `session2` just gets closed async
+// it can happen that session1 brings an object-x, which got already tracked by session2 and therefore is in the GLOBAL_OBJECT_CACHE and in the parent session.
+// Because its in the parent session and not yet deleted (note we're just about to close session2), session1 will send only the key to object-x, but not its value.
+// So, if session2 gets a chance to free object-x, before session1 is initialized,
+// the check for `is_still_referenced(object-x)` will return false so object-x will actually get deleted.
+// Even though a moment later after initialization of session1, `is_still_referenced(object-x)` will return true and object won't get deleted.
+const OBJECT_FREEING_LOCK = new Lock();
 
 export function lookup_global_object(key) {
     const object = GLOBAL_OBJECT_CACHE[key];
@@ -57,7 +50,7 @@ function is_still_referenced(id) {
 function free_object(id) {
     const data = GLOBAL_OBJECT_CACHE[id];
     if (data) {
-        if (data.constructor == Promise) {
+        if (data instanceof Promise) {
             // Promise => Module. We don't free Modules, since they'll be cached by the active page anyways
             return;
         }
@@ -80,9 +73,9 @@ function free_object(id) {
 
 export function deserialize_cached(message) {
     if (message.msg_type) {
-        return message
+        return message;
     } else {
-        const [session_id, data ] = message;
+        const [session_id, data] = message;
         return data;
     }
 }
@@ -139,7 +132,7 @@ export function track_deleted_sessions() {
 }
 
 export function init_session(session_id, on_connection_open, session_status) {
-    while_locking_free(() => {
+    OBJECT_FREEING_LOCK.lock(() => {
         console.log(`init session: ${session_id}, ${session_status}`);
         track_deleted_sessions();
         const tracked_items = new Set();
@@ -155,9 +148,16 @@ export function init_session(session_id, on_connection_open, session_status) {
                 console.log(`session ${session_id} fully initialized`);
             });
         }
-    }, session_id);
+    });
 }
 
+/*
+To prevent Julia + JS object tracking to go out of sync, we first delete all objects tracked in Julia by calling `close_session(id)` here triggering `send_close_session`.
+This will then trigger `evaljs(parent, js"free_session(id)")` on the julia side, which only then will delete the objects in JS.
+This is important, since the Julia side serializes the objects based on what's already tracked in Julia/JS, and then just sends references to objects already on the JS side.
+If we deleted on JS first, it could happen, that Julia just in that momement serializes objects for a new session, which references an object that is just about to get deleted in JS,
+so once it actually arrives in JS, it'd be already gone.
+*/
 export function close_session(session_id) {
     const [session_objects, status] = SESSIONS[session_id];
     const root_node = document.getElementById(session_id);
@@ -165,6 +165,7 @@ export function close_session(session_id) {
         root_node.style.display = "none";
         root_node.parentNode.removeChild(root_node);
     }
+    // we don't want to delete sessions, that are currently not deletable (e.g. root session)
     if (status === "delete") {
         send_close_session(session_id, status);
         SESSIONS[session_id] = [session_objects, false];
@@ -172,63 +173,57 @@ export function close_session(session_id) {
     return;
 }
 
+// called from julia!
 export function free_session(session_id) {
-    function free_objects() {
+    OBJECT_FREEING_LOCK.lock(() => {
         console.log(`actually freeing session ${session_id}`);
-        const [tracked_objects, subsession] = SESSIONS[session_id];
-        tracked_objects.forEach((key) => {
-            free_object(key);
-        });
+        const [tracked_objects, status] = SESSIONS[session_id];
+        tracked_objects.forEach(free_object);
         tracked_objects.clear();
         delete SESSIONS[session_id];
-    }
-    if (ALLOW_FREEING_OBJECTS) {
-        free_objects();
-    } else {
-        FREE_JOBS_QUEUE.push(free_objects);
-    }
+    });
 }
 
 export function on_node_available(query_selector, timeout) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
         function test_node(timeout) {
             let node;
             if (query_selector.by_id) {
-                node = document.getElementById(query_selector.by_id)
+                node = document.getElementById(query_selector.by_id);
             } else {
-                node = document.querySelector(query_selector.query_selector)
+                node = document.querySelector(query_selector.query_selector);
             }
             if (node) {
-                resolve(node)
+                resolve(node);
             } else {
-                const new_timeout = 2*timeout
-                console.log(new_timeout)
-                setTimeout(test_node, new_timeout, new_timeout)
+                const new_timeout = 2 * timeout;
+                console.log(new_timeout);
+                setTimeout(test_node, new_timeout, new_timeout);
             }
         }
-        test_node(timeout)
-    })
+        test_node(timeout);
+    });
 }
 
 export function update_or_replace(node, new_html, replace) {
     if (replace) {
-        node.parentNode.replaceChild(new_html, node)
+        node.parentNode.replaceChild(new_html, node);
     } else {
         while (node.childElementCount > 0) {
-            node.removeChild(node.firstChild)
+            node.removeChild(node.firstChild);
         }
-        node.append(new_html)
+        node.append(new_html);
     }
 }
 
 export function update_session_dom(message) {
     const { session_id, messages, html, dom_node_selector, replace } = message;
-    on_node_available(dom_node_selector, 1).then(dom => {
-        update_or_replace(dom, html, replace)
+    on_node_available(dom_node_selector, 1).then((dom) => {
+        update_or_replace(dom, html, replace);
         process_message(messages);
         console.log("obs session done: " + session_id);
-    })
-    return
+    });
+    return;
 }
 
 export function update_session_cache(session_id, new_jl_objects) {
@@ -257,10 +252,14 @@ export function update_session_cache(session_id, new_jl_objects) {
     const session = SESSIONS[session_id];
 
     if (session) {
-        update_cache(session[0])
+        update_cache(session[0]);
     } else {
         // we can update the session cache for a not yet registered session, which we then need to register first:
-        init_session(session_id, ()=> update_cache(SESSIONS[session_id][0]), "update-session-dom")
+        init_session(
+            session_id,
+            () => update_cache(SESSIONS[session_id][0]),
+            "update-session-dom"
+        );
     }
 }
 
