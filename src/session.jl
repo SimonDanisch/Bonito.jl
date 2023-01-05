@@ -264,14 +264,19 @@ function session_dom(session::Session, app::App; init=true)
     return session_dom(session, dom; init=init)
 end
 
-
 function messages_as_js!(session::Session)
     messages = fused_messages!(session)
     init_messages = if !isempty(messages[:payload])
         b64_str = serialize_string(session, messages)
         return js"""
             const session_messages = $(b64_str)
-            JSServe.decode_base64_message(session_messages).then(JSServe.process_message)
+            console.log("start loading messages for " + $(session.id))
+            JSServe.with_message_lock(()=> {
+                return JSServe.decode_base64_message(session_messages).then(message => {
+                    JSServe.process_message(message)
+                    console.log("done loading messages for " + $(session.id))
+                })
+            })
         """
     else
         return js""
@@ -292,7 +297,6 @@ function session_dom(session::Session, dom::Node; init=true)
         dom = DOM.div(dom, id=session.id, dataJscallId="jsserver-application-dom")
     end
 
-    init_connection = setup_connection(session)
     init_server = setup_asset_server(session.asset_server)
 
     issubsession = !isnothing(parent(session))
@@ -300,7 +304,6 @@ function session_dom(session::Session, dom::Node; init=true)
     if !issubsession
         push!(js, jsrender(session, JSServeLib))
     end
-
 
     if init
         run_msg_js = messages_as_js!(session)
@@ -315,6 +318,8 @@ function session_dom(session::Session, dom::Node; init=true)
         """
         push!(js, jsrender(session, init_session))
     end
+
+    init_connection = setup_connection(session)
 
     if !isnothing(init_connection)
         push!(js, jsrender(session, init_connection))

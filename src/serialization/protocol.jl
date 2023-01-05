@@ -63,7 +63,7 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
                 empty!(sub)
             end
         else
-            error("Sub session with id $(data["session"]) not found")
+            @debug("Close request not succesful, can't find sub session with id $(data["session"])")
         end
     elseif typ == PingPong
         # Ping back that pong!!

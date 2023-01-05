@@ -83,7 +83,13 @@ function print_js_code(io::IO, jsss::AbstractVector{JSCode}, objects::IdDict)
     return objects
 end
 
-function jsrender(session::Session, js::JSCode)
+
+# This works better with Pluto, which doesn't allow <script> the script </script>
+# and only allows `<script src=url>  </script>`
+# TODO, NoServer is kind of misussed here, since Pluto happens to use it
+# I guess the best solution would be a trait system or some other config object
+# for deciding how to inline code into pure HTML
+function inline_code(session::Session, noserver, js::JSCode)
     objects = IdDict()
     # Print code while collecting all interpolated objects in an IdDict
     code = sprint() do io
@@ -106,4 +112,9 @@ function jsrender(session::Session, js::JSCode)
     end
     data_url = to_data_url(src, "application/javascript")
     return DOM.script(src=data_url, type="module")
+end
+
+function jsrender(session::Session, js::JSCode)
+    # Make how we inline the code conditional on the way we serve files!
+    return inline_code(session, session.asset_server, js)
 end
