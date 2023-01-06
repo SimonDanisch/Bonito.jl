@@ -105,21 +105,19 @@ export class Lock {
     }
     unlock() {
         this.locked = false;
-        while (this.queue.length > 0) {
+        if (this.queue.length > 0) {
             const job = this.queue.pop();
+            // this will call unlock after its finished and work through the queue like that
             this.lock(job);
         }
     }
     lock(func) {
         if (this.locked) {
-            this.queue.push(func);
+            return this.queue.push(func);
         } else {
             this.locked = true;
-            // func may return a promise that needs resolval first
-            const maybe_promise = Promise.resolve(func());
-            maybe_promise.then((x) => {
-                this.unlock();
-            });
+            // func may return a promise that needs resolved first
+            return Promise.resolve(func()).then((x) => this.unlock());
         }
     }
 }
