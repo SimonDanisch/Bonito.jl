@@ -126,7 +126,7 @@ const MESSAGE_PROCESS_LOCK = new Lock();
 
 // Makes sure, we process all messages in order... Used in initilization in session.jl
 export function with_message_lock(func) {
-    MESSAGE_PROCESS_LOCK.lock(func)
+    MESSAGE_PROCESS_LOCK.lock(func);
 }
 
 export function process_message(data) {
@@ -174,7 +174,6 @@ export function process_message(data) {
     }
 }
 
-
 export {
     UpdateObservable,
     OnjsCallback,
@@ -183,5 +182,5 @@ export {
     JavascriptWarning,
     RegisterObservable,
     JSDoneLoading,
-    FusedMessage
+    FusedMessage,
 };
