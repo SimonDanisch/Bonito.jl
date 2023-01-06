@@ -50,7 +50,7 @@ end
 
 @testset "JSServe" begin
     @testset "serialization" begin; include("serialization.jl"); end
-    @testset "checkbox" begin; include("checkbox.jl"); end
+    @testset "widgets" begin; include("widgets.jl"); end
     # @testset "various" begin; include("various.jl"); end
     @testset "markdown" begin; include("markdown.jl"); end
     @testset "basics" begin; include("basics.jl"); end
