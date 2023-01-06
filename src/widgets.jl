@@ -268,18 +268,17 @@ end
 function jsrender(session::Session, dropdown::Dropdown)
     onchange = js"""
     function onload(element) {
-        console.log(element);
         function onchange(e) {
             if (element === e.srcElement) {
-                console.log(e);
                 ($(dropdown.option_index)).notify(element.selectedIndex + 1);
             }
         }
         element.addEventListener("change", onchange);
+        element.selectedIndex = $(dropdown.option_index[] - 1)
     }
     """
     dom = map(options -> map(DOM.option, options), session, dropdown.options)[]
-    select = DOM.select(dom; attributes...)
+    select = DOM.select(dom; dropdown.attributes...)
     JSServe.onload(session, select, onchange)
     return select
 end
