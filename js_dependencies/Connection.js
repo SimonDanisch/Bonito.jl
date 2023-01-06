@@ -105,21 +105,19 @@ export class Lock {
     }
     unlock() {
         this.locked = false;
-        while (this.queue.length > 0) {
+        if (this.queue.length > 0) {
             const job = this.queue.pop();
+            // this will call unlock after its finished and work through the queue like that
             this.lock(job);
         }
     }
     lock(func) {
         if (this.locked) {
-            this.queue.push(func);
+            return this.queue.push(func);
         } else {
             this.locked = true;
-            // func may return a promise that needs resolval first
-            const maybe_promise = Promise.resolve(func());
-            maybe_promise.then((x) => {
-                this.unlock();
-            });
+            // func may return a promise that needs resolved first
+            return Promise.resolve(func()).then((x) => this.unlock());
         }
     }
 }
@@ -128,7 +126,7 @@ const MESSAGE_PROCESS_LOCK = new Lock();
 
 // Makes sure, we process all messages in order... Used in initilization in session.jl
 export function with_message_lock(func) {
-    MESSAGE_PROCESS_LOCK.lock(func)
+    MESSAGE_PROCESS_LOCK.lock(func);
 }
 
 export function process_message(data) {
@@ -176,7 +174,6 @@ export function process_message(data) {
     }
 }
 
-
 export {
     UpdateObservable,
     OnjsCallback,
@@ -185,5 +182,5 @@ export {
     JavascriptWarning,
     RegisterObservable,
     JSDoneLoading,
-    FusedMessage
+    FusedMessage,
 };
