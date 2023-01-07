@@ -26,7 +26,8 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
     if typ == UpdateObservable
         obs = get(session.session_objects, data["id"], nothing)
         if isnothing(obs)
-            @warn "Observable $(data["id"]) not found :( "
+            # this is usually non fatal and may happen when old exported HTML gets reconnected
+            @debug "Observable $(data["id"]) not found :( "
         else
             # Observable can be wrapped inside Retain
             _obs = obs isa Retain ? obs.value : obs

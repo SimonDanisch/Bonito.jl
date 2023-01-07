@@ -6,16 +6,17 @@ function get_path(asset::Asset)
 end
 
 function jsrender(session::Session, asset::Asset)
+    ref = url(session.asset_server, asset)
     element = if mediatype(asset) == :js
-        DOM.script(src=asset, type="module")
+        DOM.script(src=ref, type="module")
     elseif mediatype(asset) == :css
-        DOM.link(href=asset, rel="stylesheet", type="text/css")
+        DOM.link(href=ref, rel="stylesheet", type="text/css")
     elseif mediatype(asset) in (:jpeg, :jpg, :png)
-        DOM.img(src=asset)
+        DOM.img(src=ref)
     else
         error("Unrecognized asset media type: $(mediatype(asset))")
     end
-    return jsrender(session, element)
+    return element
 end
 
 """

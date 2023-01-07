@@ -292,9 +292,9 @@ function session_dom(session::Session, dom::Node; init=true)
 
     # if nothing is found, we just use one div and append to that
     if isnothing(head) && isnothing(body)
+        dom = DOM.div(dom, id=session.id, dataJscallId="jsserver-application-dom")
         body = dom
         head = dom
-        dom = DOM.div(dom, id=session.id, dataJscallId="jsserver-application-dom")
     end
 
     init_server = setup_asset_server(session.asset_server)
