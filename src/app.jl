@@ -10,5 +10,5 @@ end
 function rendered_dom(session::Session, app::App, target=(; target="/"))
     app.session[] = session
     dom = Base.invokelatest(app.handler, session, target)
-    return DOM.div(jsrender(session, dom))
+    return jsrender(session, dom)
 end
