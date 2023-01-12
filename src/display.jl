@@ -82,6 +82,7 @@ Embeds the html_body in a standalone html document!
 function page_html(io::IO, session::Session, app_node::Union{Node, App})
     dom = session_dom(session, app_node)
     println(io, "<!doctype html>")
+    show(io, MIME"text/html"(), DOM.meta(charset="UTF-8"))
     show(io, MIME"text/html"(), Hyperscript.Pretty(dom))
     return
 end
