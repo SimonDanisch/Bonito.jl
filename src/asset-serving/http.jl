@@ -6,11 +6,6 @@ end
 HTTPAssetServer() = HTTPAssetServer(get_server())
 HTTPAssetServer(server::Server) = HTTPAssetServer(Dict{String, String}(), server)
 
-function unique_file_key(path::String)
-    return bytes2hex(sha1(abspath(path))) * "-" * basename(path)
-end
-
-unique_file_key(path) = unique_file_key(string(path))
 
 function url(server::HTTPAssetServer, asset::Asset)
     file = local_path(asset)

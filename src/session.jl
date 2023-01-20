@@ -259,9 +259,9 @@ function evaljs_value(with_session, js; error_on_closed=true, timeout=100.0)
     evaljs_value(session(with_session), js; error_on_closed=error_on_closed, timeout=timeout)
 end
 
-function session_dom(session::Session, app::App; init=true)
+function session_dom(session::Session, app::App; init=true, html_document=false)
     dom = rendered_dom(session, app)
-    return session_dom(session, dom; init=init)
+    return session_dom(session, dom; init=init, html_document=html_document)
 end
 
 function messages_as_js!(session::Session)
@@ -283,7 +283,8 @@ function messages_as_js!(session::Session)
     end
 end
 
-function session_dom(session::Session, dom::Node; init=true)
+
+function session_dom(session::Session, dom::Node; init=true, html_document=false)
     # the dom we can render may be anything between a
     # dom fragment or a full page with head & body etc.
     # If we have a head & body, we want to append our initialization
@@ -292,44 +293,60 @@ function session_dom(session::Session, dom::Node; init=true)
 
     # if nothing is found, we just use one div and append to that
     if isnothing(head) && isnothing(body)
-        dom = DOM.div(dom, id=session.id, dataJscallId="jsserver-application-dom")
-        body = dom
-        head = dom
+        if html_document
+            # emit a whole html document
+            body_dom = DOM.div(dom, id=session.id, dataJscallId="jsserver-application-dom")
+            head = Hyperscript.m("head", Hyperscript.m("meta", charset="UTF-8"), Hyperscript.m("title", "JSServe Application"))
+            body = Hyperscript.m("body", body_dom)
+            dom = Hyperscript.m("html", head, body)
+        else
+            # Emit a "fragment"
+            application = DOM.div(dom, id=session.id, dataJscallId="jsserver-application-dom")
+            head = DOM.div(application)
+            dom = head
+            body = dom
+        end
     end
 
     init_server = setup_asset_server(session.asset_server)
 
     issubsession = !isnothing(parent(session))
-    js = []
+
     if !issubsession
-        push!(js, jsrender(session, JSServeLib))
+        # we use window.JSSERVE_IMPORTS to deduplicate
+        # expensive source code, e.g. created by base64 urls!
+        script = """
+        window.JSSERVE_IMPORTS = {}
+        JSSERVE_IMPORTS['$(unique_key(JSServeLib))'] = '$(url(session, JSServeLib))'
+        """
+        pushfirst!(children(head), DOM.script(script))
     end
 
+    init_connection = setup_connection(session)
+    if !isnothing(init_server)
+        pushfirst!(children(body), jsrender(session, init_server))
+    end
+    if !isnothing(init_connection)
+        pushfirst!(children(body), jsrender(session, init_connection))
+    end
+    imports = filter(x -> x[2] isa Asset, session.session_objects)
+    for (key, asset) in imports
+        push!(children(head), jsrender(session, asset))
+    end
     if init
         run_msg_js = messages_as_js!(session)
-        init_messages= js"""
+        init_messages = js"""
         function init_messages() {
             $(run_msg_js)
         }
         """
         init_session = js"""
             $(init_messages)
-            JSServe.init_session($(session.id), init_messages, $(issubsession ? "sub" : "root"));
+            $(JSServeLib).then(J=> J.init_session($(session.id), init_messages, $(issubsession ? "sub" : "root")));
         """
-        push!(js, jsrender(session, init_session))
+        pushfirst!(children(body), jsrender(session, init_session))
     end
 
-    init_connection = setup_connection(session)
-
-    if !isnothing(init_connection)
-        push!(js, jsrender(session, init_connection))
-    end
-
-    if !isnothing(init_server)
-        push!(js, jsrender(session, init_server))
-    end
-    #
-    pushfirst!(children(head), js...)
     return dom
 end
 

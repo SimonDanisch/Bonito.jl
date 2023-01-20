@@ -63,7 +63,7 @@ function serialize_cached(context::SerializationContext, node::Node{Hyperscript.
     return SerializedNode(context.session, node)
 end
 
-object_identity(asset::Asset) = unique_file_key(asset)
+object_identity(asset::Asset) = unique_key(asset)
 object_identity(observable::Observable) = observable.id
 object_identity(@nospecialize(observable)) = nothing
 
@@ -95,7 +95,7 @@ end
 function serialize_cached(session::Session, @nospecialize(obj))
     ctx = SerializationContext(session)
     data = serialize_cached(ctx, obj)
-    return [SessionCache(session.id, ctx.message_cache), data]
+    return [SessionCache(session.id, filter!(((k,v),)-> !(v isa Asset), ctx.message_cache)), data]
 end
 
 serialize_cached(::SerializationContext, native::MSGPACK_NATIVE_TYPES) = native
