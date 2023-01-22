@@ -37,60 +37,84 @@ macro js_str(js_source)
     return :(JSCode($value_array, $(string(__source__.file, ":", __source__.line))))
 end
 
+struct JSSourceContext
+    session::Union{Nothing,Session}
+    objects::IdDict
+end
+
+function JSSourceContext(session::Union{Nothing,Session}=nothing)
+    return JSSourceContext(session, IdDict())
+end
+
 function Base.show(io::IO, jsc::JSCode)
-    print_js_code(io, jsc, IdDict())
+    print_js_code(io, jsc, JSSourceContext())
 end
 
-function print_js_code(io::IO, @nospecialize(object), objects::IdDict)
-    id = get!(()-> string(hash(object)), objects, object)
+
+
+function print_js_code(io::IO, @nospecialize(object), context::JSSourceContext)
+    id = get!(() -> string(hash(object)), context.objects, object)
     print(io, "__lookup_interpolated('$(id)')")
-    return objects
+    return context
 end
 
-function print_js_code(io::IO, x::Number, objects::IdDict)
+function print_js_code(io::IO, x::Number, context::JSSourceContext)
     print(io, x)
-    return objects
+    return context
 end
 
-function print_js_code(io::IO, x::String, objects::IdDict)
+function print_js_code(io::IO, x::String, context::JSSourceContext)
     print(io, "'", x, "'")
-    return objects
+    return context
 end
 
-function print_js_code(io::IO, jss::JSString, objects::IdDict)
+function print_js_code(io::IO, jss::JSString, context::JSSourceContext)
     print(io, jss.source)
-    return objects
+    return context
 end
 
-function print_js_code(io::IO, node::Node, objects::IdDict)
+function print_js_code(io::IO, node::Node, context::JSSourceContext)
     print(io, "document.querySelector('[data-jscall-id=\"$(uuid(node))\"]')")
-    return objects
+    return context
 end
 
-function print_js_code(io::IO, jsc::JSCode, objects::IdDict)
+function print_js_code(io::IO, jsc::JSCode, context::JSSourceContext)
     for elem in jsc.source
-        print_js_code(io, elem, objects)
+        print_js_code(io, elem, context)
     end
-    return objects
+    return context
 end
 
-function print_js_code(io::IO, jsss::AbstractVector{JSCode}, objects::IdDict)
+function print_js_code(io::IO, jsss::AbstractVector{JSCode}, context::JSSourceContext)
     for jss in jsss
-        print_js_code(io, jss, objects)
+        print_js_code(io, jss, context)
         println(io)
     end
-    return objects
+    return context
 end
 
-function print_js_code(io::IO, asset::Asset, objects::IdDict)
+function import_in_js(io::IO, session::Session, asset_server, asset::Asset)
+    # print(io, "import(window.JSSERVE_IMPORTS['$(unique_key(asset))'])")
+    print(io, "import('$(url(session, asset))')")
+end
+
+function print_js_code(io::IO, asset::Asset, context::JSSourceContext)
     if asset.es6module
-        get!(() -> string(hash(asset)), objects, asset)
-        print(io, "import(window.JSSERVE_IMPORTS['$(unique_key(asset))'])")
+        bundle!(asset) # no-op if not needed
+        session = context.session
+        if !isnothing(session)
+            import_in_js(io, session, session.asset_server, asset)
+            push!(session.imports, asset)
+            push!(root_session(session).imports, asset)
+        else
+            # This should be mainly for `print(jscode)`
+            print(io, "import('$(get_path(asset))')")
+        end
     else
-        id = get!(() -> string(hash(asset)), objects, asset)
+        id = get!(() -> string(hash(asset)), context.objects, asset)
         print(io, "__lookup_interpolated('$(id)')")
     end
-    return objects
+    return context
 end
 
 
@@ -105,30 +129,22 @@ function inline_code(session::Session, noserver, source::String)
 end
 
 function inline_code(session::Session, asset_server, js::JSCode)
-    objects = IdDict()
     # Print code while collecting all interpolated objects in an IdDict
+    context = JSSourceContext(session)
+
     code = sprint() do io
-        print_js_code(io, js, objects)
+        print_js_code(io, js, context)
     end
-
     # TODO, give imports their own dict?
-    filter!(objects) do (k, v)
-        if k isa Asset
-            session.session_objects[object_identity(k)] = k
-            return false
-        else
-            return true
-        end
-    end
-
-    if isempty(objects)
+    if isempty(context.objects)
         src = code
     else
         # reverse lookup and serialize elements
-        interpolated_objects = Dict(v => k for (k, v) in objects)
+        interpolated_objects = Dict(v => k for (k, v) in context.objects)
         data_str = serialize_string(session, interpolated_objects)
+        jslib = sprint(io -> print_js_code(io, JSServeLib, context))
         src = """
-            import(JSSERVE_IMPORTS['$(unique_key(JSServeLib))']).then(JSServe => {
+            $(jslib).then(JSServe => {
                 // JSCode from $(js.file)
                 const data_str = '$(data_str)'
                 JSServe.decode_base64_message(data_str).then(objects=> {

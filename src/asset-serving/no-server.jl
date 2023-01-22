@@ -8,6 +8,10 @@ end
 
 NoServer() = NoServer(Dict{String, String}())
 
+function import_in_js(io::IO, session::Session, ::NoServer, asset::Asset)
+    print(io, "import(window.JSSERVE_IMPORTS['$(unique_key(asset))'])")
+end
+
 setup_asset_server(::NoServer) = nothing
 
 function url(::NoServer, asset::Asset)

@@ -22,9 +22,11 @@ url(session::Session, asset::Asset) = url(session.asset_server, asset)
 function jsrender(session::Session, asset::Asset)
     ref = url(session, asset)
     element = if mediatype(asset) == :js
-        return DOM.script("""
-            window.JSSERVE_IMPORTS['$(unique_key(asset))'] = '$(ref)'
-        """)
+        if asset.es6module
+            return DOM.script(src=ref; type="module")
+        else
+            return DOM.script(src=ref)
+        end
     elseif mediatype(asset) == :css
         return DOM.link(href=ref, rel="stylesheet", type="text/css")
     elseif mediatype(asset) in (:jpeg, :jpg, :png)

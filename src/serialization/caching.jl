@@ -18,10 +18,7 @@ function serialize_cached(context::SerializationContext, retain::Retain)
 end
 
 function serialize_cached(context::SerializationContext, asset::Asset)
-    bundle!(asset) # no-op if not needed
-    return add_cached!(context.session, context.message_cache, asset) do
-        return SerializedAsset(asset.es6module, url(context.session.asset_server, asset))
-    end
+    error("Not supported")
 end
 
 function register_observable!(session::Session, obs::Observable; deregister=true)
@@ -45,13 +42,13 @@ function serialize_cached(context::SerializationContext, obs::Observable)
 end
 
 function serialize_cached(context::SerializationContext, js::JSCode)
-    objects = IdDict()
+    jscontext = JSSourceContext(context.session)
     # Print code while collecting all interpolated objects in an IdDict
     code = sprint() do io
-        print_js_code(io, js, objects)
+        print_js_code(io, js, jscontext)
     end
     # reverse lookup and serialize elements
-    interpolated_objects = Dict{String, Any}(v => serialize_cached(context, k) for (k, v) in objects)
+    interpolated_objects = Dict{String,Any}(v => serialize_cached(context, k) for (k, v) in jscontext.objects)
     return SerializedJSCode(
         interpolated_objects,
         code,
@@ -95,7 +92,7 @@ end
 function serialize_cached(session::Session, @nospecialize(obj))
     ctx = SerializationContext(session)
     data = serialize_cached(ctx, obj)
-    return [SessionCache(session.id, filter!(((k,v),)-> !(v isa Asset), ctx.message_cache)), data]
+    return [SessionCache(session.id, ctx.message_cache), data]
 end
 
 serialize_cached(::SerializationContext, native::MSGPACK_NATIVE_TYPES) = native

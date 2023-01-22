@@ -313,13 +313,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     issubsession = !isnothing(parent(session))
 
     if !issubsession
-        # we use window.JSSERVE_IMPORTS to deduplicate
-        # expensive source code, e.g. created by base64 urls!
-        script = """
-        window.JSSERVE_IMPORTS = {}
-        JSSERVE_IMPORTS['$(unique_key(JSServeLib))'] = '$(url(session, JSServeLib))'
-        """
-        pushfirst!(children(head), DOM.script(script))
+        pushfirst!(children(head), jsrender(session, JSServeLib))
     end
 
     init_connection = setup_connection(session)
