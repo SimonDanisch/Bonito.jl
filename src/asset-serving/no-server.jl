@@ -8,8 +8,22 @@ end
 
 NoServer() = NoServer(Dict{String, String}())
 
-function import_in_js(io::IO, session::Session, ::NoServer, asset::Asset)
-    print(io, "import(window.JSSERVE_IMPORTS['$(unique_key(asset))'])")
+function import_in_js(io::IO, session::Session, ns::NoServer, asset::Asset)
+    imports = "import(`$(url(ns, asset))`)"
+
+    str = if !(asset in session.imports)
+        "(() => {
+            if (!window.JSSERVE_IMPORTS) {
+                window.JSSERVE_IMPORTS = {};
+            }
+            JSSERVE_IMPORTS['$(unique_key(asset))'] = `$(url(ns, asset))`;
+            return $(imports);
+        })()"
+    else
+        push!(session.imports, asset)
+        str = imports
+    end
+    print(io, str)
 end
 
 setup_asset_server(::NoServer) = nothing

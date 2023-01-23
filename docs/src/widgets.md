@@ -12,7 +12,7 @@ using JSServe
 Page()
 ```
 
-```@setup 1
+```@example 1
 using JSServe
 import JSServe.TailwindDashboard as D
 

@@ -269,14 +269,16 @@ function messages_as_js!(session::Session)
     init_messages = if !isempty(messages[:payload])
         b64_str = serialize_string(session, messages)
         return js"""
-            const session_messages = $(b64_str)
-            console.log("start loading messages for " + $(session.id))
-            JSServe.with_message_lock(()=> {
-                return JSServe.decode_base64_message(session_messages).then(message => {
-                    JSServe.process_message(message)
-                    console.log("done loading messages for " + $(session.id))
+            (()=> {
+                const session_messages = $(b64_str)
+                console.log("start loading messages for " + $(session.id))
+                JSServe.with_message_lock(()=> {
+                    return JSServe.decode_base64_message(session_messages).then(message => {
+                        JSServe.process_message(message)
+                        console.log("done loading messages for " + $(session.id))
+                    })
                 })
-            })
+            })()
         """
     else
         return js""
@@ -308,25 +310,23 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         end
     end
 
-    init_server = setup_asset_server(session.asset_server)
-
-    issubsession = !isnothing(parent(session))
-
-    if !issubsession
-        pushfirst!(children(head), jsrender(session, JSServeLib))
-    end
-
     init_connection = setup_connection(session)
-    if !isnothing(init_server)
-        pushfirst!(children(body), jsrender(session, init_server))
-    end
     if !isnothing(init_connection)
         pushfirst!(children(body), jsrender(session, init_connection))
+    end
+    init_server = setup_asset_server(session.asset_server)
+    if !isnothing(init_server)
+        pushfirst!(children(body), jsrender(session, init_server))
     end
     imports = filter(x -> x[2] isa Asset, session.session_objects)
     for (key, asset) in imports
         push!(children(head), jsrender(session, asset))
     end
+    issubsession = !isnothing(parent(session))
+    if !issubsession
+        pushfirst!(children(head), jsrender(session, JSServeLib))
+    end
+
     if init
         run_msg_js = messages_as_js!(session)
         init_messages = js"""
