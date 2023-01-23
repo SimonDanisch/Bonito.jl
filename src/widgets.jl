@@ -1,10 +1,13 @@
 # Render the widgets from WidgetsBase.jl
+
 function jsrender(session::Session, button::Button)
-    return jsrender(session, DOM.button(
-        button.content,
-        onclick = js"event=> $(button.value).notify(true);";
+    button_dom = DOM.button(
+        button.content[],
+        onclick=js"event=> $(button.value).notify(true);";
         button.attributes...
-    ))
+    )
+    onjs(session, button.content, js"x=> $(button_dom).innerText = x")
+    return jsrender(session, button_dom)
 end
 
 function jsrender(session::Session, tf::TextField)
@@ -20,7 +23,12 @@ function jsrender(session::Session, ni::NumberInput)
     return jsrender(session, DOM.input(
         type = "number",
         value = ni.value,
-        onchange = js"$(ni.value).notify(parseFloat(this.value));";
+        onchange=js"event => {
+            const new_value = parseFloat(event.srcElement.value);
+            if (obs.value != new_value) {
+                obs.notify(new_value);
+            }
+        }";
         ni.attributes...
     ))
 end
@@ -158,7 +166,8 @@ function jsrender(session::Session, table::Table)
         push!(rows, DOM.tr(DOM.td.(table.row_renderer.(values(row)))...))
     end
     body = DOM.tbody(rows...)
-    return DOM.table(header, body; class=table.class)
+
+    return DOM.div(jsrender(session, Asset(dependency_path("table.css"))), DOM.table(header, body, class=table.class))
 end
 
 const ACE = ES6Module("https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js")
@@ -225,7 +234,6 @@ function jsrender(session::Session, editor::CodeEditor)
             const editor = ace.edit(element, {
                 mode: $(language)
             });
-            console.log(element)
             editor.setTheme($theme);
             editor.resize();
             // use setOptions method to set several options at once
@@ -281,4 +289,26 @@ function jsrender(session::Session, dropdown::Dropdown)
     select = DOM.select(dom; dropdown.attributes...)
     JSServe.onload(session, select, onchange)
     return select
+end
+
+
+struct FileInput <: JSServe.WidgetsBase.AbstractWidget{String}
+    value::Observable{Vector{String}}
+end
+
+FileInput() = FileInput(Observable([""]))
+
+function JSServe.jsrender(session::Session, fi::FileInput)
+    println("HEY!")
+    onchange = js"""event => {
+        console.log(event);
+        if (event.target.files) {
+            const files = [];
+            for (const file of event.target.files) {
+                files.push(URL.createObjectURL(file))
+            }
+            $(fi.value).notify(files);
+        }
+    }"""
+    return DOM.input(; type="file", onchange=onchange, multiple=true)
 end

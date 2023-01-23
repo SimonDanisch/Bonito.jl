@@ -52,6 +52,7 @@ include("util.jl")
 include("widgets.jl")
 include("display.jl")
 include("offline.jl")
+include("tailwind-dashboard.jl")
 
 # Core functionality
 export Page, Session, App, DOM, @js_str, ES6Module
