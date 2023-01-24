@@ -1,6 +1,6 @@
 Base.showable(::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, ::App) = true
 
-const CURRENT_SESSION = Ref{Union{Nothing, Session}}(nothing)
+const CURRENT_SESSION = Ref{Union{Nothing,Session}}(nothing)
 
 """
     Page(;
@@ -22,8 +22,8 @@ function Page(;
         offline::Union{Bool,Nothing}=nothing,
         exportable::Union{Bool,Nothing}=nothing,
         connection::Union{Nothing, FrontendConnection}=nothing,
+        current_page_dir = pwd(), # For documenter server
         server_config...)
-
     old_session = CURRENT_SESSION[]
     if !isempty(server_config)
         configure_server!(; server_config...)
@@ -47,6 +47,10 @@ function Page(;
     end
     if !isnothing(connection)
         force_connection!(connection)
+    end
+    asset_server = default_asset_server()
+    if asset_server isa DocumenterAssets
+        asset_server.folder[] = current_page_dir
     end
     force_subsession!(true)
     return

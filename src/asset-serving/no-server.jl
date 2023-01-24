@@ -89,10 +89,12 @@ function import_in_js(io::IO, session::Session, ::AssetFolder, asset::Asset)
 end
 
 struct DocumenterAssets <: AbstractAssetFolder
-    folder::String
+    folder::RefValue{String}
 end
+
+DocumenterAssets() = DocumenterAssets(RefValue{String}(""))
 
 function url(assetfolder::DocumenterAssets, asset::Asset)
     # TODO, how to properly get the real relative path to assetfolder
-    return "../" * write_to_assetfolder(assetfolder, asset)
+    return "/" * write_to_assetfolder((; folder=assetfolder.folder[]), asset)
 end

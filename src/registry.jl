@@ -174,6 +174,17 @@ register_asset_server!(NoServer) do
     end
 end
 
+# Needs to be globally shared while building the docs
+# TODO, reuse the same DocumenterAssets instance more cleanly
+const DOCUMENTER_ASSETS = DocumenterAssets()
+register_asset_server!(DocumenterAssets) do
+    if isdefined(Main, :Documenter)
+        return DOCUMENTER_ASSETS
+    else
+        return nothing
+    end
+end
+
 # Websocket is the fallback, so it's registered first (lower priority),
 # and never returns nothing
 register_connection!(WebSocketConnection) do
@@ -197,5 +208,3 @@ register_connection!(PlutoConnection) do
     isdefined(Main, :PlutoRunner) && return PlutoConnection()
     return nothing
 end
-
-
