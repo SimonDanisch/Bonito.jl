@@ -98,6 +98,7 @@ function import_in_js(io::IO, session::Session, assetfolder::DocumenterAssets, a
     # We write all javascript files into the same folder, so imports inside
     # JSSCode, which get evaled from JSServe.js, should use "./js-dep.js"
     # since the url is relative to the module that imports
+    # TODO, is this always called from import? and if not, does it still work?
     print(io, "import('$("./" * basename(url))')")
 end
 

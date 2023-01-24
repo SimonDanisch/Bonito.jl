@@ -186,9 +186,9 @@ end
 function Server(
         app::Union{Function, App},
         url::String, port::Int;
-        verbose = false,
+        verbose=false, proxy_url=""
     )
-    server = Server(url, port; verbose=verbose)
+    server = Server(url, port; verbose=verbose, proxy_url=proxy_url)
     route!(server, "/" => app)
     return server
 end

@@ -140,15 +140,12 @@ function inline_code(session::Session, asset_server, js::JSCode)
         # reverse lookup and serialize elements
         interpolated_objects = Dict(v => k for (k, v) in context.objects)
         data_str = serialize_string(session, interpolated_objects)
-        jslib = sprint(io -> print_js_code(io, JSServeLib, context))
         src = """
-            $(jslib).then(JSServe => {
-                // JSCode from $(js.file)
-                const data_str = '$(data_str)'
-                JSServe.decode_base64_message(data_str).then(objects=> {
-                    const __lookup_interpolated = (id) => objects[id]
-                    $code
-                })
+            // JSCode from $(js.file)
+            const data_str = '$(data_str)'
+            JSServe.decode_base64_message(data_str).then(objects=> {
+                const __lookup_interpolated = (id) => objects[id]
+                $code
             })
         """
     end

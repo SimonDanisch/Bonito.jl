@@ -60,7 +60,7 @@ function HTTPServer.apply_handler(app::App, context)
     server = context.application
     asset_server = HTTPAssetServer(server)
     connection = WebSocketConnection(server)
-    session = Session(connection; asset_server=asset_server)
+    session = Session(connection; asset_server=asset_server, title=app.title)
     html_dom = rendered_dom(session, app, context.request)
     html_str = sprint() do io
         page_html(io, session, html_dom)
