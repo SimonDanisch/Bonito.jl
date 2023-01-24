@@ -55,6 +55,44 @@ route!(server, r"my/nested/page" => App(DOM.div("nested")))
 url_to_visit = online_url(server, "/my/nested/page")
 ```
 
+### Heroku
+
+Deploying to Heroku with JSServe works pretty similar to this [blogpost](https://towardsdatascience.com/deploying-julia-projects-on-heroku-com-eb8da5248134).
+
+```
+mkdir my-app
+cd my-app
+julia --project=. -e 'using Pkg; Pkg.add("JSServe")' # and any other dependency
+```
+
+then create 2 files:
+
+`app.jl`:
+```julia
+using JSServe
+# The app you want to serve
+#  Note: you can also add more pages with `route!(server, ...)` as explained aboce
+my_app = App(DOM.div("hello world"))
+
+wait(JSServe.Server(my_app, "0.0.0.0", parse(Int, ENV["PORT"])))
+```
+`Procfile`:
+```
+web: julia --project=. app.jl
+```
+
+and then to upload the app install the [heroku-cli](https://devcenter.heroku.com/articles/heroku-cli) and run as explained in the [heroku git deploy section](https://devcenter.heroku.com/articles/git):
+
+```
+$ cd my-app
+$ git init
+$ git add .
+$ git commit -m "first commit"
+$ heroku create -a example-app
+$ heroku git:remote -a example-app
+```
+Which, after showing you the install logs, should print out the url to visit in the end.
+
 
 ## Terminal
 If no HTML display is found in the Julia display stack, JSServe calls `JSServe.enable_browser_display()` in the `__init__` function.
