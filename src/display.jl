@@ -19,7 +19,8 @@ get put into `configure_server!(;server_config...)`.
 Have a look at the docs for `configure_server!` to see the parameters.
 """
 function Page(;
-        offline=false, exportable=true,
+        offline::Union{Bool,Nothing}=nothing,
+        exportable::Union{Bool,Nothing}=nothing,
         connection::Union{Nothing, FrontendConnection}=nothing,
         server_config...)
 
@@ -31,12 +32,15 @@ function Page(;
         close(old_session)
     end
     CURRENT_SESSION[] = nothing
-    if offline
+    if isnothing(offline) # do nothing
+    elseif offline
         force_connection!(NoConnection())
     else
         force_connection!()
     end
-    if exportable
+
+    if isnothing(exportable) # do nothing
+    elseif exportable
         force_asset_server!(NoServer())
     else
         force_asset_server!()

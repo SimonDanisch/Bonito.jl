@@ -14,14 +14,5 @@ open!(connection::SubConnection) = (connection.isopen = true)
 
 function setup_connection(session::Session{SubConnection})
     parent_connection = session.connection.connection
-    # Ugh, special case for no connection, since we dont inline the setup code... Maybe we should just always do that
-    if parent_connection isa NoConnection
-        load_messages = messages_as_js!(session)
-        return js"""
-            JSServe.on_connection_open((w)=> null)
-            $(load_messages)
-        """
-    else
-        return nothing
-    end
+    return nothing
 end

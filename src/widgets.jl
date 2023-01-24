@@ -299,9 +299,7 @@ end
 FileInput() = FileInput(Observable([""]))
 
 function JSServe.jsrender(session::Session, fi::FileInput)
-    println("HEY!")
     onchange = js"""event => {
-        console.log(event);
         if (event.target.files) {
             const files = [];
             for (const file of event.target.files) {

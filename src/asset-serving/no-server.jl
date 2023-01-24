@@ -9,22 +9,37 @@ end
 NoServer() = NoServer(Dict{String, String}())
 
 function import_in_js(io::IO, session::Session, ns::NoServer, asset::Asset)
-    imports = "import(`$(url(ns, asset))`)"
-
-    str = if !(asset in session.imports)
-        "(() => {
-            if (!window.JSSERVE_IMPORTS) {
-                window.JSSERVE_IMPORTS = {};
-            }
-            JSSERVE_IMPORTS['$(unique_key(asset))'] = `$(url(ns, asset))`;
-            return $(imports);
-        })()"
+    if asset == JSServeLib
+        # we cheat for JSServe, since lots of dependencies like WebSocket.js can't directly depend on it,
+        # but needs to reference it, so we just load `JSServe` with a script tag and put the module into `window.JSServe`
+        print(io, "Promise.resolve(window.JSServe)")
     else
-        push!(session.imports, asset)
-        str = imports
+        import_key = "JSSERVE_IMPORTS['$(unique_key(asset))']"
+        imports = "import($(import_key))"
+        str = if !(asset in session.imports)
+            # first time something import_define
+            import_define = isempty(session.imports) ?  "window.JSSERVE_IMPORTS = {};" : ""
+            push!(session.imports, asset)
+            "(() => {
+                $(import_define)
+                $(import_key) = `$(url(ns, asset))`;
+                return $(imports);
+            })()"
+        else
+            str = imports
+        end
+        print(io, str)
     end
-    print(io, str)
 end
+
+
+# This is better for e.g. exporting static sides
+# TODO make this more straightforward and easy to customize
+# (this gets called/overloaded in js_source.jl)
+function inline_code(session::Session, ::NoServer, source::String)
+    return DOM.script(src=to_data_url(source, "application/javascript"); type="module")
+end
+
 
 setup_asset_server(::NoServer) = nothing
 
@@ -59,11 +74,4 @@ function url(assetfolder::AssetFolder, asset::Asset)
         path = _path
     end
     return replace(normpath("/" * relpath(path, folder)), "\\" => "/")
-end
-
-# This is better for e.g. exporting static sides
-# TODO make this more straightforward and easy to customize
-# (this gets called/overloaded in js_source.jl)
-function inline_code(session::Session, ::AssetFolder, source::String)
-    return DOM.script(source)
 end

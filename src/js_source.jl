@@ -124,8 +124,7 @@ end
 # I guess the best solution would be a trait system or some other config object
 # for deciding how to inline code into pure HTML
 function inline_code(session::Session, noserver, source::String)
-    data_url = to_data_url(source, "application/javascript")
-    return DOM.script(src=data_url)
+    return DOM.script(source; type="module")
 end
 
 function inline_code(session::Session, asset_server, js::JSCode)

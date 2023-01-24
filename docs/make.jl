@@ -1,6 +1,8 @@
 using JSServe
 using Documenter
 
+JSServe.force_asset_server!(JSServe.AssetFolder(joinpath(@__DIR__, "build/")))
+
 ci = get(ENV, "CI", "false") == "true"
 
 makedocs(modules=[JSServe],

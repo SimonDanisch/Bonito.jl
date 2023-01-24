@@ -52,7 +52,6 @@ function update_dom_node(dom, html) {
     }
 }
 
-
 const JSServe = {
     Protocol,
     base64decode,

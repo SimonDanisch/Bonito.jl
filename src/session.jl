@@ -310,6 +310,9 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         end
     end
 
+    # first render JSServeLib
+    jsserve_import = DOM.script(src=url(session, JSServeLib), type="module")
+
     init_connection = setup_connection(session)
     if !isnothing(init_connection)
         pushfirst!(children(body), jsrender(session, init_connection))
@@ -323,9 +326,6 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         push!(children(head), jsrender(session, asset))
     end
     issubsession = !isnothing(parent(session))
-    if !issubsession
-        pushfirst!(children(head), jsrender(session, JSServeLib))
-    end
 
     if init
         run_msg_js = messages_as_js!(session)
@@ -336,9 +336,13 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         """
         init_session = js"""
             $(init_messages)
-            $(JSServeLib).then(J=> J.init_session($(session.id), init_messages, $(issubsession ? "sub" : "root")));
+            JSServe.init_session($(session.id), init_messages, $(issubsession ? "sub" : "root"));
         """
         pushfirst!(children(body), jsrender(session, init_session))
+    end
+
+    if !issubsession
+        pushfirst!(children(head), jsserve_import)
     end
 
     return dom
