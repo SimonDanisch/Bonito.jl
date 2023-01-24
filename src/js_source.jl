@@ -94,7 +94,6 @@ function print_js_code(io::IO, jsss::AbstractVector{JSCode}, context::JSSourceCo
 end
 
 function import_in_js(io::IO, session::Session, asset_server, asset::Asset)
-    # print(io, "import(window.JSSERVE_IMPORTS['$(unique_key(asset))'])")
     print(io, "import('$(url(session, asset))')")
 end
 

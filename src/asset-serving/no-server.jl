@@ -73,5 +73,11 @@ function url(assetfolder::AssetFolder, asset::Asset)
         cp(path, _path; force=true)
         path = _path
     end
-    return replace(normpath("/" * relpath(path, folder)), "\\" => "/")
+    return replace(normpath(relpath(path, folder)), "\\" => "/")
+end
+
+function import_in_js(io::IO, session::Session, ::AssetFolder, asset::Asset)
+    # Somehow <script src=...> needs to leave out `/`, while import needs to have`/`
+    # I guess they resolve the path differently -.-
+    print(io, "import('/$(url(session, asset))')")
 end
