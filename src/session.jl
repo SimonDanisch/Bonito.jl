@@ -298,7 +298,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         if html_document
             # emit a whole html document
             body_dom = DOM.div(dom, id=session.id, dataJscallId="jsserver-application-dom")
-            head = Hyperscript.m("head", Hyperscript.m("meta", charset="UTF-8"), Hyperscript.m("title", "JSServe Application"))
+            head = Hyperscript.m("head", Hyperscript.m("meta", charset="UTF-8"), Hyperscript.m("title", session.title))
             body = Hyperscript.m("body", body_dom)
             dom = Hyperscript.m("html", head, body)
         else

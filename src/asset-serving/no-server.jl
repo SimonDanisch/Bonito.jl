@@ -47,13 +47,17 @@ function url(::NoServer, asset::Asset)
     return to_data_url(local_path(asset))
 end
 
-struct AssetFolder <: AbstractAssetServer
+
+
+abstract type AbstractAssetFolder <: AbstractAssetServer end
+
+struct AssetFolder <: AbstractAssetFolder
     folder::String
 end
 
-setup_asset_server(::JSServe.AssetFolder) = nothing
+setup_asset_server(::AbstractAssetFolder) = nothing
 
-function url(assetfolder::AssetFolder, asset::Asset)
+function write_to_assetfolder(assetfolder, asset)
     folder = abspath(assetfolder.folder)
     path = abspath(local_path(asset))
     bundle!(asset)
@@ -76,8 +80,19 @@ function url(assetfolder::AssetFolder, asset::Asset)
     return replace(normpath(relpath(path, folder)), "\\" => "/")
 end
 
+function url(assetfolder::AbstractAssetFolder, asset::Asset)
+    return write_to_assetfolder(assetfolder, asset)
+end
+
 function import_in_js(io::IO, session::Session, ::AssetFolder, asset::Asset)
-    # Somehow <script src=...> needs to leave out `/`, while import needs to have`/`
-    # I guess they resolve the path differently -.-
-    print(io, "import('/$(url(session, asset))')")
+    print(io, "import('$(url(session, asset))')")
+end
+
+struct DocumenterAssets <: AbstractAssetFolder
+    folder::String
+end
+
+function url(assetfolder::DocumenterAssets, asset::Asset)
+    # TODO, how to properly get the real relative path to assetfolder
+    return "../" * write_to_assetfolder(assetfolder, asset)
 end

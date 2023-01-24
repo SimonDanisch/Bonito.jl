@@ -60,7 +60,7 @@ export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor
 export browser_display, configure_server!, Server, html, route!
 export Observable, on, onany
 export linkjs, evaljs, evaljs_value, onjs
-export NoServer, AssetFolder, HTTPAssetServer
+export NoServer, AssetFolder, HTTPAssetServer, DocumenterAssets
 export NoConnection, IJuliaConnection, PlutoConnection, WebSocketConnection
 
 

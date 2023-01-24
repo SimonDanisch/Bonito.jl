@@ -56,10 +56,10 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
     if !isnothing(CURRENT_SESSION[])
         # We render in a subsession
         parent = CURRENT_SESSION[]
-        sub = Session(parent)
+        sub = Session(parent; title=app.title)
         dom = session_dom(sub, app)
     else
-        session = Session()
+        session = Session(title=app.title)
         if _use_parent_session(session)
             CURRENT_SESSION[] = session
             empty_app = App(nothing)

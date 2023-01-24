@@ -1,13 +1,13 @@
 using JSServe
 using Documenter
 
-JSServe.force_asset_server!(JSServe.AssetFolder(joinpath(@__DIR__, "build/")))
+JSServe.force_asset_server!(DocumenterAssets(joinpath(@__DIR__, "build")))
 
 ci = get(ENV, "CI", "false") == "true"
 
 makedocs(modules=[JSServe],
          sitename="JSServe",
-         format=Documenter.HTML(prettyurls=ci),
+        #  format=Documenter.HTML(prettyurls=ci),
          authors="Simon Danisch and other contributors")
 
 if ci

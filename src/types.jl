@@ -98,7 +98,7 @@ struct Session{Connection <: FrontendConnection}
     dom_uuid_counter::RefValue{Int}
     ignore_message::RefValue{Function}
     imports::Set{Asset}
-    title::String
+    title::RefValue{String}
 end
 
 function SerializedMessage(session::Session, message)
@@ -134,7 +134,7 @@ function Session(connection=default_connection();
                 deregister_callbacks=Observables.ObserverFunction[],
                 session_objects=Dict{String, Any}(),
                 imports=Set{Asset}(),
-                title="")
+                title="JSServe App")
 
     return Session(
         Base.RefValue{Union{Nothing, Session}}(nothing),
@@ -154,17 +154,17 @@ function Session(connection=default_connection();
         RefValue(0),
         RefValue{Function}(x-> false),
         imports,
-        title
+        RefValue{String}(title)
     )
 end
 
 function Session(parent::Session;
             asset_server=parent.asset_server,
-            on_connection_ready=init_session)
+            on_connection_ready=init_session, title=parent.title[])
 
     root = root_session(parent)
     connection = SubConnection(root)
-    session = Session(connection; asset_server=asset_server, on_connection_ready, title=parent.title)
+    session = Session(connection; asset_server=asset_server, on_connection_ready, title=title)
     session.parent[] = root
     root.children[session.id] = session
     return session
