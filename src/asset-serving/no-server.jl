@@ -93,7 +93,7 @@ end
 
 DocumenterAssets() = DocumenterAssets(RefValue{String}(""))
 function import_in_js(io::IO, session::Session, ::DocumenterAssets, asset::Asset)
-    print(io, "import('$("/" * url(session, asset))')")
+    print(io, "import('$("./" * url(session, asset))')")
 end
 
 function url(assetfolder::DocumenterAssets, asset::Asset)
