@@ -73,8 +73,10 @@ using JSServe
 # The app you want to serve
 #  Note: you can also add more pages with `route!(server, ...)` as explained aboce
 my_app = App(DOM.div("hello world"))
-
-wait(JSServe.Server(my_app, "0.0.0.0", parse(Int, ENV["PORT"])))
+port = parse(Int, ENV["PORT"])
+my_app_name = "example-app" # needs to match `heroku create - a example-app`
+url = "https://$(my_app_name).herokuapp.com/"
+wait(JSServe.Server(my_app, "0.0.0.0", port, proxy_url=url))
 ```
 `Procfile`:
 ```
@@ -92,7 +94,9 @@ $ heroku create -a example-app
 $ heroku git:remote -a example-app
 ```
 Which, after showing you the install logs, should print out the url to visit in the end.
+You can see the full example here:
 
+https://github.com/SimonDanisch/jsserve-heroku
 
 ## Terminal
 If no HTML display is found in the Julia display stack, JSServe calls `JSServe.enable_browser_display()` in the `__init__` function.
