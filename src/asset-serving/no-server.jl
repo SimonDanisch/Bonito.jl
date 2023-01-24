@@ -60,7 +60,6 @@ setup_asset_server(::AbstractAssetFolder) = nothing
 function write_to_assetfolder(assetfolder, asset)
     folder = abspath(assetfolder.folder)
     path = abspath(local_path(asset))
-    bundle!(asset)
     if !occursin(folder, path)
         file = basename(path)
         subfolder = if mediatype(asset) == :js
@@ -93,8 +92,11 @@ struct DocumenterAssets <: AbstractAssetFolder
 end
 
 DocumenterAssets() = DocumenterAssets(RefValue{String}(""))
+function import_in_js(io::IO, session::Session, ::DocumenterAssets, asset::Asset)
+    print(io, "import('$("/" * url(session, asset))')")
+end
 
 function url(assetfolder::DocumenterAssets, asset::Asset)
     # TODO, how to properly get the real relative path to assetfolder
-    return "/" * write_to_assetfolder((; folder=assetfolder.folder[]), asset)
+    return write_to_assetfolder((; folder=assetfolder.folder[]), asset)
 end
