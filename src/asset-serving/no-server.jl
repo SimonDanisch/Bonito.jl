@@ -92,8 +92,13 @@ struct DocumenterAssets <: AbstractAssetFolder
 end
 
 DocumenterAssets() = DocumenterAssets(RefValue{String}(""))
-function import_in_js(io::IO, session::Session, ::DocumenterAssets, asset::Asset)
-    print(io, "import('$("./" * url(session, asset))')")
+
+function import_in_js(io::IO, session::Session, assetfolder::DocumenterAssets, asset::Asset)
+    url = write_to_assetfolder((; folder=assetfolder.folder[]), asset)
+    # We write all javascript files into the same folder, so imports inside
+    # JSSCode, which get evaled from JSServe.js, should use "./js-dep.js"
+    # since the url is relative to the module that imports
+    print(io, "import('$("./" * basename(url))')")
 end
 
 function url(assetfolder::DocumenterAssets, asset::Asset)
