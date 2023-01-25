@@ -1,18 +1,18 @@
 using Hyperscript, Markdown, Test, RelocatableFolders
-using JSServe, Observables
-using JSServe: Session, evaljs, linkjs, div
-using JSServe: onjs, JSString, Asset, jsrender
-using JSServe: @js_str, uuid, SerializationContext, serialize_binary
-using JSServe.DOM
-using JSServe.HTTP
+using Dashi, Observables
+using Dashi: Session, evaljs, linkjs, div
+using Dashi: onjs, JSString, Asset, jsrender
+using Dashi: @js_str, uuid, SerializationContext, serialize_binary
+using Dashi.DOM
+using Dashi.HTTP
 using Electron
 using URIs
 using Random
 using Hyperscript: children
-using JSServe.MsgPack
-using JSServe.CodecZlib
+using Dashi.MsgPack
+using Dashi.CodecZlib
 using Test
-using JSServe: jsrender
+using Dashi: jsrender
 
 include("ElectronTests.jl")
 
@@ -40,15 +40,15 @@ function test_value(app, statement)
     # which would make use wait forever
     val_t = @async wait_on_test_observable()
     # eval our js expression that is supposed to write something to test_observable
-    if statement isa JSServe.JSCode
-        JSServe.evaljs(app.session, statement)
+    if statement isa Dashi.JSCode
+        Dashi.evaljs(app.session, statement)
     else
         statement()
     end
     fetch(val_t) # fetch the value!
 end
 
-@testset "JSServe" begin
+@testset "Dashi" begin
     @testset "connection-serving" begin; include("connection-serving.jl"); end
     @testset "serialization" begin; include("serialization.jl"); end
     @testset "widgets" begin; include("widgets.jl"); end

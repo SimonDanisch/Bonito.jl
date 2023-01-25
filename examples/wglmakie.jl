@@ -1,9 +1,9 @@
-using JSServe, WGLMakie
+using Dashi, WGLMakie
 using GeometryBasics
 using FileIO
-using JSServe: @js_str, onjs, App, Slider
-using JSServe.DOM
-JSServe.browser_display()
+using Dashi: @js_str, onjs, App, Slider
+using Dashi.DOM
+Dashi.browser_display()
 
 set_theme!(resolution=(1200, 800))
 
@@ -169,7 +169,7 @@ app = App() do
 end
 
 app = App() do
-    sl = JSServe.Slider(1:10)
+    sl = Dashi.Slider(1:10)
     rect = Rect2f(0, -5, 1025, 10)
     chars = [collect('a':'z'); 0:9;]
     char2 = [collect('A':'Z'); 0:9;]

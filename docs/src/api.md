@@ -3,7 +3,7 @@
 ## Public Functions
 
 ```@autodocs
-Modules = [JSServe]
+Modules = [Dashi]
 Order   = [:module, :constant, :type, :function, :macro]
 Public  = true
 Private = false
@@ -12,7 +12,7 @@ Private = false
 ## Private Functions
 
 ```@autodocs
-Modules = [JSServe]
+Modules = [Dashi]
 Order   = [:module, :constant, :type, :function, :macro]
 Public  = false
 Private = true

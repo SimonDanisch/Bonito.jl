@@ -5,16 +5,16 @@
 ## Editor
 
 This editor works in pure Javascript, so feel free to try out editing the Javascript and clicking `eval` to see how the output changes.
-In `JSServe/examples/editor.jl`, you will find a version that works with Julia code, but that requires a running Julia server of course.
+In `Dashi/examples/editor.jl`, you will find a version that works with Julia code, but that requires a running Julia server of course.
 
 ```@setup 1
-using JSServe
+using Dashi
 Page()
 ```
 
 ```@example 1
-using JSServe
-import JSServe.TailwindDashboard as D
+using Dashi
+import Dashi.TailwindDashboard as D
 
 function range_slider(orientation)
     range_slider = RangeSlider(1:100; value=[10, 80])
@@ -39,7 +39,7 @@ App() do
     slider = D.Slider("Test", 1:5)
 
     checkbox = D.Checkbox("check this", true)
-    table = JSServe.Table([(a=22, b=33, c=44), (a=22, b=33, c=44)])
+    table = Dashi.Table([(a=22, b=33, c=44), (a=22, b=33, c=44)])
 
     source = """
     function test(a, b)
@@ -49,9 +49,9 @@ App() do
     editor = CodeEditor("julia"; initial_source=source, width=250, height=200, scrollPastEnd=false)
     dropdown = D.Dropdown("chose", ["option 1", "option 2", "option 3"])
 
-    vrange_slider = range_slider(JSServe.WidgetsBase.vertical)
+    vrange_slider = range_slider(Dashi.WidgetsBase.vertical)
 
-    hrange_slider = range_slider(JSServe.WidgetsBase.horizontal)
+    hrange_slider = range_slider(Dashi.WidgetsBase.horizontal)
 
 
     return DOM.div(
@@ -81,7 +81,7 @@ end
 ```
 
 ```@example 1
-using JSServe, Observables
+using Dashi, Observables
 src = """
 (() => {
     const canvas = document.createElement("canvas");
@@ -105,7 +105,7 @@ App() do session::Session
     editor = CodeEditor("javascript"; initial_source=src, width=800, height=300)
     eval_button = Button("eval")
     output = DOM.div(DOM.span())
-    JSServe.onjs(session, eval_button.value, js"""function (click){
+    Dashi.onjs(session, eval_button.value, js"""function (click){
         const js_src = $(editor.onchange).value;
         const result = new Function("return " + (js_src))()
         let dom;
@@ -116,7 +116,7 @@ App() do session::Session
             span.innerText = result;
             dom = span
         }
-        JSServe.update_or_replace($(output), dom, false);
+        Dashi.update_or_replace($(output), dom, false);
         return
     }
     """)

@@ -50,7 +50,7 @@ const AVAILABLE_ASSET_SERVERS = Pair{DataType, Function}[]
 
 Registers a new asset server type.
 `condition` is a function that should return `nothing`, if the asset server type shouldn't be used, and an initialized asset server object, if the conditions are right.
-E.g. The `JSServe.NoServer` be used inside an IJulia notebook so it's registered like this:
+E.g. The `Dashi.NoServer` be used inside an IJulia notebook so it's registered like this:
 ```julia
 register_asset_server!(NoServer) do
     if isdefined(Main, :IJulia)

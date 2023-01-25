@@ -94,7 +94,7 @@ function Base.close(session::Session)
             delete_cached!(root, key)
         end
         evaljs(root, js"""
-            JSServe.free_session($(session.id))
+            Dashi.free_session($(session.id))
         """)
     end
     # delete_cached! only deletes in the root session so we need to still empty the session_objects:
@@ -272,9 +272,9 @@ function messages_as_js!(session::Session)
             (()=> {
                 const session_messages = $(b64_str)
                 console.log("start loading messages for " + $(session.id))
-                JSServe.with_message_lock(()=> {
-                    return JSServe.decode_base64_message(session_messages).then(message => {
-                        JSServe.process_message(message)
+                Dashi.with_message_lock(()=> {
+                    return Dashi.decode_base64_message(session_messages).then(message => {
+                        Dashi.process_message(message)
                         console.log("done loading messages for " + $(session.id))
                     })
                 })
@@ -297,21 +297,21 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     if isnothing(head) && isnothing(body)
         if html_document
             # emit a whole html document
-            body_dom = DOM.div(dom, id=session.id, dataJscallId="jsserver-application-dom")
+            body_dom = DOM.div(dom, id=session.id, dataJscallId="Dashir-application-dom")
             head = Hyperscript.m("head", Hyperscript.m("meta", charset="UTF-8"), Hyperscript.m("title", session.title[]))
             body = Hyperscript.m("body", body_dom)
             dom = Hyperscript.m("html", head, body)
         else
             # Emit a "fragment"
-            application = DOM.div(dom, id=session.id, dataJscallId="jsserver-application-dom")
+            application = DOM.div(dom, id=session.id, dataJscallId="Dashir-application-dom")
             head = DOM.div(application)
             dom = head
             body = dom
         end
     end
 
-    # first render JSServeLib
-    jsserve_import = DOM.script(src=url(session, JSServeLib), type="module")
+    # first render DashiLib
+    Dashi_import = DOM.script(src=url(session, DashiLib), type="module")
 
     init_server = setup_asset_server(session.asset_server)
     if !isnothing(init_server)
@@ -337,13 +337,13 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         """
         init_session = js"""
             $(init_messages)
-            JSServe.init_session($(session.id), init_messages, $(issubsession ? "sub" : "root"));
+            Dashi.init_session($(session.id), init_messages, $(issubsession ? "sub" : "root"));
         """
         pushfirst!(children(body), jsrender(session, init_session))
     end
 
     if !issubsession
-        pushfirst!(children(head), jsserve_import)
+        pushfirst!(children(head), Dashi_import)
     end
 
     return dom
@@ -378,9 +378,9 @@ function update_session_dom!(parent::Session, node_to_update::Union{String, Node
         # wrap into observable, so that the whole node gets transfered
         obs = Observable(html)
         evaljs(parent, js"""
-            JSServe.Sessions.on_node_available($query_selector, 1).then(dom => {
+            Dashi.Sessions.on_node_available($query_selector, 1).then(dom => {
                 const html = $(obs).value
-                JSServe.update_or_replace(dom, html, $replace)
+                Dashi.update_or_replace(dom, html, $replace)
             })
         """)
     else

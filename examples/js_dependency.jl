@@ -1,6 +1,6 @@
-using JSServe
-using JSServe: Dependency, onload, @js_str, Session
-using JSServe.DOM
+using Dashi
+using Dashi: Dependency, onload, @js_str, Session
+using Dashi.DOM
 
 # First argument: Name of the Javascript module
 # Second argument: Array of dependency. One needs to be the JavaScript file

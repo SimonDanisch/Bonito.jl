@@ -52,7 +52,7 @@ function update_dom_node(dom, html) {
     }
 }
 
-const JSServe = {
+const Dashi = {
     Protocol,
     base64decode,
     base64encode,
@@ -84,7 +84,7 @@ const JSServe = {
 };
 
 // @ts-ignore
-window.JSServe = JSServe;
+window.Dashi = Dashi;
 
 export {
     Protocol,

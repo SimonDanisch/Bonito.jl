@@ -1,25 +1,25 @@
 @testset "basic session rendering" begin
     session = Session()
     obs1 = Observable(1)
-    TestLib = JSServe.JSServeLib
+    TestLib = Dashi.DashiLib
     dom = App(DOM.div(test=obs1, onload=js"$(TestLib).lol()"))
-    sdom = JSServe.session_dom(session, dom; init=false) # Init false to not inline messages
-    msg = JSServe.fused_messages!(session)
-    data = JSServe.serialize_cached(session, msg)
-    decoded = JSServe.deserialize(msg[:payload][1]) |> JSServe.decode_extension_and_addbits
+    sdom = Dashi.session_dom(session, dom; init=false) # Init false to not inline messages
+    msg = Dashi.fused_messages!(session)
+    data = Dashi.serialize_cached(session, msg)
+    decoded = Dashi.deserialize(msg[:payload][1]) |> Dashi.decode_extension_and_addbits
     @test haskey(session.session_objects, obs1.id)
     # Obs registered correctly
-    @test obs1.listeners[1][2] isa JSServe.JSUpdateObservable
+    @test obs1.listeners[1][2] isa Dashi.JSUpdateObservable
     session_cache = decoded[1]
-    @test session_cache isa JSServe.SessionCache
+    @test session_cache isa Dashi.SessionCache
     @test haskey(session_cache.objects, obs1.id)
 
     # Will deregisters correctly on session close
     @test session.deregister_callbacks[1].observable === obs1
-    @test occursin("JSServe.update_node_attribute", string(decoded[2]["payload"]))
+    @test occursin("Dashi.update_node_attribute", string(decoded[2]["payload"]))
 end
 
-struct DebugConnection <: JSServe.FrontendConnection
+struct DebugConnection <: Dashi.FrontendConnection
     io::IOBuffer
 end
 
@@ -33,23 +33,23 @@ end
 
 @testset "Session & Subsession rendering & cleanup" begin
     connection = DebugConnection()
-    open_session = JSServe.Session(connection; asset_server=JSServe.NoServer())
+    open_session = Dashi.Session(connection; asset_server=Dashi.NoServer())
     put!(open_session.connection_ready, true)
     @test isopen(open_session)
-    JSServe.CURRENT_SESSION[] = open_session
+    Dashi.CURRENT_SESSION[] = open_session
 
-    rslider = JSServe.RangeSlider(1:100; value=[10, 80])
+    rslider = Dashi.RangeSlider(1:100; value=[10, 80])
 
     for obs_field in (:range, :value, :connect, :orientation, :tooltips, :ticks)
         obs = getfield(rslider, obs_field)
         @test isempty(obs.listeners)
     end
 
-    sliderapp = JSServe.App(rslider);
+    sliderapp = Dashi.App(rslider);
     html = sprint() do io
-        sub = JSServe.show(io, MIME"text/html"(), sliderapp)
-        msg = JSServe.fused_messages!(sub)
-        JSServe.serialize_binary(sub, msg)
+        sub = Dashi.show(io, MIME"text/html"(), sliderapp)
+        msg = Dashi.fused_messages!(sub)
+        Dashi.serialize_binary(sub, msg)
     end
 
     @test length(open_session.children) == 1
@@ -59,7 +59,7 @@ end
 
     @testset "assets" begin
         @test length(c_session.session_objects) == 2
-        @test JSServe.noUiSlider in open_session.imports
+        @test Dashi.noUiSlider in open_session.imports
     end
 
     @testset "observable $(obs_field)" for obs_field in (:range, :value, :connect, :orientation, :tooltips, :ticks)
@@ -67,7 +67,7 @@ end
         @test length(obs.listeners) == 1
         if obs_field == :value
             @test haskey(open_session.session_objects, obs.id)
-            @test obs.listeners[1][2] isa JSServe.JSUpdateObservable
+            @test obs.listeners[1][2] isa Dashi.JSUpdateObservable
         end
     end
 
@@ -85,9 +85,9 @@ end
 
     @testset "dependency second include" begin
         html2 = sprint() do io
-            sub = JSServe.show(io, MIME"text/html"(), sliderapp)
-            msg = JSServe.fused_messages!(sub)
-            JSServe.serialize_binary(sub, msg)
+            sub = Dashi.show(io, MIME"text/html"(), sliderapp)
+            msg = Dashi.fused_messages!(sub)
+            Dashi.serialize_binary(sub, msg)
         end
         # Test that dependencies only get loaded one time!
         @test !occursin("-nouislider.min.js", html2)
@@ -111,8 +111,8 @@ end
 #     @test sub.session_objects[obs2.id] == nothing
 #     @test haskey(session.session_objects, obs2.id)
 #     @test haskey(session.observables, obs2.id)
-#     JSServe.evaljs_value(session, js"""(()=>{
-#         return JSServe.Sessions.GLOBAL_OBJECT_CACHE[$(obs2.id)][1]
+#     Dashi.evaljs_value(session, js"""(()=>{
+#         return Dashi.Sessions.GLOBAL_OBJECT_CACHE[$(obs2.id)][1]
 #     })()""")
 
 #     obs[] = App(()-> DOM.div("hoehoe", js"console.log('please delete old session?')"));
@@ -120,16 +120,16 @@ end
 #     @test !haskey(session.session_objects, obs2.id)
 #     @test !haskey(session.observables, obs2.id)
 
-#     @test JSServe.evaljs_value(session, js"""(()=>{
-#         const a = $(obs2.id) in JSServe.Sessions.GLOBAL_OBJECT_CACHE
-#         const b = $(sub.id) in JSServe.Sessions.SESSIONS
+#     @test Dashi.evaljs_value(session, js"""(()=>{
+#         const a = $(obs2.id) in Dashi.Sessions.GLOBAL_OBJECT_CACHE
+#         const b = $(sub.id) in Dashi.Sessions.SESSIONS
 #         return !a && !b
 #     })()""")
 
 #     session.observables
 
-#     JSServe.evaljs_value(session, js"""(()=>{
-#         return JSServe.Sessions.GLOBAL_OBJECT_CACHE.length
+#     Dashi.evaljs_value(session, js"""(()=>{
+#         return Dashi.Sessions.GLOBAL_OBJECT_CACHE.length
 #     })()""")
 
 #     color = Observable("color: red;")
@@ -139,7 +139,7 @@ end
 #     end;
 
 #     parent = Session()
-#     JSServe.session_dom(parent, app)
+#     Dashi.session_dom(parent, app)
 
 #     @test haskey(parent.observables, color.id)
 #     @test haskey(parent.observables, text.listeners[1][2].html.id)
@@ -150,13 +150,13 @@ end
 #     app2 = App() do
 #         DOM.div(js"$new_obs"; style=color)
 #     end;
-#     dom = JSServe.session_dom(session, app2)
+#     dom = Dashi.session_dom(session, app2)
 
-#     msg = JSServe.fused_messages!(session)
-#     ser_msg = JSServe.serialize_cached(session, msg)
+#     msg = Dashi.fused_messages!(session)
+#     ser_msg = Dashi.serialize_cached(session, msg)
 
-#     @test JSServe.root_session(session) == parent
-#     @test JSServe.root_session(session) !== session
+#     @test Dashi.root_session(session) == parent
+#     @test Dashi.root_session(session) !== session
 
 #     # Session shouldn't own, color
 #     @test !haskey(session.session_objects, color.id)

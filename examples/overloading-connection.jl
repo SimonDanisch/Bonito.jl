@@ -1,8 +1,8 @@
-using HTTP, JSServe, Observables
+using HTTP, Dashi, Observables
 using HTTP.WebSockets: WebSocket, isclosed, receive, send
 
 ## Overloading Connection
-mutable struct WSConnection <: JSServe.FrontendConnection
+mutable struct WSConnection <: Dashi.FrontendConnection
     socket::Union{Nothing, WebSocket}
 end
 
@@ -16,7 +16,7 @@ end
 Base.isopen(ws::WSConnection) = !isnothing(ws.socket) && !isclosed(ws.socket)
 
 # Setup the julia side of things
-function JSServe.setup_connection(session::Session{WSConnection})
+function Dashi.setup_connection(session::Session{WSConnection})
     connection = session.connection
     # TODO, just insert a route, or close/reopen webserver
     port = 8083
@@ -26,7 +26,7 @@ function JSServe.setup_connection(session::Session{WSConnection})
         while !isclosed(websocket)
             bytes = receive(websocket)
             # process_message works with the bytes serialized by the frontend :)
-            JSServe.process_message(session, bytes)
+            Dashi.process_message(session, bytes)
         end
     end
 
@@ -40,11 +40,11 @@ function JSServe.setup_connection(session::Session{WSConnection})
         websocket.onmessage = function (evt) {
             new Promise(resolve => {
                 const binary = new Uint8Array(evt.data);
-                JSServe.process_message(JSServe.decode_binary_message(binary));
+                Dashi.process_message(Dashi.decode_binary_message(binary));
                 resolve()
             })
         };
-        JSServe.on_connection_open((binary_data) => {
+        Dashi.on_connection_open((binary_data) => {
             websocket.send(binary_data) // we serialize everything to binary (Uint8Array)
         });
     };
@@ -52,7 +52,7 @@ function JSServe.setup_connection(session::Session{WSConnection})
 end
 
 # Register your connection
-JSServe.register_connection!(WSConnection) do
+Dashi.register_connection!(WSConnection) do
     # This should REALLY be conditional, otherwise
     # you'll force every package to use your connection per default!
     # See documention of register_connection!
@@ -62,19 +62,19 @@ end
 
 ## Overloading Server
 
-struct FileServer <: JSServe.AbstractAssetServer
+struct FileServer <: Dashi.AbstractAssetServer
 end
 
 # Nothing really to setup, but if you use e.g. HTTP, this would be the place to insert routes etc
 # Have a look at asset-servers/http.jl for more infos about how to implement an HTTP based asset server
-JSServe.setup_asset_server(::FileServer) = nothing
+Dashi.setup_asset_server(::FileServer) = nothing
 
-function JSServe.url(::FileServer, asset::JSServe.Asset)
-    return "file:///" * JSServe.local_path(asset)
+function Dashi.url(::FileServer, asset::Dashi.Asset)
+    return "file:///" * Dashi.local_path(asset)
 end
 
 # Register your file server
-JSServe.register_asset_server!(FileServer) do
+Dashi.register_asset_server!(FileServer) do
     return FileServer()
 end
 
@@ -83,11 +83,11 @@ x = Session()
 @assert x.connection isa WSConnection
 @assert x.asset_server isa FileServer
 
-JSServe.browser_display() # Show the app in the browser, since e.g. plotpane won't allow to load from file urls
+Dashi.browser_display() # Show the app in the browser, since e.g. plotpane won't allow to load from file urls
 color = Observable("red")
 color_css = map(x-> "color: $(x)", color)
 App() do session::Session
-    JSServe.evaljs(session, js"console.log('hi from JS')")
+    Dashi.evaljs(session, js"console.log('hi from JS')")
     return DOM.div("hii"; style=color_css)
 end
 

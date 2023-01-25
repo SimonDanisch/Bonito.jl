@@ -1,10 +1,10 @@
 using Markdown
-using JSServe, Observables
-using JSServe: Session, evaljs, linkjs
-using JSServe: @js_str, onjs, Button, Slider, Asset
+using Dashi, Observables
+using Dashi: Session, evaljs, linkjs
+using Dashi: @js_str, onjs, Button, Slider, Asset
 using WGLMakie
 
-JSServe.browser_display()
+Dashi.browser_display()
 
  app = App() do
     cmap_button = Button("change colormap")
@@ -50,7 +50,7 @@ JSServe.browser_display()
 
     [Github-flavored Markdown info page](http://github.github.com/github-flavored-markdown/)
 
-    [![Build Status](https://travis-ci.com/SimonDanisch/JSServe.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/JSServe.jl)
+    [![Build Status](https://travis-ci.com/SimonDanisch/Dashi.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/Dashi.jl)
 
     Thoughtful example
     ======
@@ -76,12 +76,12 @@ JSServe.browser_display()
     ```
 
     ---
-    # JSServe
+    # Dashi
 
-    [![Build Status](https://travis-ci.com/SimonDanisch/JSServe.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/JSServe.jl)
-    [![Build Status](https://ci.appveyor.com/api/projects/status/github/SimonDanisch/JSServe.jl?svg=true)](https://ci.appveyor.com/project/SimonDanisch/JSServe-jl)
-    [![Codecov](https://codecov.io/gh/SimonDanisch/JSServe.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/SimonDanisch/JSServe.jl)
-    [![Build Status](https://travis-ci.com/SimonDanisch/JSServe.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/JSServe.jl)
+    [![Build Status](https://travis-ci.com/SimonDanisch/Dashi.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/Dashi.jl)
+    [![Build Status](https://ci.appveyor.com/api/projects/status/github/SimonDanisch/Dashi.jl?svg=true)](https://ci.appveyor.com/project/SimonDanisch/Dashi-jl)
+    [![Codecov](https://codecov.io/gh/SimonDanisch/Dashi.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/SimonDanisch/Dashi.jl)
+    [![Build Status](https://travis-ci.com/SimonDanisch/Dashi.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/Dashi.jl)
 
 
     | Tables        | Are           | Cool  |
@@ -111,5 +111,5 @@ JSServe.browser_display()
 
     ---
     """
-    return JSServe.DOM.div(JSServe.MarkdownCSS, JSServe.Styling, dom)
+    return Dashi.DOM.div(Dashi.MarkdownCSS, Dashi.Styling, dom)
 end

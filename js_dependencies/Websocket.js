@@ -1,7 +1,6 @@
 
 const session_websocket = [];
 let websocket_config = undefined;
-window.session_websocket = session_websocket
 
 function websocket_url(session_id, proxy_url) {
     // something like http://127.0.0.1:8081/
@@ -81,7 +80,7 @@ function websocket_send(binary_data) {
 
 function send_pings() {
     console.log("pong")
-    JSServe.send_pingpong()
+    Dashi.send_pingpong()
     setTimeout(send_pings, 5000)
 }
 
@@ -106,11 +105,11 @@ export function setup_connection(config_input) {
                 // run this async... (or do we?)
                 new Promise(resolve => {
                     const binary = new Uint8Array(evt.data);
-                    JSServe.process_message(JSServe.decode_binary_message(binary));
+                    Dashi.process_message(Dashi.decode_binary_message(binary));
                     resolve()
                 })
             };
-            JSServe.on_connection_open(websocket_send);
+            Dashi.on_connection_open(websocket_send);
             send_pings()
         };
 
@@ -119,7 +118,7 @@ export function setup_connection(config_input) {
             while (session_websocket.length > 0) {
                 session_websocket.pop();
             }
-            JSServe.on_connection_close();
+            Dashi.on_connection_close();
             console.log("Wesocket close code: " + evt.code);
             console.log(evt);
         };

@@ -1,4 +1,4 @@
-module JSServe
+module Dashi
 
 import Sockets
 using Sockets: send

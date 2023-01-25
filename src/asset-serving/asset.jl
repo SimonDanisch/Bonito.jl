@@ -64,9 +64,9 @@ The extension is defined to be the bit after the last dot, excluding any query
 string.
 # Examples
 ```julia-repl
-julia> JSServe.getextension("foo.bar.js")
+julia> Dashi.getextension("foo.bar.js")
 "js"
-julia> JSServe.getextension("https://my-cdn.net/foo.bar.css?version=1")
+julia> Dashi.getextension("https://my-cdn.net/foo.bar.css?version=1")
 "css"
 ```
 Taken from WebIO.jl
@@ -94,7 +94,7 @@ end
 function ES6Module(path)
     name = String(splitext(basename(path))[1])
     asset = Asset(path; name=name, es6module=true)
-    JSServe.bundle!(asset)
+    Dashi.bundle!(asset)
     return asset
 end
 
@@ -141,7 +141,7 @@ function local_path(asset::Asset)
 end
 
 function get_deps_path(name)
-    folder = abspath(first(Base.DEPOT_PATH), "jsserve")
+    folder = abspath(first(Base.DEPOT_PATH), "Dashi")
     isdir(folder) || mkpath(folder)
     return joinpath(folder, name)
 end
@@ -156,7 +156,7 @@ function bundle_path(asset::Asset)
     return string(path, ".bundled", ext)
 end
 
-last_modified(path::Path) = last_modified(JSServe.getroot(path))
+last_modified(path::Path) = last_modified(Dashi.getroot(path))
 function last_modified(path::String)
     Dates.unix2datetime(Base.Filesystem.mtime(path))
 end
