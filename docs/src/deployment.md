@@ -7,13 +7,12 @@ example_app = App(DOM.div("hello world"), title="hello world")
 
 ## Server
 
-```@example 1
+```julia
 # Depending on your servers setup, you may need to listen on another port or URL
 # But 0.0.0.0:80 is pretty standard for most server setups
 port = 80
 url = "0.0.0.0"
 server = Dashi.Server(example_app, url, port)
-nothing
 ```
 
 Now, you should see the webpage at `http://0.0.0.0:80`.

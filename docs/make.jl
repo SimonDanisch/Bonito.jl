@@ -9,5 +9,5 @@ makedocs(modules=[Dashi],
          authors="Simon Danisch and other contributors")
 
 if ci
-    deploydocs(repo="github.com/SimonDanisch/Dashi.jl.git"; push_preview=true)
+    deploydocs(repo="github.com/SimonDanisch/JSServe.jl.git"; push_preview=true)
 end
