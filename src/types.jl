@@ -97,6 +97,8 @@ struct Session{Connection <: FrontendConnection}
     # For rendering Hyperscript.Node, and giving them a unique id inside the session
     dom_uuid_counter::RefValue{Int}
     ignore_message::RefValue{Function}
+    imports::Set{Asset}
+    title::RefValue{String}
 end
 
 function SerializedMessage(session::Session, message)
@@ -130,7 +132,9 @@ function Session(connection=default_connection();
                 js_comm=Observable{Union{Nothing, Dict{String, Any}}}(nothing),
                 on_close=Observable(false),
                 deregister_callbacks=Observables.ObserverFunction[],
-                session_objects=Dict{String, Any}())
+                session_objects=Dict{String, Any}(),
+                imports=Set{Asset}(),
+                title="JSServe App")
 
     return Session(
         Base.RefValue{Union{Nothing, Session}}(nothing),
@@ -148,17 +152,19 @@ function Session(connection=default_connection();
         deregister_callbacks,
         session_objects,
         RefValue(0),
-        RefValue{Function}(x-> false)
+        RefValue{Function}(x-> false),
+        imports,
+        RefValue{String}(title)
     )
 end
 
 function Session(parent::Session;
             asset_server=parent.asset_server,
-            on_connection_ready=init_session)
+            on_connection_ready=init_session, title=parent.title[])
 
     root = root_session(parent)
     connection = SubConnection(root)
-    session = Session(connection; asset_server=asset_server, on_connection_ready)
+    session = Session(connection; asset_server=asset_server, on_connection_ready, title=title)
     session.parent[] = root
     root.children[session.id] = session
     return session
@@ -174,16 +180,17 @@ so something renderable by jsrender, e.g. `DOM.div`.
 struct App
     handler::Function
     session::Base.RefValue{Union{Session, Nothing}}
-    function App(handler::Function)
+    title::String
+    function App(handler::Function; title="JSServe App")
         session = Base.RefValue{Union{Session, Nothing}}(nothing)
         if hasmethod(handler, Tuple{Session, HTTP.Request})
-            return new(handler, session)
+            return new(handler, session, title)
         elseif hasmethod(handler, Tuple{Session})
-            return new((session, request) -> handler(session), session)
+            return new((session, request) -> handler(session), session, title)
         elseif hasmethod(handler, Tuple{HTTP.Request})
-            return new((session, request) -> handler(request), session)
+            return new((session, request) -> handler(request), session, title)
         elseif hasmethod(handler, Tuple{})
-           return new((session, request) -> handler(), session)
+           return new((session, request) -> handler(), session, title)
         else
             error("""
             Handler function must have the following signature:
@@ -194,8 +201,8 @@ struct App
             """)
         end
     end
-    function App(dom_object)
-        return new((s, r)-> dom_object, Base.RefValue{Union{Session, Nothing}}(nothing))
+    function App(dom_object; title="JSServe App")
+        return new((s, r) -> dom_object, Base.RefValue{Union{Session,Nothing}}(nothing), title)
     end
 end
 

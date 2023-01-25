@@ -52,7 +52,6 @@ function update_dom_node(dom, html) {
     }
 }
 
-
 const JSServe = {
     Protocol,
     base64decode,
@@ -81,7 +80,7 @@ const JSServe = {
     update_node_attribute,
     update_dom_node,
     lookup_global_object,
-    update_or_replace
+    update_or_replace,
 };
 
 // @ts-ignore
@@ -93,16 +92,25 @@ export {
     base64encode,
     decode_binary,
     encode_binary,
+    decode_binary_message,
+    decode_base64_message,
     Connection,
     send_error,
     send_warning,
     process_message,
     on_connection_open,
     on_connection_close,
+    send_close_session,
     register_on_connection_open,
+    send_pingpong,
     with_message_lock,
     Sessions,
     deserialize_cached,
     init_session,
     free_session,
+    // Util
+    update_node_attribute,
+    update_dom_node,
+    lookup_global_object,
+    update_or_replace,
 };

@@ -7,7 +7,6 @@ JSServe.Page()
 
 ```@example 1
 using JSServe
-
 App() do
     DOM.h1("hello world")
 end

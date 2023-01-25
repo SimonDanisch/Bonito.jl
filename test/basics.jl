@@ -58,9 +58,8 @@ end
     @test occursin("<div id=\"$(c_session.id)\"", html)
 
     @testset "assets" begin
-        @test length(c_session.session_objects) == 3
-        @test haskey(c_session.session_objects, JSServe.object_identity(JSServe.noUiSlider))
-        @test open_session.session_objects[JSServe.object_identity(JSServe.noUiSlider)] === JSServe.noUiSlider
+        @test length(c_session.session_objects) == 2
+        @test JSServe.noUiSlider in open_session.imports
     end
 
     @testset "observable $(obs_field)" for obs_field in (:range, :value, :connect, :orientation, :tooltips, :ticks)

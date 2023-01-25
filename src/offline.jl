@@ -149,47 +149,24 @@ function export_standalone(app::App, folder::String;
         absolute_urls=false, content_delivery_url="file://" * folder * "/",
         single_html=false
     )
-    if clear_folder
-        for file in readdir(folder)
-            rm(joinpath(folder, file), force=true, recursive=true)
-        end
-    end
-    serializer = UrlSerializer(false, folder, absolute_urls, content_delivery_url, single_html)
-    # set id to "", since we dont needed, and like this we get nicer file names
-    session = Session(url_serializer=serializer)
-    html_str = sprint() do io
-        show(io, MIME"text/html"(), Page(offline=true, exportable=true, session=session))
-        show(io, MIME"text/html"(), app)
-    end
-    if write_index_html
-        open(joinpath(folder, "index.html"), "w") do io
-            println(io, html_str)
-        end
-        return html_str, session
-    else
-        return html_str, session
+    error("export_standalone is deprecated, please use export_static")
+end
+
+function export_static(html_file::String, app::App; session=Session(NoConnection(); asset_server=NoServer()))
+    open(html_file, "w") do io
+        session.title[] = app.title
+        page_html(io, session, app)
     end
 end
 
-function export_static(folder::String, app::App)
-    routes = Routes()
-    routes["/"] = app
-    export_static(folder, routes)
-end
-
-function export_static(folder::String, routes::Routes)
+function export_static(folder::String, routes::Routes; connection=NoConnection(), asset_server=NoServer())
     isdir(folder) || mkpath(folder)
-    asset_server = NoServer()
-    connection = JSServe.NoConnection()
-    session = Session(connection; asset_server=asset_server)
     for (route, app) in routes.routes
         if route == "/"
             route = "index"
         end
         html_file = normpath(joinpath(folder, route) * ".html")
         isdir(dirname(html_file)) || mkpath(dirname(html_file))
-        open(html_file, "w") do io
-            page_html(io, session, app)
-        end
+        export_static(html_file, app; session=Session(connection; asset_server=asset_server))
     end
 end

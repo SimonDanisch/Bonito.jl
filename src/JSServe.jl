@@ -52,13 +52,17 @@ include("util.jl")
 include("widgets.jl")
 include("display.jl")
 include("offline.jl")
+include("tailwind-dashboard.jl")
 
 # Core functionality
 export Page, Session, App, DOM, @js_str, ES6Module
 export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor
-export browser_display, configure_server!, Server, html, route!
+export browser_display, configure_server!, Server, html, route!, online_url
 export Observable, on, onany
 export linkjs, evaljs, evaljs_value, onjs
+export NoServer, AssetFolder, HTTPAssetServer, DocumenterAssets
+export NoConnection, IJuliaConnection, PlutoConnection, WebSocketConnection
+export export_static
 
 
 function has_html_display()

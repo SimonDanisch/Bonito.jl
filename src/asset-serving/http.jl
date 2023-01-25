@@ -6,11 +6,6 @@ end
 HTTPAssetServer() = HTTPAssetServer(get_server())
 HTTPAssetServer(server::Server) = HTTPAssetServer(Dict{String, String}(), server)
 
-function unique_file_key(path::String)
-    return bytes2hex(sha1(abspath(path))) * "-" * basename(path)
-end
-
-unique_file_key(path) = unique_file_key(string(path))
 
 function url(server::HTTPAssetServer, asset::Asset)
     file = local_path(asset)
@@ -65,7 +60,7 @@ function HTTPServer.apply_handler(app::App, context)
     server = context.application
     asset_server = HTTPAssetServer(server)
     connection = WebSocketConnection(server)
-    session = Session(connection; asset_server=asset_server)
+    session = Session(connection; asset_server=asset_server, title=app.title)
     html_dom = rendered_dom(session, app, context.request)
     html_str = sprint() do io
         page_html(io, session, html_dom)

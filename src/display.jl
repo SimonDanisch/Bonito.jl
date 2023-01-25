@@ -1,6 +1,6 @@
 Base.showable(::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, ::App) = true
 
-const CURRENT_SESSION = Ref{Union{Nothing, Session}}(nothing)
+const CURRENT_SESSION = Ref{Union{Nothing,Session}}(nothing)
 
 """
     Page(;
@@ -19,10 +19,11 @@ get put into `configure_server!(;server_config...)`.
 Have a look at the docs for `configure_server!` to see the parameters.
 """
 function Page(;
-        offline=false, exportable=true,
+        offline::Union{Bool,Nothing}=nothing,
+        exportable::Union{Bool,Nothing}=nothing,
         connection::Union{Nothing, FrontendConnection}=nothing,
+        current_page_dir = pwd(), # For documenter server
         server_config...)
-
     old_session = CURRENT_SESSION[]
     if !isempty(server_config)
         configure_server!(; server_config...)
@@ -31,18 +32,25 @@ function Page(;
         close(old_session)
     end
     CURRENT_SESSION[] = nothing
-    if offline
+    if isnothing(offline) # do nothing
+    elseif offline
         force_connection!(NoConnection())
     else
         force_connection!()
     end
-    if exportable
+
+    if isnothing(exportable) # do nothing
+    elseif exportable
         force_asset_server!(NoServer())
     else
         force_asset_server!()
     end
     if !isnothing(connection)
         force_connection!(connection)
+    end
+    asset_server = default_asset_server()
+    if asset_server isa DocumenterAssets
+        asset_server.folder[] = current_page_dir
     end
     force_subsession!(true)
     return
@@ -52,10 +60,10 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
     if !isnothing(CURRENT_SESSION[])
         # We render in a subsession
         parent = CURRENT_SESSION[]
-        sub = Session(parent)
+        sub = Session(parent; title=app.title)
         dom = session_dom(sub, app)
     else
-        session = Session()
+        session = Session(title=app.title)
         if _use_parent_session(session)
             CURRENT_SESSION[] = session
             empty_app = App(nothing)
@@ -80,8 +88,9 @@ end
 Embeds the html_body in a standalone html document!
 """
 function page_html(io::IO, session::Session, app_node::Union{Node, App})
-    dom = session_dom(session, app_node)
+    dom = session_dom(session, app_node; html_document=true)
     println(io, "<!doctype html>")
+    # use Hyperscript directly to avoid the additional jsserve attributes
     show(io, MIME"text/html"(), Hyperscript.Pretty(dom))
     return
 end

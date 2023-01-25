@@ -250,9 +250,8 @@ end
 
     testsession(test_handler, port=8555) do app
         id = app.session.id
-        md_js_dom = js"document.getElementById($(id))"
-        @test evaljs(app, js"$(md_js_dom).children.length") == 4
-        md_children = js"$(md_js_dom).children[3].children[1].children"
+        markdown_dom = js"document.querySelector('.markdown-body')"
+        md_children = js"$(markdown_dom).children"
         @test evaljs(app, js"$(md_children).length") == 23
         @test occursin("This is the first footnote.", evaljs(app, js"$(md_children)[22].innerText"))
         @test evaljs(app, js"$(md_children)[2].children[0].children[0].tagName") == "IMG"

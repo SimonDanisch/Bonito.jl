@@ -5,14 +5,32 @@ function get_path(asset::Asset)
     isempty(asset.online_path) ? asset.local_path : asset.online_path
 end
 
+unique_file_key(path::String) = bytes2hex(sha1(abspath(path))) * "-" * basename(path)
+unique_file_key(path) = unique_file_key(string(path))
+function unique_key(asset::Asset)
+    if isempty(asset.online_path)
+        path = asset.local_path
+        # Hide file structure from users
+        return unique_file_key(normpath(abspath(expanduser(path))))
+    else
+        return asset.online_path
+    end
+end
+
+url(session::Session, asset::Asset) = url(session.asset_server, asset)
+
 function jsrender(session::Session, asset::Asset)
-    ref = url(session.asset_server, asset)
+    ref = url(session, asset)
     element = if mediatype(asset) == :js
-        DOM.script(src=ref, type="module")
+        if asset.es6module
+            return DOM.script(src=ref; type="module")
+        else
+            return DOM.script(src=ref)
+        end
     elseif mediatype(asset) == :css
-        DOM.link(href=ref, rel="stylesheet", type="text/css")
+        return DOM.link(href=ref, rel="stylesheet", type="text/css")
     elseif mediatype(asset) in (:jpeg, :jpg, :png)
-        DOM.img(src=ref)
+        return DOM.img(src=ref)
     else
         error("Unrecognized asset media type: $(mediatype(asset))")
     end

@@ -156,7 +156,7 @@ const SERVER_CONFIGURATION = (
     # `window.location.protocol + "//" + window.location.host`
     external_url=Ref(""),
     # Verbosity for logging!
-    verbose=Ref(false),
+    verbose=Ref(-1),
 )
 
 function singleton_server(;

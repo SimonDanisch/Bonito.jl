@@ -8,22 +8,58 @@ end
 
 NoServer() = NoServer(Dict{String, String}())
 
+function import_in_js(io::IO, session::Session, ns::NoServer, asset::Asset)
+    if asset == JSServeLib
+        # we cheat for JSServe, since lots of dependencies like WebSocket.js can't directly depend on it,
+        # but needs to reference it, so we just load `JSServe` with a script tag and put the module into `window.JSServe`
+        print(io, "Promise.resolve(window.JSServe)")
+    else
+        import_key = "JSSERVE_IMPORTS['$(unique_key(asset))']"
+        imports = "import($(import_key))"
+        str = if !(asset in session.imports)
+            # first time something import_define
+            import_define = isempty(session.imports) ?  "window.JSSERVE_IMPORTS = {};" : ""
+            push!(session.imports, asset)
+            "(() => {
+                $(import_define)
+                $(import_key) = `$(url(ns, asset))`;
+                return $(imports);
+            })()"
+        else
+            str = imports
+        end
+        print(io, str)
+    end
+end
+
+
+# This is better for e.g. exporting static sides
+# TODO make this more straightforward and easy to customize
+# (this gets called/overloaded in js_source.jl)
+function inline_code(session::Session, ::NoServer, source::String)
+    return DOM.script(src=to_data_url(source, "application/javascript"); type="module")
+end
+
+
 setup_asset_server(::NoServer) = nothing
 
 function url(::NoServer, asset::Asset)
     return to_data_url(local_path(asset))
 end
 
-struct AssetFolder <: AbstractAssetServer
+
+
+abstract type AbstractAssetFolder <: AbstractAssetServer end
+
+struct AssetFolder <: AbstractAssetFolder
     folder::String
 end
 
-setup_asset_server(::JSServe.AssetFolder) = nothing
+setup_asset_server(::AbstractAssetFolder) = nothing
 
-function url(assetfolder::AssetFolder, asset::Asset)
+function write_to_assetfolder(assetfolder, asset)
     folder = abspath(assetfolder.folder)
     path = abspath(local_path(asset))
-    bundle!(asset)
     if !occursin(folder, path)
         file = basename(path)
         subfolder = if mediatype(asset) == :js
@@ -40,32 +76,33 @@ function url(assetfolder::AssetFolder, asset::Asset)
         cp(path, _path; force=true)
         path = _path
     end
-    return replace(normpath("/" * relpath(path, folder)), "\\" => "/")
+    return replace(normpath(relpath(path, folder)), "\\" => "/")
 end
 
-# This is better for e.g. exporting static sides
-# TODO make this more straightforward and easy to customize
-# (this gets called/overloaded in js_source.jl)
-function inline_code(session::Session, ::AssetFolder, js::JSCode)
-    objects = IdDict()
-    # Print code while collecting all interpolated objects in an IdDict
-    code = sprint() do io
-        print_js_code(io, js, objects)
-    end
-    if isempty(objects)
-        src = code
-    else
-        # reverse lookup and serialize elements
-        interpolated_objects = Dict(v => k for (k, v) in objects)
-        data_str = serialize_string(session, interpolated_objects)
-        src = """
-        // JSCode from $(js.file)
-        const data_str = '$(data_str)'
-        JSServe.decode_base64_message(data_str).then(objects=> {
-            const __lookup_interpolated = (id) => objects[id]
-            $code
-        })
-        """
-    end
-    return DOM.script(src, type="module")
+function url(assetfolder::AbstractAssetFolder, asset::Asset)
+    return write_to_assetfolder(assetfolder, asset)
+end
+
+function import_in_js(io::IO, session::Session, ::AssetFolder, asset::Asset)
+    print(io, "import('$(url(session, asset))')")
+end
+
+struct DocumenterAssets <: AbstractAssetFolder
+    folder::RefValue{String}
+end
+
+DocumenterAssets() = DocumenterAssets(RefValue{String}(""))
+
+function import_in_js(io::IO, session::Session, assetfolder::DocumenterAssets, asset::Asset)
+    url = write_to_assetfolder((; folder=assetfolder.folder[]), asset)
+    # We write all javascript files into the same folder, so imports inside
+    # JSSCode, which get evaled from JSServe.js, should use "./js-dep.js"
+    # since the url is relative to the module that imports
+    # TODO, is this always called from import? and if not, does it still work?
+    print(io, "import('$("./" * basename(url))')")
+end
+
+function url(assetfolder::DocumenterAssets, asset::Asset)
+    # TODO, how to properly get the real relative path to assetfolder
+    return write_to_assetfolder((; folder=assetfolder.folder[]), asset)
 end
