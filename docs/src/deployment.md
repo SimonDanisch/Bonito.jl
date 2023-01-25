@@ -1,4 +1,4 @@
-# Deploying your app
+# Deployment
 
 ```@example 1
 using Dashi
