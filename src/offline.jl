@@ -152,26 +152,21 @@ function export_standalone(app::App, folder::String;
     error("export_standalone is deprecated, please use export_static")
 end
 
-function export_static(folder::String, app::App)
-    routes = Routes()
-    routes["/"] = app
-    export_static(folder, routes)
+function export_static(html_file::String, app::App; session=Session(NoConnection(); asset_server=NoServer()))
+    open(html_file, "w") do io
+        session.title[] = app.title
+        page_html(io, session, app)
+    end
 end
 
-function export_static(folder::String, routes::Routes)
+function export_static(folder::String, routes::Routes; connection=NoConnection(), asset_server=NoServer())
     isdir(folder) || mkpath(folder)
-    asset_server = NoServer()
-    connection = JSServe.NoConnection()
-    session = Session(connection; asset_server=asset_server)
     for (route, app) in routes.routes
         if route == "/"
             route = "index"
         end
         html_file = normpath(joinpath(folder, route) * ".html")
         isdir(dirname(html_file)) || mkpath(dirname(html_file))
-        open(html_file, "w") do io
-            session.title[] = app.title
-            page_html(io, session, app)
-        end
+        export_static(html_file, app; session=Session(connection; asset_server=asset_server))
     end
 end

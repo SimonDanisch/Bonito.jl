@@ -49,9 +49,11 @@ function test_value(app, statement)
 end
 
 @testset "JSServe" begin
+    @testset "connection-serving" begin; include("connection-serving.jl"); end
     @testset "serialization" begin; include("serialization.jl"); end
     @testset "widgets" begin; include("widgets.jl"); end
     # @testset "various" begin; include("various.jl"); end
     @testset "markdown" begin; include("markdown.jl"); end
     @testset "basics" begin; include("basics.jl"); end
+
 end

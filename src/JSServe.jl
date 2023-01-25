@@ -62,6 +62,7 @@ export Observable, on, onany
 export linkjs, evaljs, evaljs_value, onjs
 export NoServer, AssetFolder, HTTPAssetServer, DocumenterAssets
 export NoConnection, IJuliaConnection, PlutoConnection, WebSocketConnection
+export export_static
 
 
 function has_html_display()

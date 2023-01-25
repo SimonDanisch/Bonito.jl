@@ -313,14 +313,15 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     # first render JSServeLib
     jsserve_import = DOM.script(src=url(session, JSServeLib), type="module")
 
-    init_connection = setup_connection(session)
-    if !isnothing(init_connection)
-        pushfirst!(children(body), jsrender(session, init_connection))
-    end
     init_server = setup_asset_server(session.asset_server)
     if !isnothing(init_server)
         pushfirst!(children(body), jsrender(session, init_server))
     end
+    init_connection = setup_connection(session)
+    if !isnothing(init_connection)
+        pushfirst!(children(body), jsrender(session, init_connection))
+    end
+
     imports = filter(x -> x[2] isa Asset, session.session_objects)
     for (key, asset) in imports
         push!(children(head), jsrender(session, asset))

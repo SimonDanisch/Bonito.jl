@@ -155,14 +155,14 @@ end
 """
 Server(
         dom, url::String, port::Int;
-        verbose = false
+        verbose = -1
     )
 
 Creates an application that manages the global server state!
 """
 function Server(
         url::String, port::Int;
-        verbose = false,
+        verbose = -1,
         proxy_url = "",
         routes = Routes(),
         websocket_routes = Routes()
@@ -186,7 +186,7 @@ end
 function Server(
         app::Union{Function, App},
         url::String, port::Int;
-        verbose=false, proxy_url=""
+        verbose=-1, proxy_url=""
     )
     server = Server(url, port; verbose=verbose, proxy_url=proxy_url)
     route!(server, "/" => app)
@@ -237,7 +237,7 @@ function try_listen(url, port)
     end
 end
 
-function start(server::Server; verbose=false)
+function start(server::Server; verbose=-1, listener_kw...)
     isrunning(server) && return
 
     newport, ioserver = try_listen(server.url, server.port)
@@ -249,11 +249,16 @@ function start(server::Server; verbose=false)
     server.server_connection[] = ioserver
     # pass tcp connection to listen, so that we can close the server
 
+    listener = HTTP.Servers.Listener(ioserver; listener_kw...)
     server.server_task[] = @async begin
-        HTTP.listen(
-                server.url, server.port; server=ioserver, verbose=verbose
-            ) do stream::Stream
+        http_server = HTTP.listen!(listener; verbose=verbose) do stream::Stream
             Base.invokelatest(stream_handler, server, stream)
+        end
+        try
+            wait(http_server)
+        finally
+            # try to gracefully close
+            close(http_server)
         end
     end
     return
