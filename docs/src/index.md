@@ -1,9 +1,4 @@
-![](JSServe.png)
-
-[JSServe (出汁, だし)](https://en.wikipedia.org/wiki/JSServe) is a family of stocks used in Japanese cuisine.
-It's simple, but acts as a great flavor enhancer for everything you serve it with.
-`JSServe.jl` aims to do just that for interactive visualizations.
-On it's own `JSServe.jl` is a pretty simple package allowing to render HTML and serve it from within Julia and build up a communication bridge with the Browser. This allows to combine any of your Julia applications with libraries like [WGLMakie](https://docs.makie.org/dev/documentation/backends/wglmakie/index.html#export) and create interactive Dashboards like this:
+ `JSServe.jl` is a pretty simple package allowing to render HTML and serve it from within Julia and build up a communication bridge with the Browser. This allows to combine any of your Julia applications with libraries like [WGLMakie](https://docs.makie.org/dev/documentation/backends/wglmakie/index.html#export) and create interactive Dashboards like this:
 
 ![dashboard](https://user-images.githubusercontent.com/1010467/214651671-2f8174b6-48ab-4627-b15f-e19c35042faf.gif)
 

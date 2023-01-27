@@ -22,12 +22,13 @@ function FlexCol(args...; class="", attributes...)
     )
 end
 
-function Card(content; class="", attributes...)
+function Card(content; class="", width="fit-content", height="fit-content", attributes...)
     return DOM.div(
         JSServe.TailwindCSS,
         content;
-        attributes...,
+        style="width: $(width); height: $(height)",
         class="rounded-md p-2 m-2 shadow $class",
+        attributes...
     )
 end
 
