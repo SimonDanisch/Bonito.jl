@@ -4,11 +4,11 @@
 
     js_str = js"console.log($xx); $x; $((2, 4)); $(some_js) hello = 1;"
 
-    expect = "console.log('hey'); Dashi.deserialize_js({\"__javascript_type__\":\"TypedVector\",\"payload\":[1.0,2.0]}); Dashi.deserialize_js([2,4]); var hello = 1;"
+    expect = "console.log('hey'); JSServe.deserialize_js({\"__javascript_type__\":\"TypedVector\",\"payload\":[1.0,2.0]}); JSServe.deserialize_js([2,4]); var hello = 1;"
     @test string(js_str) == expect
 
-    asset = Dashi.Asset("file.dun_exist"; check_isfile=false)
-    test_throw() = Dashi.include_asset(Dashi.Asset("file.dun_exist"))
+    asset = JSServe.Asset("file.dun_exist"; check_isfile=false)
+    test_throw() = JSServe.include_asset(JSServe.Asset("file.dun_exist"))
     Test.@test_throws ErrorException("Unrecognized asset media type: dun_exist") test_throw()
 
     function test_handler(session, request)
@@ -26,8 +26,8 @@
 end
 
 @testset "http" begin
-    @test_throws ErrorException("Invalid sessionid: lol") Dashi.request_to_sessionid((target="lol",))
-    @test Dashi.request_to_sessionid((target="lol",), throw=false) === nothing
+    @test_throws ErrorException("Invalid sessionid: lol") JSServe.request_to_sessionid((target="lol",))
+    @test JSServe.request_to_sessionid((target="lol",), throw=false) === nothing
 end
 
 @testset "hyperscript" begin
@@ -81,7 +81,7 @@ end
     # Ugh, ElectronTests loads the handler multiple times to make sure it works
     # and doesn't get stuck, so we need to do this manually
     @isdefined(app) && close(app)
-    app = Dashi.Server(handler, "0.0.0.0", 8558)
+    app = JSServe.Server(handler, "0.0.0.0", 8558)
     try
         eapp = Electron.Application()
         window = Electron.Window(eapp)
@@ -101,25 +101,25 @@ end
 
 @testset "Dependencies" begin
     jss = js"""function (v) {
-        console.log($(Dashi.DashiLib));
+        console.log($(JSServe.JSServeLib));
     }"""
     app = App() do
         DOM.div(onclick=jss)
     end
-    s = Dashi.Session()
+    s = JSServe.Session()
     dom = sess
-    Dashi.serialize_binary(s, div)
+    JSServe.serialize_binary(s, div)
     @test JSTest in values(s.session_objects)
 end
 
 @testset "relocatable" begin
     deps = [
-        Dashi.MsgPackLib => "js",
-        Dashi.PakoLib => "js",
-        Dashi.DashiLib => "js",
-        Dashi.MarkdownCSS => "css",
-        Dashi.TailwindCSS => "css",
-        Dashi.Styling => "css",
+        JSServe.MsgPackLib => "js",
+        JSServe.PakoLib => "js",
+        JSServe.JSServeLib => "js",
+        JSServe.MarkdownCSS => "css",
+        JSServe.TailwindCSS => "css",
+        JSServe.Styling => "css",
     ]
     for (asset, ext) in deps
         @test asset isa Asset
@@ -141,7 +141,7 @@ end
 
 @testset "range slider" begin
     function test_handler(session, req)
-        rslider = Dashi.RangeSlider(1:100; value=[10, 80])
+        rslider = JSServe.RangeSlider(1:100; value=[10, 80])
         start = map(first, rslider)
         stop = map(last, rslider)
         return DOM.div(rslider, start, stop, id="rslider")

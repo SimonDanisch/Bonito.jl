@@ -15,7 +15,7 @@ function url(server::HTTPAssetServer, asset::Asset)
     target = normpath(abspath(expanduser(file)))
     key = "/assetserver/" * unique_file_key(target)
     get!(()-> target, server.registered_files, key)
-    return Dashi.HTTPServer.online_url(server.server, key)
+    return JSServe.HTTPServer.online_url(server.server, key)
 end
 
 const ASSET_URL_REGEX = r"http://.*/assetserver/([a-z0-9]+-.*?):([\d]+):[\d]+"

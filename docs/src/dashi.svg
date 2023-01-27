@@ -25,7 +25,7 @@
 <ellipse fill="url(#SVGID_4_)" cx="302" cy="288.578" rx="209" ry="208"/>
 <defs>
 	<filter id="Adobe_OpacityMaskFilter" filterUnits="userSpaceOnUse" x="106.667" y="93.156" width="399.333" height="397.422">
-		
+
 			<feColorMatrix  type="matrix" values="-1 0 0 0 1  0 -1 0 0 1  0 0 -1 0 1  0 0 0 1 0" color-interpolation-filters="sRGB" result="source"/>
 		<feFlood  style="flood-color:white;flood-opacity:1" result="back"/>
 		<feBlend  in="source" in2="back" mode="normal"/>
@@ -55,5 +55,5 @@
 	<stop  offset="1" style="stop-color:#3D2A14"/>
 </linearGradient>
 <polygon fill="url(#SVGID_9_)" points="153.984,34.055 451.854,534.365 472.489,521.548 161.496,31.775 "/>
-<text transform="matrix(1 0 0 1 596 413.7305)" font-family="'MyriadPro-Regular'" font-size="393.0683" letter-spacing="-24">DASHI</text>
+<text transform="matrix(1 0 0 1 596 413.7305)" font-family="'MyriadPro-Regular'" font-size="393.0683" letter-spacing="-24">JSServe</text>
 </svg>

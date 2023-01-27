@@ -114,13 +114,13 @@ function record_states(session::Session, dom::Hyperscript.Node)
         const statemap = $(independent_states)
         const observables = $(observable_ids)
         observables.forEach(id => {
-            Dashi.lookup_global_object(id).on((val) => {
+            JSServe.lookup_global_object(id).on((val) => {
                 // messages to send for this state of that observable
                 const messages = statemap[id][val]
                 // not all states trigger events
                 // so some states won't have any messages recorded
                 if (messages){
-                    Dashi.process_message(messages)
+                    JSServe.process_message(messages)
                 }
             })
         })

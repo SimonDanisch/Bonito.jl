@@ -1,8 +1,8 @@
-using Dashi, Observables, Markdown, Colors
-using Dashi: Asset
+using JSServe, Observables, Markdown, Colors
+using JSServe: Asset
 style_obs = Observable((color = :red,))
 
-slider = Dashi.Slider(1:10, class="slider m-4")
+slider = JSServe.Slider(1:10, class="slider m-4")
 
 
 example_dom = DOM.div(
@@ -21,7 +21,7 @@ example_dom = DOM.div(
 
 session = Session()
 
-Dashi.jsrender(session, example_dom)
+JSServe.jsrender(session, example_dom)
 
 obs_dom = Observable(example_dom)
 obs_arrays = Observable(

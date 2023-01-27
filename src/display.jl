@@ -9,7 +9,7 @@ const CURRENT_SESSION = Ref{Union{Nothing,Session}}(nothing)
         server_config...
     )
 
-A Page can be used for resetting the Dashi state in a multi page display outputs, like it's the case for Pluto/IJulia/Documenter.
+A Page can be used for resetting the JSServe state in a multi page display outputs, like it's the case for Pluto/IJulia/Documenter.
 For Documenter, the page needs to be set to `exportable=true, offline=true`, but doesn't need to, since Page defaults to the most common parameters for known Packages.
 Exportable has the effect of inlining all data & js dependencies, so that everything can be loaded in a single HTML object.
 `offline=true` will make the Page not even try to connect to a running Julia
@@ -90,16 +90,16 @@ Embeds the html_body in a standalone html document!
 function page_html(io::IO, session::Session, app_node::Union{Node, App})
     dom = session_dom(session, app_node; html_document=true)
     println(io, "<!doctype html>")
-    # use Hyperscript directly to avoid the additional Dashi attributes
+    # use Hyperscript directly to avoid the additional JSServe attributes
     show(io, MIME"text/html"(), Hyperscript.Pretty(dom))
     return
 end
 
-function Base.show(io::IOContext, m::MIME"application/vnd.Dashi.application+html", dom::App)
+function Base.show(io::IOContext, m::MIME"application/vnd.JSServe.application+html", dom::App)
     show(io.io, MIME"text/html"(), dom)
 end
 
-function Base.show(io::IO, m::MIME"application/vnd.Dashi.application+html", app::App)
+function Base.show(io::IO, m::MIME"application/vnd.JSServe.application+html", app::App)
     show(IOContext(io), m, app)
 end
 
@@ -132,12 +132,12 @@ end
 Base.displayable(d::ElectronDisplay, ::MIME{Symbol("text/html")}) = true
 
 function Base.display(ed::ElectronDisplay, app::App)
-    d = Dashi.HTTPServer.BrowserDisplay()
+    d = JSServe.HTTPServer.BrowserDisplay()
     session_url = "/browser-display"
-    s = Dashi.HTTPServer.server(d)
-    old_app = Dashi.route!(s, Pair{Any,Any}(session_url, app))
-    url = Dashi.online_url(s, "/browser-display")
-    return Electron().load(ed.window, Dashi.URI(url))
+    s = JSServe.HTTPServer.server(d)
+    old_app = JSServe.route!(s, Pair{Any,Any}(session_url, app))
+    url = JSServe.online_url(s, "/browser-display")
+    return Electron().load(ed.window, JSServe.URI(url))
 end
 
 function use_electron_display()

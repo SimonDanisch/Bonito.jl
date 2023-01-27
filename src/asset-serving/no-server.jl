@@ -9,16 +9,16 @@ end
 NoServer() = NoServer(Dict{String, String}())
 
 function import_in_js(io::IO, session::Session, ns::NoServer, asset::Asset)
-    if asset == DashiLib
-        # we cheat for Dashi, since lots of dependencies like WebSocket.js can't directly depend on it,
-        # but needs to reference it, so we just load `Dashi` with a script tag and put the module into `window.Dashi`
-        print(io, "Promise.resolve(window.Dashi)")
+    if asset == JSServeLib
+        # we cheat for JSServe, since lots of dependencies like WebSocket.js can't directly depend on it,
+        # but needs to reference it, so we just load `JSServe` with a script tag and put the module into `window.JSServe`
+        print(io, "Promise.resolve(window.JSServe)")
     else
-        import_key = "Dashi_IMPORTS['$(unique_key(asset))']"
+        import_key = "JSServe_IMPORTS['$(unique_key(asset))']"
         imports = "import($(import_key))"
         str = if !(asset in session.imports)
             # first time something import_define
-            import_define = isempty(session.imports) ?  "window.Dashi_IMPORTS = {};" : ""
+            import_define = isempty(session.imports) ?  "window.JSServe_IMPORTS = {};" : ""
             push!(session.imports, asset)
             "(() => {
                 $(import_define)
@@ -96,7 +96,7 @@ DocumenterAssets() = DocumenterAssets(RefValue{String}(""))
 function import_in_js(io::IO, session::Session, assetfolder::DocumenterAssets, asset::Asset)
     url = write_to_assetfolder((; folder=assetfolder.folder[]), asset)
     # We write all javascript files into the same folder, so imports inside
-    # JSSCode, which get evaled from Dashi.js, should use "./js-dep.js"
+    # JSSCode, which get evaled from JSServe.js, should use "./js-dep.js"
     # since the url is relative to the module that imports
     # TODO, is this always called from import? and if not, does it still work?
     print(io, "import('$("./" * basename(url))')")

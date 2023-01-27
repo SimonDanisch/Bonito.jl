@@ -1,16 +1,16 @@
-# Extending Dashi
+# Extending JSServe
 
 ## Connection
 
 ```@setup 1
-using Dashi
-Dashi.Page()
+using JSServe
+JSServe.Page()
 ```
 
 
 ```Julia
 
-struct MyConnection <: Dashi.FrontendConnection
+struct MyConnection <: JSServe.FrontendConnection
     ...
 end
 
@@ -31,10 +31,10 @@ function setup_connection(session::Session{MyConnection})
     // Javascript needed to connect to
     const conn = create_connection(...) // implemented by your framework
     conn.on_msg((msg) => {
-        Dashi.process_message(msg)
+        JSServe.process_message(msg)
     });
     // register sending message
-    Dashi.on_connection_open((binary) => {
+    JSServe.on_connection_open((binary) => {
         comm.send(binary)
     });
     """

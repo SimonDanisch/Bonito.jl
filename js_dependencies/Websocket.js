@@ -80,7 +80,7 @@ function websocket_send(binary_data) {
 
 function send_pings() {
     console.log("pong")
-    Dashi.send_pingpong()
+    JSServe.send_pingpong()
     setTimeout(send_pings, 5000)
 }
 
@@ -105,11 +105,11 @@ export function setup_connection(config_input) {
                 // run this async... (or do we?)
                 new Promise(resolve => {
                     const binary = new Uint8Array(evt.data);
-                    Dashi.process_message(Dashi.decode_binary_message(binary));
+                    JSServe.process_message(JSServe.decode_binary_message(binary));
                     resolve()
                 })
             };
-            Dashi.on_connection_open(websocket_send);
+            JSServe.on_connection_open(websocket_send);
             send_pings()
         };
 
@@ -118,7 +118,7 @@ export function setup_connection(config_input) {
             while (session_websocket.length > 0) {
                 session_websocket.pop();
             }
-            Dashi.on_connection_close();
+            JSServe.on_connection_close();
             console.log("Wesocket close code: " + evt.code);
             console.log(evt);
         };

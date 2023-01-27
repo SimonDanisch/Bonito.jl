@@ -143,7 +143,7 @@ function inline_code(session::Session, asset_server, js::JSCode)
         src = """
             // JSCode from $(js.file)
             const data_str = '$(data_str)'
-            Dashi.decode_base64_message(data_str).then(objects=> {
+            JSServe.decode_base64_message(data_str).then(objects=> {
                 const __lookup_interpolated = (id) => objects[id]
                 $code
             })

@@ -134,7 +134,7 @@ function Session(connection=default_connection();
                 deregister_callbacks=Observables.ObserverFunction[],
                 session_objects=Dict{String, Any}(),
                 imports=Set{Asset}(),
-                title="Dashi App")
+                title="JSServe App")
 
     return Session(
         Base.RefValue{Union{Nothing, Session}}(nothing),
@@ -181,7 +181,7 @@ struct App
     handler::Function
     session::Base.RefValue{Union{Session, Nothing}}
     title::String
-    function App(handler::Function; title="Dashi App")
+    function App(handler::Function; title="JSServe App")
         session = Base.RefValue{Union{Session, Nothing}}(nothing)
         if hasmethod(handler, Tuple{Session, HTTP.Request})
             return new(handler, session, title)
@@ -201,7 +201,7 @@ struct App
             """)
         end
     end
-    function App(dom_object; title="Dashi App")
+    function App(dom_object; title="JSServe App")
         return new((s, r) -> dom_object, Base.RefValue{Union{Session,Nothing}}(nothing), title)
     end
 end

@@ -25,14 +25,14 @@ Setup connection will be called before rendering any dom with `session`.
 The return value will be inserted into the DOM of the rendered App and can be used to
 do the JS part of opening the connection.
 ```julia
-Dashi.setup_connection(session::Session{IJuliaConnection})::Union{JSCode, Nothing}
+JSServe.setup_connection(session::Session{IJuliaConnection})::Union{JSCode, Nothing}
 ```
 
 One can overload `use_parent_session`, to turn on rendering dom objects inside sub-sessions while keeping one parent session
 managing the connection alive.
 This is handy for IJulia/Pluto, since the parent session just needs to be initialized one time and can stay active and globally store objects used multiple times across doms.
 ```Julia
-Dashi.use_parent_session(::Session{MyConnection}) = false/false
+JSServe.use_parent_session(::Session{MyConnection}) = false/false
 ```
 """
 FrontendConnection

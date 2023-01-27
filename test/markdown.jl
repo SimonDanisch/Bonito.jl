@@ -1,21 +1,21 @@
-# using Dashi, Markdown
+# using JSServe, Markdown
 
-# Dashi.browser_display()
+# JSServe.browser_display()
 function test_handler(session, req)
     global test_observable
     test_observable = Observable(Dict{String, Any}())
     test_session = session
 
-    global s1 = Dashi.Slider(1:100)
-    s2 = Dashi.Slider(1:100)
-    b = Dashi.Button("hi"; dataTestId="hi_button")
+    global s1 = JSServe.Slider(1:100)
+    s2 = JSServe.Slider(1:100)
+    b = JSServe.Button("hi"; dataTestId="hi_button")
 
     clicks = Observable(0)
     on(b) do click
         clicks[] = clicks[] + 1
     end
     clicks_div = DOM.div(clicks, dataTestId="button_clicks")
-    t = Dashi.TextField("Write!")
+    t = JSServe.TextField("Write!")
 
     linkjs(session, s1.value, s2.value)
 
@@ -34,7 +34,7 @@ function test_handler(session, req)
     textresult = DOM.div(t.value; dataTestId="text_result")
     sliderresult = DOM.div(s1.value; dataTestId="slider_result")
 
-    number_input = Dashi.NumberInput(66.0)
+    number_input = JSServe.NumberInput(66.0)
     number_result = DOM.div(number_input.value, dataTestId="number_result")
 
 
@@ -153,16 +153,16 @@ end
 
 global test_session = nothing
 global dom = nothing
-inline_display = Dashi.App() do session, req
+inline_display = JSServe.App() do session, req
     global test_session = session
     global dom = test_handler(session, req)
     return dom
 end;
-Dashi.CURRENT_SESSION[] = nothing
-disp = Dashi.use_electron_display()
+JSServe.CURRENT_SESSION[] = nothing
+disp = JSServe.use_electron_display()
 display(inline_display);
 app = TestSession(URI("http://localhost:8555/show"),
-    Dashi.GLOBAL_SERVER[], disp.window, test_session)
+    JSServe.GLOBAL_SERVER[], disp.window, test_session)
 app.dom = dom;
 app.initialized = false
 wait(app)
@@ -187,7 +187,7 @@ end
 
         [Github-flavored Markdown info page](http://github.github.com/github-flavored-markdown/)
 
-        [![Build Status](https://travis-ci.com/SimonDanisch/Dashi.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/Dashi.jl)
+        [![Build Status](https://travis-ci.com/SimonDanisch/JSServe.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/JSServe.jl)
 
         Lalala
         ======
@@ -245,7 +245,7 @@ end
 
         [^1]: This is the first footnote.
         """
-        return DOM.div(Dashi.MarkdownCSS, dom)
+        return DOM.div(JSServe.MarkdownCSS, dom)
     end
 
     testsession(test_handler, port=8555) do app

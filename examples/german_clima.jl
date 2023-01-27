@@ -1,7 +1,7 @@
 using CSV, Shapefile
-using Dashi, WGLMakie, AbstractPlotting, Markdown
-using Dashi.DOM
-using Dashi: styled_slider
+using JSServe, WGLMakie, AbstractPlotting, Markdown
+using JSServe.DOM
+using JSServe: styled_slider
 using AbstractPlotting.MakieLayout
 
 read_data(path) = open(path) do io
@@ -91,7 +91,7 @@ end
 display(fig)
 
 function handler(session, req)
-    s = Dashi.Slider(1:length(temp_data))
+    s = JSServe.Slider(1:length(temp_data))
 
     scene, layout = layoutscene(20, resolution = (900, 700))
     to_plot = (
@@ -120,16 +120,16 @@ function handler(session, req)
 
     [Quelle: Deutscher Wetterdienst](https://opendata.dwd.de/climate_environment/CDC/regional_averages_DE/annual/)
 
-    [Quellcode für Visualisierung](https://github.com/SimonDanisch/Dashi.jl/blob/master/examples/german_clima.jl)
+    [Quellcode für Visualisierung](https://github.com/SimonDanisch/JSServe.jl/blob/master/examples/german_clima.jl)
     """
 
-    dom = DOM.div(Dashi.MarkdownCSS, Dashi.TailwindCSS, Dashi.Styling, markdown)
+    dom = DOM.div(JSServe.MarkdownCSS, JSServe.TailwindCSS, JSServe.Styling, markdown)
     # return dom
-    return Dashi.record_state_map(session, dom).dom
+    return JSServe.record_state_map(session, dom).dom
 end
 
 # Either export standalone
-Dashi.export_standalone(handler, "dev/WGLDemos/german_heat", clear_folder=true)
+JSServe.export_standalone(handler, "dev/WGLDemos/german_heat", clear_folder=true)
 
 # Or serve!
-# app = Dashi.Server(handler, "0.0.0.0", 8082)
+# app = JSServe.Server(handler, "0.0.0.0", 8082)

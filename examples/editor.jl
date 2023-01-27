@@ -1,7 +1,7 @@
-using Dashi
+using JSServe
 using Observables
 using Hyperscript
-Dashi.browser_display()
+JSServe.browser_display()
 
 app = App() do session::Session
     editor = CodeEditor("julia"; initial_source="""1 + 1""")
@@ -9,7 +9,7 @@ app = App() do session::Session
     output = Observable(DOM.div())
     on(eval_button) do click
         src = editor.onchange[]
-        result = eval(Dashi.parseall(src))
+        result = eval(JSServe.parseall(src))
         output[] = DOM.div(result)
     end
     return DOM.div(editor, eval_button, output)

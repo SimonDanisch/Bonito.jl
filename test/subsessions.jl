@@ -1,7 +1,7 @@
-using Dashi, Observables, Test
-Dashi.browser_display()
+using JSServe, Observables, Test
+JSServe.browser_display()
 
-global_obs = Dashi.Retain(Observable{Any}("hiii"))
+global_obs = JSServe.Retain(Observable{Any}("hiii"))
 dom_obs1 = Observable{Any}(DOM.div("12345", js"$(global_obs).notify('hello')"))
 
 begin

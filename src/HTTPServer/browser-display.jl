@@ -13,7 +13,7 @@ end
 
 """
     browser_display()
-Forces Dashi.App to be displayed in a browser window that gets opened.
+Forces JSServe.App to be displayed in a browser window that gets opened.
 """
 function browser_display()
     displays = Base.Multimedia.displays

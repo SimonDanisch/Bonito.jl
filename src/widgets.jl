@@ -287,18 +287,18 @@ function jsrender(session::Session, dropdown::Dropdown)
     """
     dom = map(options -> map(DOM.option, options), session, dropdown.options)[]
     select = DOM.select(dom; dropdown.attributes...)
-    Dashi.onload(session, select, onchange)
+    JSServe.onload(session, select, onchange)
     return select
 end
 
 
-struct FileInput <: Dashi.WidgetsBase.AbstractWidget{String}
+struct FileInput <: JSServe.WidgetsBase.AbstractWidget{String}
     value::Observable{Vector{String}}
 end
 
 FileInput() = FileInput(Observable([""]))
 
-function Dashi.jsrender(session::Session, fi::FileInput)
+function JSServe.jsrender(session::Session, fi::FileInput)
     onchange = js"""event => {
         if (event.target.files) {
             const files = [];

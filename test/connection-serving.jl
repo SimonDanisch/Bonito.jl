@@ -17,8 +17,8 @@ connections = [NoConnection(), WebSocketConnection()]
 servers = [NoServer(), HTTPAssetServer()]
 
 @testset "connection $(typeof(connection)) server: $(typeof(server))" for (connection, server) in Iterators.product(connections, servers)
-    Dashi.force_connection!(connection)
-    Dashi.force_asset_server!(server)
+    JSServe.force_connection!(connection)
+    JSServe.force_asset_server!(server)
     testsession(export_test_app, port=8555) do app
         bquery = evaljs(app, js"""$(query_testid("result")).innerText""")
         @test "passed" == bquery

@@ -1,10 +1,10 @@
-using Dashi
+using JSServe
 using Documenter
 
 ci = get(ENV, "CI", "false") == "true"
 
-makedocs(modules=[Dashi],
-         sitename="Dashi",
+makedocs(modules=[JSServe],
+         sitename="JSServe",
         format=Documenter.HTML(prettyurls=false),
          authors="Simon Danisch and other contributors")
 

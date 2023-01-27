@@ -1,4 +1,4 @@
-using Dashi
+using JSServe
 
 # Javascript & CSS dependencies can be declared locally and
 # freely interpolated in the DOM / js string, and will make sure it loads
@@ -8,7 +8,7 @@ const THREE = ES6Module("https://cdn.esm.sh/v66/three@0.136/es2021/three.js")
 app = App() do session, request
     width = 500; height = 500
     dom = DOM.div(width = width, height = height)
-    Dashi.onload(session, dom, js"""
+    JSServe.onload(session, dom, js"""
         function (container){
             $(THREE).then(THREE=> {
                 var renderer = new THREE.WebGLRenderer({antialias: true});

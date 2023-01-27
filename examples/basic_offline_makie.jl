@@ -1,5 +1,5 @@
-using Dashi, WGLMakie, Makie, Colors, FileIO
-using Dashi.DOM
+using JSServe, WGLMakie, Makie, Colors, FileIO
+using JSServe.DOM
 
 function styled_slider(slider, value)
     rows(slider, DOM.span(value, class="p-1"), class="w-64 p-2 items-center")
@@ -13,8 +13,8 @@ css_color(c) = "background-color: #$(hex(c))"
 cat = decompose(Point3f, FileIO.load(Makie.assetpath("cat.obj")))
 # Create a little interactive app
 app = App() do session
-    markersize = Dashi.Slider(range(10, stop=100, length=100))
-    hue_slider = Dashi.Slider(1:120)
+    markersize = JSServe.Slider(range(10, stop=100, length=100))
+    hue_slider = JSServe.Slider(1:120)
     color = map(hue_slider) do hue
         HSV(hue, 0.5, 0.5)
     end
@@ -23,9 +23,9 @@ app = App() do session
     color_swatch = DOM.div(class="h-6 w-6 p-1 rounded dropshadow", style=map(css_color, color))
     h_slider = styled_slider(hue_slider, color_swatch)
     sliders = rows(m_slider, h_slider)
-    dom = DOM.div(Dashi.Styling, Dashi.TailwindCSS, columns(sliders, plot))
-    return Dashi.record_states(session, dom)
+    dom = DOM.div(JSServe.Styling, JSServe.TailwindCSS, columns(sliders, plot))
+    return JSServe.record_states(session, dom)
 end
 
 # mkdir("simple")
-Dashi.export_static("simple", app)
+JSServe.export_static("simple", app)

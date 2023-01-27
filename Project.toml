@@ -1,4 +1,4 @@
-name = "Dashi"
+name = "JSServe"
 uuid = "824d6782-a2ef-11e9-3a09-e5662e0c26f9"
 authors = ["SimonDanisch <sdanisch@gmail.com>"]
 version = "2.0.6"
