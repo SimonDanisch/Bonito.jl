@@ -221,10 +221,10 @@ export function decode_base64_message(base64_string) {
 }
 
 export function decode_binary(binary) {
-    const msg_binary = Pako.inflate(binary);
-    return unpack(msg_binary);
+    // const msg_binary = Pako.inflate();
+    return unpack(binary);
 }
 
 export function encode_binary(data) {
-    return Pako.deflate(pack(data));
+    return pack(data);
 }
