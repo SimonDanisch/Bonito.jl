@@ -22,7 +22,7 @@ function Page(;
         offline::Union{Bool,Nothing}=nothing,
         exportable::Union{Bool,Nothing}=nothing,
         connection::Union{Nothing, FrontendConnection}=nothing,
-        current_page_dir = pwd(), # For documenter server
+        current_page_dir = abspath(pwd()), # For documenter server
         server_config...)
     old_session = CURRENT_SESSION[]
     if !isempty(server_config)

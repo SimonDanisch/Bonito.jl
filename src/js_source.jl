@@ -36,6 +36,7 @@ macro js_str(js_source)
     append!(value_array.args, iterate_interpolations(js_source))
     return :(JSCode($value_array, $(string(__source__.file, ":", __source__.line))))
 end
+JSCode(source::String) = JSCode([JSString(source)])
 
 struct JSSourceContext
     session::Union{Nothing,Session}

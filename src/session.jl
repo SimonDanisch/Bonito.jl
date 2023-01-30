@@ -322,8 +322,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         pushfirst!(children(body), jsrender(session, init_connection))
     end
 
-    imports = filter(x -> x[2] isa Asset, session.session_objects)
-    for (key, asset) in imports
+    for (key, asset) in session.imports
         push!(children(head), jsrender(session, asset))
     end
     issubsession = !isnothing(parent(session))

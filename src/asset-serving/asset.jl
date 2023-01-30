@@ -25,7 +25,20 @@ function jsrender(session::Session, asset::Asset)
         if asset.es6module
             return DOM.script(src=ref; type="module")
         else
-            return DOM.script(src=ref)
+            # TODO create sane import scheme in session.jl
+            require_off = DOM.script("""
+                window.__define = window.define;
+                window.__require = window.require;
+                window.define = undefined;
+                window.require = undefined;
+            """)
+            require_on = DOM.script("""
+                window.define = window.__define;
+                window.require = window.__require;
+                window.__define = undefined;
+                window.__require = undefined;
+            """)
+            return DOM.div(require_off, DOM.script(src=ref), require_on)
         end
     elseif mediatype(asset) == :css
         return DOM.link(href=ref, rel="stylesheet", type="text/css")

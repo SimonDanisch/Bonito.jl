@@ -22,7 +22,7 @@ Now, you should see the webpage at `http://0.0.0.0:80`.
 If the server is behind a proxy, you can set the proxy like this:
 
 ```@example 1
-server = JSServe.Server(example_app, url, 8080; proxy_url="https://my-domain.de/my-app");
+server = JSServe.Server(example_app, "0.0.0.0", 8080; proxy_url="https://my-domain.de/my-app");
 # or set it later
 # this can be handy for interactive use cases where one isn't sure which port is open, and let JSServe find a free port (which will then be different from the one created with, but is stored in `server.port`)
 server.proxy_url = ".../$(server.port)"

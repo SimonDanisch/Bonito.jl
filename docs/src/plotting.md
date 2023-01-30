@@ -23,12 +23,22 @@ function makie_plot()
     )
 end
 
-PL.Defaults.parent_style[] = "height: 300px; width: 400px"
+# As far as I can tell, PlotlyLight doesn't handle require inside documenter correctly
+# So we just use JSServe to do it correctly via `Asset`:
+const Plotly = JSServe.Asset(PL.cdn_url)
+function JSServe.jsrender(session::Session, plot::PL.Plot)
+    # Pretty much copied from the PlotlyLight source to create the JS + div for creating the plot:
+    div = DOM.div(DOM.div(id=plot.id, style="width: 100%; height: 100%"), id="parent-of-$(plot.id)"; style="width: 400px; height: 300px")
+    src = js"""
+        Plotly.newPlot($(plot.id), $(plot.data), $(plot.layout), $(plot.config))
+    """
+    return JSServe.jsrender(session, DOM.div(Plotly, div, src))
+end
+
 App() do
     p = PL.Plot(x=1:20, y=cumsum(randn(20)), type="scatter", mode="lines+markers")
     width = "400px"
     return D.FlexRow(
-        JSServe.Asset(PL.plotlyjs),
         D.Card(P.scatter(1:4; windowsize=(200, 200)); width),
         D.Card(p; width),
         D.Card(makie_plot()); width)
