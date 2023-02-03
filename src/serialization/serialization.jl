@@ -5,16 +5,19 @@ include("protocol.jl")
 
 function serialize_binary(session::Session, @nospecialize(obj))
     data = serialize_cached(session, obj)
-    return transcode(GzipCompressor, MsgPack.pack(data))
+    # return transcode(GzipCompressor, MsgPack.pack(data))
+    return MsgPack.pack(data)
 end
 
 function serialize_binary(session::Session, msg::SerializedMessage)
-    return transcode(GzipCompressor, MsgPack.pack(msg))
+    # return transcode(GzipCompressorGzipCompressor, MsgPack.pack(msg))
+    return MsgPack.pack(msg)
 end
 
 function deserialize_binary(bytes::AbstractVector{UInt8})
-    message_msgpacked = transcode(GzipDecompressor, bytes)
-    return MsgPack.unpack(message_msgpacked)
+    # message_msgpacked = transcode(GzipDecompressor, bytes)
+    # return MsgPack.unpack(message_msgpacked)
+    return MsgPack.unpack(bytes)
 end
 
 function deserialize(msg::SerializedMessage)
