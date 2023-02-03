@@ -322,7 +322,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         pushfirst!(children(body), jsrender(session, init_connection))
     end
 
-    for (key, asset) in session.imports
+    for asset in session.imports
         push!(children(head), jsrender(session, asset))
     end
     issubsession = !isnothing(parent(session))

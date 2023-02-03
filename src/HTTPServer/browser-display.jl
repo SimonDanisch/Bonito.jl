@@ -63,6 +63,9 @@ function Base.display(bd::BrowserDisplay, app::App)
     session_url = "/browser-display"
     old_app = route!(_server, Pair{Any,Any}(session_url, app))
     if isnothing(old_app) || isnothing(old_app.session[]) || !isready(old_app.session[])
+        if !isnothing(old_app) && !isnothing(old_app.session[])
+            close(old_app.session[])
+        end
         openurl(online_url(_server, session_url))
     else
         update_app!(old_app, app)

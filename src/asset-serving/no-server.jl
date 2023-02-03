@@ -3,10 +3,7 @@ We don't serve files and include anything directly as raw bytes.
 Interpolating the same asset many times, will only upload the file to JS one time though.
 """
 struct NoServer <: AbstractAssetServer
-    registered_files::Dict{String, String}
 end
-
-NoServer() = NoServer(Dict{String, String}())
 
 function import_in_js(io::IO, session::Session, ns::NoServer, asset::Asset)
     if asset == JSServeLib

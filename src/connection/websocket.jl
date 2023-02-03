@@ -33,7 +33,8 @@ end
 function save_write(websocket, binary)
     try
         # send is what HTTP overloaded for writing to a websocket
-        return send(websocket, binary)
+        send(websocket, binary)
+        return true
     catch e
         @warn "sending message to a closed websocket" maxlog = 1
         if WebSockets.isok(e) || e isa Union{Base.IOError,EOFError}
@@ -49,7 +50,10 @@ Base.isopen(ws::WebSocketConnection) = !isnothing(ws.socket) && !isclosed(ws.soc
 
 function Base.write(ws::WebSocketConnection, binary)
     lock(ws.lock) do
-        save_write(ws.socket, binary)
+        written = save_write(ws.socket, binary)
+        if written != true
+            close(ws)
+        end
     end
 end
 
