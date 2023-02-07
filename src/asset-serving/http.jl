@@ -1,11 +1,10 @@
 mutable struct HTTPAssetServer <: AbstractAssetServer
-    registered_files::Dict{String, String}
+    registered_files::Dict{String, Any}
     server::Server
 end
 
 HTTPAssetServer() = HTTPAssetServer(get_server())
-HTTPAssetServer(server::Server) = HTTPAssetServer(Dict{String, String}(), server)
-
+HTTPAssetServer(server::Server) = HTTPAssetServer(Dict{String, Any}(), server)
 
 function url(server::HTTPAssetServer, asset::Asset)
     file = local_path(asset)
@@ -16,6 +15,13 @@ function url(server::HTTPAssetServer, asset::Asset)
     key = "/assetserver/" * unique_file_key(target)
     get!(()-> target, server.registered_files, key)
     return JSServe.HTTPServer.online_url(server.server, key)
+end
+
+function url(server::HTTPAssetServer, asset::BinaryAsset)
+    key = unique_file_key(string(hash(asset.data)))
+    filename = "/assetserver/$(key).bin"
+    get!(() -> asset, server.registered_files, filename)
+    return JSServe.HTTPServer.online_url(server.server, filename)
 end
 
 const ASSET_URL_REGEX = r"http://.*/assetserver/([a-z0-9]+-.*?):([\d]+):[\d]+"
@@ -40,10 +46,16 @@ function (server::HTTPAssetServer)(context)
     rf = server.registered_files
     if haskey(rf, path)
         filepath = rf[path]
-        if isfile(filepath)
+        if filepath isa BinaryAsset
             header = ["Access-Control-Allow-Origin" => "*",
-                      "Content-Type" => file_mimetype(filepath)]
-            return HTTP.Response(200, header, body = read(filepath))
+                "Content-Type" => "application/octet-stream"]
+            return HTTP.Response(200, header, body=filepath.data)
+        else
+            if isfile(filepath)
+                header = ["Access-Control-Allow-Origin" => "*",
+                    "Content-Type" => file_mimetype(filepath)]
+                return HTTP.Response(200, header, body = read(filepath))
+            end
         end
     end
     return HTTP.Response(404)

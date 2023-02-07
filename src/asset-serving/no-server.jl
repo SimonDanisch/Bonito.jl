@@ -6,27 +6,25 @@ struct NoServer <: AbstractAssetServer
 end
 
 function import_in_js(io::IO, session::Session, ns::NoServer, asset::Asset)
-    if asset == JSServeLib
-        # we cheat for JSServe, since lots of dependencies like WebSocket.js can't directly depend on it,
-        # but needs to reference it, so we just load `JSServe` with a script tag and put the module into `window.JSServe`
-        print(io, "Promise.resolve(window.JSServe)")
-    else
-        import_key = "JSServe_IMPORTS['$(unique_key(asset))']"
+    import_key = "JSServe_IMPORTS['$(unique_key(asset))']"
+    if asset.es6module
         imports = "import($(import_key))"
-        str = if !(asset in session.imports)
-            # first time something import_define
-            import_define = isempty(session.imports) ?  "window.JSServe_IMPORTS = {};" : ""
-            push!(session.imports, asset)
-            "(() => {
-                $(import_define)
-                $(import_key) = `$(url(ns, asset))`;
-                return $(imports);
-            })()"
-        else
-            str = imports
-        end
-        print(io, str)
+    else
+        imports = "JSServe.fetch_binary($(import_key))"
     end
+    str = if !(asset in session.imports)
+        # first time something import_define
+        import_define = isempty(session.imports) ?  "window.JSServe_IMPORTS = {};" : ""
+        push!(session.imports, asset)
+        "(() => {
+            $(import_define)
+            $(import_key) = `$(url(ns, asset))`;
+            return $(imports);
+        })()"
+    else
+        str = imports
+    end
+    print(io, str)
 end
 
 
@@ -44,7 +42,9 @@ function url(::NoServer, asset::Asset)
     return to_data_url(local_path(asset))
 end
 
-
+function url(::NoServer, asset::BinaryAsset)
+    return to_data_url(asset.data)
+end
 
 abstract type AbstractAssetFolder <: AbstractAssetServer end
 
@@ -71,18 +71,25 @@ function url(assetfolder::AbstractAssetFolder, asset::Asset)
     if !isempty(asset.online_path)
         return asset.online_path
     end
-    folder = abspath(assetfolder.folder)
     path = write_to_assetfolder(assetfolder, asset)
-    return replace(normpath(relpath(path, folder)), "\\" => "/")
+    return replace(normpath(relpath(path, folder(assetfolder))), "\\" => "/")
 end
 
-function import_in_js(io::IO, session::Session, ::AssetFolder, asset::Asset)
-    print(io, "import('$(url(session, asset))')")
+folder(assetfolder::AssetFolder) = abspath(assetfolder.folder)
+
+function url(assetfolder::AbstractAssetFolder, asset::BinaryAsset)
+    path = joinpath(folder(assetfolder), "$(hash(asset.data)).bin")
+    if !isfile(path)
+        write(path, asset.data)
+    end
+    return url(assetfolder, Asset(path))
 end
 
 struct DocumenterAssets <: AbstractAssetFolder
     folder::RefValue{String}
 end
+
+folder(assetfolder::DocumenterAssets) = abspath(assetfolder.folder[])
 
 DocumenterAssets() = DocumenterAssets(RefValue{String}(""))
 
@@ -99,8 +106,7 @@ end
 
 function import_in_js(io::IO, session::Session, assetfolder::DocumenterAssets, asset::Asset)
     if !isempty(asset.online_path)
-        # TODO es6module?
-        print(io, "import('$(asset.online_path)')")
+        import_in_js(io, session, nothing, asset)
         return
     end
     path = url(assetfolder, asset)

@@ -11,7 +11,7 @@ const {
     send_close_session,
     register_on_connection_open,
     send_pingpong,
-    with_message_lock
+    with_message_lock,
 } = Connection;
 
 const {
@@ -51,6 +51,17 @@ function update_dom_node(dom, html) {
         return false;
     }
 }
+/**
+ * @param {RequestInfo | URL} url
+ */
+function fetch_binary(url) {
+    return fetch(url).then((response) => {
+        if (!response.ok) {
+            throw new Error("HTTP error, status = " + response.status);
+        }
+        return response.arrayBuffer();
+    });
+}
 
 const JSServe = {
     Protocol,
@@ -60,6 +71,7 @@ const JSServe = {
     encode_binary,
     decode_binary_message,
     decode_base64_message,
+    fetch_binary,
 
     Connection,
     send_error,

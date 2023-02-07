@@ -94,18 +94,28 @@ function print_js_code(io::IO, jsss::AbstractVector{JSCode}, context::JSSourceCo
     return context
 end
 
-function import_in_js(io::IO, session::Session, asset_server, asset::Asset)
-    print(io, "import('$(url(session, asset))')")
+function import_in_js(io::IO, session::Session, asset_server, asset::BinaryAsset)
+    print(io, "JSServe.fetch_binary('$(url(session, asset))')")
 end
 
-function print_js_code(io::IO, asset::Asset, context::JSSourceContext)
+function import_in_js(io::IO, session::Session, asset_server, asset::Asset)
     if asset.es6module
+        print(io, "import('$(url(session, asset))')")
+    else
+        print(io, js"JSServe.fetch_binary($(url(session, asset)))")
+    end
+end
+
+function print_js_code(io::IO, asset::Union{Asset, BinaryAsset}, context::JSSourceContext)
+    if asset isa BinaryAsset || asset.es6module
         bundle!(asset) # no-op if not needed
         session = context.session
         if !isnothing(session)
             import_in_js(io, session, session.asset_server, asset)
-            push!(session.imports, asset)
-            push!(root_session(session).imports, asset)
+            if asset isa Asset && asset.es6module
+                push!(session.imports, asset)
+                push!(root_session(session).imports, asset)
+            end
         else
             # This should be mainly for `print(jscode)`
             print(io, "import('$(get_path(asset))')")
@@ -140,14 +150,14 @@ function inline_code(session::Session, asset_server, js::JSCode)
     else
         # reverse lookup and serialize elements
         interpolated_objects = Dict(v => k for (k, v) in context.objects)
-        data_str = serialize_string(session, interpolated_objects)
+        binary = BinaryAsset(session, interpolated_objects)
         src = """
             // JSCode from $(js.file)
-            const data_str = '$(data_str)'
-            JSServe.decode_base64_message(data_str).then(objects=> {
+            $(binary).then(bin_messages=>{
+                const objects = JSServe.decode_binary_message(bin_messages);
                 const __lookup_interpolated = (id) => objects[id]
                 $code
-            })
+            }))
         """
     end
     return inline_code(session, asset_server, src)

@@ -17,7 +17,12 @@ function unique_key(asset::Asset)
     end
 end
 
-url(session::Session, asset::Asset) = url(session.asset_server, asset)
+url(session::Session, asset::Union{BinaryAsset, Asset}) = url(session.asset_server, asset)
+function url(::Nothing, asset::Asset)
+    # Allow to use nothing for specifying an online url
+    @assert !isempty(asset.online_path)
+    return asset.online_path
+end
 
 function jsrender(session::Session, asset::Asset)
     ref = url(session, asset)
@@ -144,6 +149,15 @@ function to_data_url(source::String, mime::String)
     end
 end
 
+function to_data_url(binary::Vector{UInt8})
+    return sprint() do io
+        print(io, "data:application/octet-stream;base64,")
+        iob64_encode = Base64EncodePipe(io)
+        write(iob64_encode, binary)
+        close(iob64_encode)
+    end
+end
+
 function local_path(asset::Asset)
     if asset.es6module
         bundle!(asset)
@@ -182,6 +196,7 @@ function needs_bundling(asset::Asset)
     return last_modified(path) > asset.last_bundled[]
 end
 
+bundle!(asset::BinaryAsset) = nothing
 function bundle!(asset::Asset)
     needs_bundling(asset) || return
     path = get_path(asset)

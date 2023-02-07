@@ -108,6 +108,12 @@ function SerializedMessage(session::Session, message)
     return SerializedMessage(bytes)
 end
 
+struct BinaryAsset
+    data::Vector{UInt8}
+end
+BinaryAsset(session::Session, @nospecialize(data)) = BinaryAsset(serialize_binary(session, data))
+
+
 """
 Creates a Julia exception from data passed to us by the frondend!
 """

@@ -267,13 +267,13 @@ end
 function messages_as_js!(session::Session)
     messages = fused_messages!(session)
     init_messages = if !isempty(messages[:payload])
-        b64_str = serialize_string(session, messages)
+        binary = BinaryAsset(session, messages)
         return js"""
             (()=> {
-                const session_messages = $(b64_str)
                 console.log("start loading messages for " + $(session.id))
                 JSServe.with_message_lock(()=> {
-                    return JSServe.decode_base64_message(session_messages).then(message => {
+                return $(binary).then(binary=> {
+                        const message = JSServe.decode_binary_message(binary);
                         JSServe.process_message(message)
                         console.log("done loading messages for " + $(session.id))
                     })
@@ -329,6 +329,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
 
     if init
         run_msg_js = messages_as_js!(session)
+        init_messages = js""
         init_messages = js"""
         function init_messages() {
             $(run_msg_js)
