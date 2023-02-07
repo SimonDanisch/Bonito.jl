@@ -49,6 +49,9 @@ end
 Base.isopen(ws::WebSocketConnection) = !isnothing(ws.socket) && !isclosed(ws.socket)
 
 function Base.write(ws::WebSocketConnection, binary)
+    if isnothing(ws.socket)
+        error("socket closed or not opened yet")
+    end
     lock(ws.lock) do
         written = save_write(ws.socket, binary)
         if written != true

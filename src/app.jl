@@ -5,7 +5,7 @@ function update_app!(old_app::App, new_app::App)
     old_session = old_app.session[]
     parent = root_session(old_session)
     update_session_dom!(parent, "JSServer-application-dom", new_app)
-    if old_session !== parent
+    if old_session.connection isa SubConnection
         close(old_session)
     end
 end

@@ -34,7 +34,7 @@ include("app.jl")
 include("HTTPServer/HTTPServer.jl")
 
 import .HTTPServer: browser_display
-using .HTTPServer: Server, html, online_url, route!, file_mimetype, delete_websocket_route!, delete_route!
+using .HTTPServer: Server, html, online_url, route!, file_mimetype, delete_websocket_route!, delete_route!, use_electron_display
 
 include("js_source.jl")
 include("session.jl")
@@ -51,13 +51,13 @@ include("serialization/serialization.jl")
 include("util.jl")
 include("widgets.jl")
 include("display.jl")
-include("offline.jl")
+include("export.jl")
 include("tailwind-dashboard.jl")
 
 # Core functionality
 export Page, Session, App, DOM, @js_str, ES6Module
 export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor
-export browser_display, configure_server!, Server, html, route!, online_url
+export browser_display, configure_server!, Server, html, route!, online_url, use_electron_display
 export Observable, on, onany
 export linkjs, evaljs, evaljs_value, onjs
 export NoServer, AssetFolder, HTTPAssetServer, DocumenterAssets
