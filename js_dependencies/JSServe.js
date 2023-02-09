@@ -9,7 +9,6 @@ const {
     on_connection_open,
     on_connection_close,
     send_close_session,
-    register_on_connection_open,
     send_pingpong,
     with_message_lock,
 } = Connection;
@@ -19,13 +18,11 @@ const {
     base64encode,
     decode_binary,
     encode_binary,
-    decode_binary_message,
     decode_base64_message,
 } = Protocol;
 
 const {
     init_session,
-    deserialize_cached,
     free_session,
     lookup_global_object,
     update_or_replace,
@@ -69,7 +66,6 @@ const JSServe = {
     base64encode,
     decode_binary,
     encode_binary,
-    decode_binary_message,
     decode_base64_message,
     fetch_binary,
 
@@ -80,12 +76,10 @@ const JSServe = {
     on_connection_open,
     on_connection_close,
     send_close_session,
-    register_on_connection_open,
     send_pingpong,
     with_message_lock,
 
     Sessions,
-    deserialize_cached,
     init_session,
     free_session,
     // Util
@@ -97,14 +91,13 @@ const JSServe = {
 
 // @ts-ignore
 window.JSServe = JSServe;
-
+console.log("Setting JSServe hehe")
 export {
     Protocol,
     base64decode,
     base64encode,
     decode_binary,
     encode_binary,
-    decode_binary_message,
     decode_base64_message,
     Connection,
     send_error,
@@ -113,11 +106,9 @@ export {
     on_connection_open,
     on_connection_close,
     send_close_session,
-    register_on_connection_open,
     send_pingpong,
     with_message_lock,
     Sessions,
-    deserialize_cached,
     init_session,
     free_session,
     // Util

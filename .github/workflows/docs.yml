@@ -18,7 +18,6 @@ jobs:
       - run: |
           julia --project=docs -e "
             using Pkg
-            pkg\"add MsgPack#sd/perfi\"
             Pkg.develop(PackageSpec(path=pwd()))
             Pkg.instantiate()"
       - run: julia --project=docs docs/make.jl

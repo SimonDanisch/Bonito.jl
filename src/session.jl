@@ -50,6 +50,7 @@ function init_session(session::Session)
     if !isempty(session.message_queue) || !isempty(session.on_document_load)
         send(session, fused_messages!(session))
     end
+    println("session initialized, hihi")
 end
 
 session(session::Session) = session
@@ -101,6 +102,7 @@ function Base.close(session::Session)
     empty!(session.session_objects)
 
     close(session.connection)
+    close(session.asset_server)
     empty!(session.on_document_load)
     empty!(session.message_queue)
     empty!(session.session_objects)
@@ -129,8 +131,7 @@ function Sockets.send(session::Session, message::SerializedMessage)
     if isready(session)
         # if connection is open, we should never queue up messages
         @assert isempty(session.message_queue)
-        binary = serialize_binary(session, message)
-        write(session.connection, binary)
+        write(session.connection, message.bytes)
     else
         push!(session.message_queue, message)
     end
@@ -271,9 +272,9 @@ function messages_as_js!(session::Session)
         return js"""
             (()=> {
                 console.log("start loading messages for " + $(session.id))
-                JSServe.with_message_lock(()=> {
-                return $(binary).then(binary=> {
-                        const message = JSServe.decode_binary_message(binary);
+                return JSServe.with_message_lock(()=> {
+                    return $(binary).then(binary=> {
+                        const message = JSServe.decode_binary(binary, $(session.compression_enabled));
                         JSServe.process_message(message)
                         console.log("done loading messages for " + $(session.id))
                     })
@@ -328,16 +329,9 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     issubsession = !isnothing(parent(session))
 
     if init
-        run_msg_js = messages_as_js!(session)
-        init_messages = js""
-        init_messages = js"""
-        function init_messages() {
-            $(run_msg_js)
-        }
-        """
+        msgs = BinaryAsset(session, fused_messages!(session))
         init_session = js"""
-            $(init_messages)
-            JSServe.init_session($(session.id), init_messages, $(issubsession ? "sub" : "root"));
+            $(msgs).then(msgs=> JSServe.init_session($(session.id), msgs, $(issubsession ? "sub" : "root")));
         """
         pushfirst!(children(body), jsrender(session, init_session))
     end
@@ -373,7 +367,6 @@ function update_session_dom!(parent::Session, node_to_update::Union{String, Node
     str = "[data-jscall-id=$(repr(id))]"
     query_selector = Dict("query_selector" => str)
 
-
     if sub === parent # String/Number
         # wrap into observable, so that the whole node gets transfered
         obs = Observable(html)
@@ -389,8 +382,9 @@ function update_session_dom!(parent::Session, node_to_update::Union{String, Node
         # for `sub`.
         # sub is not open yet, and only opens if we send the below message for initialization
         # which is why we need to send it via the parent session
+        UpdateSession = "12" # msg type
         session_update = Dict(
-            "msg_type" => "UpdateSession",
+            "msg_type" => UpdateSession,
             "session_id" => sub.id,
             "messages" => fused_messages!(sub),
             "html" => html,

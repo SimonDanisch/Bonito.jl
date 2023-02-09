@@ -99,19 +99,13 @@ struct Session{Connection <: FrontendConnection}
     ignore_message::RefValue{Function}
     imports::Set{Asset}
     title::RefValue{String}
-end
-
-function SerializedMessage(session::Session, message)
-    ctx = SerializationContext(session)
-    message_data = serialize_cached(ctx, message)
-    bytes = MsgPack.pack([SessionCache(session.id, ctx.message_cache), message_data])
-    return SerializedMessage(bytes)
+    compression_enabled::Bool
 end
 
 struct BinaryAsset
     data::Vector{UInt8}
 end
-BinaryAsset(session::Session, @nospecialize(data)) = BinaryAsset(serialize_binary(session, data))
+BinaryAsset(session::Session, @nospecialize(data)) = BinaryAsset(SerializedMessage(session, data).bytes)
 
 
 """
@@ -140,7 +134,8 @@ function Session(connection=default_connection();
                 deregister_callbacks=Observables.ObserverFunction[],
                 session_objects=Dict{String, Any}(),
                 imports=Set{Asset}(),
-                title="JSServe App")
+                title="JSServe App",
+                compression_enabled=default_compression())
 
     return Session(
         Base.RefValue{Union{Nothing, Session}}(nothing),
@@ -160,7 +155,8 @@ function Session(connection=default_connection();
         RefValue(0),
         RefValue{Function}(x-> false),
         imports,
-        RefValue{String}(title)
+        RefValue{String}(title),
+        compression_enabled
     )
 end
 

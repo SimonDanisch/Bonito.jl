@@ -38,7 +38,7 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
     elseif typ == JavascriptWarning
         @warn "Error in Javascript: $(data["message"])\n)"
     elseif typ == JSDoneLoading
-        if data["exception"] !== "null"
+        if !isnothing(data["exception"])
             exception = JSException(session, data)
             show(stderr, exception)
             session.init_error[] = exception

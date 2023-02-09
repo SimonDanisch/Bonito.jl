@@ -11,6 +11,6 @@ function setup_connection(session::Session{NoConnection})
     # if we have no connection, we need to ship all send messages
     # as part of the initialization
     return js"""
-        JSServe.on_connection_open((w)=> null)
+        JSServe.on_connection_open((w)=> null, $(session.compression_enabled))
     """
 end

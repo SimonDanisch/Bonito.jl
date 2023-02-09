@@ -69,7 +69,14 @@ function MsgPack.pack_type(io, ::MsgPack.ExtensionType, x::AbstractArray{<:Union
     real_unsafe_write(io, array)
 end
 
-const OBSERVABLE_TAG = Int8(100)
+const OBSERVABLE_TAG = Int8(101)
+const JSCODE_TAG = Int8(102)
+const RETAIN_TAG = Int8(103)
+const CACHE_KEY_TAG = Int8(104)
+const DOM_NODE_TAG = Int8(105)
+const SESSION_CACHE_TAG = Int8(106)
+const SERIALIZED_MESSAGE_TAG = Int8(107)
+
 MsgPack.msgpack_type(::Type{<: SerializedObservable}) = MsgPack.ExtensionType()
 
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedObservable)
@@ -81,48 +88,36 @@ function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::Observable)
     return MsgPack.Extension(OBSERVABLE_TAG, pack([x.id, x[]]))
 end
 
-const ASSET_TAG = Int8(101)
-MsgPack.msgpack_type(::Type{SerializedAsset}) = MsgPack.ExtensionType()
-function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedAsset)
-    return MsgPack.Extension(ASSET_TAG, pack([x.es6module, x.url]))
-end
-
-const JSCODE_TAG = Int8(102)
 MsgPack.msgpack_type(::Type{SerializedJSCode}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedJSCode)
     return MsgPack.Extension(JSCODE_TAG, pack([x.interpolated_objects, x.source, x.julia_file]))
 end
 
-const RETAIN_TAG = Int8(103)
 MsgPack.msgpack_type(::Type{Retain}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::Retain)
     return MsgPack.Extension(RETAIN_TAG, pack(x.value))
 end
 
-const CACHE_KEY_TAG = Int8(104)
 MsgPack.msgpack_type(::Type{CacheKey}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::CacheKey)
     return MsgPack.Extension(CACHE_KEY_TAG, pack(x.key))
 end
 
-const DOM_NODE_TAG = Int8(105)
 MsgPack.msgpack_type(::Type{SerializedNode}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedNode)
     return MsgPack.Extension(DOM_NODE_TAG, pack([x.tag, x.children, x.attributes]))
 end
 
-const SESSION_CACHE_TAG = Int8(106)
 MsgPack.msgpack_type(::Type{SessionCache}) = MsgPack.ExtensionType()
-
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SessionCache)
-    return MsgPack.Extension(SESSION_CACHE_TAG, pack([x.session_id, x.objects]))
+    return MsgPack.Extension(SESSION_CACHE_TAG, pack([x.session_id, x.objects, x.session_type]))
 end
 
-const SERIALIZED_MESSAGE_TAG = Int8(107)
 MsgPack.msgpack_type(::Type{SerializedMessage}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedMessage)
     return MsgPack.Extension(SERIALIZED_MESSAGE_TAG, x.bytes)
 end
+
 
 # The other side does the same (/frontend/common/MsgPack.js), and we decode it here:
 function decode_extension_and_addbits(ext::MsgPack.Extension)

@@ -3,15 +3,14 @@ include("msgpack.jl")
 include("caching.jl")
 include("protocol.jl")
 
-function serialize_binary(session::Session, @nospecialize(obj))
-    data = serialize_cached(session, obj)
-    # return transcode(GzipCompressor, MsgPack.pack(data))
-    return MsgPack.pack(data)
-end
-
-function serialize_binary(session::Session, msg::SerializedMessage)
-    # return transcode(GzipCompressorGzipCompressor, MsgPack.pack(msg))
-    return MsgPack.pack(msg)
+function SerializedMessage(session::Session, message)
+    ctx = SerializationContext(session)
+    message_data = serialize_cached(ctx, message)
+    bytes = MsgPack.pack([SessionCache(session, ctx.message_cache), message_data])
+    if session.compression_enabled
+        bytes = transcode(GzipCompressor, bytes)
+    end
+    return SerializedMessage(bytes)
 end
 
 function deserialize_binary(bytes::AbstractVector{UInt8})

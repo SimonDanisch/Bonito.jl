@@ -144,7 +144,6 @@ function inline_code(session::Session, asset_server, js::JSCode)
     code = sprint() do io
         print_js_code(io, js, context)
     end
-    # TODO, give imports their own dict?
     if isempty(context.objects)
         src = code
     else
@@ -154,7 +153,7 @@ function inline_code(session::Session, asset_server, js::JSCode)
         src = """
             // JSCode from $(js.file)
             $(binary).then(bin_messages=>{
-                const objects = JSServe.decode_binary_message(bin_messages);
+                const objects = JSServe.decode_binary(bin_messages, $(session.compression_enabled));
                 const __lookup_interpolated = (id) => objects[id]
                 $code
             }))

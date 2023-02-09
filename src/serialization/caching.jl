@@ -89,14 +89,8 @@ function serialize_cached(context::SerializationContext, dict::AbstractDict)
     return result
 end
 
-function serialize_cached(session::Session, @nospecialize(obj))
-    ctx = SerializationContext(session)
-    data = serialize_cached(ctx, obj)
-    return [SessionCache(session.id, ctx.message_cache), data]
-end
-
 serialize_cached(::SerializationContext, native::MSGPACK_NATIVE_TYPES) = native
-serialize_cached(::SerializationContext, native::AbstractArray{<: Number}) = native
+serialize_cached(::SerializationContext, native::AbstractArray{<:Number}) = native
 
 
 """
@@ -145,7 +139,8 @@ end
 function delete_cached!(root::Session, key::String)
     if !haskey(root.session_objects, key)
         # This should uncover any fault in our caching logic!
-        error("Deleting key that doesn't belong to any cached object")
+        @warn("Deleting key that doesn't belong to any cached object")
+        return
     end
     # We don't delete assets for now (since they remain loaded on the page anyways)
     # And of course not Retain, since that's the whole point of it

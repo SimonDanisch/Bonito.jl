@@ -1,8 +1,7 @@
-import { Retain } from "./Protocol.js";
-import { Lock } from "./Connection.js";
+import { Retain, decode_binary } from "./Protocol.js";
+import { FusedMessage, Lock } from "./Connection.js";
 
 import {
-    register_on_connection_open,
     send_close_session,
     send_warning,
     send_done_loading,
@@ -71,15 +70,6 @@ function free_object(id) {
     return;
 }
 
-export function deserialize_cached(message) {
-    if (message.msg_type) {
-        return message;
-    } else {
-        const [session_id, data] = message;
-        return data;
-    }
-}
-
 let DELETE_OBSERVER = undefined;
 
 export function track_deleted_sessions() {
@@ -131,24 +121,35 @@ export function track_deleted_sessions() {
     }
 }
 
-export function init_session(session_id, on_connection_open, session_status) {
-    OBJECT_FREEING_LOCK.lock(() => {
+/**
+ * @param {string} session_id
+ */
+export function done_initializing_session(session_id) {
+    if (!(session_id in SESSIONS)) {
+        throw new Error("Session ");
+    }
+    console.log("send done loading!");
+    send_done_loading(session_id);
+    // allow subsessions to get deleted after being fully initialized (prevents deletes while half initializing)
+    if (SESSIONS[session_id][1] != "root") {
+        SESSIONS[session_id][1] = "delete";
+    }
+    // allow delete now!
+    console.log(`session ${session_id} fully initialized`);
+}
+
+export function init_session(session_id, binary_messages, session_status) {
+    track_deleted_sessions(); // no-op if already tracking
+    OBJECT_FREEING_LOCK.task_lock(session_id);
+    try {
         console.log(`init session: ${session_id}, ${session_status}`);
-        track_deleted_sessions();
-        const tracked_items = new Set();
-        SESSIONS[session_id] = [tracked_items, session_status];
-        if (session_status == "root") {
-            return register_on_connection_open(on_connection_open, session_id);
-        } else {
-            const maybe_promise = on_connection_open();
-            const promise = Promise.resolve(maybe_promise);
-            return promise.then((x) => {
-                send_done_loading(session_id);
-                SESSIONS[session_id] = [tracked_items, "delete"];
-                console.log(`session ${session_id} fully initialized`);
-            });
-        }
-    });
+        process_message(decode_binary(binary_messages));
+        done_initializing_session(session_id);
+    } catch (error) {
+        send_done_loading(session_id, error);
+    } finally {
+        OBJECT_FREEING_LOCK.task_unlock(session_id);
+    }
 }
 
 /*
@@ -219,14 +220,22 @@ export function update_or_replace(node, new_html, replace) {
 export function update_session_dom(message) {
     const { session_id, messages, html, dom_node_selector, replace } = message;
     on_node_available(dom_node_selector, 1).then((dom) => {
-        update_or_replace(dom, html, replace);
-        process_message(messages);
-        console.log("obs session done: " + session_id);
+        try {
+            update_or_replace(dom, html, replace);
+            process_message(messages);
+            done_initializing_session(session_id);
+        } catch (error) {
+            send_done_loading(session_id, error);
+        } finally {
+            // this locks corresponds to the below task_lock from update session cache for an unitialized session
+            // which happens, since we need to send this session via a message
+            OBJECT_FREEING_LOCK.task_unlock(session_id);
+        }
     });
     return;
 }
 
-export function update_session_cache(session_id, new_jl_objects) {
+export function update_session_cache(session_id, new_jl_objects, session_status) {
     function update_cache(tracked_objects) {
         for (const key in new_jl_objects) {
             // always keep track of usage in session
@@ -250,16 +259,16 @@ export function update_session_cache(session_id, new_jl_objects) {
     }
 
     const session = SESSIONS[session_id];
-
+    // session already initialized
     if (session) {
         update_cache(session[0]);
     } else {
         // we can update the session cache for a not yet registered session, which we then need to register first:
-        init_session(
-            session_id,
-            () => update_cache(SESSIONS[session_id][0]),
-            "update-session-dom"
-        );
+        // but this means our session is not initialized yet, and we need to lock it from freing objects
+        OBJECT_FREEING_LOCK.task_lock(session_id);
+        const tracked_items = new Set();
+        SESSIONS[session_id] = [tracked_items, session_status];
+        update_cache(tracked_items);
     }
 }
 

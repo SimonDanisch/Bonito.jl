@@ -93,12 +93,12 @@ function setup_connection(session::Session, ::Nothing)
                 undefined, // buffers
             );
             comm.on_msg((msg) => {
-                JSServe.decode_base64_message(msg.content.data.data).then(JSServe.process_message)
+                JSServe.decode_base64_message(msg.content.data.data, $(session.compression_enabled)).then(JSServe.process_message)
             });
 
             JSServe.on_connection_open((binary) => {
                 JSServe.base64encode(binary).then(x=> comm.send(x))
-            });
+            }, $(session.compression_enabled));
         }
         init_ijulia();
     """

@@ -126,7 +126,7 @@ function setup_connection(session::Session, connection::WebSocketConnection)
     proxy_url = online_url(server, "")
     return js"""
         $(Websocket).then(WS => {
-            WS.setup_connection({proxy_url: $(proxy_url), session_id: $(session.id)})
+            WS.setup_connection({proxy_url: $(proxy_url), session_id: $(session.id), compression_enabled: $(session.compression_enabled)})
         })
     """
 end

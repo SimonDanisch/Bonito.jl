@@ -6,6 +6,10 @@ end
 HTTPAssetServer() = HTTPAssetServer(get_server())
 HTTPAssetServer(server::Server) = HTTPAssetServer(Dict{String, Any}(), server)
 
+function Base.close(server::HTTPAssetServer)
+    empty!(server.registered_files)
+end
+
 function url(server::HTTPAssetServer, asset::Asset)
     file = local_path(asset)
     if isempty(file)

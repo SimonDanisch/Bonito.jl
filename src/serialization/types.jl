@@ -11,11 +11,6 @@ struct Retain
     value::Union{Observable, SerializedObservable} # For now, restricted to observable!
 end
 
-struct SerializedAsset
-    es6module::Bool
-    url::String
-end
-
 struct SerializedJSCode
     interpolated_objects::Dict{String, Any}
     source::String
@@ -24,7 +19,16 @@ end
 
 struct SessionCache
     session_id::String
+    session_type::String
     objects::Dict{String, Any}
+end
+
+function SessionCache(session::Session, objects::Dict{String,Any})
+    return SessionCache(
+        session.id,
+        root_session(session) === session ? "root" : "sub",
+        objects
+    )
 end
 
 # We want typed arrays to arrive as JS typed arrays
@@ -35,7 +39,6 @@ const MSGPACK_NATIVE_TYPES = Union{
     CacheKey,
     Retain,
     SerializedJSCode,
-    SerializedAsset,
     Observable,
     AbstractVector{<: JSTypedNumber}
 }
