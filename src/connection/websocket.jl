@@ -46,7 +46,21 @@ function save_write(websocket, binary)
     end
 end
 
-Base.isopen(ws::WebSocketConnection) = !isnothing(ws.socket) && !isclosed(ws.socket)
+function Base.isopen(ws::WebSocketConnection)
+    isnothing(ws.socket) && return false
+    # isclosed(ws.socket) returns readclosed && writeclosed
+    # but we consider it closed if either is closed?
+    return !(ws.socket.readclosed || ws.socket.writeclosed)
+    # So, it turns out, ws connection where the tab gets closed
+    # stay open indefinitely, but aren't writable anymore
+    result = save_write(ws.socket, UInt8[0])
+    if isnothing(result)
+        close(ws)
+        return false
+    else
+        return true
+    end
+end
 
 function Base.write(ws::WebSocketConnection, binary)
     if isnothing(ws.socket)

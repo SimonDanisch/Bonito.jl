@@ -104,13 +104,18 @@ export function setup_connection(config) {
                 // run this async... (or do we?)
                 new Promise((resolve) => {
                     const binary = new Uint8Array(evt.data);
+                    if (binary.length === 1 && binary[0] === 0) {
+                        // test write
+                        return resolve(null);
+                    }
                     JSServe.process_message(
                         JSServe.decode_binary(
                             binary,
                             config.compression_enabled
                         )
                     );
-                    resolve(null);
+
+                    return resolve(null);
                 });
             };
             JSServe.on_connection_open(

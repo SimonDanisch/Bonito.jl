@@ -60,6 +60,7 @@ function openurl(url::String)
     tryrun(`python3 -mwebbrowser $(url)`) && return
     @warn("Can't find a way to open a browser, open $(url) manually!")
 end
+using ..JSServe: wait_for_ready, wait_for
 
 function Base.display(display::BrowserDisplay, app::App)
     _server = server(display)
@@ -68,13 +69,16 @@ function Base.display(display::BrowserDisplay, app::App)
     if isnothing(old_app) || isnothing(old_app.session[]) || !isready(old_app.session[])
         if !isnothing(old_app) && !isnothing(old_app.session[]) # Not ready!
             close(old_app.session[])
+            old_app.session[] = nothing
         end
         if display.open_browser
             openurl(online_url(_server, session_url))
+            wait_for(()-> !isnothing(app.session[]) && isready(app.session[]))
         end
         return true
     else
         update_app!(old_app, app)
+        wait_for_ready(app.session[])
         return false
     end
     return

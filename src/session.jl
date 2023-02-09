@@ -91,7 +91,9 @@ function Base.close(session::Session)
         # will think our session still holds the value, which would prevent it from deleting
         delete!(parent(session).children, session.id)
         for key in keys(session.session_objects)
-            delete_cached!(root, key)
+            if haskey(root.session_objects, key)
+                delete_cached!(root, key)
+            end
         end
         evaljs(root, js"""
             JSServe.free_session($(session.id))
