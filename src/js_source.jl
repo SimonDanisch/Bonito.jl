@@ -64,7 +64,7 @@ function print_js_code(io::IO, x::Number, context::JSSourceContext)
     return context
 end
 
-function print_js_code(io::IO, x::String, context::JSSourceContext)
+function print_js_code(io::IO, x::Union{Symbol, AbstractString}, context::JSSourceContext)
     print(io, "'", x, "'")
     return context
 end
@@ -148,11 +148,12 @@ function inline_code(session::Session, asset_server, js::JSCode)
         src = code
     else
         # reverse lookup and serialize elements
+
         interpolated_objects = Dict(v => k for (k, v) in context.objects)
         binary = BinaryAsset(session, interpolated_objects)
         src = """
             // JSCode from $(js.file)
-            $(binary).then(bin_messages=>{
+            JSServe.fetch_binary('$(url(session, binary))').then(bin_messages=>{
                 const objects = JSServe.decode_binary(bin_messages, $(session.compression_enabled));
                 const __lookup_interpolated = (id) => objects[id]
                 $code
