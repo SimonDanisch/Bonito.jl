@@ -19,15 +19,15 @@ end
 
 struct SessionCache
     session_id::String
-    session_type::String
     objects::Dict{String, Any}
+    session_type::String
 end
 
 function SessionCache(session::Session, objects::Dict{String,Any})
     return SessionCache(
         session.id,
+        objects,
         root_session(session) === session ? "root" : "sub",
-        objects
     )
 end
 

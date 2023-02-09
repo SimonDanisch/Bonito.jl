@@ -50,7 +50,6 @@ function init_session(session::Session)
     if !isempty(session.message_queue) || !isempty(session.on_document_load)
         send(session, fused_messages!(session))
     end
-    println("session initialized, hihi")
 end
 
 session(session::Session) = session
