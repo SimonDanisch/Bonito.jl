@@ -28,6 +28,8 @@ using Base: RefValue
 # these are used in HTTPServer and need to be defined already
 function update_app! end
 function get_server end
+function wait_for end
+function wait_for_ready end
 
 include("types.jl")
 include("app.jl")
