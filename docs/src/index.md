@@ -29,7 +29,7 @@ end
 ```
 
 App has three main signatures:
-```@example 1
+```julia
 # The main signatures, all other signatures will end up calling:
 App((session, request) -> DOM.div(...))
 # Convenience constructors:
@@ -38,6 +38,7 @@ App((request::HTTP.Request) -> DOM.div(...))
 App(() -> DOM.div(...))
 App(DOM.div(...))
 ```
+
 `App` that don't use the `request` argument are considered `pure`, so they should always yield the same response when displayed/served.
 If you depend on global state, or the app is not pure in some other way you have the following options:
 
