@@ -129,7 +129,7 @@ export function done_initializing_session(session_id) {
         throw new Error("Session ");
     }
     console.log("send done loading!");
-    send_done_loading(session_id);
+    send_done_loading(session_id, null);
     // allow subsessions to get deleted after being fully initialized (prevents deletes while half initializing)
     if (SESSIONS[session_id][1] != "root") {
         SESSIONS[session_id][1] = "delete";
@@ -142,8 +142,11 @@ export function init_session(session_id, binary_messages, session_status) {
     track_deleted_sessions(); // no-op if already tracking
     OBJECT_FREEING_LOCK.task_lock(session_id);
     try {
+        SESSIONS[session_id] = [new Set(), session_status]
         console.log(`init session: ${session_id}, ${session_status}`);
-        process_message(decode_binary(binary_messages));
+        if (binary_messages) {
+            process_message(decode_binary(binary_messages));
+        }
         done_initializing_session(session_id);
     } catch (error) {
         send_done_loading(session_id, error);

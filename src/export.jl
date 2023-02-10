@@ -152,11 +152,22 @@ function export_standalone(app::App, folder::String;
     error("export_standalone is deprecated, please use export_static")
 end
 
-function export_static(html_file::String, app::App; session=Session(NoConnection(); asset_server=NoServer()))
+function export_static(html_file::String, app::App;
+        asset_server=NoServer(),
+        connection=NoConnection(),
+        session=Session(connection; asset_server=asset_server))
     open(html_file, "w") do io
-        session.title[] = app.title
-        page_html(io, session, app)
+        export_static(io, app; session=session)
     end
+end
+
+function export_static(html_io::IO, app::App;
+        asset_server=NoServer(),
+        connection=NoConnection(),
+        session=Session(connection; asset_server=asset_server))
+
+    session.title = app.title
+    page_html(html_io, session, app)
 end
 
 function export_static(folder::String, routes::Routes; connection=NoConnection(), asset_server=NoServer())

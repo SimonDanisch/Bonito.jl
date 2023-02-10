@@ -35,7 +35,6 @@ function inline_code(session::Session, ::NoServer, source::String)
     return DOM.script(src=to_data_url(source, "application/javascript"); type="module")
 end
 
-
 setup_asset_server(::NoServer) = nothing
 
 function url(::NoServer, asset::Asset)

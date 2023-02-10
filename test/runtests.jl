@@ -13,7 +13,7 @@ using JSServe.MsgPack
 using JSServe.CodecZlib
 using Test
 using JSServe: jsrender
-
+rm(JSServe.bundle_path(JSServe.JSServeLib))
 include("ElectronTests.jl")
 
 function wait_on_test_observable()

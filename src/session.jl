@@ -1,7 +1,7 @@
 function show_session(io::IO, session::Session{T}) where T
     println(io, "Session{$T}:")
     println(io, "  id: $(session.id)")
-    println(io, "  parent: $(typeof(session.parent[]))")
+    println(io, "  parent: $(typeof(session.parent))")
     if !isempty(session.children)
         println(io, "children: $(length(session.children))")
     end
@@ -25,7 +25,8 @@ end
 function get_messages!(session::Session, messages=[])
     append!(messages, session.message_queue)
     for js in session.on_document_load
-        push!(messages, Dict(:msg_type=>EvalJavascript, :payload=>js))
+        onload = Dict(:msg_type=>EvalJavascript, :payload=>js)
+        push!(messages, SerializedMessage(session, onload))
     end
     empty!(session.on_document_load)
     empty!(session.message_queue)
@@ -54,7 +55,7 @@ end
 
 session(session::Session) = session
 
-Base.parent(session::Session) = session.parent[]
+Base.parent(session::Session) = session.parent
 
 root_session(session::Session) = isnothing(parent(session)) ? session : root_session(parent(session))
 
@@ -266,28 +267,6 @@ function session_dom(session::Session, app::App; init=true, html_document=false)
     return session_dom(session, dom; init=init, html_document=html_document)
 end
 
-function messages_as_js!(session::Session)
-    messages = fused_messages!(session)
-    init_messages = if !isempty(messages[:payload])
-        binary = BinaryAsset(session, messages)
-        return js"""
-            (()=> {
-                console.log("start loading messages for " + $(session.id))
-                return JSServe.with_message_lock(()=> {
-                    return $(binary).then(binary=> {
-                        const message = JSServe.decode_binary(binary, $(session.compression_enabled));
-                        JSServe.process_message(message)
-                        console.log("done loading messages for " + $(session.id))
-                    })
-                })
-            })()
-        """
-    else
-        return js""
-    end
-end
-
-
 function session_dom(session::Session, dom::Node; init=true, html_document=false)
     # the dom we can render may be anything between a
     # dom fragment or a full page with head & body etc.
@@ -299,13 +278,13 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     if isnothing(head) && isnothing(body)
         if html_document
             # emit a whole html document
-            body_dom = DOM.div(dom, id=session.id, dataJscallId="JSServer-application-dom")
-            head = Hyperscript.m("head", Hyperscript.m("meta", charset="UTF-8"), Hyperscript.m("title", session.title[]))
+            body_dom = DOM.div(dom, id=session.id, dataJscallId="JSServe-application-dom")
+            head = Hyperscript.m("head", Hyperscript.m("meta", charset="UTF-8"), Hyperscript.m("title", session.title))
             body = Hyperscript.m("body", body_dom)
             dom = Hyperscript.m("html", head, body)
         else
             # Emit a "fragment"
-            application = DOM.div(dom, id=session.id, dataJscallId="JSServer-application-dom")
+            application = DOM.div(dom, id=session.id, dataJscallId="JSServe-application-dom")
             head = DOM.div(application)
             dom = head
             body = dom
@@ -330,10 +309,16 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     issubsession = !isnothing(parent(session))
 
     if init
-        msgs = BinaryAsset(session, fused_messages!(session))
-        init_session = js"""
-            $(msgs).then(msgs=> JSServe.init_session($(session.id), msgs, $(issubsession ? "sub" : "root")));
-        """
+        msgs = fused_messages!(session)
+        type = issubsession ? "sub" : "root"
+        if isempty(msgs[:payload])
+            init_session = js"""JSServe.init_session($(session.id), null, $(type))"""
+        else
+            binary = BinaryAsset(session, msgs)
+            init_session = js"""
+                $(binary).then(msgs=> JSServe.init_session($(session.id), msgs, $(type)));
+            """
+        end
         pushfirst!(children(body), jsrender(session, init_session))
     end
 
@@ -364,7 +349,7 @@ end
 function update_session_dom!(parent::Session, node_to_update::Union{String, Node}, app_or_dom; replace=true)
     sub, html = render_subsession(parent, app_or_dom)
     # Or we have a node
-    id = node_to_update isa String ? node_to_update : uuid(node_to_update)
+    id = node_to_update isa String ? node_to_update : uuid(parent, node_to_update)
     str = "[data-jscall-id=$(repr(id))]"
     query_selector = Dict("query_selector" => str)
 

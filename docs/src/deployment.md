@@ -50,7 +50,7 @@ page_404 = App() do session, request
 end
 # You can use string (paths), or a regex
 route!(server, r".*" => page_404)
-route!(server, r"my/nested/page" => App(DOM.div("nested")))
+route!(server, "/my/nested/page" => App(DOM.div("nested")))
 url_to_visit = online_url(server, "/my/nested/page")
 ```
 

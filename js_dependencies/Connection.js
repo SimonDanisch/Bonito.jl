@@ -54,7 +54,7 @@ export function send_error(message, exception) {
         msg_type: JavascriptError,
         message: message,
         exception: String(exception),
-        stacktrace: exception == null ? "" : exception.stack,
+        stacktrace: exception === null ? "" : exception.stack,
     });
 }
 
@@ -69,11 +69,13 @@ export function send_warning(message) {
 /**
  * @param {string} session
  */
-export function send_done_loading(session, exception=null) {
+export function send_done_loading(session, exception) {
     send_to_julia({
         msg_type: JSDoneLoading,
         session,
-        exception: exception,
+        message: "",
+        exception: exception === null ? "nothing" : String(exception),
+        stacktrace: exception === null ? "" : exception.stack,
     });
 }
 

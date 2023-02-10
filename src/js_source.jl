@@ -75,7 +75,8 @@ function print_js_code(io::IO, jss::JSString, context::JSSourceContext)
 end
 
 function print_js_code(io::IO, node::Node, context::JSSourceContext)
-    print(io, "document.querySelector('[data-jscall-id=\"$(uuid(node))\"]')")
+    session = context.session # can be nothing
+    print(io, "document.querySelector('[data-jscall-id=\"$(uuid(session, node))\"]')")
     return context
 end
 

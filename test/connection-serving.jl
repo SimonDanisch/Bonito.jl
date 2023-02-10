@@ -16,11 +16,13 @@ end
 connections = [NoConnection(), WebSocketConnection()]
 servers = [NoServer(), HTTPAssetServer()]
 
+path = joinpath(@__DIR__, "test.html")
 @testset "connection $(typeof(connection)) server: $(typeof(server))" for (connection, server) in Iterators.product(connections, servers)
-    JSServe.force_connection!(connection)
-    JSServe.force_asset_server!(server)
-    testsession(export_test_app, port=8555) do app
-        bquery = evaljs(app, js"""$(query_testid("result")).innerText""")
-        @test "passed" == bquery
-    end
+    export_static(path, App(export_test_app); connection=connection, asset_server=server)
+    # We need to drop a bit lower and cant use `testapp` here, since that uses fixed connection + asset server
+    window = Window(URI(path))
+    result = run(window, "$(query_testid("result")).innerText")
+    @test result == "passed"
+    close(window)
 end
+rm(path; force=true)

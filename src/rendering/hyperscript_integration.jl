@@ -2,28 +2,13 @@ module DOM
 
 using Hyperscript
 
-const global_unique_dom_id_counter = Ref(0)
 
-"""
-    get_unique_dom_id()
-
-We could use a unique ID like uuid4, but since every dom element gets
-such an id, I prefer to keep the id as short as possible, so we just use a counter.
-"""
-function get_unique_dom_id()
-    global_unique_dom_id_counter[] += 1
-    return string(global_unique_dom_id_counter[])
-end
-
-"""
-Dome node with unique ID, to make it easier to interpolate it.
-"""
 function um(tag, args...; kw...)
-    m(tag, args...; dataJscallId = get_unique_dom_id(), kw...)
+    m(tag, args...; kw...)
 end
 
 function m_unesc(tag, args...; kw...)
-    m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, tag, args...; dataJscallId = get_unique_dom_id(), kw...)
+    m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, tag, args...; kw...)
 end
 
 for node in [:a, :abbr, :address, :area, :article, :aside, :audio, :b,
@@ -79,7 +64,7 @@ end
 
 function attribute_render(session::Session, parent, attribute::String, jss::JSCode)
     # add js after parent gets loaded
-    func = js"""function (node) {
+    func = js"""(node) => {
         node[$attribute] = $(jss)
     }"""
     # preserve func.file
@@ -90,9 +75,9 @@ end
 function attribute_render(session::Session, parent, attribute::String, asset::Asset)
     if parent isa Hyperscript.Node{Hyperscript.CSS}
         # css seems to require an url object
-        return "url($(url(session.asset_server, asset)))"
+        return "url($(url(session, asset)))"
     else
-        return "$(url(session.asset_server, asset))"
+        return "$(url(session, asset))"
     end
 end
 
@@ -131,6 +116,13 @@ is_boolean_attribute(attribute::String) = attribute in BOOLEAN_ATTRIUTES
 function render_node(session::Session, node::Node)
     # give each node a unique id inside the dom
     node_children = children(node)
+    # this could be uuid!, since it adds a uuid if not present
+    # we didn't add a `!` since from the user perspective it should be treated as non mutating
+    # Anyways, calling it here makes sure, that every rendered node has a unique id we can
+    # use for e.g. `evaljs(session, js"$(node)")`
+    # It's important that the uuid gets added before rendering because otherwise `evaljs(session, js"$(node)")`
+    # won't work in a dynamic context
+    uuid(session, node)
     node_attrs = Hyperscript.attrs(node)
     isempty(node_children) && isempty(node_attrs) && return node
 
@@ -177,9 +169,15 @@ function jsrender(session::Session, node::Node)
     render_node(session, node)
 end
 
-function uuid(node::Node)
-    return get(Hyperscript.attrs(node), "data-jscall-id") do
-        error("Node $(node) doesn't have a unique id. Make sure to use DOM.$(Hyperscript.tag(node))")
+function uuid(session::Union{Nothing, Session}, node::Node)
+    return get!(Hyperscript.attrs(node), "data-jscall-id") do
+        if isnothing(session)
+            return string(rand(UInt64))
+        else
+            root = root_session(session) # counter needs to be unique to root session
+            root.dom_uuid_counter += 1
+            return string(root.dom_uuid_counter)
+        end
     end
 end
 
@@ -203,7 +201,9 @@ end
 function SerializedNode(session::Session, node::Node)
     # give each node a unique id inside the dom
     node_children = children(node)
+    uuid(session, node)
     node_attrs = Hyperscript.attrs(node)
+
     tag = Hyperscript.tag(node)
 
     isempty(node_children) && isempty(node_attrs) && return SerializedNode(tag, node_children, node_attrs)

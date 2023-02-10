@@ -47,19 +47,29 @@ function Observables.onany(f, session::Session, observables::Observable...)
     return to_deregister
 end
 
-function Base.map(f, session::Session, observables::Observable...; result=Observable{Any}())
-    # map guarantees to be run upfront!
-    result[] = f(Observables.to_value.(observables)...)
-    onany(session, observables...) do newvals...
-        result[] = f(newvals...)
+@inline function Base.map!(@nospecialize(f), session::Session, result::AbstractObservable, os...; update::Bool=true)
+    # note: the @inline prevents de-specialization due to the splatting
+    callback = Observables.MapCallback(f, result, os)
+    for o in os
+        o isa AbstractObservable && on(callback, session, o)
     end
+    update && callback(nothing)
     return result
+end
+
+@inline function Base.map(f::F, session::Session, arg1::AbstractObservable, args...; ignore_equal_values=false) where {F}
+    # note: the @inline prevents de-specialization due to the splatting
+    obs = Observable(f(arg1[], map(Observables.to_value, args)...); ignore_equal_values=ignore_equal_values)
+    map!(f, session, obs, arg1, args...; update=false)
+    return obs
 end
 
 function jsrender(session::Session, obs::Observable)
     root_node = DOM.span()
-    on(session, obs; update=true) do data
+    on(session, obs) do data
         update_session_dom!(root_session(session), root_node, data; replace=false)
     end
-    return root_node
+    sub, html = render_subsession(session, obs[])
+    push!(children(root_node), html)
+    return jsrender(session, root_node)
 end
