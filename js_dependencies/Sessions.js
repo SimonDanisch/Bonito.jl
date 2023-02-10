@@ -163,7 +163,12 @@ If we deleted on JS first, it could happen, that Julia just in that momement ser
 so once it actually arrives in JS, it'd be already gone.
 */
 export function close_session(session_id) {
-    const [session_objects, status] = SESSIONS[session_id];
+    const session = SESSIONS[session_id];
+    if (!session) {
+        // when does this happen...Double close?
+        return
+    }
+    const [session_objects, status] = session;
     const root_node = document.getElementById(session_id);
     if (root_node) {
         root_node.style.display = "none";
@@ -181,7 +186,12 @@ export function close_session(session_id) {
 export function free_session(session_id) {
     OBJECT_FREEING_LOCK.lock(() => {
         console.log(`actually freeing session ${session_id}`);
-        const [tracked_objects, status] = SESSIONS[session_id];
+        const session = SESSIONS[session_id];
+        if (!session) {
+            //double free?
+            return
+        }
+        const [tracked_objects, status] = session;
         tracked_objects.forEach(free_object);
         tracked_objects.clear();
         delete SESSIONS[session_id];

@@ -71,10 +71,13 @@ struct SerializedMessage
     bytes::Vector{UInt8}
 end
 
+@enum SessionStatus UNINITIALIZED DISPLAYED OPEN CLOSED
+
 """
 A web session with a user
 """
 mutable struct Session{Connection <: FrontendConnection}
+    status::SessionStatus
     parent::Union{Session, Nothing}
     children::Dict{String, Session{SubConnection}}
     id::String
@@ -123,6 +126,7 @@ mutable struct Session{Connection <: FrontendConnection}
             compression_enabled::Bool,
         ) where {Connection}
         session = new{Connection}(
+            UNINITIALIZED,
             parent,
             children,
             id,
@@ -143,7 +147,12 @@ mutable struct Session{Connection <: FrontendConnection}
             title,
             compression_enabled,
         )
-        finalizer(close, session)
+        finalizer(session) do s
+            # Closing may yield, so we need to async it
+            # Is that ok?
+            # TODO, implement free(s), which only does finalizer save things
+            @async close(s)
+        end
         return session
     end
 end

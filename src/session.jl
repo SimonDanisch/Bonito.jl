@@ -51,6 +51,8 @@ function init_session(session::Session)
     if !isempty(session.message_queue) || !isempty(session.on_document_load)
         send(session, fused_messages!(session))
     end
+    session.status = OPEN
+    return
 end
 
 session(session::Session) = session
@@ -84,6 +86,7 @@ function Base.empty!(session::Session)
 end
 
 function Base.close(session::Session)
+    session.status === CLOSED && return
     # unregister all cached objects from parent session
     root = root_session(session)
     # If we're a child session, we need to remove all objects trackt in our root session:
@@ -96,13 +99,17 @@ function Base.close(session::Session)
                 delete_cached!(root, key)
             end
         end
-        evaljs(root, js"""
-            JSServe.free_session($(session.id))
-        """)
+        # If parent session still open, close it on js side as well
+        if isready(root)
+            evaljs(
+                root,
+                js"""
+                JSServe.free_session($(session.id))
+            """)
+        end
     end
     # delete_cached! only deletes in the root session so we need to still empty the session_objects:
     empty!(session.session_objects)
-
     close(session.connection)
     close(session.asset_server)
     empty!(session.on_document_load)
@@ -111,6 +118,7 @@ function Base.close(session::Session)
     # remove all listeners that where created for this session
     foreach(off, session.deregister_callbacks)
     empty!(session.deregister_callbacks)
+    session.status = CLOSED
     return
 end
 
@@ -325,7 +333,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     if !issubsession
         pushfirst!(children(head), JSServe_import)
     end
-
+    session.status = DISPLAYED
     return dom
 end
 
