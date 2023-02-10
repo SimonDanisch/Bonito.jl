@@ -12,9 +12,7 @@ end
 
 function url(server::HTTPAssetServer, asset::Asset)
     file = local_path(asset)
-    if isempty(file)
-        return asset.online_path
-    end
+    isempty(file) && return asset.online_path
     target = normpath(abspath(expanduser(file)))
     key = "/assetserver/" * unique_file_key(target)
     get!(()-> target, server.registered_files, key)
@@ -70,16 +68,4 @@ const MATCH_HEX = r"[\da-f]"
 function setup_asset_server(asset_server::HTTPAssetServer)
     HTTPServer.route!(asset_server.server, r"/assetserver/" * MATCH_HEX^40 * r"-.*" => asset_server)
     return
-end
-
-function HTTPServer.apply_handler(app::App, context)
-    server = context.application
-    asset_server = HTTPAssetServer(server)
-    connection = WebSocketConnection(server)
-    session = Session(connection; asset_server=asset_server, title=app.title)
-    html_dom = rendered_dom(session, app, context.request)
-    html_str = sprint() do io
-        page_html(io, session, html_dom)
-    end
-    return html(html_str)
 end

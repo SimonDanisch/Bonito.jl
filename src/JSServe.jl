@@ -32,8 +32,8 @@ function wait_for end
 function wait_for_ready end
 
 include("types.jl")
-include("app.jl")
 include("HTTPServer/HTTPServer.jl")
+include("app.jl")
 
 import .HTTPServer: browser_display
 using .HTTPServer: Server, html, online_url, route!, file_mimetype, delete_websocket_route!, delete_route!, use_electron_display

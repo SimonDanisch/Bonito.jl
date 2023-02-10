@@ -272,3 +272,42 @@ Wait on the server task, i.e. block execution by bringing the server event loop 
 function Base.wait(server::Server)
     wait(server.server_task[])
 end
+
+function get_error(server::Server)
+    # Running server has no problems!
+    isrunning(server) && return nothing
+    !istaskfailed(server.server_task[]) && return nothing
+    try
+        return fetch(server.server_task[])
+    catch e
+        return e
+    end
+end
+
+function show_server(io::IO, server::Server)
+    println(io, "Server:")
+    println(io, "  isrunning: $(isrunning(server))")
+    println(io, "  listen_url: $(local_url(server, ""))")
+    println(io, "  online_url: $(online_url(server, ""))")
+    println(io, "  http routes: ", length(server.routes.table))
+    if !isempty(server.routes.table)
+        for (route, app) in server.routes.table
+            println(io, "    ", route, " => ", typeof(app))
+        end
+    end
+    println(io, "  websocket routes: ", length(server.websocket_routes.table))
+    if !isempty(server.websocket_routes.table)
+        for (route, app) in server.websocket_routes.table
+            println(io, "    ", route, " => ", typeof(app))
+        end
+    end
+    err = get_error(server)
+    if !isnothing(err)
+        print(io, "  error: ")
+        Base.showerror(io, err)
+        println(io)
+    end
+end
+
+Base.show(io::IO, ::MIME"text/plain", server::Server) = show_server(io, server)
+Base.show(io::IO, server::Server) = show_server(io, server)

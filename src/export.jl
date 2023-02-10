@@ -168,6 +168,7 @@ function export_static(html_io::IO, app::App;
 
     session.title = app.title
     page_html(html_io, session, app)
+    return session
 end
 
 function export_static(folder::String, routes::Routes; connection=NoConnection(), asset_server=NoServer())

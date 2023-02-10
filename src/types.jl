@@ -100,7 +100,6 @@ mutable struct Session{Connection <: FrontendConnection}
     imports::Set{Asset}
     title::String
     compression_enabled::Bool
-    pure::Bool
 
     function Session(
             parent::Union{Session, Nothing},
@@ -122,7 +121,6 @@ mutable struct Session{Connection <: FrontendConnection}
             imports::Set{Asset},
             title::String,
             compression_enabled::Bool,
-            pure::Bool
         ) where {Connection}
         session = new{Connection}(
             parent,
@@ -144,7 +142,6 @@ mutable struct Session{Connection <: FrontendConnection}
             imports,
             title,
             compression_enabled,
-            pure::Bool
         )
         finalizer(close, session)
         return session
@@ -183,8 +180,7 @@ function Session(connection=default_connection();
                 session_objects=Dict{String, Any}(),
                 imports=Set{Asset}(),
                 title="JSServe App",
-                compression_enabled=default_compression(),
-                pure=false)
+                compression_enabled=default_compression())
 
     return Session(
         nothing,
@@ -206,7 +202,6 @@ function Session(connection=default_connection();
         imports,
         title,
         compression_enabled,
-        pure
     )
 end
 
@@ -222,27 +217,22 @@ function Session(parent::Session;
     return session
 end
 
-"""
-    App(handler)
-
-calls handler with the session and the http request object.
-f is expected to return a valid DOM object,
-so something renderable by jsrender, e.g. `DOM.div`.
-"""
-struct App
+mutable struct App
     handler::Function
     session::Base.RefValue{Union{Session, Nothing}}
     title::String
-    function App(handler::Function; title="JSServe App")
+    function App(handler::Function;
+            title::AbstractString="JSServe App")
+
         session = Base.RefValue{Union{Session, Nothing}}(nothing)
         if hasmethod(handler, Tuple{Session, HTTP.Request})
-            return new(handler, session, title)
+            app = new(handler, session, title)
         elseif hasmethod(handler, Tuple{Session})
-            return new((session, request) -> handler(session), session, title)
+            app = new((session, request) -> handler(session), session, title)
         elseif hasmethod(handler, Tuple{HTTP.Request})
-            return new((session, request) -> handler(request), session, title)
+            app = new((session, request) -> handler(request), session, title)
         elseif hasmethod(handler, Tuple{})
-           return new((session, request) -> handler(), session, title)
+            app = new((session, request) -> handler(), session, title)
         else
             error("""
             Handler function must have the following signature:
@@ -252,9 +242,14 @@ struct App
                 handler(session, request) -> DOM
             """)
         end
+        finalizer(close, app)
+        return app
     end
     function App(dom_object; title="JSServe App")
-        return new((s, r) -> dom_object, Base.RefValue{Union{Session,Nothing}}(nothing), title)
+        session = Base.RefValue{Union{Session,Nothing}}(nothing)
+        app = new((s, r) -> dom_object, session, title)
+        finalizer(close, app)
+        return app
     end
 end
 

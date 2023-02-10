@@ -158,7 +158,7 @@ function inline_code(session::Session, asset_server, js::JSCode)
                 const objects = JSServe.decode_binary(bin_messages, $(session.compression_enabled));
                 const __lookup_interpolated = (id) => objects[id]
                 $code
-            }))
+            })
         """
     end
     return inline_code(session, asset_server, src)
