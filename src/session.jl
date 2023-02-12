@@ -1,7 +1,7 @@
 function show_session(io::IO, session::Session{T}) where T
     println(io, "Session{$T}:")
     println(io, "  id: $(session.id)")
-    println(io, "  parent: $(typeof(session.parent[]))")
+    println(io, "  parent: $(typeof(session.parent))")
     if !isempty(session.children)
         println(io, "children: $(length(session.children))")
     end
@@ -54,7 +54,7 @@ end
 
 session(session::Session) = session
 
-Base.parent(session::Session) = session.parent[]
+Base.parent(session::Session) = session.parent
 
 root_session(session::Session) = isnothing(parent(session)) ? session : root_session(parent(session))
 
@@ -300,7 +300,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         if html_document
             # emit a whole html document
             body_dom = DOM.div(dom, id=session.id, dataJscallId="JSServer-application-dom")
-            head = Hyperscript.m("head", Hyperscript.m("meta", charset="UTF-8"), Hyperscript.m("title", session.title[]))
+            head = Hyperscript.m("head", Hyperscript.m("meta", charset="UTF-8"), Hyperscript.m("title", session.title))
             body = Hyperscript.m("body", body_dom)
             dom = Hyperscript.m("html", head, body)
         else

@@ -74,8 +74,8 @@ end
 """
 A web session with a user
 """
-struct Session{Connection <: FrontendConnection}
-    parent::RefValue{Union{Session, Nothing}}
+mutable struct Session{Connection <: FrontendConnection}
+    parent::Union{Session, Nothing}
     children::Dict{String, Session{SubConnection}}
     id::String
     # The connection to the JS frontend.
@@ -87,7 +87,7 @@ struct Session{Connection <: FrontendConnection}
     # Code that gets evalued last after all other messages, when session gets connected
     on_document_load::Vector{JSCode}
     connection_ready::Channel{Bool}
-    on_connection_ready::Any
+    on_connection_ready::Function
     # Should be checkd on connection_ready to see if an error occured
     init_error::Ref{Union{Nothing, JSException}}
     js_comm::Observable{Union{Nothing, Dict{String, Any}}}
@@ -95,11 +95,57 @@ struct Session{Connection <: FrontendConnection}
     deregister_callbacks::Vector{Observables.ObserverFunction}
     session_objects::Dict{String, Any}
     # For rendering Hyperscript.Node, and giving them a unique id inside the session
-    dom_uuid_counter::RefValue{Int}
+    dom_uuid_counter::Int
     ignore_message::RefValue{Function}
     imports::Set{Asset}
-    title::RefValue{String}
+    title::String
     compression_enabled::Bool
+
+    function Session(
+            parent::Union{Session, Nothing},
+            children::Dict{String, Session{SubConnection}},
+            id::String,
+            connection::Connection,
+            asset_server::AbstractAssetServer,
+            message_queue::Vector{SerializedMessage},
+            on_document_load::Vector{JSCode},
+            connection_ready::Channel{Bool},
+            on_connection_ready::Function,
+            init_error::Ref{Union{Nothing, JSException}},
+            js_comm::Observable{Union{Nothing, Dict{String, Any}}},
+            on_close::Observable{Bool},
+            deregister_callbacks::Vector{Observables.ObserverFunction},
+            session_objects::Dict{String, Any},
+            dom_uuid_counter::Int,
+            ignore_message::RefValue{Function},
+            imports::Set{Asset},
+            title::String,
+            compression_enabled::Bool,
+        ) where {Connection}
+        session = new{Connection}(
+            parent,
+            children,
+            id,
+            connection,
+            asset_server,
+            message_queue,
+            on_document_load,
+            connection_ready,
+            on_connection_ready,
+            init_error,
+            js_comm,
+            on_close,
+            deregister_callbacks,
+            session_objects,
+            dom_uuid_counter,
+            ignore_message,
+            imports,
+            title,
+            compression_enabled,
+        )
+        # finalizer(close, session)
+        return session
+    end
 end
 
 struct BinaryAsset
@@ -138,7 +184,7 @@ function Session(connection=default_connection();
                 compression_enabled=default_compression())
 
     return Session(
-        Base.RefValue{Union{Nothing, Session}}(nothing),
+        nothing,
         Dict{String, Session{SubConnection}}(),
         id,
         connection,
@@ -152,22 +198,22 @@ function Session(connection=default_connection();
         on_close,
         deregister_callbacks,
         session_objects,
-        RefValue(0),
+        0,
         RefValue{Function}(x-> false),
         imports,
-        RefValue{String}(title),
-        compression_enabled
+        title,
+        compression_enabled,
     )
 end
 
 function Session(parent::Session;
             asset_server=parent.asset_server,
-            on_connection_ready=init_session, title=parent.title[])
+            on_connection_ready=init_session, title=parent.title)
 
     root = root_session(parent)
     connection = SubConnection(root)
     session = Session(connection; asset_server=asset_server, on_connection_ready, title=title)
-    session.parent[] = root
+    session.parent = root
     root.children[session.id] = session
     return session
 end
