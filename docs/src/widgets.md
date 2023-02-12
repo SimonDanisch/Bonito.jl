@@ -67,11 +67,15 @@ App() do
                     checkbox,
                     class="items-start"
                 )),
-                D.Card(table; class="w-64")),
+                D.Card(D.FlexCol(
+                    D.Card(DOM.div(vrange_slider; style="height: 200px; padding: 1px 50px")),
+                    D.Card(DOM.div(hrange_slider; style="width: 200px; padding: 50px 1px"),
+                    )),
+                )),
             D.FlexRow(
                 D.Card.([
-                    DOM.div(vrange_slider; style="height: 200px; padding: 1px 50px"),
-                    DOM.div(hrange_slider; style="width: 200px; padding: 50px 1px"),
+
+                    D.Card(table; class="w-64")
                     editor
                 ])
             ),

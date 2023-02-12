@@ -39,26 +39,6 @@ App(() -> DOM.div(...))
 App(DOM.div(...))
 ```
 
-`App` that don't use the `request` argument are considered `pure`, so they should always yield the same response when displayed/served.
-If you depend on global state, or the app is not pure in some other way you have the following options:
-
-```julia
-App(pure=false) do
-    return DOM.div(rand(10))
-end
-# Or bind a global
-global some_observable = Observable("global hello world")
-App() do session::Session
-    bound_global = bind_global(session, some_observable)
-    return DOM.div(bound_global)
-end
-```
-
-For `Observables` this is especially important, since every time you display the app, listeners will get registered to it, that will just continue staying there until your Julia process gets closed.
-`bind_global` prevents that by binding the observable to the life cycle of the session and cleaning up the state after the app isn't displayed anymore.
-For other globals, this will just make the `App` unpure and disable any optimization relying on pureness.
-If you serve the `App` via `Server`, be aware, that those globals will be shared with everyone visiting the page, so possibly by many users concurrently.
-
 The app will be displayed by e.g. the VSCode plotpane, Jupyter/Pluto or any other framework that overloads the Julia display system for HTML display.
 In the REPL or an environment without an HTML ready display, a browser should open to display it (enabled explicitly via `JSServe.browser_display()`), but one can also serve the App very easily:
 

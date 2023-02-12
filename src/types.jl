@@ -45,7 +45,6 @@ struct JSException <: Exception
     stacktrace::Vector{String}
 end
 
-
 function js_to_local_stacktrace(asset_server, matched_url)
     return matched_url
 end

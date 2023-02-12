@@ -165,6 +165,7 @@ so once it actually arrives in JS, it'd be already gone.
 export function close_session(session_id) {
     const session = SESSIONS[session_id];
     if (!session) {
+        console.error("double freeing session!")
         // when does this happen...Double close?
         return
     }
@@ -188,6 +189,7 @@ export function free_session(session_id) {
         console.log(`actually freeing session ${session_id}`);
         const session = SESSIONS[session_id];
         if (!session) {
+            console.error("double freeing session!");
             //double free?
             return
         }
