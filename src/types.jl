@@ -158,8 +158,9 @@ end
 
 struct BinaryAsset
     data::Vector{UInt8}
+    mime::String
 end
-BinaryAsset(session::Session, @nospecialize(data)) = BinaryAsset(SerializedMessage(session, data).bytes)
+BinaryAsset(session::Session, @nospecialize(data)) = BinaryAsset(SerializedMessage(session, data).bytes, "application/octet-stream")
 
 """
 Creates a Julia exception from data passed to us by the frondend!

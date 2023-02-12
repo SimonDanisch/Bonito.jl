@@ -42,7 +42,7 @@ function url(::NoServer, asset::Asset)
 end
 
 function url(::NoServer, asset::BinaryAsset)
-    return to_data_url(asset.data)
+    return to_data_url(asset.data, asset.mime)
 end
 
 abstract type AbstractAssetFolder <: AbstractAssetServer end
@@ -71,13 +71,14 @@ function url(assetfolder::AbstractAssetFolder, asset::Asset)
         return asset.online_path
     end
     path = write_to_assetfolder(assetfolder, asset)
-    return replace(normpath(relpath(path, folder(assetfolder))), "\\" => "/")
+    return "/" * replace(normpath(relpath(path, folder(assetfolder))), "\\" => "/")
 end
 
 folder(assetfolder::AssetFolder) = abspath(assetfolder.folder)
 
 function url(assetfolder::AbstractAssetFolder, asset::BinaryAsset)
-    path = joinpath(folder(assetfolder), "$(hash(asset.data)).bin")
+    file_ext = HTTPServer.mimetype_to_extension(asset.mime)
+    path = joinpath(folder(assetfolder), "$(hash(asset.data)).$(file_ext)")
     if !isfile(path)
         write(path, asset.data)
     end

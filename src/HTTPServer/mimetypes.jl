@@ -1007,6 +1007,8 @@ const known_mimetypes = Dict([
     ("curl", "text/vnd.curl")
 ])
 
+const mime2fileending = Dict((mime => fe for (fe, mime) in known_mimetypes if "svgz" != fe))
+
 extension(f) = last(splitext(f))[2:end]
 
 function file_mimetype(filepath)
@@ -1015,4 +1017,8 @@ function file_mimetype(filepath)
         extension(filepath),
         "application/octet-stream"
     )
+end
+
+function mimetype_to_extension(mime)
+    return get(mime2fileending, mime, "bin")
 end

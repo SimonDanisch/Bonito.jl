@@ -149,9 +149,9 @@ function to_data_url(source::String, mime::String)
     end
 end
 
-function to_data_url(binary::Vector{UInt8})
+function to_data_url(binary::Vector{UInt8}, mime="application/octet-stream")
     return sprint() do io
-        print(io, "data:application/octet-stream;base64,")
+        print(io, "data:$(mime);base64,")
         iob64_encode = Base64EncodePipe(io)
         write(iob64_encode, binary)
         close(iob64_encode)
