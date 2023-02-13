@@ -125,6 +125,7 @@ function Base.display(display::ElectronDisplay, app::App)
     if needs_load
         Electron().load(display.window, URI(url))
     end
+    wait_for(() -> !isnothing(app.session[]) && isready(app.session[]))
     return display
 end
 

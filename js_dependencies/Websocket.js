@@ -138,6 +138,7 @@ export function setup_connection(config) {
         websocket.onerror = function (event) {
             console.error("WebSocket error observed:");
             console.log(event);
+            console.log(tries)
             if (tries <= 10) {
                 while (session_websocket.length > 0) {
                     session_websocket.pop();

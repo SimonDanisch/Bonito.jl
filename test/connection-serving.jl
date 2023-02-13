@@ -28,3 +28,25 @@ path = joinpath(@__DIR__, "test.html")
     close(app)
 end
 rm(path; force=true)
+
+
+# Finalizers and other problems have been closing our connection unintentional,
+# So we do this little stress test:
+edisplay = JSServe.use_electron_display()
+
+@testset "GC connection test" begin
+    app = App(export_test_app)
+    for i in 1:50
+        display(edisplay, app)
+        success = JSServe.wait_for(timeout=5) do
+            result = run(edisplay.window, "$(query_testid("result")).innerText")
+            return result == "passed"
+        end
+        @test success == :success
+        GC.gc()
+    end
+    session = app.session[]
+    @test session.connection isa JSServe.SubConnection
+    @test parent(session).connection isa JSServe.WebSocketConnection
+    @test isready(parent(session))
+end

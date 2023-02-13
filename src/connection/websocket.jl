@@ -22,7 +22,7 @@ function save_read(websocket)
         if WebSockets.isok(e)
             # it's ok :shrug:
         elseif e isa Union{Base.IOError, EOFError}
-            @warn("WS connection closed because of IO error")
+            @info("WS connection closed because of IO error")
             return nothing
         else
             rethrow(e)

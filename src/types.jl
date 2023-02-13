@@ -146,12 +146,7 @@ mutable struct Session{Connection <: FrontendConnection}
             title,
             compression_enabled,
         )
-        finalizer(session) do s
-            # Closing may yield, so we need to async it
-            # Is that ok?
-            # TODO, implement free(s), which only does finalizer save things
-            @async close(s)
-        end
+        finalizer(free, session)
         return session
     end
 end

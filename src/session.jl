@@ -85,7 +85,7 @@ function Base.empty!(session::Session)
     empty!(session.deregister_callbacks)
 end
 
-function Base.close(session::Session)
+function free(session::Session)
     session.status === CLOSED && return
     # unregister all cached objects from parent session
     root = root_session(session)
@@ -99,19 +99,9 @@ function Base.close(session::Session)
                 delete_cached!(root, key)
             end
         end
-        # If parent session still open, close it on js side as well
-        if isready(root)
-            evaljs(
-                root,
-                js"""
-                JSServe.free_session($(session.id))
-            """)
-        end
     end
     # delete_cached! only deletes in the root session so we need to still empty the session_objects:
     empty!(session.session_objects)
-    close(session.connection)
-    close(session.asset_server)
     empty!(session.on_document_load)
     empty!(session.message_queue)
     empty!(session.session_objects)
@@ -119,6 +109,21 @@ function Base.close(session::Session)
     foreach(off, session.deregister_callbacks)
     empty!(session.deregister_callbacks)
     session.status = CLOSED
+    return
+end
+
+
+function Base.close(session::Session)
+    free(session)
+    # unregister all cached objects from parent session
+    root = root_session(session)
+    # If we're a child session, we need to remove all objects tracked in our root session:
+    # If parent session still open, close it on js side as well
+    if session !== root && isready(root)
+        evaljs(root, js"""JSServe.free_session($(session.id))""")
+    end
+    close(session.connection)
+    close(session.asset_server)
     return
 end
 

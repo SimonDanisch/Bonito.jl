@@ -68,6 +68,6 @@ function HTTPServer.apply_handler(app::App, context)
 end
 
 function Base.close(app::App)
-    !isnothing(app.session[]) && close(app.session[])
+    !isnothing(app.session[]) && free(app.session[])
     app.session[] = nothing
 end
