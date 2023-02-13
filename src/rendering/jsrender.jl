@@ -12,7 +12,7 @@ jsrender(::Nothing) = DOM.span()
 jsrender(@nospecialize(x)) = x
 
 function render_mime(session::Session, m::MIME"text/html", @nospecialize(value))
-    html = invokelatest(repr, m, value)
+    html = Base.invokelatest(repr, m, value)
     return HTML(html)
 end
 
@@ -24,7 +24,7 @@ function render_mime(session::Session, m::Union{MIME"image/png", MIME"image/jpeg
 end
 
 function render_mime(session::Session, m::MIME"text/plain", @nospecialize(value))
-    return DOM.p(invokelatest(repr, m, value))
+    return DOM.p(Base.invokelatest(repr, m, value))
 end
 
 function jsrender(session::Session, @nospecialize(value))
