@@ -95,7 +95,6 @@ function has_html_display()
     return false
 end
 
-
 # Poor mans Require.jl for Electron
 const ELECTRON_PKG_ID = Base.PkgId(Base.UUID("a1bb12fb-d4d1-54b4-b10a-ee7951ef7ad3"), "Electron")
 function Electron()
