@@ -3,10 +3,22 @@ mutable struct HTTPAssetServer <: AbstractAssetServer
     server::Server
 end
 
+const MATCH_HEX = r"[\da-f]"
+const ASSET_ROUTE_REGEX = r"assets-(?:\d+){20}"
+const UNIQUE_FILE_KEY_REGEX = MATCH_HEX^40 * r"-.*"
+const ASSET_URL_REGEX = "/" * ASSET_ROUTE_REGEX * "/" * UNIQUE_FILE_KEY_REGEX
+const WHOLE_URL_REGEX = r"http://.*" * ASSET_URL_REGEX
+
+server_key(server::HTTPAssetServer) = "/assets-$(hash(server))/"
+route_key(server::HTTPAssetServer) = server_key(server) * UNIQUE_FILE_KEY_REGEX
+
 HTTPAssetServer() = HTTPAssetServer(get_server())
 HTTPAssetServer(server::Server) = HTTPAssetServer(Dict{String, Any}(), server)
 
+Base.similar(s::HTTPAssetServer) = HTTPAssetServer(s.server)
+
 function Base.close(server::HTTPAssetServer)
+    HTTPServer.delete_route!(server.server, route_key(server))
     empty!(server.registered_files)
 end
 
@@ -14,22 +26,20 @@ function url(server::HTTPAssetServer, asset::Asset)
     file = local_path(asset)
     isempty(file) && return asset.online_path
     target = normpath(abspath(expanduser(file)))
-    key = "/assetserver/" * unique_file_key(target)
+    key = server_key(server) * unique_file_key(target)
     get!(()-> target, server.registered_files, key)
     return JSServe.HTTPServer.online_url(server.server, key)
 end
 
 function url(server::HTTPAssetServer, asset::BinaryAsset)
-    key = unique_file_key(string(hash(asset.data)))
-    filename = "/assetserver/$(key).bin"
-    get!(() -> asset, server.registered_files, filename)
-    return JSServe.HTTPServer.online_url(server.server, filename)
+    filename = unique_file_key(asset)
+    key = server_key(server) * filename
+    get!(() -> asset, server.registered_files, key)
+    return JSServe.HTTPServer.online_url(server.server, key)
 end
 
-const ASSET_URL_REGEX = r"http://.*/assetserver/([a-z0-9]+-.*?):([\d]+):[\d]+"
 
 function js_to_local_url(server::HTTPAssetServer, url::AbstractString)
-    key_regex = r"(/assetserver/[a-z0-9]+-.*?):([\d]+):[\d]+"
     m = match(key_regex, url)
     key = m[1]
     path = server.registered_files[string(key)]
@@ -63,9 +73,7 @@ function (server::HTTPAssetServer)(context)
     return HTTP.Response(404)
 end
 
-const MATCH_HEX = r"[\da-f]"
-
-function setup_asset_server(asset_server::HTTPAssetServer)
-    HTTPServer.route!(asset_server.server, r"/assetserver/" * MATCH_HEX^40 * r"-.*" => asset_server)
+function setup_asset_server(server::HTTPAssetServer)
+    HTTPServer.route!(server.server, route_key(server) => server)
     return
 end

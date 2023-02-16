@@ -28,16 +28,10 @@ end
 """
 App
 
-function update_app!(old_app::App, new_app::App)
-    if isnothing(old_app.session[])
-        error("Old app has to be displayed first, to actually update it")
-    end
-    old_session = old_app.session[]
-    parent = root_session(old_session)
-    update_session_dom!(parent, "JSServe-application-dom", new_app)
-    if old_session.connection isa SubConnection
-        close(old_session)
-    end
+function update_app!(parent::Session, new_app::App)
+    root = root_session(parent)
+    @assert root === parent "never call this function with a subsession"
+    update_session_dom!(parent, "subsession-application-dom", new_app)
 end
 
 function rendered_dom(session::Session, app::App, target=HTTP.Request())
@@ -70,4 +64,62 @@ end
 function Base.close(app::App)
     !isnothing(app.session[]) && free(app.session[])
     app.session[] = nothing
+end
+
+mutable struct DisplayHandler
+    session::Session
+    server::HTTPServer.Server
+    route::String
+    current_app::App
+end
+
+function HTTPSession(server::HTTPServer.Server)
+    asset_server = HTTPAssetServer(server)
+    connection = WebSocketConnection(server)
+    return Session(connection; asset_server=asset_server)
+end
+
+function DisplayHandler(server::HTTPServer.Server, app::App; route="/browser-display")
+    session = HTTPSession(server)
+    handler = DisplayHandler(session, server, route, app)
+    route!(server, route => handler)
+    return handler
+end
+
+function update_app!(handler::DisplayHandler, app::App)
+    # the connection is open, so we can just use it to update the dom!
+    if isready(handler.session)
+        update_app!(handler.session, app)
+        return false
+    else
+        # Need to wait for someone to actually visit http://.../browser-display
+        handler.current_app = app
+        return true # needs loading!
+    end
+end
+
+function HTTPServer.apply_handler(handler::DisplayHandler, context)
+    # we only allow one open tab/browser to show the browser display
+    # Multiple sessions wouldn't be too hard, but that means we'd need manage multiple right here
+    # And this is already complicated enough!
+    # so, if we serve the display handler url, it means to start fresh
+    # But if UNINITIALIZED, it's simply the first request to the page!
+    if handler.session.status != UNINITIALIZED
+        close(handler.session)
+        handler.session = HTTPSession(handler.server) # new session
+    end
+    parent = handler.session
+    empty_app = App(nothing)
+    sub = Session(parent)
+    init_dom = session_dom(parent, empty_app)
+    sub_dom = session_dom(sub, handler.current_app)
+    # first time rendering in a subsession, we combine init of parent session
+    # with the dom we're rendering right now
+    dom = DOM.div(init_dom, sub_dom)
+    html_str = sprint() do io
+        println(io, "<!doctype html>")
+        # use Hyperscript directly to avoid the additional JSServe attributes
+        show(io, MIME"text/html"(), Hyperscript.Pretty(dom))
+    end
+    return html(html_str)
 end

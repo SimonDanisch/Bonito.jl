@@ -1,6 +1,5 @@
 # using JSServe, Markdown
 
-# JSServe.browser_display()
 function test_handler(session, req)
     global test_observable
     test_observable = Observable(Dict{String, Any}())
@@ -151,18 +150,16 @@ function test_current_session(app)
     end
 end
 
-global test_session = nothing
 global dom = nothing
 inline_display = JSServe.App() do session, req
-    global test_session = session
     global dom = test_handler(session, req)
     return dom
 end;
 JSServe.CURRENT_SESSION[] = nothing
 disp = JSServe.use_electron_display()
-display(inline_display);
+display(disp, inline_display);
 app = TestSession(URI("http://localhost:8555/show"),
-    JSServe.GLOBAL_SERVER[], disp.window, test_session)
+    JSServe.GLOBAL_SERVER[], disp.window, inline_display.session[])
 app.dom = dom;
 app.initialized = false
 wait(app)

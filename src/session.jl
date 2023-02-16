@@ -56,9 +56,7 @@ function init_session(session::Session)
 end
 
 session(session::Session) = session
-
 Base.parent(session::Session) = session.parent
-
 root_session(session::Session) = isnothing(parent(session)) ? session : root_session(parent(session))
 
 function get_session(session::Session, id::String)
@@ -75,19 +73,9 @@ function get_session(session::Session, id::String)
     return nothing
 end
 
-function Base.empty!(session::Session)
-    root = root_session(session)
-    for key in keys(session.session_objects)
-        delete_cached!(root, key)
-    end
-    # remove all listeners that where created for this session
-    foreach(off, session.deregister_callbacks)
-    empty!(session.deregister_callbacks)
-end
-
 function free(session::Session)
     session.status === CLOSED && return
-    # unregister all cached objects from parent session
+    # unregister all cached objects from root session
     root = root_session(session)
     # If we're a child session, we need to remove all objects trackt in our root session:
     if session !== root
@@ -104,7 +92,6 @@ function free(session::Session)
     empty!(session.session_objects)
     empty!(session.on_document_load)
     empty!(session.message_queue)
-    empty!(session.session_objects)
     # remove all listeners that where created for this session
     foreach(off, session.deregister_callbacks)
     empty!(session.deregister_callbacks)
@@ -112,8 +99,10 @@ function free(session::Session)
     return
 end
 
-
 function Base.close(session::Session)
+    while !isempty(session.children)
+        close(last(first(session.children))) # child removes itself from parent!
+    end
     free(session)
     # unregister all cached objects from parent session
     root = root_session(session)
@@ -124,6 +113,8 @@ function Base.close(session::Session)
     end
     close(session.connection)
     close(session.asset_server)
+    session.on_close[] = true
+    Observables.clear(session.on_close)
     return
 end
 
@@ -280,7 +271,9 @@ function session_dom(session::Session, app::App; init=true, html_document=false)
     return session_dom(session, dom; init=init, html_document=html_document)
 end
 
-function session_dom(session::Session, dom::Node; init=true, html_document=false)
+isroot(session::Session) = session.parent === nothing
+
+function session_dom(session::Session, dom::Node; init=true, html_document=false, dom_id=isroot(session) ? "root" : "subsession-application-dom")
     # the dom we can render may be anything between a
     # dom fragment or a full page with head & body etc.
     # If we have a head & body, we want to append our initialization
@@ -291,13 +284,13 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     if isnothing(head) && isnothing(body)
         if html_document
             # emit a whole html document
-            body_dom = DOM.div(dom, id=session.id, dataJscallId="JSServe-application-dom")
+            body_dom = DOM.div(dom, id=session.id, dataJscallId=dom_id)
             head = Hyperscript.m("head", Hyperscript.m("meta", charset="UTF-8"), Hyperscript.m("title", session.title))
             body = Hyperscript.m("body", body_dom)
             dom = Hyperscript.m("html", head, body)
         else
             # Emit a "fragment"
-            application = DOM.div(dom, id=session.id, dataJscallId="JSServe-application-dom")
+            application = DOM.div(dom, id=session.id, dataJscallId=dom_id)
             head = DOM.div(application)
             dom = head
             body = dom
@@ -342,55 +335,38 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     return dom
 end
 
-function render_subsession(p::Session, data)
-    return render_subsession(p, DOM.span(data))
+function render_subsession(p::Session, data; init=false)
+    return render_subsession(p, App(DOM.span(data)); init=init)
 end
 
-render_subsession(p::Session, data::Union{AbstractString, Number}) = (p, DOM.span(string(data)))
-
-function render_subsession(parent::Session, app::App)
+function render_subsession(parent::Session, app::App; init=false)
     sub = Session(parent)
-    return sub, session_dom(sub, app; init=false)
+    return sub, session_dom(sub, app; init=init)
 end
 
-function render_subsession(parent::Session, dom::Node)
+function render_subsession(parent::Session, dom::Node; init=false)
     sub = Session(parent)
     dom_rendered = jsrender(sub, dom)
-    return sub, session_dom(sub, dom_rendered; init=false)
+    return sub, session_dom(sub, dom_rendered; init=init)
 end
 
-function update_session_dom!(parent::Session, node_to_update::Union{String, Node}, app_or_dom; replace=true)
-    sub, html = render_subsession(parent, app_or_dom)
-    # Or we have a node
-    id = node_to_update isa String ? node_to_update : uuid(parent, node_to_update)
-    str = "[data-jscall-id=$(repr(id))]"
-    query_selector = Dict("query_selector" => str)
-
-    if sub === parent # String/Number
-        # wrap into observable, so that the whole node gets transfered
-        obs = Observable(html)
-        evaljs(parent, js"""
-            JSServe.Sessions.on_node_available($query_selector, 1).then(dom => {
-                const html = $(obs).value
-                JSServe.update_or_replace(dom, html, $replace)
-            })
-        """)
-    else
-        # We need to manually do the serialization,
-        # Since we send it via the parent, but serialization needs to happen
-        # for `sub`.
-        # sub is not open yet, and only opens if we send the below message for initialization
-        # which is why we need to send it via the parent session
-        UpdateSession = "12" # msg type
-        session_update = Dict(
-            "msg_type" => UpdateSession,
-            "session_id" => sub.id,
-            "messages" => fused_messages!(sub),
-            "html" => html,
-            "replace" => replace,
-            "dom_node_selector" => query_selector
-        )
-        message = SerializedMessage(sub, session_update)
-        send(parent, message)
-    end
+function update_session_dom!(parent::Session, node_uuid::String, app_or_dom; replace=true)
+    sub, html = render_subsession(parent, app_or_dom; init=false)
+    # We need to manually do the serialization,
+    # Since we send it via the parent, but serialization needs to happen
+    # for `sub`.
+    # sub is not open yet, and only opens if we send the below message for initialization
+    # which is why we need to send it via the parent session
+    UpdateSession = "12" # msg type
+    session_update = Dict(
+        "msg_type" => UpdateSession,
+        "session_id" => sub.id,
+        "messages" => fused_messages!(sub),
+        "html" => html,
+        "replace" => replace,
+        "dom_node_selector" => node_uuid
+    )
+    message = SerializedMessage(sub, session_update)
+    send(root_session(parent), message)
+    return sub
 end

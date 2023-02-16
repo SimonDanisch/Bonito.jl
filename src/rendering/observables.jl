@@ -66,10 +66,24 @@ end
 
 function jsrender(session::Session, obs::Observable)
     root_node = DOM.span()
+    old_sub, html = render_subsession(session, obs[]; init=true)
     on(session, obs) do data
-        update_session_dom!(root_session(session), root_node, data; replace=false)
+        new_sub = update_session_dom!(session, uuid(session, root_node), data; replace=false)
+        if new_sub !== old_sub
+            close(old_sub)
+            old_sub = new_sub
+        end
+        return
     end
-    sub, html = render_subsession(session, obs[])
     push!(children(root_node), html)
     return jsrender(session, root_node)
+end
+
+# Fast path for simple types
+function jsrender(session::Session, obs::Observable{T}) where {T <: Union{Number, String, Symbol}}
+    root_node = DOM.span(string(obs[]))
+    onjs(session, obs, js"""(val)=> {
+        $(root_node).innerText = val
+    }""")
+    return root_node
 end

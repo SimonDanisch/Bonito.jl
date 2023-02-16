@@ -56,6 +56,7 @@ function Page(;
     return
 end
 
+
 function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
     if !isnothing(CURRENT_SESSION[])
         # We render in a subsession

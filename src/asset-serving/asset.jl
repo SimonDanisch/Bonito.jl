@@ -17,6 +17,12 @@ function unique_key(asset::Asset)
     end
 end
 
+function unique_file_key(asset::BinaryAsset)
+    key = unique_file_key(string(hash(asset.data)))
+    ext = HTTPServer.mimetype_to_extension(asset.mime)
+    return "$key.$ext"
+end
+
 url(session::Session, asset::Union{BinaryAsset, Asset}) = url(session.asset_server, asset)
 function url(::Nothing, asset::Asset)
     # Allow to use nothing for specifying an online url

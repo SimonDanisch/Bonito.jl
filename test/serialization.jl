@@ -46,7 +46,6 @@ end
 
     @testset "round tripping arrays in JS" begin
         handler(args...) = DOM.div()
-
         testsession(handler, port=8558) do app
             roundtripped_js = evaljs(app, js"""$data""")
 

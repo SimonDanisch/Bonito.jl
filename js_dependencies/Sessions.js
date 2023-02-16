@@ -1,5 +1,5 @@
 import { Retain, decode_binary } from "./Protocol.js";
-import { FusedMessage, Lock } from "./Connection.js";
+import { Lock } from "./Connection.js";
 
 import {
     send_close_session,
@@ -200,15 +200,10 @@ export function free_session(session_id) {
     });
 }
 
-export function on_node_available(query_selector, timeout) {
+export function on_node_available(node_id, timeout) {
     return new Promise((resolve) => {
         function test_node(timeout) {
-            let node;
-            if (query_selector.by_id) {
-                node = document.getElementById(query_selector.by_id);
-            } else {
-                node = document.querySelector(query_selector.query_selector);
-            }
+            const node = document.querySelector(`[data-jscall-id='${node_id}']`);
             if (node) {
                 resolve(node);
             } else {
@@ -238,6 +233,7 @@ export function update_session_dom(message) {
         try {
             update_or_replace(dom, html, replace);
             process_message(messages);
+            console.log(`init updates from ${session_id}`)
             done_initializing_session(session_id);
         } catch (error) {
             send_done_loading(session_id, error);

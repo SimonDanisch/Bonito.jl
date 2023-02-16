@@ -5,9 +5,9 @@ using HTTP.WebSockets
 
 mutable struct WebSocketConnection <: FrontendConnection
     server::Server
-    socket::Union{Nothing, WebSocket}
+    socket::Union{Nothing,WebSocket}
     lock::ReentrantLock
-    session::Union{Nothing, Session}
+    session::Union{Nothing,Session}
 end
 
 WebSocketConnection(proxy_callback::Function) = WebSocketConnection(get_server(proxy_callback))

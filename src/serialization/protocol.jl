@@ -9,6 +9,7 @@ const JSDoneLoading = "8"
 const FusedMessage = "9"
 const CloseSession = "10"
 const PingPong = "11"
+const UpdateSession = "12"
 
 """
     process_message(session::Session, bytes::AbstractVector{UInt8})

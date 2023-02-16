@@ -3,15 +3,18 @@ using JSServe: URI
 mutable struct BrowserDisplay <: Base.Multimedia.AbstractDisplay
     server::Union{Nothing, Server}
     open_browser::Bool
+    handler::Any
 end
 
-BrowserDisplay(; open_browser=true) = BrowserDisplay(nothing, open_browser)
+BrowserDisplay(; open_browser=true) = BrowserDisplay(nothing, open_browser, nothing)
 
-function server(bd::BrowserDisplay)
-    if isnothing(bd.server)
-        bd.server = get_server()
+function server(display::BrowserDisplay)
+    if isnothing(display.server)
+        display.server = get_server()
     end
-    return bd.server
+    server = display.server
+    start(server) # no-op if already running, makes sure server wasn't closed
+    return server
 end
 
 """
@@ -60,28 +63,29 @@ function openurl(url::String)
     tryrun(`python3 -mwebbrowser $(url)`) && return
     @warn("Can't find a way to open a browser, open $(url) manually!")
 end
+
 using ..JSServe: wait_for_ready, wait_for
+using ..JSServe
 
 function Base.display(display::BrowserDisplay, app::App)
-    _server = server(display)
-    session_url = "/browser-display"
-    old_app = route!(_server, Pair{Any,Any}(session_url, app))
-    if isnothing(old_app) || isnothing(old_app.session[]) || !isready(old_app.session[])
-        if !isnothing(old_app) && !isnothing(old_app.session[]) # Not ready!
-            close(old_app.session[])
-            old_app.session[] = nothing
-        end
+    s = server(display)
+    if isnothing(display.handler)
+        display.handler = JSServe.DisplayHandler(s, app)
+    end
+    handler = display.handler
+    needs_load = update_app!(handler, app)
+    # Wait for app to be initialized and fully rendered
+    wait() = wait_for(() -> !isnothing(app.session[]) && isready(app.session[]))
+    if needs_load
         if display.open_browser
-            openurl(online_url(_server, session_url))
-            wait_for(()-> !isnothing(app.session[]) && isready(app.session[]))
+            openurl(online_url(handler.server, handler.route))
+            wait() # if not open_browser, we need to let the caller wait!
         end
         return true
     else
-        update_app!(old_app, app)
-        wait_for_ready(app.session[])
+        wait()
         return false
     end
-    return
 end
 
 online_url(display::BrowserDisplay) = online_url(server(display), "/browser-display")

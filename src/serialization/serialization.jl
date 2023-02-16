@@ -21,7 +21,6 @@ end
 
 serialize_binary(session::Session, data) = SerializedMessage(session, data).bytes
 
-
 function deserialize_binary(bytes::AbstractVector{UInt8})
     # message_msgpacked = transcode(GzipDecompressor, bytes)
     # return MsgPack.unpack(message_msgpacked)

@@ -4,6 +4,7 @@ Interpolating the same asset many times, will only upload the file to JS one tim
 """
 struct NoServer <: AbstractAssetServer
 end
+Base.similar(asset::NoServer) = asset # no copy needed
 
 function import_in_js(io::IO, session::Session, ns::NoServer, asset::Asset)
     import_key = "JSServe_IMPORTS['$(unique_key(asset))']"
@@ -50,6 +51,7 @@ abstract type AbstractAssetFolder <: AbstractAssetServer end
 struct AssetFolder <: AbstractAssetFolder
     folder::String
 end
+Base.similar(asset::AssetFolder) = asset # no copy needed
 
 setup_asset_server(::AbstractAssetFolder) = nothing
 
@@ -77,8 +79,8 @@ end
 folder(assetfolder::AssetFolder) = abspath(assetfolder.folder)
 
 function url(assetfolder::AbstractAssetFolder, asset::BinaryAsset)
-    file_ext = HTTPServer.mimetype_to_extension(asset.mime)
-    path = joinpath(folder(assetfolder), "$(hash(asset.data)).$(file_ext)")
+    fname = unique_file_key(asset)
+    path = joinpath(folder(assetfolder), fname)
     if !isfile(path)
         write(path, asset.data)
     end
@@ -88,6 +90,7 @@ end
 struct DocumenterAssets <: AbstractAssetFolder
     folder::RefValue{String}
 end
+Base.similar(asset::DocumenterAssets) = asset # no copy needed
 
 folder(assetfolder::DocumenterAssets) = abspath(assetfolder.folder[])
 
