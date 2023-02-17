@@ -48,6 +48,8 @@ function test_value(app, statement)
     fetch(val_t) # fetch the value!
 end
 
+edisplay = JSServe.use_electron_display()
+
 @testset "JSServe" begin
     @testset "subsessions" begin; include("subsessions.jl"); end
     @testset "connection-serving" begin; include("connection-serving.jl"); end

@@ -32,8 +32,6 @@ rm(path; force=true)
 
 # Finalizers and other problems have been closing our connection unintentional,
 # So we do this little stress test:
-edisplay = JSServe.use_electron_display()
-
 @testset "GC connection test" begin
     app = App(export_test_app)
     for i in 1:50

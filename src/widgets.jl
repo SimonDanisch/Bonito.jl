@@ -25,8 +25,8 @@ function jsrender(session::Session, ni::NumberInput)
         value = ni.value,
         onchange=js"event => {
             const new_value = parseFloat(event.srcElement.value);
-            if (obs.value != new_value) {
-                obs.notify(new_value);
+            if ($(ni.value).value != new_value) {
+                $(ni.value).notify(new_value);
             }
         }";
         ni.attributes...

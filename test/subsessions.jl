@@ -6,7 +6,7 @@
         global session = s
         return DOM.div(dom_obs1)
     end
-    display(app)
+    display(edisplay, app)
     @test app.session[] == session
     @test length(session.children) == 1
     @test JSServe.wait_for(()-> global_obs.value[] == "hello") == :success

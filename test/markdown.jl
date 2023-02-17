@@ -156,10 +156,9 @@ inline_display = JSServe.App() do session, req
     return dom
 end;
 JSServe.CURRENT_SESSION[] = nothing
-disp = JSServe.use_electron_display()
-display(disp, inline_display);
+display(edisplay, inline_display);
 app = TestSession(URI("http://localhost:8555/show"),
-    JSServe.GLOBAL_SERVER[], disp.window, inline_display.session[])
+    JSServe.GLOBAL_SERVER[], edisplay.window, inline_display.session[])
 app.dom = dom;
 app.initialized = false
 wait(app)
