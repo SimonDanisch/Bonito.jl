@@ -33,15 +33,15 @@ function jsrender(session::Session, ni::NumberInput)
     ))
 end
 
-struct Slider <: WidgetsBase.AbstractWidget{Any}
-    values::Observable{Vector{Any}}
-    value::Observable{Any}
+struct Slider{T} <: WidgetsBase.AbstractWidget{T}
+    values::Observable{Vector{T}}
+    value::Observable{T}
     index::Observable{Int}
     attributes::Dict{Symbol, Any}
 end
 
-function Slider(values; value=first(values), kw...)
-    values_obs = convert(Observable{Vector{Any}}, values)
+function Slider(values::AbstractArray{T}; value=first(values), kw...) where {T}
+    values_obs = convert(Observable{Vector{T}}, values)
     initial_idx = findfirst((==)(value), values_obs[])
     index = Observable(initial_idx)
     value_obs = map(getindex, values_obs, index)
@@ -61,7 +61,7 @@ function jsrender(session::Session, slider::Slider)
         type = "range",
         min = 1,
         max=map(length, values),
-        value = index[],
+        value = index,
         step = 1,
         oninput = js"""(event)=> {
             $(index).notify(parseInt(event.srcElement.value))
@@ -73,21 +73,14 @@ end
 function Base.setindex!(slider::Slider, value)
     # should be only numbers right now, which should also be sorted
     # This may change once we allow `Slider(array)` in WidgetsBase
-    values = get!(slider.attributes, :value_array) do
-        map(collect, slider.range)
-    end
+    values = slider.values
     idx = findfirst(x-> x >= value, values[])
 
     if isnothing(idx)
         @warn("Value $(value) out of range for the values of slider (highest value: $(last(values[]))). Setting to highest value!")
         idx = length(values[])
     end
-
-    index = get!(slider.attributes, :index_observable) do
-        return Observable(idx)
-    end
-    index[] = idx
-    slider.value[] = values[][idx] # for offline connection
+    slider.index[] = idx
     return idx
 end
 

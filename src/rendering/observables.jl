@@ -82,7 +82,7 @@ end
 # Fast path for simple types
 function jsrender(session::Session, obs::Observable{T}) where {T <: Union{Number, String, Symbol}}
     root_node = DOM.span(string(obs[]))
-    onjs(session, obs, js"""(val)=> {
+    onjs(session, map(string, session, obs), js"""(val)=> {
         $(root_node).innerText = val
     }""")
     return root_node

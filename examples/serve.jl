@@ -9,7 +9,7 @@ app = App() do session::Session
     b = Button("hi")
     t = TextField("enter your text")
     on(println, s1.value)
-    linkjs(session, s1.value, s2.value)
+    linkjs(session, s1.index, s2.index)
     test = [1,2,3]
     onjs(session, s1.value, js"(v)=> console.log($test)")
     on(t) do text

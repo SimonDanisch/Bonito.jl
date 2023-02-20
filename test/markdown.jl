@@ -6,7 +6,7 @@ function test_handler(session, req)
     test_session = session
 
     global s1 = JSServe.Slider(1:100)
-    s2 = JSServe.Slider(1:100)
+    global s2 = JSServe.Slider(1:100)
     b = JSServe.Button("hi"; dataTestId="hi_button")
 
     clicks = Observable(0)
@@ -16,7 +16,7 @@ function test_handler(session, req)
     clicks_div = DOM.div(clicks, dataTestId="button_clicks")
     t = JSServe.TextField("Write!")
 
-    linkjs(session, s1.value, s2.value)
+    linkjs(session, s1.index, s2.index)
 
     onjs(session, s1.value, js"""function (v){
         $(test_observable).notify({onjs: v});
@@ -35,8 +35,6 @@ function test_handler(session, req)
 
     number_input = JSServe.NumberInput(66.0)
     number_result = DOM.div(number_input.value, dataTestId="number_result")
-
-
     linked_value = DOM.div(s2.value, dataTestId="linked_value")
 
     dom = md"""
