@@ -52,4 +52,11 @@ class Observable {
     }
 }
 
+export function onany(observables, f) {
+    const callback = (x)=> f(observables.map(x=> x.value))
+    observables.forEach(obs => {
+        obs.on(callback);
+    })
+}
+
 export { Observable };

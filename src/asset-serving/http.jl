@@ -38,9 +38,8 @@ function url(server::HTTPAssetServer, asset::BinaryAsset)
     return JSServe.HTTPServer.online_url(server.server, key)
 end
 
-
 function js_to_local_url(server::HTTPAssetServer, url::AbstractString)
-    m = match(key_regex, url)
+    m = match(ASSET_URL_REGEX, url)
     key = m[1]
     path = server.registered_files[string(key)]
     return path * ":" * m[2]

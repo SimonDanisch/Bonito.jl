@@ -13,6 +13,7 @@ makedocs(
         "Home" => "index.md",
         "Plotting" => "plotting.md",
         "Widgets" => "widgets.md",
+        "Animation" => "animation.md",
         "Deployment" => "deployment.md",
         "Assets" => "assets.md",
         "Extending" => "extending.md",

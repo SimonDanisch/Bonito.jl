@@ -13,63 +13,67 @@ function extract_widgets(dom_root)
     return result
 end
 
-struct Dependant <: WidgetsBase.AbstractWidget{Any}
-    value
-end
-# Implement interface for dependant
-jsrender(session::Session, x::Dependant) = jsrender(session, x.value)
-is_independant(x::Dependant) = false
-is_widget(::Dependant) = true
-value_range(x::Dependant) = value_range(x.value)
-update_value!(x::Dependant, value) = update_value!(x.value, value)
+to_watch(x) = observe(x)
 
 # Implement interface for slider!
 is_widget(::Slider) = true
-value_range(slider::Slider) = 1:length(slider.range[])
-update_value!(slider::Slider, idx) = (slider[] = slider.range[][idx])
-to_watch(slider::Slider) = slider.attributes[:index_observable].id
-to_watch(x) = observe(x).id
+value_range(slider::Slider) = 1:length(slider.values[])
+to_watch(slider::Slider) = slider.index
 
 # Implement interface for Dropdown
 
 is_widget(::Dropdown) = true
 value_range(d::Dropdown) = 1:length(d.options[])
-update_value!(d::Dropdown, value) = (d.option_index[] = value)
-to_watch(d::Dropdown) = d.option_index.id
+to_watch(d::Dropdown) = d.option_index
 
-function record_values(f, session, widget)
-    wid = to_watch(widget)
-    root = root_session(session)
-    function ignore_message(msg)
-        if msg[:msg_type] == UpdateObservable
-            # Ignore all messages that directly update the observable we watch
-            # because otherwise, that will trigger itself recursively, once those messages are applied
-            # via `$(wid).on(x=> ....)`
-            msg[:id] == wid && return true
-        end
-        return false
-    end
-    function do_session(f)
-        # if we're recording for a subsession, we need to apply the operations to both sessions
-        session !== root && f(root)
-        f(session)
-    end
+is_widget(::Checkbox) = true
+value_range(::Checkbox) = [true, false]
+to_watch(d::Checkbox) = d.value
 
-    do_session() do s
-        s.ignore_message[] = ignore_message
+function do_session(f, session)
+    s = session
+    while s.parent != nothing
+        f(s)
+        s = s.parent
     end
+    f(s)
+    # if we're recording for a subsession, we need to apply the operations to both sessions
+    for (id, c) in session.children
+        f(c)
+    end
+end
 
+struct IgnoreObsUpdates2 <: Function
+    widget_ids::Set{String}
+end
+
+function (ignore::IgnoreObsUpdates2)(msg)
+    if msg[:msg_type] == UpdateObservable
+        # Ignore all messages that directly update the observable we watch
+        # because otherwise, that will trigger itself recursively, once those messages are applied
+        # via `$(wid).on(x=> ....)`
+        msg[:id] in ignore.widget_ids && return true
+    end
+    return false
+end
+
+function record_values(f, session, widget_ids)
+    ignore = IgnoreObsUpdates2(widget_ids)
+    do_session(session) do s
+        s.ignore_message[] = ignore
+        empty!(s.message_queue)
+    end
     try
         f()
         messages = SerializedMessage[]
-        do_session() do s
+        do_session(session) do s
             append!(messages, s.message_queue)
         end
-        return Dict("msg_type" => FusedMessage, "payload" => messages)
+        return messages
     catch e
         Base.showerror(stderr, e)
     finally
-        do_session() do s
+        do_session(session) do s
             s.ignore_message[] = (msg)-> false
             empty!(s.message_queue) # remove all recorded messages
         end
@@ -91,39 +95,51 @@ function record_states(session::Session, dom::Hyperscript.Node)
     # we need to serialize the message so that all observables etc are registered
     # TODO, this is a bit of a bad design, since we mixed serialization with session resource registration
     # Which makes sense in most parts, but breaks together, e.g. here
-    msg_serialized = SerializedMessage(session, fused_messages!(session))
-    independent = filter(is_independant, widgets)
-
-    independent_states = Dict{String, Any}()
+    session_states = Dict{String, SerializedMessage}()
+    do_session(session) do s
+        session_states[s.id] = SerializedMessage(s, fused_messages!(s))
+    end
+    all_states = Iterators.product(value_range.(widgets)...)
+    statemap = Dict{String, Vector{SerializedMessage}}()
+    widget_observables = to_watch.(widgets)
+    widget_id_set = Set([obs.id for obs in widget_observables])
     while_disconnected(session) do
-        for widget in independent
-            state = Dict{Any, Dict{String, Any}}()
-            for value in value_range(widget)
-                state[value] = record_values(session, widget) do
-                    update_value!(widget, value)
-                end
+        for state_array in all_states
+            key = join(state_array, ",") # js joins all elements in an array as a dict key -.-
+            # TODO, somehow we must set + reset the observables before recording...
+            # Makes sense, to bring them to the correct state first, but we should be able to do this more efficiently
+            for (state, obs) in zip(state_array, widget_observables)
+                obs[] = state
             end
-            independent_states[to_watch(widget)] = state
+            statemap[key] = record_values(session, widget_id_set) do
+                foreach(notify, widget_observables)
+            end
         end
     end
 
-    push!(session.message_queue, msg_serialized)
-    observable_ids = to_watch.(independent)
-
+    do_session(session) do s
+        if haskey(session_states, s.id)
+            push!(s.message_queue, session_states[s.id])
+        end
+    end
+    asset = BinaryAsset(session, widget_observables)
     statemap_script = js"""
-        const statemap = $(independent_states)
-        const observables = $(observable_ids)
-        observables.forEach(id => {
-            JSServe.lookup_global_object(id).on((val) => {
-                // messages to send for this state of that observable
-                const messages = statemap[id][val]
-                // not all states trigger events
-                // so some states won't have any messages recorded
-                if (messages){
-                    JSServe.process_message(messages)
-                }
-            })
+    $(asset).then(binary => {
+        const statemap = $(statemap)
+        console.log(statemap)
+        const observables = JSServe.decode_binary(binary, $(session.compression_enabled));
+        JSServe.onany(observables, (states) => {
+            console.log(states)
+            // messages to send for this state of that observable
+            const messages = statemap[states]
+            console.log(messages)
+            // not all states trigger events
+            // so some states won't have any messages recorded
+            if (messages){
+                messages.forEach(JSServe.process_message)
+            }
         })
+    })
     """
     evaljs(session, statemap_script)
     return rendered

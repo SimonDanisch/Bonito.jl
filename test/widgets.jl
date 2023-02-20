@@ -42,10 +42,10 @@ function dropdown_handler(session, request)
     global dropdown1 = JSServe.Dropdown(["a", "b", "c"])
     dropdown2 = JSServe.Dropdown(["a2", "b2", "c2"]; index=2)
 
-    on(dropdown1.option) do value
+    on(dropdown1.value) do value
         test_observable[] = Dict{String,Any}("dropdown1" => value)
     end
-    on(dropdown2.option) do value
+    on(dropdown2.value) do value
         test_observable[] = Dict{String,Any}("dropdown2" => value)
     end
 
@@ -53,8 +53,8 @@ function dropdown_handler(session, request)
 end
 
 testsession(dropdown_handler, port=8558) do app
-    checkbox1_jl = children(app.dom)[1]
-    checkbox2_jl = children(app.dom)[2]
+    dropdown1_jl = children(app.dom)[1]
+    dropdown2_jl = children(app.dom)[2]
     @test evaljs(app, js"document.querySelectorAll('select').length") == 2
     dropdown1 = js"document.querySelectorAll('select')[0]"
     dropdown2 = js"document.querySelectorAll('select')[1]"
@@ -74,6 +74,6 @@ testsession(dropdown_handler, port=8558) do app
         const event = new Event('change');
         select.dispatchEvent(event);
     })()")
-    @test checkbox1_jl.option[] == "b"
-    @test checkbox2_jl.option[] == "c2"
+    @test dropdown1_jl.value[] == "b"
+    @test dropdown2_jl.value[] == "c2"
 end

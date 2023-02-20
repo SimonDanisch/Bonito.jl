@@ -52,6 +52,10 @@ function Slider(name, values::AbstractArray; container_class="", attributes...)
 end
 JSServe.jsrender(session::Session, x::Slider) = JSServe.jsrender(session, x.dom)
 
+JSServe.is_widget(::Slider) = true
+JSServe.value_range(slider::Slider) = JSServe.value_range(slider.widget)
+JSServe.update_value!(slider::Slider, idx) = JSServe.update_value!(slider.widget, idx)
+JSServe.to_watch(slider::Slider) = JSServe.to_watch(slider.widget)
 
 struct Dropdown
     widget::JSServe.Dropdown
@@ -66,6 +70,11 @@ end
 
 JSServe.jsrender(session::Session, x::Dropdown) = JSServe.jsrender(session, x.dom)
 
+JSServe.is_widget(::Dropdown) = true
+JSServe.value_range(dropdown::Dropdown) = JSServe.value_range(dropdown.widget)
+JSServe.update_value!(dropdown::Dropdown, idx) = JSServe.update_value!(dropdown.widget, idx)
+JSServe.to_watch(dropdown::Dropdown) = JSServe.to_watch(dropdown.widget)
+
 struct Checkbox
     widget::JSServe.Checkbox
     dom::Hyperscript.Node{Hyperscript.HTMLSVG}
@@ -76,6 +85,11 @@ function Checkbox(name, value::Bool; container_class="", attributes...)
     return Checkbox(c, WidgetContainer(Title(name), c; class=container_class))
 end
 JSServe.jsrender(session::Session, x::Checkbox) = JSServe.jsrender(session, x.dom)
+
+JSServe.is_widget(::Checkbox) = true
+JSServe.value_range(checkbox::Checkbox) = JSServe.value_range(checkbox.widget)
+JSServe.update_value!(checkbox::Checkbox, idx) = JSServe.update_value!(checkbox.widget, idx)
+JSServe.to_watch(checkbox::Checkbox) = JSServe.to_watch(checkbox.widget)
 
 function Button(name; class="", attributes...)
     class = "$class focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow"

@@ -1,4 +1,5 @@
 import * as Connection from "./Connection.js";
+import { Observable, onany } from "./Observables.js";
 import * as Protocol from "./Protocol.js";
 import * as Sessions from "./Sessions.js";
 
@@ -87,11 +88,13 @@ const JSServe = {
     update_dom_node,
     lookup_global_object,
     update_or_replace,
+
+    onany,
 };
 
 // @ts-ignore
 window.JSServe = JSServe;
-console.log("Setting JSServe hehe")
+
 export {
     Protocol,
     base64decode,
@@ -116,4 +119,5 @@ export {
     update_dom_node,
     lookup_global_object,
     update_or_replace,
+    onany
 };

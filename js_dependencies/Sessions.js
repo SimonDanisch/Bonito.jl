@@ -128,7 +128,6 @@ export function done_initializing_session(session_id) {
     if (!(session_id in SESSIONS)) {
         throw new Error("Session ");
     }
-    console.log("send done loading!");
     send_done_loading(session_id, null);
     // allow subsessions to get deleted after being fully initialized (prevents deletes while half initializing)
     if (SESSIONS[session_id][1] != "root") {
@@ -233,7 +232,6 @@ export function update_session_dom(message) {
         try {
             update_or_replace(dom, html, replace);
             process_message(messages);
-            console.log(`init updates from ${session_id}`)
             done_initializing_session(session_id);
         } catch (error) {
             send_done_loading(session_id, error);

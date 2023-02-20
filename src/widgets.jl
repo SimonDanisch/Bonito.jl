@@ -33,37 +33,41 @@ function jsrender(session::Session, ni::NumberInput)
     ))
 end
 
+struct Slider <: WidgetsBase.AbstractWidget{Any}
+    values::Observable{Vector{Any}}
+    value::Observable{Any}
+    index::Observable{Int}
+    attributes::Dict{Symbol, Any}
+end
+
+function Slider(values; value=first(values), kw...)
+    values_obs = convert(Observable{Vector{Any}}, values)
+    initial_idx = findfirst((==)(value), values_obs[])
+    index = Observable(initial_idx)
+    value_obs = map(getindex, values_obs, index)
+    return Slider(values_obs, value_obs, index, Dict{Symbol, Any}(kw))
+end
+
 function jsrender(session::Session, slider::Slider)
     # Hacky, but don't want to Pr WidgetsBase yet
-
-    values = get!(slider.attributes, :value_array) do
-        map(collect, session, slider.range)
-    end
-    initial_idx = findfirst((==)(slider.value[]), slider.range[])
-    index = get!(slider.attributes, :index_observable) do
-        return Observable(initial_idx)
-    end
+    values = slider.values
+    index = slider.index
     onjs(session, index, js"""(index) => {
         const values = $(values).value
         $(slider.value).notify(values[index - 1])
     }
     """)
-    attributes = copy(slider.attributes)
-    delete!(attributes, :value_array)
-    delete!(attributes, :index_observable)
-    result = jsrender(session, DOM.input(
+    return jsrender(session, DOM.input(
         type = "range",
         min = 1,
-        max = map(length, slider.range),
-        value = index,
+        max=map(length, values),
+        value = index[],
         step = 1,
         oninput = js"""(event)=> {
             $(index).notify(parseInt(event.srcElement.value))
         }""";
-        attributes...
+        slider.attributes...
     ))
-
-    return result
 end
 
 function Base.setindex!(slider::Slider, value)
@@ -257,12 +261,13 @@ end
 
 struct Dropdown
     options::Observable{Vector{Any}}
-    option::Observable{Any}
+    value::Observable{Any}
+    option_to_string::Function
     option_index::Observable{Int}
     attributes::Dict{Symbol, Any}
 end
 
-function Dropdown(options; index=1, attributes...)
+function Dropdown(options; index=1, option_to_string=string, attributes...)
     option_index = convert(Observable{Int}, index)
     options = convert(Observable{Vector{Any}}, options)
     option = Observable{Any}(options[][option_index[]])
@@ -270,7 +275,7 @@ function Dropdown(options; index=1, attributes...)
         option[] = options[index]
         return
     end
-    return Dropdown(options, option, option_index, Dict{Symbol,Any}(attributes))
+    return Dropdown(options, option, option_to_string, option_index, Dict{Symbol,Any}(attributes))
 end
 
 function jsrender(session::Session, dropdown::Dropdown)
@@ -285,7 +290,8 @@ function jsrender(session::Session, dropdown::Dropdown)
         element.selectedIndex = $(dropdown.option_index[] - 1)
     }
     """
-    dom = map(options -> map(DOM.option, options), session, dropdown.options)[]
+    option2div(x) = DOM.option(dropdown.option_to_string(x))
+    dom = map(options -> map(option2div, options), session, dropdown.options)[]
     select = DOM.select(dom; dropdown.attributes...)
     JSServe.onload(session, select, onchange)
     return select

@@ -143,6 +143,9 @@ function decode_extension_and_addbits(ext::MsgPack.Extension)
             value = decode_extension_and_addbits(MsgPack.unpack(ext.data))
             # MsgPack.Extension(JSCODE_TAG, pack([x.interpolated_objects, x.source, x.julia_file]))
             return JSCode([JSString(value[2])], value[3])
+        elseif DOM_NODE_TAG == ext.type
+            tag, children, attributes = decode_extension_and_addbits(MsgPack.unpack(ext.data))
+            return Hyperscript.Node{Hyperscript.HTMLSVG}(Hyperscript.DEFAULT_HTMLSVG_CONTEXT, tag, children, attributes)
         elseif ARRAY_TAG == ext.type
             data = MsgPack.unpack(ext.data)
             unpacked = decode_extension_and_addbits(data)

@@ -80,7 +80,6 @@ export function send_done_loading(session, exception) {
 }
 
 export function send_close_session(session, subsession) {
-    console.log(`closing ${session}`);
     send_to_julia({
         msg_type: CloseSession,
         session,
