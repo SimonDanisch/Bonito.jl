@@ -22,11 +22,11 @@ function FlexCol(args...; class="", attributes...)
     )
 end
 
-function Card(content; class="", width="fit-content", height="fit-content", attributes...)
+function Card(content; class="", style="", width="fit-content", height="fit-content", attributes...)
     return DOM.div(
         JSServe.TailwindCSS,
         content;
-        style="width: $(width); height: $(height)",
+        style="width: $(width); height: $(height); $(style)",
         class="rounded-md p-2 m-2 shadow $class",
         attributes...
     )
@@ -106,6 +106,10 @@ function NumberInput(number::Number; class="", attributes...)
     return JSServe.NumberInput(number; class=class, attributes...)
 end
 
+
+Base.getproperty(x::Dropdown, f::Symbol) = f === :value ? x.widget.value : f === :option_index ? x.widget.option_index : getfield(x, f)
+Base.getproperty(x::Checkbox, f::Symbol) = f === :value ? x.widget.value : getfield(x, f)
+Base.getproperty(x::Slider, f::Symbol) = f === :value ? x.widget.value : getfield(x, f)
 
 function FileInput()
     container_class = "flex justify-center"

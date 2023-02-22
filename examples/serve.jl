@@ -16,7 +16,7 @@ app = App() do session::Session
         println(text)
     end
     return DOM.div(s1, s2, b, t)
-end;
+end
 
 if isdefined(Main, :server)
     close(server)
