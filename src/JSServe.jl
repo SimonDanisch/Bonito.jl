@@ -10,7 +10,6 @@ using Hyperscript: Node, children, tag
 using Observables
 using Markdown
 using HTTP
-using Deno_jll
 using Base64
 using MsgPack
 using WidgetsBase

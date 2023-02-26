@@ -1,7 +1,6 @@
 *.jl.*.cov
 *.jl.cov
 *.jl.mem
-*.bundled.js
 .DS_Store
 /Manifest.toml
 /dev/

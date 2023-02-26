@@ -205,18 +205,18 @@ end
 bundle!(asset::BinaryAsset) = nothing
 function bundle!(asset::Asset)
     needs_bundling(asset) || return
-    path = get_path(asset)
-    bundled = bundle_path(asset)
-    Deno_jll.deno() do exe
-        stdout = IOBuffer()
-        err = IOBuffer()
-        try
-            run(pipeline(`$exe bundle $(path)`; stdout=stdout, stderr=err))
-        catch e
-            write(stderr, seekstart(err))
-        end
-        write(bundled, seekstart(stdout))
-    end
-    asset.last_bundled[] = Dates.now(UTC) # Filesystem.mtime(file) is in UTC
+    # path = get_path(asset)
+    # bundled = bundle_path(asset)
+    # Deno_jll.deno() do exe
+    #     stdout = IOBuffer()
+    #     err = IOBuffer()
+    #     try
+    #         run(pipeline(`$exe bundle $(path)`; stdout=stdout, stderr=err))
+    #     catch e
+    #         write(stderr, seekstart(err))
+    #     end
+    #     write(bundled, seekstart(stdout))
+    # end
+    # asset.last_bundled[] = Dates.now(UTC) # Filesystem.mtime(file) is in UTC
     return
 end
