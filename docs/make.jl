@@ -6,10 +6,10 @@ ci = get(ENV, "CI", "false") == "true"
 makedocs(
     modules=[JSServe],
     sitename="JSServe",
-    clean = false,
+    clean=false,
     format=Documenter.HTML(prettyurls=false),
     authors="Simon Danisch and other contributors",
-    pages = [
+    pages=[
         "Home" => "index.md",
         "Plotting" => "plotting.md",
         "Widgets" => "widgets.md",

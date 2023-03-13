@@ -30,6 +30,7 @@ function get_server end
 function wait_for end
 function wait_for_ready end
 
+include("deno.jl")
 include("types.jl")
 include("HTTPServer/HTTPServer.jl")
 include("app.jl")

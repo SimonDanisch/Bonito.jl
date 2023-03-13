@@ -36,7 +36,7 @@ struct Asset
     # to also be able to host it locally
     online_path::String
     local_path::Union{String, Path}
-    last_bundled::Base.RefValue{Union{Nothing, Dates.DateTime}}
+    bundle_dir::Union{String, Path}
 end
 
 struct JSException <: Exception
@@ -45,9 +45,7 @@ struct JSException <: Exception
     stacktrace::Vector{String}
 end
 
-function js_to_local_stacktrace(asset_server, matched_url)
-    return matched_url
-end
+js_to_local_stacktrace(asset_server, matched_url) = matched_url
 
 function Base.show(io::IO, exception::JSException)
     println(io, "An exception was thrown in JS: $(exception.exception)")

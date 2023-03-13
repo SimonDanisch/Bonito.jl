@@ -95,6 +95,7 @@ const JSServe = {
 // @ts-ignore
 window.JSServe = JSServe;
 
+
 export {
     Protocol,
     base64decode,

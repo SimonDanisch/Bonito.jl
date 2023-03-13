@@ -102,23 +102,23 @@ function Base.show(io::IO, asset::Asset)
     print(io, get_path(asset))
 end
 
-function Asset(online_path::Union{String, Path}; name=nothing, es6module=false, check_isfile=false)
+function Asset(path_or_url::Union{String, Path}; name=nothing, es6module=false, check_isfile=false, bundle_dir::Union{Nothing, String, Path}=nothing)
     local_path = ""; real_online_path = ""
-    if is_online(online_path)
+    if is_online(path_or_url)
         local_path = ""
-        real_online_path = online_path
+        real_online_path = path_or_url
     else
-        local_path = normalize_path(online_path; check_isfile=check_isfile)
+        local_path = normalize_path(path_or_url; check_isfile=check_isfile)
+
     end
-    mediatype = Symbol(getextension(online_path))
-    last_bundled = Base.RefValue{Union{Nothing, Dates.DateTime}}(nothing)
-    return Asset(name, es6module, mediatype, real_online_path, local_path, last_bundled)
+    _bundle_dir = isnothing(bundle_dir) ? dirname(local_path) : bundle_dir
+    mediatype = Symbol(getextension(path_or_url))
+    return Asset(name, es6module, mediatype, real_online_path, local_path, _bundle_dir)
 end
 
 function ES6Module(path)
     name = String(splitext(basename(path))[1])
     asset = Asset(path; name=name, es6module=true)
-    JSServe.bundle!(asset)
     return asset
 end
 
@@ -180,13 +180,15 @@ function get_deps_path(name)
 end
 
 function bundle_path(asset::Asset)
-    asset_path = if isempty(asset.local_path)
+    bundle_dir = if !isempty(asset.bundle_dir)
+        asset.bundle_dir
+    elseif isempty(asset.local_path)
         get_deps_path(basename(asset.online_path))
     else
-        asset.local_path
+        dirname(asset.local_path)
     end
-    path, ext = splitext(asset_path)
-    return string(path, ".bundled", ext)
+    @assert !isempty(asset.name) "Asset has no name, which may happen if Asset constructor was called wrongly"
+    return joinpath(bundle_dir, string(asset.name, ".bundled.", asset.media_type))
 end
 
 last_modified(path::Path) = last_modified(JSServe.getroot(path))
@@ -196,27 +198,28 @@ end
 
 function needs_bundling(asset::Asset)
     asset.es6module || return false
-    isnothing(asset.last_bundled[]) && return true
-    path = asset.local_path
-    isfile(bundle_path(asset)) || return true
-    return last_modified(path) > asset.last_bundled[]
+    path = get_path(asset)
+    bundled = bundle_path(asset)
+    !isfile(bundled) && return true
+    # If bundled happen after last modification of asset
+    return last_modified(path) > last_modified(bundled)
 end
 
 bundle!(asset::BinaryAsset) = nothing
+
 function bundle!(asset::Asset)
     needs_bundling(asset) || return
-    # path = get_path(asset)
-    # bundled = bundle_path(asset)
-    # Deno_jll.deno() do exe
-    #     stdout = IOBuffer()
-    #     err = IOBuffer()
-    #     try
-    #         run(pipeline(`$exe bundle $(path)`; stdout=stdout, stderr=err))
-    #     catch e
-    #         write(stderr, seekstart(err))
-    #     end
-    #     write(bundled, seekstart(stdout))
-    # end
-    # asset.last_bundled[] = Dates.now(UTC) # Filesystem.mtime(file) is in UTC
+    has_been_bundled = deno_bundle(get_path(asset), bundle_path(asset))
+    if !has_been_bundled
+        # Not bundling if bundling is needed is an error...
+        # In theory it could be a warning, but this way we make CI fail, so that
+        # PRs that forget to bundle JS dependencies will fail!
+        error("Asset $(asset) needs bundling.
+            If you've edited the asset, please load `Deno_jll` (e.g. `using Deno_jll, JSServe`),
+            which is an optional dependency needed for Developing JSServe Assets.
+            After that, assets should be bundled on precompile and whenever they're used after editing the asset.
+            If you're just using a package, please open an issue with the Package maintainers,
+            they must have forgotten bundling.")
+    end
     return
 end
