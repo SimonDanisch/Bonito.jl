@@ -180,14 +180,15 @@ function get_deps_path(name)
 end
 
 function bundle_path(asset::Asset)
+    @assert !isempty(asset.name) "Asset has no name, which may happen if Asset constructor was called wrongly"
     bundle_dir = if !isempty(asset.bundle_dir)
         asset.bundle_dir
     elseif isempty(asset.local_path)
-        get_deps_path(basename(asset.online_path))
+        get_deps_path(asset.name)
     else
         dirname(asset.local_path)
     end
-    @assert !isempty(asset.name) "Asset has no name, which may happen if Asset constructor was called wrongly"
+    isdir(bundle_dir) || mkpath(bundle_dir)
     return joinpath(bundle_dir, string(asset.name, ".bundled.", asset.media_type))
 end
 
