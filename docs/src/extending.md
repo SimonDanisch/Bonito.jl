@@ -9,7 +9,7 @@ JSServe.Page()
 
 ```@example 1
 leafletjs = JSServe.ES6Module("https://esm.sh/v111/leaflet@1.9.3/es2022/leaflet.js")
-leafletcss = Asset("https://unpkg.com/leaflet@1.9.3/dist/leaflet.css")
+leafletcss = JSServe.Asset("https://unpkg.com/leaflet@1.9.3/dist/leaflet.css")
 struct LeafletMap
     position::NTuple{2,Float64}
     zoom::Int
@@ -42,6 +42,7 @@ App() do
     return LeafletMap((51.505, -0.09), 13)
 end
 ```
+
 
 ## Connection
 
