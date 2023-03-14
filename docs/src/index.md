@@ -62,9 +62,9 @@ App() do
     css = Asset("https://unpkg.com/leaflet@1.9.3/dist/leaflet.css")
     map_div = DOM.div(id="map"; style="height: 300px; width: 600px")
     return DOM.div(
-        css, js, map_div,
+        css, map_div,
         js"""
-        $(leafletjs).then(L=> {
+        $(js).then(L=> {
             const map = L.map('map').setView([51.505, -0.09], 13);
             L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
         })
