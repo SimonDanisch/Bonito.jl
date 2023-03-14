@@ -10,7 +10,6 @@ using Hyperscript: Node, children, tag
 using Observables
 using Markdown
 using HTTP
-using Deno_jll
 using Base64
 using MsgPack
 using WidgetsBase
@@ -31,6 +30,7 @@ function get_server end
 function wait_for end
 function wait_for_ready end
 
+include("deno.jl")
 include("types.jl")
 include("HTTPServer/HTTPServer.jl")
 include("app.jl")
