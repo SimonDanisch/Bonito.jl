@@ -52,6 +52,29 @@ route!(server, r"*" => App(DOM.div("404, no content for this route")))
 route!(server, "/some-app" => App(DOM.div("app")))
 ```
 
+## Easy integration with existing JS + CSS libraries
+
+It's quite easy to integrate existing Libraries into your JSServe App:
+
+```@example 1
+App() do
+    js = ES6Module("https://esm.sh/v111/leaflet@1.9.3/es2022/leaflet.js")
+    css = Asset("https://unpkg.com/leaflet@1.9.3/dist/leaflet.css")
+    map_div = DOM.div(id="map"; style="height: 300px; width: 600px")
+    return DOM.div(
+        css, js, map_div,
+        js"""
+        $(leafletjs).then(L=> {
+            const map = L.map('map').setView([51.505, -0.09], 13);
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        })
+        """
+    )
+end
+```
+
+Read more about wrapping libraries in [Tutorial](@ref).
+
 ## Deploying
 
 `JSServe.jl` wants to run everywhere, from Notebooks, IDEs, Electron, to being directly inserted into existing web pages.

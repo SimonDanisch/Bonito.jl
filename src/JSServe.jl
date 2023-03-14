@@ -57,7 +57,7 @@ include("export.jl")
 include("tailwind-dashboard.jl")
 
 # Core functionality
-export Page, Session, App, DOM, @js_str, ES6Module
+export Page, Session, App, DOM, @js_str, ES6Module, Asset
 export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor
 export browser_display, configure_server!, Server, html, route!, online_url, use_electron_display
 export Observable, on, onany, bind_global
