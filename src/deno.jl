@@ -9,7 +9,7 @@ function Deno()
     end
 end
 
-function deno_bundle(path_to_js::String, output_file::String)
+function deno_bundle(path_to_js::AbstractString, output_file::String)
     Deno_jll = Deno()
     # We tread Deno as a development dependency,
     # so if deno isn't loaded, don't bundle!
