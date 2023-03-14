@@ -7,7 +7,6 @@ using JSServe
 JSServe.Page()
 ```
 
-
 ```Julia
 
 struct MyConnection <: JSServe.FrontendConnection
