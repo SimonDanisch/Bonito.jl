@@ -1,3 +1,4 @@
+using Deno_jll
 using Hyperscript, Markdown, Test, RelocatableFolders
 using JSServe, Observables
 using JSServe: Session, evaljs, linkjs, div
@@ -13,7 +14,6 @@ using JSServe.MsgPack
 using JSServe.CodecZlib
 using Test
 using JSServe: jsrender
-rm(JSServe.bundle_path(JSServe.JSServeLib))
 include("ElectronTests.jl")
 
 function wait_on_test_observable()

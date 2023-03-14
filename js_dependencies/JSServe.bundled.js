@@ -2937,7 +2937,9 @@ class Observable {
         this.value = value;
     }
     notify(value, dont_notify_julia) {
-        this.value = value;
+        if (value) {
+            this.value = value;
+        }
         this.#callbacks.forEach((callback)=>{
             try {
                 const deregister = callback(value);
