@@ -59,7 +59,6 @@ end
 
     @testset "assets" begin
         @test length(c_session.session_objects) == 2
-        @test JSServe.noUiSlider in open_session.imports
     end
 
     @testset "observable $(obs_field)" for obs_field in (:range, :value, :connect, :orientation, :tooltips, :ticks)

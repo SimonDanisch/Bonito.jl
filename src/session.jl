@@ -273,6 +273,35 @@ end
 
 isroot(session::Session) = session.parent === nothing
 
+function render_dependencies(session::Session)
+    require_off = DOM.script("""
+        window.__define = window.define;
+        window.__require = window.require;
+        window.define = undefined;
+        window.require = undefined;
+    """)
+    require_on = DOM.script("""
+        window.define = window.__define;
+        window.require = window.__require;
+        window.__define = undefined;
+        window.__require = undefined;
+    """)
+    assets = if isroot(session)
+        session.imports
+    else
+        # only render the assets that aren't already in root session
+        setdiff(session.imports, root_session(session).imports)
+    end
+    assets_rendered = render_asset.((session,), assets)
+    if any(x-> mediatype(x) == :js && !x.es6module, assets)
+        # if a js non es6module is included, we may need to hack require... because JS! :(
+        return DOM.div(require_off, assets_rendered..., require_on)
+    else
+        return DOM.div(assets_rendered...)
+    end
+end
+
+
 function session_dom(session::Session, dom::Node; init=true, html_document=false, dom_id=isroot(session) ? "root" : "subsession-application-dom")
     # the dom we can render may be anything between a
     # dom fragment or a full page with head & body etc.
@@ -309,9 +338,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         pushfirst!(children(body), jsrender(session, init_connection))
     end
 
-    for asset in session.imports
-        push!(children(head), jsrender(session, asset))
-    end
+    push!(children(head), render_dependencies(session))
     issubsession = !isnothing(parent(session))
 
     if init

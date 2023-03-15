@@ -113,10 +113,6 @@ function print_js_code(io::IO, asset::Union{Asset, BinaryAsset}, context::JSSour
         session = context.session
         if !isnothing(session)
             import_in_js(io, session, session.asset_server, asset)
-            if asset isa Asset && asset.es6module
-                push!(session.imports, asset)
-                push!(root_session(session).imports, asset)
-            end
         else
             # This should be mainly for `print(jscode)`
             print(io, "import('$(get_path(asset))')")

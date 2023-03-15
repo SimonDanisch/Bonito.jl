@@ -70,6 +70,23 @@ end
 
 @enum SessionStatus UNINITIALIZED DISPLAYED OPEN CLOSED
 
+# Very simple and lazy ordered set
+# (Don't want to depend on OrderedCollections for something so simple)
+struct OrderedSet{T} <: AbstractSet{T}
+    items::Vector{T}
+end
+Base.length(set::OrderedSet) = length(set.items)
+Base.iterate(set::OrderedSet) = iterate(set.items)
+Base.iterate(set::OrderedSet, state) = iterate(set.items, state)
+OrderedSet{T}() where {T} = OrderedSet{T}(T[])
+function Base.push!(set::OrderedSet, item)
+    (item in set.items) || push!(set.items, item)
+end
+
+function Base.union!(set1::OrderedSet, set2)
+    union!(set1.items, set2)
+end
+
 """
 A web session with a user
 """
@@ -97,7 +114,7 @@ mutable struct Session{Connection <: FrontendConnection}
     # For rendering Hyperscript.Node, and giving them a unique id inside the session
     dom_uuid_counter::Int
     ignore_message::RefValue{Function}
-    imports::Set{Asset}
+    imports::OrderedSet{Asset}
     title::String
     compression_enabled::Bool
 
@@ -118,7 +135,7 @@ mutable struct Session{Connection <: FrontendConnection}
             session_objects::Dict{String, Any},
             dom_uuid_counter::Int,
             ignore_message::RefValue{Function},
-            imports::Set{Asset},
+            imports::OrderedSet{Asset},
             title::String,
             compression_enabled::Bool,
         ) where {Connection}
@@ -180,7 +197,7 @@ function Session(connection=default_connection();
                 on_close=Observable(false),
                 deregister_callbacks=Observables.ObserverFunction[],
                 session_objects=Dict{String, Any}(),
-                imports=Set{Asset}(),
+                imports=OrderedSet{Asset}(),
                 title="JSServe App",
                 compression_enabled=default_compression())
 

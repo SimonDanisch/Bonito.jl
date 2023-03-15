@@ -14,7 +14,6 @@ function deno_bundle(path_to_js::AbstractString, output_file::String)
     # We tread Deno as a development dependency,
     # so if deno isn't loaded, don't bundle!
     isnothing(Deno_jll) && return false
-    @info("bundlin'")
     Deno_jll.deno() do exe
         stdout = IOBuffer()
         err = IOBuffer()

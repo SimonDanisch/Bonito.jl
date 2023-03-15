@@ -30,31 +30,28 @@ function url(::Nothing, asset::Asset)
     return asset.online_path
 end
 
-function jsrender(session::Session, asset::Asset)
+function render_asset(session::Session, asset::Asset)
+    @assert mediatype(asset) in (:css, :js)
     ref = url(session, asset)
-    element = if mediatype(asset) == :js
+    if mediatype(asset) == :js
         if asset.es6module
             return DOM.script(src=ref; type="module")
         else
-            # TODO create sane import scheme in session.jl
-            require_off = DOM.script("""
-                window.__define = window.define;
-                window.__require = window.require;
-                window.define = undefined;
-                window.require = undefined;
-            """)
-            require_on = DOM.script("""
-                window.define = window.__define;
-                window.require = window.__require;
-                window.__define = undefined;
-                window.__require = undefined;
-            """)
-            return DOM.div(require_off, DOM.script(src=ref), require_on)
+            return DOM.script(src=ref)
         end
     elseif mediatype(asset) == :css
         return DOM.link(href=ref, rel="stylesheet", type="text/css")
-    elseif mediatype(asset) in (:jpeg, :jpg, :png)
-        return DOM.img(src=ref)
+    end
+end
+
+function jsrender(session::Session, asset::Asset)
+    if mediatype(asset) in (:jpeg, :jpg, :png)
+        return DOM.img(src=url(session, asset))
+    elseif mediatype(asset) in (:css, :js)
+        # We include css/js assets with the above `render_asset` in session_dom
+        # So that we only include any depency one time
+        push!(session.imports, asset)
+        return nothing
     else
         error("Unrecognized asset media type: $(mediatype(asset))")
     end

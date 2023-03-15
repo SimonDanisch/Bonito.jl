@@ -129,10 +129,11 @@ function render_node(session::Session, node::Node)
     new_attributes = Dict{String, Any}()
     children_changed = false
     attributes_changed = false
-    newchildren = map(node_children) do elem
+    newchildren = []
+    for elem in node_children
         new_elem = jsrender(session, elem)
         children_changed = children_changed || new_elem !== elem
-        return new_elem
+        !isnothing(new_elem) && push!(newchildren, new_elem)
     end
     for (k, v) in node_attrs
         rendered = attribute_render(session, node, k, v)
@@ -209,7 +210,15 @@ function SerializedNode(session::Session, node::Node)
     isempty(node_children) && isempty(node_attrs) && return SerializedNode(tag, node_children, node_attrs)
 
     new_attributes = Dict{String, Any}()
-    newchildren = map(child-> SerializedNode(session, child), node_children)
+    newchildren = []
+    for child in node_children
+        node = jsrender(session, child)
+        if node isa Node
+            push!(newchildren, SerializedNode(session, node))
+        elseif !isnothing(node)
+            push!(newchildren, node)
+        end
+    end
     for (k, v) in node_attrs
         rendered = attribute_render(session, node, k, v)
         # We code nothing to mean omitting the attribute!
