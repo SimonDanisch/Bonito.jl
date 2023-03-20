@@ -208,6 +208,10 @@ bundle!(asset::BinaryAsset) = nothing
 function bundle!(asset::Asset)
     needs_bundling(asset) || return
     has_been_bundled = deno_bundle(get_path(asset), bundle_path(asset))
+    if has_been_bundled && isfile(bundle_path(asset))
+        # hm when shipping, we don't have the correct time stamps, so we can't accurately say if we need bundling :(
+        return
+    end
     if !has_been_bundled
         # Not bundling if bundling is needed is an error...
         # In theory it could be a warning, but this way we make CI fail, so that
