@@ -97,7 +97,7 @@ Embeds the html_body in a standalone html document!
 """
 function page_html(io::IO, session::Session, app_node::Union{Node, App})
     dom = session_dom(session, app_node; html_document=true)
-    print_as_page(io dom)
+    print_as_page(io, dom)
     return
 end
 

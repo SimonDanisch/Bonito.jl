@@ -1,5 +1,6 @@
 struct Routes
     table::Vector{Pair{Any, Any}}
+    lock::Base.ReentrantLock
 end
 
 """
@@ -16,7 +17,7 @@ mutable struct Server
     websocket_routes::Routes
 end
 
-Routes(pairs::Pair...) = Routes(Pair{Any, Any}[pairs...])
+Routes(pairs::Pair...) = Routes(Pair{Any, Any}[pairs...], Base.ReentrantLock())
 
 # Priorities, so that e.g. r".*" doesn't catch absolut matches by e.g a string
 pattern_priority(x::Pair) = pattern_priority(x[1])
@@ -28,24 +29,28 @@ delete_route!(server::Server, pattern) = delete_route!(server.routes, pattern)
 delete_websocket_route!(server::Server, pattern) = delete_route!(server.websocket_routes, pattern)
 
 function delete_route!(routes::Routes, pattern)
-    filter!(((key, f),) -> !(key == pattern), routes.table)
+    lock(routes.lock) do
+        filter!(((key, f),) -> !(key == pattern), routes.table)
+    end
     return
 end
 
 function route!(routes::Routes, pattern_func::Pair)
     pattern, func = pattern_func
-    idx = findfirst(pair-> pair[1] == pattern, routes.table)
-    old = nothing
-    if idx !== nothing
-        old = routes.table[idx][2]
-        routes.table[idx] = pattern_func
-    else
-        push!(routes.table, pattern_func)
+    return lock(routes.lock) do
+        idx = findfirst(pair-> pair[1] == pattern, routes.table)
+        old = nothing
+        if idx !== nothing
+            old = routes.table[idx][2]
+            routes.table[idx] = pattern_func
+        else
+            push!(routes.table, pattern_func)
+        end
+        # Sort for priority so that exact string matches come first
+        sort!(routes.table, by = pattern_priority)
+        # return old route (nothing if new)
+        return old
     end
-    # Sort for priority so that exact string matches come first
-    sort!(routes.table, by = pattern_priority)
-    # return old route (nothing if new)
-    return old
 end
 
 function route!(application::Server, pattern_func::Pair)

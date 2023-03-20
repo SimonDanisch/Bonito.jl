@@ -58,6 +58,8 @@ function HTTPServer.apply_handler(app::App, context)
     html_str = sprint() do io
         page_html(io, session, html_dom)
     end
+    response = html(html_str)
+
     @async begin
         # If someone visits the page very quickly and immediately closes the tab/closes the connection
         # We'll open + add a new session, but never close + clean the session up
@@ -71,7 +73,7 @@ function HTTPServer.apply_handler(app::App, context)
             close(session)
         end
     end
-    return html(html_str)
+    return response
 end
 
 function Base.close(app::App)
