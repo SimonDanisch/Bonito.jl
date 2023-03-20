@@ -62,7 +62,9 @@ function HTTPServer.apply_handler(app::App, context)
         # If someone visits the page very quickly and immediately closes the tab/closes the connection
         # We'll open + add a new session, but never close + clean the session up
         # This is hard to do cleanly... I'm not sure if there's anything better we can do besides
-        # starting a task that checks after e.g. 20s, if the session has been initialied
+        # starting a task that checks after e.g. 100s, if the session has been initialied
+        # The best alternative would be to push to a clean up task in server, which would save us from spawning so many tasks
+        # But that's quite a bit more complicated and shouldn't be that much faster (this seems to add 300ns overhead right now)
         sleep(100) # better a long time with compilation etc
         if !isopen(session)
             @debug("unitiliazed, closing session!")
