@@ -83,6 +83,13 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
     return sub
 end
 
+function print_as_page(io::IO, dom::Node)
+    println(io, "<!doctype html>")
+    # use Hyperscript directly to avoid the additional JSServe attributes
+    show(io, MIME"text/html"(), Hyperscript.Pretty(dom))
+    return
+end
+
 """
     page_html(session::Session, html_body)
 
@@ -90,9 +97,7 @@ Embeds the html_body in a standalone html document!
 """
 function page_html(io::IO, session::Session, app_node::Union{Node, App})
     dom = session_dom(session, app_node; html_document=true)
-    println(io, "<!doctype html>")
-    # use Hyperscript directly to avoid the additional JSServe attributes
-    show(io, MIME"text/html"(), Hyperscript.Pretty(dom))
+    print_as_page(io dom)
     return
 end
 

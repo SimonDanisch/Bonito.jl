@@ -58,6 +58,17 @@ function HTTPServer.apply_handler(app::App, context)
     html_str = sprint() do io
         page_html(io, session, html_dom)
     end
+    @async begin
+        # If someone visits the page very quickly and immediately closes the tab/closes the connection
+        # We'll open + add a new session, but never close + clean the session up
+        # This is hard to do cleanly... I'm not sure if there's anything better we can do besides
+        # starting a task that checks after e.g. 20s, if the session has been initialied
+        sleep(100) # better a long time with compilation etc
+        if !isopen(session)
+            @debug("unitiliazed, closing session!")
+            close(session)
+        end
+    end
     return html(html_str)
 end
 
@@ -116,10 +127,7 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
     # first time rendering in a subsession, we combine init of parent session
     # with the dom we're rendering right now
     dom = DOM.div(init_dom, sub_dom)
-    html_str = sprint() do io
-        println(io, "<!doctype html>")
-        # use Hyperscript directly to avoid the additional JSServe attributes
-        show(io, MIME"text/html"(), Hyperscript.Pretty(dom))
-    end
+    html_str = sprint(io -> print_as_page(io, dom))
+
     return html(html_str)
 end

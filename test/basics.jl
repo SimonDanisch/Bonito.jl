@@ -27,9 +27,7 @@ DebugConnection() = DebugConnection(IOBuffer())
 Base.write(connection::DebugConnection, bytes) = write(connection.io, bytes)
 Base.isopen(connection::DebugConnection) = isopen(connection.io)
 Base.close(connection::DebugConnection) = close(connection.io)
-function setup_connection(session::Session{DebugConnection})
-    return nothing
-end
+setup_connection(session::Session{DebugConnection}) = nothing
 
 @testset "Session & Subsession rendering & cleanup" begin
     connection = DebugConnection()

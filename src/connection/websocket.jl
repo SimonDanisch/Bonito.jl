@@ -78,6 +78,9 @@ function Base.write(ws::WebSocketConnection, binary)
 end
 
 function Base.close(ws::WebSocketConnection)
+    if !isnothing(ws.session)
+        delete_websocket_route!(ws.server, "/$(ws.session.id)")
+    end
     isnothing(ws.socket) && return
     try
         socket = ws.socket
@@ -107,7 +110,6 @@ function run_connection_loop(server::Server, session::Session, websocket::WebSoc
     finally
         # This always needs to happen, which is why we need a try catch!
         @debug("Closing: $(session.id)")
-        delete_websocket_route!(server, "/$(session.id)")
         close(session)
     end
 end
@@ -137,9 +139,7 @@ end
 function setup_connection(session::Session, connection::WebSocketConnection)
     connection.session = session
     server = connection.server
-
     HTTPServer.websocket_route!(server, "/$(session.id)" => connection)
-
     proxy_url = online_url(server, "")
     return js"""
         $(Websocket).then(WS => {
