@@ -21,6 +21,7 @@ using LinearAlgebra
 using CodecZlib
 using RelocatableFolders: @path, Path, getroot
 using URIs
+using ThreadPools
 
 using Base: RefValue
 

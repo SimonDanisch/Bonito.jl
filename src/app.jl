@@ -48,9 +48,8 @@ function bind_global(session::Session, var::AbstractObservable{T}) where T
     return result
 end
 
-# Enable route!(server, "/" => app)
-
-function HTTPServer.apply_handler(app::App, context)
+function serve_app(app, context)
+    @debug "Serving from thread: $(Threads.threadid())"
     server = context.application
     asset_server = HTTPAssetServer(server)
     connection = WebSocketConnection(server)
@@ -60,7 +59,6 @@ function HTTPServer.apply_handler(app::App, context)
         page_html(io, session, html_dom)
     end
     response = html(html_str)
-
     @async begin
         # If someone visits the page very quickly and immediately closes the tab/closes the connection
         # We'll open + add a new session, but never close + clean the session up
@@ -76,6 +74,16 @@ function HTTPServer.apply_handler(app::App, context)
     end
     session.status = DISPLAYED
     return response
+end
+
+# Enable route!(server, "/" => app)
+function HTTPServer.apply_handler(app::App, context)
+    if app.threaded
+        task = ThreadPools.spawnbg(() -> serve_app(app, context))
+        return fetch(task)
+    else
+        return serve_app(app, context)
+    end
 end
 
 function Base.close(app::App)

@@ -305,7 +305,6 @@ function render_dependencies(session::Session)
     end
 end
 
-
 function session_dom(session::Session, dom::Node; init=true, html_document=false, dom_id=isroot(session) ? "root" : "subsession-application-dom")
     # the dom we can render may be anything between a
     # dom fragment or a full page with head & body etc.

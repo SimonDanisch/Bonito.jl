@@ -244,18 +244,19 @@ mutable struct App
     handler::Function
     session::Base.RefValue{Union{Session, Nothing}}
     title::String
+    threaded::Bool
     function App(handler::Function;
-            title::AbstractString="JSServe App")
+            title::AbstractString="JSServe App", threaded=false)
 
         session = Base.RefValue{Union{Session, Nothing}}(nothing)
         if hasmethod(handler, Tuple{Session, HTTP.Request})
             app = new(handler, session, title)
         elseif hasmethod(handler, Tuple{Session})
-            app = new((session, request) -> handler(session), session, title)
+            app = new((session, request) -> handler(session), session, title, threaded)
         elseif hasmethod(handler, Tuple{HTTP.Request})
-            app = new((session, request) -> handler(request), session, title)
+            app = new((session, request) -> handler(request), session, title, threaded)
         elseif hasmethod(handler, Tuple{})
-            app = new((session, request) -> handler(), session, title)
+            app = new((session, request) -> handler(), session, title, threaded)
         else
             error("""
             Handler function must have the following signature:
@@ -268,9 +269,9 @@ mutable struct App
         finalizer(close, app)
         return app
     end
-    function App(dom_object; title="JSServe App")
+    function App(dom_object; title="JSServe App", threaded=false)
         session = Base.RefValue{Union{Session,Nothing}}(nothing)
-        app = new((s, r) -> dom_object, session, title)
+        app = new((s, r) -> dom_object, session, title, threaded)
         finalizer(close, app)
         return app
     end
