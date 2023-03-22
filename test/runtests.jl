@@ -1,6 +1,8 @@
+using JSServe
+ENV["JULIA_DEBUG"] = JSServe
 using Deno_jll
 using Hyperscript, Markdown, Test, RelocatableFolders
-using JSServe, Observables
+using Observables
 using JSServe: Session, evaljs, linkjs, div
 using JSServe: onjs, JSString, Asset, jsrender
 using JSServe: @js_str, uuid, SerializationContext, serialize_binary

@@ -247,10 +247,9 @@ mutable struct App
     threaded::Bool
     function App(handler::Function;
             title::AbstractString="JSServe App", threaded=false)
-
         session = Base.RefValue{Union{Session, Nothing}}(nothing)
         if hasmethod(handler, Tuple{Session, HTTP.Request})
-            app = new(handler, session, title)
+            app = new(handler, session, title, threaded)
         elseif hasmethod(handler, Tuple{Session})
             app = new((session, request) -> handler(session), session, title, threaded)
         elseif hasmethod(handler, Tuple{HTTP.Request})
