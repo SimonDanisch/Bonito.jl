@@ -208,8 +208,9 @@ bundle!(asset::BinaryAsset) = nothing
 function bundle!(asset::Asset)
     needs_bundling(asset) || return
     has_been_bundled = deno_bundle(get_path(asset), bundle_path(asset))
-    if has_been_bundled && isfile(bundle_path(asset))
+    if !has_been_bundled && isfile(bundle_path(asset))
         # hm when shipping, we don't have the correct time stamps, so we can't accurately say if we need bundling :(
+        # So we need to rely on the package authors to bundle before creating a new release!
         return
     end
     if !has_been_bundled
