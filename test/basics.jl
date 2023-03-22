@@ -96,6 +96,26 @@ setup_connection(session::Session{DebugConnection}) = nothing
     end
 end
 
+function test_dangling_app()
+    parent = Session()
+    sub = Session(parent)
+    init_dom = JSServe.session_dom(parent, App(nothing))
+    app = App() do s
+        obs = Observable(1)
+        return evaljs(s, js"$(obs)")
+    end
+    sub_dom = JSServe.session_dom(sub, app)
+    GC.gc(true)
+    # If finalizer get triggered closing the session, there will be
+    pso = parent.session_objects
+    sso = sub.session_objects
+    return !isempty(pso) && !isempty(sso) && all(v -> haskey(pso, v), collect(keys(sso)))
+end
+
+@testset "don't gc sessions for dangling apps" begin
+    @test test_dangling_app()
+    @test test_dangling_app()
+end
 
 # @testset "" begin
 #     obs2 = Observable("hey")

@@ -68,7 +68,7 @@ struct SerializedMessage
     bytes::Vector{UInt8}
 end
 
-@enum SessionStatus UNINITIALIZED DISPLAYED OPEN CLOSED
+@enum SessionStatus UNINITIALIZED RENDERED DISPLAYED OPEN CLOSED
 
 # Very simple and lazy ordered set
 # (Don't want to depend on OrderedCollections for something so simple)
@@ -106,7 +106,7 @@ mutable struct Session{Connection <: FrontendConnection}
     connection_ready::Channel{Bool}
     on_connection_ready::Function
     # Should be checkd on connection_ready to see if an error occured
-    init_error::Ref{Union{Nothing, JSException}}
+    init_error::RefValue{Union{Nothing,JSException}}
     js_comm::Observable{Union{Nothing, Dict{String, Any}}}
     on_close::Observable{Bool}
     deregister_callbacks::Vector{Observables.ObserverFunction}
@@ -117,6 +117,8 @@ mutable struct Session{Connection <: FrontendConnection}
     imports::OrderedSet{Asset}
     title::String
     compression_enabled::Bool
+    deletion_lock::Base.ReentrantLock
+    current_app::RefValue{Any}
 
     function Session(
             parent::Union{Session, Nothing},
@@ -160,6 +162,8 @@ mutable struct Session{Connection <: FrontendConnection}
             imports,
             title,
             compression_enabled,
+            Base.ReentrantLock(),
+            RefValue{Any}(nothing)
         )
         finalizer(free, session)
         return session

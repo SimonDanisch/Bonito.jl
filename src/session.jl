@@ -74,48 +74,52 @@ function get_session(session::Session, id::String)
 end
 
 function free(session::Session)
-    session.status === CLOSED && return
-    # unregister all cached objects from root session
-    root = root_session(session)
-    # If we're a child session, we need to remove all objects trackt in our root session:
-    if session !== root
-        # We need to remove our session from the parent first, otherwise `delete_cached!`
-        # will think our session still holds the value, which would prevent it from deleting
-        delete!(parent(session).children, session.id)
-        for key in keys(session.session_objects)
-            if haskey(root.session_objects, key)
-                delete_cached!(root, key)
+    return lock(root_session(session).deletion_lock) do
+        session.status === CLOSED && return
+        # unregister all cached objects from root session
+        root = root_session(session)
+        # If we're a child session, we need to remove all objects trackt in our root session:
+        if session !== root
+            # We need to remove our session from the parent first, otherwise `delete_cached!`
+            # will think our session still holds the value, which would prevent it from deleting
+            delete!(parent(session).children, session.id)
+            for key in keys(session.session_objects)
+                if haskey(root.session_objects, key)
+                    delete_cached!(root, key)
+                end
             end
         end
+        # delete_cached! only deletes in the root session so we need to still empty the session_objects:
+        empty!(session.session_objects)
+        empty!(session.on_document_load)
+        empty!(session.message_queue)
+        # remove all listeners that where created for this session
+        foreach(off, session.deregister_callbacks)
+        empty!(session.deregister_callbacks)
+        session.status = CLOSED
+        return
     end
-    # delete_cached! only deletes in the root session so we need to still empty the session_objects:
-    empty!(session.session_objects)
-    empty!(session.on_document_load)
-    empty!(session.message_queue)
-    # remove all listeners that where created for this session
-    foreach(off, session.deregister_callbacks)
-    empty!(session.deregister_callbacks)
-    session.status = CLOSED
-    return
 end
 
 function Base.close(session::Session)
-    while !isempty(session.children)
-        close(last(first(session.children))) # child removes itself from parent!
+    return lock(root_session(session).deletion_lock) do
+        while !isempty(session.children)
+            close(last(first(session.children))) # child removes itself from parent!
+        end
+        free(session)
+        # unregister all cached objects from parent session
+        root = root_session(session)
+        # If we're a child session, we need to remove all objects tracked in our root session:
+        # If parent session still open, close it on js side as well
+        if session !== root && isready(root)
+            evaljs(root, js"""JSServe.free_session($(session.id))""")
+        end
+        close(session.connection)
+        close(session.asset_server)
+        session.on_close[] = true
+        Observables.clear(session.on_close)
+        return
     end
-    free(session)
-    # unregister all cached objects from parent session
-    root = root_session(session)
-    # If we're a child session, we need to remove all objects tracked in our root session:
-    # If parent session still open, close it on js side as well
-    if session !== root && isready(root)
-        evaljs(root, js"""JSServe.free_session($(session.id))""")
-    end
-    close(session.connection)
-    close(session.asset_server)
-    session.on_close[] = true
-    Observables.clear(session.on_close)
-    return
 end
 
 """
@@ -358,7 +362,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     if !issubsession
         pushfirst!(children(head), JSServe_import)
     end
-    session.status = DISPLAYED
+    session.status = RENDERED
     return dom
 end
 

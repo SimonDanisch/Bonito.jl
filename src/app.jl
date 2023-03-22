@@ -36,6 +36,7 @@ end
 
 function rendered_dom(session::Session, app::App, target=HTTP.Request())
     app.session[] = session
+    session.current_app[] = app
     dom = Base.invokelatest(app.handler, session, target)
     return jsrender(session, dom)
 end
@@ -73,6 +74,7 @@ function HTTPServer.apply_handler(app::App, context)
             close(session)
         end
     end
+    session.status = DISPLAYED
     return response
 end
 
@@ -124,14 +126,14 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
         handler.session = HTTPSession(handler.server) # new session
     end
     parent = handler.session
-    empty_app = App(nothing)
     sub = Session(parent)
-    init_dom = session_dom(parent, empty_app)
+    init_dom = session_dom(parent, App(nothing))
     sub_dom = session_dom(sub, handler.current_app)
     # first time rendering in a subsession, we combine init of parent session
     # with the dom we're rendering right now
     dom = DOM.div(init_dom, sub_dom)
     html_str = sprint(io -> print_as_page(io, dom))
-
+    sub.status = DISPLAYED
+    parent.status = DISPLAYED
     return html(html_str)
 end

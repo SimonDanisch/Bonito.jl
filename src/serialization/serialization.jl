@@ -5,9 +5,11 @@ include("protocol.jl")
 
 
 function serialize_cached(session::Session, data)
-    ctx = SerializationContext(session)
-    message_data = serialize_cached(ctx, data)
-    return [SessionCache(session, ctx.message_cache), message_data]
+    return lock(root_session(session).deletion_lock) do
+        ctx = SerializationContext(session)
+        message_data = serialize_cached(ctx, data)
+        return [SessionCache(session, ctx.message_cache), message_data]
+    end
 end
 
 function SerializedMessage(session::Session, data)

@@ -100,10 +100,11 @@ function import_in_js(io::IO, session::Session, asset_server, asset::BinaryAsset
 end
 
 function import_in_js(io::IO, session::Session, asset_server, asset::Asset)
+    ref = url(session, asset)
     if asset.es6module
-        print(io, "import('$(url(session, asset))')")
+        print(io, "import('$(ref)')")
     else
-        print(io, js"JSServe.fetch_binary($(url(session, asset)))")
+        print(io, "JSServe.fetch_binary($(ref))")
     end
 end
 
