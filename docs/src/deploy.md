@@ -55,6 +55,34 @@ route!(server, r"my/nested/page" => App(DOM.div("nested")))
 url_to_visit = online_url(server, "/my/nested/page")
 ```
 
+### nginx
+If you need to re-route JSServe (e.g. to host in parallel to PlutoSliderServer, you want a reverse-proxy like `nginx`. We did some testing with nginx and the following configuration worked for us:
+```nginx
+server {
+    listen 8080;
+    location /jsserve/ {
+        proxy_pass http://localhost:8081/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host $host;
+    }
+}
+```
+and the JSServer with:
+```julia
+    server = Server("127.0.0.1", 8081;proxy_url="https://www.abc.org/jsserve/")
+    route!(server,"/"=>app) # with app an JSServe app
+    # close(server) # useful for debugging ;)
+```
+This would re-route `www.abc.org:8080/jsserve/` to your local JSServe-Server.
+
+If you get errors in your browser console relating to "GET", "MIME-TYPE"
+
+1. First make sure that the URL of the assets is "correct", that is, there is no `//` somewhere in the domain, and in principle the client tries to find the correct target (`Server(...,verbose=1)` might help to see if requests arrive).
+2. if the app shows up fine, but you get these errors (typically with wss:// in the front, indicating some websocket issue), double check that all the slashes `/` in your configuration are set correct. That is all these 4 paths should have `/`'s at the end: `location /subfolder/`, `proxy_pass =.../`  `Server(...,proxy_url=".../")` and `route!(...,'/'=>app)`
+3. If it still doesnt work, you might need to look into websocket forwarding - or you might have an intermediate reverse-proxy that blocks the websocket.
+4. 
 ### Heroku
 
 Deploying to Heroku with JSServe works pretty similar to this [blogpost](https://towardsdatascience.com/deploying-julia-projects-on-heroku-com-eb8da5248134).
