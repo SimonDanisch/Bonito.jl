@@ -10,10 +10,15 @@ function Deno()
 end
 
 function deno_bundle(path_to_js::AbstractString, output_file::String)
+    iswriteable = filemode(output_file) & Base.S_IWUSR != 0
+    # bundles shipped as part of a package end up as read only
+    # So we can't overwrite them
+    iswriteable || return false
     Deno_jll = Deno()
-    # We tread Deno as a development dependency,
+    # We treat Deno as a development dependency,
     # so if deno isn't loaded, don't bundle!
     isnothing(Deno_jll) && return false
+
     Deno_jll.deno() do exe
         stdout = IOBuffer()
         err = IOBuffer()
