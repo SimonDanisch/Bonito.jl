@@ -74,6 +74,7 @@ function get_session(session::Session, id::String)
 end
 
 function free(session::Session)
+    # don't double free!
     session.status === CLOSED && return
     # unregister all cached objects from root session
     root = root_session(session)
