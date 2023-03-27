@@ -25,6 +25,7 @@ end
 
 style(args...; kw...) = m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, "style", args...; kw...)
 script(args...; kw...) = m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, "script", args...; kw...)
+Base.@deprecate um(tag, args...; kw...) m(tag, args...; kw...)
 
 function m_unesc(tag, args...; kw...)
     m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, tag, args...; kw...)
