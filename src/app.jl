@@ -68,7 +68,6 @@ function serve_app(app, context)
         # But that's quite a bit more complicated and shouldn't be that much faster (this seems to add 300ns overhead right now)
         sleep(100) # better a long time with compilation etc
         if !isopen(session)
-            @debug("unitiliazed, closing session!")
             close(session)
         end
     end

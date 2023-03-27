@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       JULIA_PKG_SERVER: ""
+      JULIA_NUM_THREADS: "4"
     strategy:
       fail-fast: false
       matrix:

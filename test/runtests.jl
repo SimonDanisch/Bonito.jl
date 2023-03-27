@@ -1,5 +1,7 @@
 using JSServe
 ENV["JULIA_DEBUG"] = JSServe
+@show Threads.nthreads()
+
 using Deno_jll
 using Hyperscript, Markdown, Test, RelocatableFolders
 using Observables
@@ -53,6 +55,7 @@ end
 edisplay = JSServe.use_electron_display()
 
 @testset "JSServe" begin
+    @testset "threading" begin; include("threading.jl"); end
     @testset "subsessions" begin; include("subsessions.jl"); end
     @testset "connection-serving" begin; include("connection-serving.jl"); end
     @testset "serialization" begin; include("serialization.jl"); end
