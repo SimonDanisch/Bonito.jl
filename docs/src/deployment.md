@@ -81,7 +81,7 @@ If you get errors in your browser console relating to "GET", "MIME-TYPE"
 1. First make sure that the URL of the assets is "correct", that is, there is no `//` somewhere in the domain, and in principle the client tries to find the correct target (`Server(...,verbose=1)` might help to see if requests arrive).
 2. if the app shows up fine, but you get these errors (typically with wss:// in the front, indicating some websocket issue), double check that all the slashes `/` in your configuration are set correct. That is all these 4 paths should have `/`'s at the end: `location /subfolder/`, `proxy_pass =.../`  `Server(...,proxy_url=".../")` and `route!(...,'/'=>app)`
 3. If it still doesnt work, you might need to look into websocket forwarding - or you might have an intermediate reverse-proxy that blocks the websocket.
-4. 
+
 ### Heroku
 
 Deploying to Heroku with JSServe works pretty similar to this [blogpost](https://towardsdatascience.com/deploying-julia-projects-on-heroku-com-eb8da5248134).
