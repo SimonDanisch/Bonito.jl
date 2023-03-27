@@ -9,12 +9,12 @@ function md_html(session::Session, content::Vector)
 end
 
 function md_html(session::Session, header::Markdown.Header{l}) where l
-    return [DOM.um("h$l", htmlinline(session, header.text)...)]
+    return [DOM.m("h$l", htmlinline(session, header.text)...)]
 end
 
 function md_html(session::Session, code::Markdown.Code)
     maybe_lang = !isempty(code.language) ? Any[:class=>"language-$(code.language)"] : []
-    return [DOM.um("pre", DOM.um("code", code.code; maybe_lang...))]
+    return [DOM.m("pre", DOM.m("code", code.code; maybe_lang...))]
 end
 
 function md_html(session::Session, md::Markdown.Paragraph)
@@ -22,7 +22,7 @@ function md_html(session::Session, md::Markdown.Paragraph)
 end
 
 function md_html(session::Session, md::Markdown.BlockQuote)
-    return [DOM.um("blockquote", md_html(session, md.content)...)]
+    return [DOM.m("blockquote", md_html(session, md.content)...)]
 end
 
 function md_html(session::Session, f::Markdown.Footnote)
@@ -38,10 +38,10 @@ end
 function md_html(session::Session, md::Markdown.List)
     maybe_attr = md.ordered > 1 ? Any[:start => string(md.ordered)] : []
     tag = Markdown.isordered(md) ? "ol" : "ul"
-    return [DOM.um(
+    return [DOM.m(
         tag, maybe_attr...,
         map(md.items) do item
-            DOM.um("li", md_html(session, item)...)
+            DOM.m("li", md_html(session, item)...)
         end...
     )]
 end
@@ -55,11 +55,11 @@ function md_html(session::Session, md::Markdown.Table)
         tr_content = map(enumerate(md.rows[i])) do (j, c)
             alignment = md.align[j]
             alignment = alignment === :l ? "left" : alignment === :r ? "right" : "center"
-            return DOM.um(i == 1 ? "th" : "td", htmlinline(session, c)...; align=alignment)
+            return DOM.m(i == 1 ? "th" : "td", htmlinline(session, c)...; align=alignment)
         end
-        return DOM.um("tr", tr_content...)
+        return DOM.m("tr", tr_content...)
     end
-    return [DOM.um("table", content...)]
+    return [DOM.m("table", content...)]
 end
 
 function htmlinline(session::Session, content::Vector)
@@ -67,7 +67,7 @@ function htmlinline(session::Session, content::Vector)
 end
 
 function htmlinline(session::Session, code::Markdown.Code)
-    return [DOM.um("code", code.code)]
+    return [DOM.m("code", code.code)]
 end
 
 function htmlinline(session::Session, md::Union{Symbol, AbstractString})
@@ -75,27 +75,27 @@ function htmlinline(session::Session, md::Union{Symbol, AbstractString})
 end
 
 function htmlinline(session::Session, md::Markdown.Bold)
-    return [DOM.um("strong", htmlinline(session, md.text)...)]
+    return [DOM.m("strong", htmlinline(session, md.text)...)]
 end
 
 function htmlinline(session::Session, md::Markdown.Italic)
-    return [DOM.um("em", htmlinline(session, md.text)...)]
+    return [DOM.m("em", htmlinline(session, md.text)...)]
 end
 
 function htmlinline(session::Session, md::Markdown.Image)
-    return [DOM.um("img"; src=md.url, alt=md.alt)]
+    return [DOM.m("img"; src=md.url, alt=md.alt)]
 end
 
 function htmlinline(session::Session, f::Markdown.Footnote)
-    return [DOM.um("a", string("[", f.id, "]"); href="#footnote-$(f.id)", class="footnote")]
+    return [DOM.m("a", string("[", f.id, "]"); href="#footnote-$(f.id)", class="footnote")]
 end
 
 function htmlinline(session::Session, link::Markdown.Link)
-    return [DOM.um("a", href = link.url, htmlinline(session, link.text)...)]
+    return [DOM.m("a", href = link.url, htmlinline(session, link.text)...)]
 end
 
 function htmlinline(session::Session, br::Markdown.LineBreak)
-    return [DOM.um("br")]
+    return [DOM.m("br")]
 end
 
 htmlinline(session::Session, x) = [jsrender(session, x)]

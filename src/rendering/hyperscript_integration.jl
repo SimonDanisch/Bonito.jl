@@ -26,6 +26,10 @@ end
 style(args...; kw...) = m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, "style", args...; kw...)
 script(args...; kw...) = m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, "script", args...; kw...)
 
+function m_unesc(tag, args...; kw...)
+    m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, tag, args...; kw...)
+end
+
 end
 
 using .DOM
