@@ -47,7 +47,7 @@ end
 
 function Slider(name, values::AbstractArray; container_class="", attributes...)
     s = JSServe.Slider(values; style="width: 100%;", attributes...)
-    title = Title(DOM.div(name, DOM.div(s.value; class="float-right")))
+    title = Title(DOM.div(name, DOM.div(s.value; class="float-right text-right text w-32")))
     return Slider(s, WidgetContainer(title, s; class=container_class))
 end
 JSServe.jsrender(session::Session, x::Slider) = JSServe.jsrender(session, x.dom)
