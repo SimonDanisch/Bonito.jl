@@ -3007,10 +3007,20 @@ register_ext(104, (uint_8_array)=>{
     const key = unpack(uint_8_array);
     return lookup_global_object(key);
 });
+function create_tag(tag, attributes) {
+    if (attributes.juliasvgnode) {
+        return document.createElementNS("http://www.w3.org/2000/svg", tag);
+    } else {
+        return document.createElement(tag);
+    }
+}
 register_ext(105, (uint_8_array)=>{
     const [tag, children, attributes] = unpack(uint_8_array);
-    const node = document.createElement(tag);
+    const node = create_tag(tag, attributes);
     Object.keys(attributes).forEach((key)=>{
+        if (key == "juliasvgnode") {
+            return;
+        }
         if (key == "class") {
             node.className = attributes[key];
         } else {

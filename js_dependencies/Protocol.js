@@ -153,10 +153,23 @@ register_ext(CACHE_KEY_TAG, (uint_8_array) => {
     return lookup_global_object(key);
 });
 
+function create_tag(tag, attributes) {
+    if (attributes.juliasvgnode) {
+        // painfully figured out, that if you don't use createElementNS for
+        // svg, it will simply show up as an svg div with size 0x0
+        return document.createElementNS("http://www.w3.org/2000/svg", tag);
+    } else {
+        return document.createElement(tag);
+    }
+}
+
 register_ext(DOM_NODE_TAG, (uint_8_array) => {
     const [tag, children, attributes] = unpack(uint_8_array);
-    const node = document.createElement(tag);
+    const node = create_tag(tag, attributes);
     Object.keys(attributes).forEach((key) => {
+        if (key == "juliasvgnode"){
+            return //skip our internal node, needed to create proper svg
+        }
         if (key == "class") {
             node.className = attributes[key];
         } else {

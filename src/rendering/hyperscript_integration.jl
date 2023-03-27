@@ -2,42 +2,72 @@ module DOM
 
 using Hyperscript
 
-
-function um(tag, args...; kw...)
-    m(tag, args...; kw...)
-end
-
-function m_unesc(tag, args...; kw...)
-    m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, tag, args...; kw...)
-end
-
 for node in [:a, :abbr, :address, :area, :article, :aside, :audio, :b,
-             :base, :bdi, :bdo, :blockquote, :body, :br, :button, :canvas,
-             :code, :col, :colgroup, :data, :datalist, :caption, :cite,
-             :dd, :del, :details, :dfn, :dialog, :div, :dl, :dt, :em, :embed,
-             :figcaption, :figure, :footer, :form, :h1, :h2, :fieldset,
-             :h3, :h4, :h5, :h6, :head, :header, :hgroup, :hr, :html, :i, :iframe,
-             :input, :ins, :kbd, :label, :legend, :li, :link, :img,
-             :main, :map, :mark, :math, :menu, :menuitem, :meta, :meter, :nav,
-             :object, :ol, :optgroup, :option, :output, :p, :param, :noscript,
-             :picture, :pre, :progress, :q, :rb, :rp, :rt, :rtc, :ruby, :s, :samp,
-             :section, :select, :slot, :small, :source, :span,
-             :strong, :sub, :summary, :sup, :svg, :table, :tbody, :td, :template,
-             :textarea, :tfoot, :th, :thead, :time, :title, :tr,
-             :track, :u, :ul, :var, :video, :wbr, :font]
+    :base, :bdi, :bdo, :blockquote, :body, :br, :button, :canvas,
+    :code, :col, :colgroup, :data, :datalist, :caption, :cite,
+    :dd, :del, :details, :dfn, :dialog, :div, :dl, :dt, :em, :embed,
+    :figcaption, :figure, :footer, :form, :h1, :h2, :fieldset,
+    :h3, :h4, :h5, :h6, :head, :header, :hgroup, :hr, :html, :i, :iframe,
+    :input, :ins, :kbd, :label, :legend, :li, :link, :img,
+    :main, :map, :mark, :math, :menu, :menuitem, :meta, :meter, :nav,
+    :object, :ol, :optgroup, :option, :output, :p, :param, :noscript,
+    :picture, :pre, :progress, :q, :rb, :rp, :rt, :rtc, :ruby, :s, :samp,
+    :section, :select, :slot, :small, :source, :span,
+    :strong, :sub, :summary, :sup, :svg, :table, :tbody, :td, :template,
+    :textarea, :tfoot, :th, :thead, :time, :title, :tr,
+    :track, :u, :ul, :var, :video, :wbr, :font]
 
     node_name = string(node)
     unesc = Symbol(node_name * "_unesc")
-    @eval $(node)(args...; kw...) = um($(node_name), args...; kw...)
-    @eval $(unesc)(args...; kw...) = m_unesc($(node_name), args...; kw...)
+    @eval $(node)(args...; kw...) = m($(node_name), args...; kw...)
+    @eval $(unesc)(args...; kw...) = m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, $(node_name), args...; kw...)
 end
 
-style(args...; kw...) = m_unesc("style", args...; kw...)
-script(args...; kw...) = m_unesc("script", args...; kw...)
+style(args...; kw...) = m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, "style", args...; kw...)
+script(args...; kw...) = m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, "script", args...; kw...)
 
 end
 
 using .DOM
+
+module SVG
+# Sadly, SVG isn't that easy to serialize, since it shares tags with HTML,
+# but needs to be created via createElementNS. See: http://zhangwenli.com/blog/2017/07/26/createelementns/
+# Since it's hard to recognize when to use `createElementNS`, we just make users use `SVG.tagname` to create SVG,
+# so we can deserialize it correctly in JS!
+
+using Hyperscript
+
+const SVG_TAGS = [
+    :a, :animate, :animateMotion, :animateTransform, :circle, :clipPath, :defs, :desc,
+    :discard, :ellipse, :feBlend, :feColorMatrix, :feComponentTransfer, :feComposite, :feConvolveMatrix, :feDiffuseLighting,
+    :feDisplacementMap, :feDistantLight, :feDropShadow, :feFlood, :feFuncA, :feFuncB, :feFuncG, :feFuncR,
+    :feGaussianBlur, :feImage, :feMerge, :feMergeNode, :feMorphology, :feOffset, :fePointLight, :feSpecularLighting, :feSpotLight,
+    :feTile, :feTurbulence, :filter, :foreignObject, :g, :image, :line, :linearGradient,
+    :marker, :mask, :metadata, :mpath, :path, :pattern, :polygon, :polyline,
+    :radialGradient, :rect, :script, :set, :stop, :style, :svg, :switch, :symbol, :text, :textPath, :title, :tspan, :use, :view,
+]
+
+# Tags deprecated by W3 spec
+const DEPRECATED_TAGS = [
+    :altGlyph, :altGlyphDef, :altGlyphItem, :cursor, Symbol("font-face-format"), Symbol("font-face-name"), Symbol("font-face-src"),
+    Symbol("font-face-uri"), Symbol("font-face"), :font, :glyphRef, :hkern, :glyph, Symbol("missing-glyph"), :tref, :vkern,
+]
+
+for tag in SVG_TAGS
+    @eval $(tag)(args...; kw...) = m($(string(tag)), args...; juliasvgnode=true, kw...)
+end
+
+for tag in DEPRECATED_TAGS
+    @eval function $(tag)(args...; kw...)
+        @warn($("tag $(tag) is deprecated by the SVG standard. It's highly recommend to avoid it."))
+        return m($(string(tag)), args...; juliasvgnode=true, kw...)
+    end
+end
+
+end
+
+using .SVG
 
 function selector(node)
     query_string = "[data-jscall-id=$(repr(uuid(node)))]"
@@ -126,7 +156,7 @@ function render_node(session::Session, node::Node)
     node_attrs = Hyperscript.attrs(node)
     isempty(node_children) && isempty(node_attrs) && return node
 
-    new_attributes = Dict{String, Any}()
+    new_attributes = Dict{String,Any}()
     children_changed = false
     attributes_changed = false
     newchildren = []
@@ -170,7 +200,7 @@ function jsrender(session::Session, node::Node)
     render_node(session, node)
 end
 
-function uuid(session::Union{Nothing, Session}, node::Node)
+function uuid(session::Union{Nothing,Session}, node::Node)
     return get!(Hyperscript.attrs(node), "data-jscall-id") do
         if isnothing(session)
             return string(rand(UInt64))
@@ -187,7 +217,7 @@ jsrender(x::Hyperscript.Styled) = x
 struct SerializedNode
     tag::String
     children::Vector{Any}
-    attributes::Dict{String, Any}
+    attributes::Dict{String,Any}
 end
 
 function SerializedNode(session::Session, any)
@@ -209,7 +239,7 @@ function SerializedNode(session::Session, node::Node)
 
     isempty(node_children) && isempty(node_attrs) && return SerializedNode(tag, node_children, node_attrs)
 
-    new_attributes = Dict{String, Any}()
+    new_attributes = Dict{String,Any}()
     newchildren = []
     for child in node_children
         node = jsrender(session, child)
