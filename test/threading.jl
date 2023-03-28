@@ -1,4 +1,5 @@
 using Electron, JSServe, Test
+ENV["JULIA_DEBUG"] = JSServe
 
 function electron_evaljs(window, js)
     js_str = sprint(show, js)
@@ -10,7 +11,7 @@ function test_dom(window)
     electron_evaljs(window, js"""(()=> {
             function test(){
             const elem = document.querySelectorAll('select')
-            if (elem) {
+            if (elem && elem.length == 2) {
                 return elem
             } else {
                 return test()
@@ -49,22 +50,27 @@ function test_dom(window)
     # @test dropdown2_jl.value[] == "c2"
 end
 
-@testset "stresstest threading" begin
+begin
     app = App(threaded=true) do session
         dropdown1 = JSServe.Dropdown(["a", "b", "c"])
         dropdown2 = JSServe.Dropdown(["a2", "b2", "c2"]; index=2)
-        return DOM.div(dropdown1, dropdown2)
-    end
-    server = Server(app, "0.0.0.0", 8081)
+        img = Asset(joinpath(@__DIR__, "..", "docs", "src", "jupyterlab.png"))
+        return DOM.div(dropdown1, dropdown2, img, js"""$(JSServe.JSServeLib).then(console.log)""")
+    end;
+    server = Server(app, "0.0.0.0", 8888)
     url = URI(online_url(server, "/"))
-
-    windows = [Window(Application()) for i in 1:Threads.nthreads()]
-
-    Threads.@threads for i in 1:100
-        window = windows[Threads.threadid()]
-        load(window, url)
-        @test test_dom(window)
+    nwindows = 4
+    windows = Channel{Window}(nwindows)
+    for i in 1:nwindows
+        put!(windows, Window(Application()))
     end
-    foreach(close, windows)
-    close(server)
+    # Only use half of the available threads to not block the response because we hogged all threads
+    results = asyncmap(1:100) do i
+        window = take!(windows)
+        load(window, url)
+        result = test_dom(window)
+        put!(windows, window)
+        return result
+    end
+    @test all(results)
 end

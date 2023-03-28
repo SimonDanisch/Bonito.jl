@@ -67,7 +67,8 @@ function serve_app(app, context)
         # The best alternative would be to push to a clean up task in server, which would save us from spawning so many tasks
         # But that's quite a bit more complicated and shouldn't be that much faster (this seems to add 300ns overhead right now)
         sleep(100) # better a long time with compilation etc
-        if !isopen(session)
+        if session.status != OPEN && session.status !== CLOSED # should not double close
+            @debug("closing unopened connection")
             close(session)
         end
     end
