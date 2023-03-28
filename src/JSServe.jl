@@ -10,7 +10,6 @@ using Hyperscript: Node, children, tag
 using Observables
 using Markdown
 using HTTP
-using Deno_jll
 using Base64
 using MsgPack
 using WidgetsBase
@@ -22,19 +21,23 @@ using LinearAlgebra
 using CodecZlib
 using RelocatableFolders: @path, Path, getroot
 using URIs
+using ThreadPools
 
 using Base: RefValue
 
 # these are used in HTTPServer and need to be defined already
 function update_app! end
 function get_server end
+function wait_for end
+function wait_for_ready end
 
+include("deno.jl")
 include("types.jl")
-include("app.jl")
 include("HTTPServer/HTTPServer.jl")
+include("app.jl")
 
 import .HTTPServer: browser_display
-using .HTTPServer: Server, html, online_url, route!, file_mimetype, delete_websocket_route!, delete_route!
+using .HTTPServer: Server, html, online_url, route!, file_mimetype, delete_websocket_route!, delete_route!, use_electron_display
 
 include("js_source.jl")
 include("session.jl")
@@ -51,14 +54,14 @@ include("serialization/serialization.jl")
 include("util.jl")
 include("widgets.jl")
 include("display.jl")
-include("offline.jl")
+include("export.jl")
 include("tailwind-dashboard.jl")
 
 # Core functionality
-export Page, Session, App, DOM, @js_str, ES6Module
+export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset
 export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor
-export browser_display, configure_server!, Server, html, route!, online_url
-export Observable, on, onany
+export browser_display, configure_server!, Server, html, route!, online_url, use_electron_display
+export Observable, on, onany, bind_global
 export linkjs, evaljs, evaljs_value, onjs
 export NoServer, AssetFolder, HTTPAssetServer, DocumenterAssets
 export NoConnection, IJuliaConnection, PlutoConnection, WebSocketConnection

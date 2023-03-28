@@ -1,4 +1,4 @@
-# Deploying your app
+# Deployment
 
 ```@example 1
 using JSServe
@@ -7,13 +7,12 @@ example_app = App(DOM.div("hello world"), title="hello world")
 
 ## Server
 
-```@example 1
+```julia
 # Depending on your servers setup, you may need to listen on another port or URL
 # But 0.0.0.0:80 is pretty standard for most server setups
 port = 80
 url = "0.0.0.0"
 server = JSServe.Server(example_app, url, port)
-nothing
 ```
 
 Now, you should see the webpage at `http://0.0.0.0:80`.
@@ -23,7 +22,7 @@ Now, you should see the webpage at `http://0.0.0.0:80`.
 If the server is behind a proxy, you can set the proxy like this:
 
 ```@example 1
-server = JSServe.Server(example_app, url, 8080; proxy_url="https://my-domain.de/my-app");
+server = JSServe.Server(example_app, "0.0.0.0", 8080; proxy_url="https://my-domain.de/my-app");
 # or set it later
 # this can be handy for interactive use cases where one isn't sure which port is open, and let JSServe find a free port (which will then be different from the one created with, but is stored in `server.port`)
 server.proxy_url = ".../$(server.port)"
@@ -51,7 +50,7 @@ page_404 = App() do session, request
 end
 # You can use string (paths), or a regex
 route!(server, r".*" => page_404)
-route!(server, r"my/nested/page" => App(DOM.div("nested")))
+route!(server, "/my/nested/page" => App(DOM.div("nested")))
 url_to_visit = online_url(server, "/my/nested/page")
 ```
 
@@ -82,7 +81,7 @@ If you get errors in your browser console relating to "GET", "MIME-TYPE"
 1. First make sure that the URL of the assets is "correct", that is, there is no `//` somewhere in the domain, and in principle the client tries to find the correct target (`Server(...,verbose=1)` might help to see if requests arrive).
 2. if the app shows up fine, but you get these errors (typically with wss:// in the front, indicating some websocket issue), double check that all the slashes `/` in your configuration are set correct. That is all these 4 paths should have `/`'s at the end: `location /subfolder/`, `proxy_pass =.../`  `Server(...,proxy_url=".../")` and `route!(...,'/'=>app)`
 3. If it still doesnt work, you might need to look into websocket forwarding - or you might have an intermediate reverse-proxy that blocks the websocket.
-4. 
+
 ### Heroku
 
 Deploying to Heroku with JSServe works pretty similar to this [blogpost](https://towardsdatascience.com/deploying-julia-projects-on-heroku-com-eb8da5248134).
@@ -128,7 +127,7 @@ $ heroku git:remote -a example-app
 Which, after showing you the install logs, should print out the url to visit in the end.
 You can see the full example here:
 
-https://github.com/SimonDanisch/jsserve-heroku
+https://github.com/SimonDanisch/JSServe-heroku
 
 ## Terminal
 If no HTML display is found in the Julia display stack, JSServe calls `JSServe.enable_browser_display()` in the `__init__` function.

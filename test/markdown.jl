@@ -1,13 +1,12 @@
 # using JSServe, Markdown
 
-# JSServe.browser_display()
 function test_handler(session, req)
     global test_observable
     test_observable = Observable(Dict{String, Any}())
     test_session = session
 
     global s1 = JSServe.Slider(1:100)
-    s2 = JSServe.Slider(1:100)
+    global s2 = JSServe.Slider(1:100)
     b = JSServe.Button("hi"; dataTestId="hi_button")
 
     clicks = Observable(0)
@@ -17,7 +16,7 @@ function test_handler(session, req)
     clicks_div = DOM.div(clicks, dataTestId="button_clicks")
     t = JSServe.TextField("Write!")
 
-    linkjs(session, s1.value, s2.value)
+    linkjs(session, s1.index, s2.index)
 
     onjs(session, s1.value, js"""function (v){
         $(test_observable).notify({onjs: v});
@@ -36,8 +35,6 @@ function test_handler(session, req)
 
     number_input = JSServe.NumberInput(66.0)
     number_result = DOM.div(number_input.value, dataTestId="number_result")
-
-
     linked_value = DOM.div(s2.value, dataTestId="linked_value")
 
     dom = md"""
@@ -151,18 +148,15 @@ function test_current_session(app)
     end
 end
 
-global test_session = nothing
 global dom = nothing
 inline_display = JSServe.App() do session, req
-    global test_session = session
     global dom = test_handler(session, req)
     return dom
 end;
 JSServe.CURRENT_SESSION[] = nothing
-disp = JSServe.use_electron_display()
-display(inline_display);
+display(edisplay, inline_display);
 app = TestSession(URI("http://localhost:8555/show"),
-    JSServe.GLOBAL_SERVER[], disp.window, test_session)
+    JSServe.GLOBAL_SERVER[], edisplay.window, inline_display.session[])
 app.dom = dom;
 app.initialized = false
 wait(app)

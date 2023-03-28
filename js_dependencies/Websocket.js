@@ -1,7 +1,5 @@
 
 const session_websocket = [];
-let websocket_config = undefined;
-window.session_websocket = session_websocket
 
 function websocket_url(session_id, proxy_url) {
     // something like http://127.0.0.1:8081/
@@ -53,7 +51,7 @@ function ensure_connection() {
     }
 }
 
-function isopen() {
+export function isopen() {
     if (session_websocket.length === 0) {
         return false;
     }
@@ -62,6 +60,8 @@ function isopen() {
     }
     return false;
 }
+
+window.js_websocket_isopen = isopen
 
 function websocket_send(binary_data) {
     const status = ensure_connection();
@@ -86,11 +86,11 @@ function send_pings() {
 }
 
 
-export function setup_connection(config_input) {
+export function setup_connection(config) {
     let tries = 0;
     let websocket;
     function tryconnect(url) {
-        console.log(`tries; ${tries}`)
+        console.log(`tries; ${tries}`);
         if (session_websocket.length != 0) {
             const old_ws = session_websocket.pop();
             old_ws.close();
@@ -104,14 +104,27 @@ export function setup_connection(config_input) {
             tries = 0; // reset tries
             websocket.onmessage = function (evt) {
                 // run this async... (or do we?)
-                new Promise(resolve => {
+                new Promise((resolve) => {
                     const binary = new Uint8Array(evt.data);
-                    JSServe.process_message(JSServe.decode_binary_message(binary));
-                    resolve()
-                })
+                    if (binary.length === 1 && binary[0] === 0) {
+                        // test write
+                        return resolve(null);
+                    }
+                    JSServe.process_message(
+                        JSServe.decode_binary(
+                            binary,
+                            config.compression_enabled
+                        )
+                    );
+
+                    return resolve(null);
+                });
             };
-            JSServe.on_connection_open(websocket_send);
-            send_pings()
+            JSServe.on_connection_open(
+                websocket_send,
+                config.compression_enabled
+            );
+            send_pings();
         };
 
         websocket.onclose = function (evt) {
@@ -126,7 +139,8 @@ export function setup_connection(config_input) {
 
         websocket.onerror = function (event) {
             console.error("WebSocket error observed:");
-            console.log(event)
+            console.log(event);
+            console.log(tries)
             if (tries <= 10) {
                 while (session_websocket.length > 0) {
                     session_websocket.pop();
@@ -140,13 +154,6 @@ export function setup_connection(config_input) {
             }
         };
     }
-    let config = config_input;
-    if (!config) {
-        config = websocket_config;
-    } else {
-        websocket_config = config_input;
-    }
-
     const { session_id, proxy_url } = config;
 
     const url = websocket_url(session_id, proxy_url);

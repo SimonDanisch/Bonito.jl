@@ -17,11 +17,23 @@ function unique_key(asset::Asset)
     end
 end
 
-url(session::Session, asset::Asset) = url(session.asset_server, asset)
+function unique_file_key(asset::BinaryAsset)
+    key = unique_file_key(string(hash(asset.data)))
+    ext = HTTPServer.mimetype_to_extension(asset.mime)
+    return "$key.$ext"
+end
 
-function jsrender(session::Session, asset::Asset)
+url(session::Session, asset::Union{BinaryAsset, Asset}) = url(session.asset_server, asset)
+function url(::Nothing, asset::Asset)
+    # Allow to use nothing for specifying an online url
+    @assert !isempty(asset.online_path)
+    return asset.online_path
+end
+
+function render_asset(session::Session, asset::Asset)
+    @assert mediatype(asset) in (:css, :js)
     ref = url(session, asset)
-    element = if mediatype(asset) == :js
+    if mediatype(asset) == :js
         if asset.es6module
             return DOM.script(src=ref; type="module")
         else
@@ -29,8 +41,17 @@ function jsrender(session::Session, asset::Asset)
         end
     elseif mediatype(asset) == :css
         return DOM.link(href=ref, rel="stylesheet", type="text/css")
-    elseif mediatype(asset) in (:jpeg, :jpg, :png)
-        return DOM.img(src=ref)
+    end
+end
+
+function jsrender(session::Session, asset::Asset)
+    if mediatype(asset) in (:jpeg, :jpg, :png)
+        return DOM.img(src=url(session, asset))
+    elseif mediatype(asset) in (:css, :js)
+        # We include css/js assets with the above `render_asset` in session_dom
+        # So that we only include any depency one time
+        push!(session.imports, asset)
+        return nothing
     else
         error("Unrecognized asset media type: $(mediatype(asset))")
     end
@@ -78,23 +99,23 @@ function Base.show(io::IO, asset::Asset)
     print(io, get_path(asset))
 end
 
-function Asset(online_path::Union{String, Path}; name=nothing, es6module=false, check_isfile=false)
+function Asset(path_or_url::Union{String, Path}; name=nothing, es6module=false, check_isfile=false, bundle_dir::Union{Nothing, String, Path}=nothing)
     local_path = ""; real_online_path = ""
-    if is_online(online_path)
+    if is_online(path_or_url)
         local_path = ""
-        real_online_path = online_path
+        real_online_path = path_or_url
     else
-        local_path = normalize_path(online_path; check_isfile=check_isfile)
+        local_path = normalize_path(path_or_url; check_isfile=check_isfile)
+
     end
-    mediatype = Symbol(getextension(online_path))
-    last_bundled = Base.RefValue{Union{Nothing, Dates.DateTime}}(nothing)
-    return Asset(name, es6module, mediatype, real_online_path, local_path, last_bundled)
+    _bundle_dir = isnothing(bundle_dir) ? dirname(local_path) : bundle_dir
+    mediatype = Symbol(getextension(path_or_url))
+    return Asset(name, es6module, mediatype, real_online_path, local_path, _bundle_dir)
 end
 
 function ES6Module(path)
     name = String(splitext(basename(path))[1])
     asset = Asset(path; name=name, es6module=true)
-    JSServe.bundle!(asset)
     return asset
 end
 
@@ -131,6 +152,15 @@ function to_data_url(source::String, mime::String)
     end
 end
 
+function to_data_url(binary::Vector{UInt8}, mime="application/octet-stream")
+    return sprint() do io
+        print(io, "data:$(mime);base64,")
+        iob64_encode = Base64EncodePipe(io)
+        write(iob64_encode, binary)
+        close(iob64_encode)
+    end
+end
+
 function local_path(asset::Asset)
     if asset.es6module
         bundle!(asset)
@@ -141,19 +171,22 @@ function local_path(asset::Asset)
 end
 
 function get_deps_path(name)
-    folder = abspath(first(Base.DEPOT_PATH), "jsserve")
+    folder = abspath(first(Base.DEPOT_PATH), "JSServe")
     isdir(folder) || mkpath(folder)
     return joinpath(folder, name)
 end
 
 function bundle_path(asset::Asset)
-    asset_path = if isempty(asset.local_path)
-        get_deps_path(basename(asset.online_path))
+    @assert !isempty(asset.name) "Asset has no name, which may happen if Asset constructor was called wrongly"
+    bundle_dir = if !isempty(asset.bundle_dir)
+        asset.bundle_dir
+    elseif isempty(asset.local_path)
+        get_deps_path(asset.name)
     else
-        asset.local_path
+        dirname(asset.local_path)
     end
-    path, ext = splitext(asset_path)
-    return string(path, ".bundled", ext)
+    isdir(bundle_dir) || mkpath(bundle_dir)
+    return joinpath(bundle_dir, string(asset.name, ".bundled.", asset.media_type))
 end
 
 last_modified(path::Path) = last_modified(JSServe.getroot(path))
@@ -163,24 +196,33 @@ end
 
 function needs_bundling(asset::Asset)
     asset.es6module || return false
-    isnothing(asset.last_bundled[]) && return true
-    path = asset.local_path
-    isfile(bundle_path(asset)) || return true
-    return last_modified(path) > asset.last_bundled[]
+    path = get_path(asset)
+    bundled = bundle_path(asset)
+    !isfile(bundled) && return true
+    # If bundled happen after last modification of asset
+    return last_modified(path) > last_modified(bundled)
 end
+
+bundle!(asset::BinaryAsset) = nothing
 
 function bundle!(asset::Asset)
     needs_bundling(asset) || return
-    path = get_path(asset)
-    bundled = bundle_path(asset)
-    Deno_jll.deno() do exe
-        stdout = IOBuffer()
-        stderr = Base.DevNull()
-        source = sprint() do stdout
-            run(pipeline(`$exe bundle $(path)`; stdout=stdout, stderr=stderr))
-        end
-        write(bundled, source)
+    has_been_bundled = deno_bundle(get_path(asset), bundle_path(asset))
+    if !has_been_bundled && isfile(bundle_path(asset))
+        # when shipping, we don't have the correct time stamps, so we can't accurately say if we need bundling :(
+        # So we need to rely on the package authors to bundle before creating a new release!
+        return
     end
-    asset.last_bundled[] = Dates.now(UTC) # Filesystem.mtime(file) is in UTC
+    if !has_been_bundled
+        # Not bundling if bundling is needed is an error...
+        # In theory it could be a warning, but this way we make CI fail, so that
+        # PRs that forget to bundle JS dependencies will fail!
+        error("Asset $(asset) needs bundling.
+            If you've edited the asset, please load `Deno_jll` (e.g. `using Deno_jll, JSServe`),
+            which is an optional dependency needed for Developing JSServe Assets.
+            After that, assets should be bundled on precompile and whenever they're used after editing the asset.
+            If you're just using a package, please open an issue with the Package maintainers,
+            they must have forgotten bundling.")
+    end
     return
 end

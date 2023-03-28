@@ -1,3 +1,5 @@
+Base.close(::AbstractAssetServer) = nothing
+
 include("asset.jl")
 include("no-server.jl")
 include("http.jl")

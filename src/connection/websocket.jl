@@ -5,9 +5,9 @@ using HTTP.WebSockets
 
 mutable struct WebSocketConnection <: FrontendConnection
     server::Server
-    socket::Union{Nothing, WebSocket}
+    socket::Union{Nothing,WebSocket}
     lock::ReentrantLock
-    session::Union{Nothing, Session}
+    session::Union{Nothing,Session}
 end
 
 WebSocketConnection(proxy_callback::Function) = WebSocketConnection(get_server(proxy_callback))
@@ -22,7 +22,7 @@ function save_read(websocket)
         if WebSockets.isok(e)
             # it's ok :shrug:
         elseif e isa Union{Base.IOError, EOFError}
-            @warn("WS connection closed because of IO error")
+            @info("WS connection closed because of IO error")
             return nothing
         else
             rethrow(e)
@@ -33,7 +33,8 @@ end
 function save_write(websocket, binary)
     try
         # send is what HTTP overloaded for writing to a websocket
-        return send(websocket, binary)
+        send(websocket, binary)
+        return true
     catch e
         @warn "sending message to a closed websocket" maxlog = 1
         if WebSockets.isok(e) || e isa Union{Base.IOError,EOFError}
@@ -45,15 +46,41 @@ function save_write(websocket, binary)
     end
 end
 
-Base.isopen(ws::WebSocketConnection) = !isnothing(ws.socket) && !isclosed(ws.socket)
+function Base.isopen(ws::WebSocketConnection)
+    isnothing(ws.socket) && return false
+    # isclosed(ws.socket) returns readclosed && writeclosed
+    # but we consider it closed if either is closed?
+    if ws.socket.readclosed || ws.socket.writeclosed
+        return false
+    end
+    # So, it turns out, ws connection where the tab gets closed
+    # stay open indefinitely, but aren't writable anymore
+    return true
+    # result = save_write(ws.socket, UInt8[0])
+    # if isnothing(result)
+    #     close(ws)
+    #     return false
+    # else
+    #     return true
+    # end
+end
 
 function Base.write(ws::WebSocketConnection, binary)
+    if isnothing(ws.socket)
+        error("socket closed or not opened yet")
+    end
     lock(ws.lock) do
-        save_write(ws.socket, binary)
+        written = save_write(ws.socket, binary)
+        if written != true
+            close(ws)
+        end
     end
 end
 
 function Base.close(ws::WebSocketConnection)
+    if !isnothing(ws.session)
+        delete_websocket_route!(ws.server, "/$(ws.session.id)")
+    end
     isnothing(ws.socket) && return
     try
         socket = ws.socket
@@ -83,7 +110,6 @@ function run_connection_loop(server::Server, session::Session, websocket::WebSoc
     finally
         # This always needs to happen, which is why we need a try catch!
         @debug("Closing: $(session.id)")
-        delete_websocket_route!(server, "/$(session.id)")
         close(session)
     end
 end
@@ -113,13 +139,11 @@ end
 function setup_connection(session::Session, connection::WebSocketConnection)
     connection.session = session
     server = connection.server
-
     HTTPServer.websocket_route!(server, "/$(session.id)" => connection)
-
     proxy_url = online_url(server, "")
     return js"""
         $(Websocket).then(WS => {
-            WS.setup_connection({proxy_url: $(proxy_url), session_id: $(session.id)})
+            WS.setup_connection({proxy_url: $(proxy_url), session_id: $(session.id), compression_enabled: $(session.compression_enabled)})
         })
     """
 end

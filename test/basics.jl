@@ -27,9 +27,7 @@ DebugConnection() = DebugConnection(IOBuffer())
 Base.write(connection::DebugConnection, bytes) = write(connection.io, bytes)
 Base.isopen(connection::DebugConnection) = isopen(connection.io)
 Base.close(connection::DebugConnection) = close(connection.io)
-function setup_connection(session::Session{DebugConnection})
-    return nothing
-end
+setup_connection(session::Session{DebugConnection}) = nothing
 
 @testset "Session & Subsession rendering & cleanup" begin
     connection = DebugConnection()
@@ -59,7 +57,6 @@ end
 
     @testset "assets" begin
         @test length(c_session.session_objects) == 2
-        @test JSServe.noUiSlider in open_session.imports
     end
 
     @testset "observable $(obs_field)" for obs_field in (:range, :value, :connect, :orientation, :tooltips, :ticks)
@@ -99,6 +96,26 @@ end
     end
 end
 
+function test_dangling_app()
+    parent = Session()
+    sub = Session(parent)
+    init_dom = JSServe.session_dom(parent, App(nothing))
+    app = App() do s
+        obs = Observable(1)
+        return evaljs(s, js"$(obs)")
+    end
+    sub_dom = JSServe.session_dom(sub, app)
+    GC.gc(true)
+    # If finalizer get triggered closing the session, there will be
+    pso = parent.session_objects
+    sso = sub.session_objects
+    return !isempty(pso) && !isempty(sso) && all(v -> haskey(pso, v), collect(keys(sso)))
+end
+
+@testset "don't gc sessions for dangling apps" begin
+    @test test_dangling_app()
+    @test test_dangling_app()
+end
 
 # @testset "" begin
 #     obs2 = Observable("hey")

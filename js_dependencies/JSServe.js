@@ -1,4 +1,5 @@
 import * as Connection from "./Connection.js";
+import { Observable, onany } from "./Observables.js";
 import * as Protocol from "./Protocol.js";
 import * as Sessions from "./Sessions.js";
 
@@ -9,9 +10,8 @@ const {
     on_connection_open,
     on_connection_close,
     send_close_session,
-    register_on_connection_open,
     send_pingpong,
-    with_message_lock
+    with_message_lock,
 } = Connection;
 
 const {
@@ -19,13 +19,11 @@ const {
     base64encode,
     decode_binary,
     encode_binary,
-    decode_binary_message,
     decode_base64_message,
 } = Protocol;
 
 const {
     init_session,
-    deserialize_cached,
     free_session,
     lookup_global_object,
     update_or_replace,
@@ -51,6 +49,17 @@ function update_dom_node(dom, html) {
         return false;
     }
 }
+/**
+ * @param {RequestInfo | URL} url
+ */
+function fetch_binary(url) {
+    return fetch(url).then((response) => {
+        if (!response.ok) {
+            throw new Error("HTTP error, status = " + response.status);
+        }
+        return response.arrayBuffer();
+    });
+}
 
 const JSServe = {
     Protocol,
@@ -58,8 +67,8 @@ const JSServe = {
     base64encode,
     decode_binary,
     encode_binary,
-    decode_binary_message,
     decode_base64_message,
+    fetch_binary,
 
     Connection,
     send_error,
@@ -68,12 +77,10 @@ const JSServe = {
     on_connection_open,
     on_connection_close,
     send_close_session,
-    register_on_connection_open,
     send_pingpong,
     with_message_lock,
 
     Sessions,
-    deserialize_cached,
     init_session,
     free_session,
     // Util
@@ -81,10 +88,13 @@ const JSServe = {
     update_dom_node,
     lookup_global_object,
     update_or_replace,
+
+    onany,
 };
 
 // @ts-ignore
 window.JSServe = JSServe;
+
 
 export {
     Protocol,
@@ -92,7 +102,6 @@ export {
     base64encode,
     decode_binary,
     encode_binary,
-    decode_binary_message,
     decode_base64_message,
     Connection,
     send_error,
@@ -101,11 +110,9 @@ export {
     on_connection_open,
     on_connection_close,
     send_close_session,
-    register_on_connection_open,
     send_pingpong,
     with_message_lock,
     Sessions,
-    deserialize_cached,
     init_session,
     free_session,
     // Util
@@ -113,4 +120,5 @@ export {
     update_dom_node,
     lookup_global_object,
     update_or_replace,
+    onany
 };

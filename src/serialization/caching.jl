@@ -8,6 +8,7 @@ function SerializationContext(session::Session)
 end
 
 object_identity(retain::Retain) = object_identity(retain.value)
+object_identity(obs::Observable) = obs.id
 
 function serialize_cached(context::SerializationContext, retain::Retain)
     return add_cached!(context.session, context.message_cache, retain) do
@@ -17,11 +18,7 @@ function serialize_cached(context::SerializationContext, retain::Retain)
     end
 end
 
-function serialize_cached(context::SerializationContext, asset::Asset)
-    error("Not supported")
-end
-
-function register_observable!(session::Session, obs::Observable; deregister=true)
+function register_observable!(session::Session, obs::Observable)
     # Always register with root session!
     # TODO, this may be a problem for Observable{Observable}
     # since the updates are serialized via the root session then, which means they will never get freed
@@ -60,18 +57,9 @@ function serialize_cached(context::SerializationContext, node::Node{Hyperscript.
     return SerializedNode(context.session, node)
 end
 
-object_identity(asset::Asset) = unique_key(asset)
-object_identity(observable::Observable) = observable.id
-object_identity(@nospecialize(observable)) = nothing
-
-function serialize_cached(context::SerializationContext, @nospecialize(obj))
-    key = object_identity(obj)
-    # if key is nothing it means we can't/ don't want to cache!
-    isnothing(key) && return obj
-    return add_cached!(context.session, context.message_cache, obj) do
-        obj
-    end
-end
+serialize_cached(context::SerializationContext, @nospecialize(obj)) = obj
+serialize_cached(::SerializationContext, native::MSGPACK_NATIVE_TYPES) = native
+serialize_cached(::SerializationContext, native::AbstractArray{<:Number}) = native
 
 function serialize_cached(context::SerializationContext, x::Union{AbstractArray, Tuple})
     result = Vector{Any}(undef, length(x))
@@ -88,16 +76,6 @@ function serialize_cached(context::SerializationContext, dict::AbstractDict)
     end
     return result
 end
-
-function serialize_cached(session::Session, @nospecialize(obj))
-    ctx = SerializationContext(session)
-    data = serialize_cached(ctx, obj)
-    return [SessionCache(session.id, ctx.message_cache), data]
-end
-
-serialize_cached(::SerializationContext, native::MSGPACK_NATIVE_TYPES) = native
-serialize_cached(::SerializationContext, native::AbstractArray{<: Number}) = native
-
 
 """
     add_cached!(create_cached_object::Function, session::Session, message_cache::Dict{String, Any}, key::String)
@@ -120,7 +98,6 @@ function add_cached!(create_cached_object::Function, session::Session, send_to_j
         return result
     else
         # This session is a child session.
-
         # Now we need to figure out if the root session has the object cached already
         # The root session has our object cached already.
         session.session_objects[key] = nothing # session needs to reference this to "own" it
@@ -129,8 +106,8 @@ function add_cached!(create_cached_object::Function, session::Session, send_to_j
             send_to_js[key] = "tracking-only"
             return result
         end
-        # Nobody has the object cached, so we
-        # we add this session as the owner, but also add it to the root session
+        # Nobody has the object cached,
+        # so we add this session as the owner, but also add it to the root session
         send_to_js[key] = create_cached_object()
         root.session_objects[key] = object
         return result
@@ -145,11 +122,11 @@ end
 function delete_cached!(root::Session, key::String)
     if !haskey(root.session_objects, key)
         # This should uncover any fault in our caching logic!
-        error("Deleting key that doesn't belong to any cached object")
+        @warn("Deleting key that doesn't belong to any cached object")
+        return
     end
-    # We don't delete assets for now (since they remain loaded on the page anyways)
-    # And of course not Retain, since that's the whole point of it
-    root.session_objects[key] isa Union{Retain, Asset} && return
+    # We never free Retain, since that's the whole point of it
+    root.session_objects[key] isa Retain && return
     # We don't do reference counting, but we check if any child still holds a reference to the object we want to delete
     has_ref = any(((id, s),)-> child_has_reference(s, key), root.children)
     if !has_ref

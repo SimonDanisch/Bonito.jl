@@ -40,7 +40,7 @@ function JSServe.setup_connection(session::Session{WSConnection})
         websocket.onmessage = function (evt) {
             new Promise(resolve => {
                 const binary = new Uint8Array(evt.data);
-                JSServe.process_message(JSServe.decode_binary_message(binary));
+                JSServe.process_message(JSServe.decode_binary(binary, $(session.compression_enabled)));
                 resolve()
             })
         };

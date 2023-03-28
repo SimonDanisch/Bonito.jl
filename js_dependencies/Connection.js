@@ -12,34 +12,20 @@ const JSDoneLoading = "8";
 const FusedMessage = "9";
 const CloseSession = "10";
 const PingPong = "11";
+const UpdateSession = "12";
 
 const CONNECTION = {
     send_message: undefined,
-    connection_open_callback: undefined,
     queue: [],
     status: "closed",
 };
 
-/*
-Registers a callback that gets called
-*/
-export function register_on_connection_open(callback, session_id) {
-    CONNECTION.connection_open_callback = function () {
-        // `callback` CAN return a promise. If not, we turn it into one!
-        const promise = Promise.resolve(callback());
-        // once the callback promise resolves, we're FINALLY done and call done_loading
-        // which will signal the Julia side that EVERYTHING is set up!
-        promise.then(() => send_done_loading(session_id));
-    };
-}
-
-export function on_connection_open(send_message_callback) {
+export function on_connection_open(send_message_callback, compression_enabled) {
     CONNECTION.send_message = send_message_callback;
     CONNECTION.status = "open";
+    CONNECTION.compression_enabled = compression_enabled;
     // Once connection open, we send all messages that have queued up
     CONNECTION.queue.forEach((message) => send_to_julia(message));
-    // then we signal, that our connection is open and unqueued, which can run further callbacks!
-    CONNECTION.connection_open_callback();
 }
 
 export function on_connection_close() {
@@ -47,9 +33,9 @@ export function on_connection_close() {
 }
 
 export function send_to_julia(message) {
-    const { send_message, status } = CONNECTION;
+    const { send_message, status, compression_enabled } = CONNECTION;
     if (send_message && status === "open") {
-        send_message(encode_binary(message));
+        send_message(encode_binary(message, compression_enabled));
     } else if (status === "closed") {
         CONNECTION.queue.push(message);
     } else {
@@ -68,7 +54,7 @@ export function send_error(message, exception) {
         msg_type: JavascriptError,
         message: message,
         exception: String(exception),
-        stacktrace: exception == null ? "" : exception.stack,
+        stacktrace: exception === null ? "" : exception.stack,
     });
 }
 
@@ -80,16 +66,20 @@ export function send_warning(message) {
     });
 }
 
-export function send_done_loading(session) {
+/**
+ * @param {string} session
+ */
+export function send_done_loading(session, exception) {
     send_to_julia({
         msg_type: JSDoneLoading,
         session,
-        exception: "null",
+        message: "",
+        exception: exception === null ? "nothing" : String(exception),
+        stacktrace: exception === null ? "" : exception.stack,
     });
 }
 
 export function send_close_session(session, subsession) {
-    console.log(`closing ${session}`);
     send_to_julia({
         msg_type: CloseSession,
         session,
@@ -102,6 +92,7 @@ export class Lock {
     constructor() {
         this.locked = false;
         this.queue = [];
+        this.locking_tasks = new Set();
     }
     unlock() {
         this.locked = false;
@@ -111,14 +102,33 @@ export class Lock {
             this.lock(job);
         }
     }
-    lock(func) {
-        if (this.locked) {
-            return this.queue.push(func);
-        } else {
-            this.locked = true;
-            // func may return a promise that needs resolved first
-            return Promise.resolve(func()).then((x) => this.unlock());
+    /**
+     * @param {string} task_id
+     */
+    task_lock(task_id) {
+        this.locking_tasks.add(task_id)
+        this.locked = true
+    }
+    task_unlock(task_id) {
+        this.locking_tasks.delete(task_id);
+        if (this.locking_tasks.size == 0){
+            this.unlock()
         }
+    }
+    lock(func) {
+        return new Promise(resolve=> {
+            if (this.locked) {
+                const func_res = ()=> Promise.resolve(func()).then(resolve);
+                this.queue.push(func_res);
+            } else {
+                this.locked = true;
+                // func may return a promise that needs resolved first
+                Promise.resolve(func()).then((x) => {
+                    this.unlock()
+                    resolve(x)
+                });
+            }
+        })
     }
 }
 
@@ -126,23 +136,17 @@ const MESSAGE_PROCESS_LOCK = new Lock();
 
 // Makes sure, we process all messages in order... Used in initilization in session.jl
 export function with_message_lock(func) {
-    MESSAGE_PROCESS_LOCK.lock(func);
+    return MESSAGE_PROCESS_LOCK.lock(func);
 }
 
 export function process_message(data) {
-    if (!data) {
-        // there are messages, that will be processed in Sessions.js (e.g. `update_session_dom`).
-        // in that case, `deserialize_cached` will return null, which is then fed by the connection into process_message
-        return; // in that case we ignore the message
-    }
     try {
         switch (data.msg_type) {
             case UpdateObservable:
                 // this is a bit annoying...Better would be to let deserialization look up the observable
                 // and just do data.observable.notify
                 // But this is more efficient, which matters for such hot function (i think, lol)
-                const observable = lookup_global_object(data.id);
-                observable.notify(data.payload, true);
+                lookup_global_object(data.id).notify(data.payload, true);
                 break;
             case OnjsCallback:
                 // register a callback that will executed on js side
@@ -160,8 +164,7 @@ export function process_message(data) {
                 // just getting a ping, nothing to do here :)
                 console.debug("ping");
                 break;
-            case "UpdateSession":
-                // just getting a ping, nothing to do here :)
+            case UpdateSession:
                 update_session_dom(data);
                 break;
             default:

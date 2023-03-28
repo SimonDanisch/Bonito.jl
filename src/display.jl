@@ -22,7 +22,7 @@ function Page(;
         offline::Union{Bool,Nothing}=nothing,
         exportable::Union{Bool,Nothing}=nothing,
         connection::Union{Nothing, FrontendConnection}=nothing,
-        current_page_dir = pwd(), # For documenter server
+        current_page_dir = abspath(pwd()), # For documenter server
         server_config...)
     old_session = CURRENT_SESSION[]
     if !isempty(server_config)
@@ -56,6 +56,7 @@ function Page(;
     return
 end
 
+
 function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
     if !isnothing(CURRENT_SESSION[])
         # We render in a subsession
@@ -82,6 +83,13 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
     return sub
 end
 
+function print_as_page(io::IO, dom::Node)
+    println(io, "<!doctype html>")
+    # use Hyperscript directly to avoid the additional JSServe attributes
+    show(io, MIME"text/html"(), Hyperscript.Pretty(dom))
+    return
+end
+
 """
     page_html(session::Session, html_body)
 
@@ -89,59 +97,18 @@ Embeds the html_body in a standalone html document!
 """
 function page_html(io::IO, session::Session, app_node::Union{Node, App})
     dom = session_dom(session, app_node; html_document=true)
-    println(io, "<!doctype html>")
-    # use Hyperscript directly to avoid the additional jsserve attributes
-    show(io, MIME"text/html"(), Hyperscript.Pretty(dom))
+    print_as_page(io, dom)
     return
 end
 
-function Base.show(io::IOContext, m::MIME"application/vnd.jsserve.application+html", dom::App)
+function Base.show(io::IOContext, m::MIME"application/vnd.JSServe.application+html", dom::App)
     show(io.io, MIME"text/html"(), dom)
 end
 
-function Base.show(io::IO, m::MIME"application/vnd.jsserve.application+html", app::App)
+function Base.show(io::IO, m::MIME"application/vnd.JSServe.application+html", app::App)
     show(IOContext(io), m, app)
 end
 
 function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
     show(IOContext(io), MIME"text/html"(), app)
-end
-
-
-
-# Poor mans Require.jl for Electron
-const ELECTRON_PKG_ID = Base.PkgId(Base.UUID("a1bb12fb-d4d1-54b4-b10a-ee7951ef7ad3"), "Electron")
-function Electron()
-    if haskey(Base.loaded_modules, ELECTRON_PKG_ID)
-        return Base.loaded_modules[ELECTRON_PKG_ID]
-    else
-        error("Please Load Electron, if you want to use it!")
-    end
-end
-
-struct ElectronDisplay{EWindow} <: Base.Multimedia.AbstractDisplay
-    window::EWindow # a type parameter here so, that we dont need to depend on Electron Directly!
-end
-
-function ElectronDisplay()
-    w = Electron().Window()
-    Electron().toggle_devtools(w)
-    return ElectronDisplay(w)
-end
-
-Base.displayable(d::ElectronDisplay, ::MIME{Symbol("text/html")}) = true
-
-function Base.display(ed::ElectronDisplay, app::App)
-    d = JSServe.HTTPServer.BrowserDisplay()
-    session_url = "/browser-display"
-    s = JSServe.HTTPServer.server(d)
-    old_app = JSServe.route!(s, Pair{Any,Any}(session_url, app))
-    url = JSServe.online_url(s, "/browser-display")
-    return Electron().load(ed.window, JSServe.URI(url))
-end
-
-function use_electron_display()
-    disp = ElectronDisplay()
-    Base.Multimedia.pushdisplay(disp)
-    return disp
 end

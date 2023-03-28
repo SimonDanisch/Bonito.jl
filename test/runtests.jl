@@ -1,5 +1,10 @@
+using JSServe
+ENV["JULIA_DEBUG"] = JSServe
+@show Threads.nthreads()
+
+using Deno_jll
 using Hyperscript, Markdown, Test, RelocatableFolders
-using JSServe, Observables
+using Observables
 using JSServe: Session, evaljs, linkjs, div
 using JSServe: onjs, JSString, Asset, jsrender
 using JSServe: @js_str, uuid, SerializationContext, serialize_binary
@@ -13,7 +18,6 @@ using JSServe.MsgPack
 using JSServe.CodecZlib
 using Test
 using JSServe: jsrender
-
 include("ElectronTests.jl")
 
 function wait_on_test_observable()
@@ -48,12 +52,15 @@ function test_value(app, statement)
     fetch(val_t) # fetch the value!
 end
 
+edisplay = JSServe.use_electron_display()
+
 @testset "JSServe" begin
+    @testset "threading" begin; include("threading.jl"); end
+    @testset "subsessions" begin; include("subsessions.jl"); end
     @testset "connection-serving" begin; include("connection-serving.jl"); end
     @testset "serialization" begin; include("serialization.jl"); end
     @testset "widgets" begin; include("widgets.jl"); end
     # @testset "various" begin; include("various.jl"); end
     @testset "markdown" begin; include("markdown.jl"); end
     @testset "basics" begin; include("basics.jl"); end
-
 end

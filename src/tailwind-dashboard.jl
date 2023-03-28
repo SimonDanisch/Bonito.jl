@@ -22,12 +22,13 @@ function FlexCol(args...; class="", attributes...)
     )
 end
 
-function Card(content; class="", attributes...)
+function Card(content; class="", style="", width="fit-content", height="fit-content", attributes...)
     return DOM.div(
         JSServe.TailwindCSS,
         content;
-        attributes...,
+        style="width: $(width); height: $(height); $(style)",
         class="rounded-md p-2 m-2 shadow $class",
+        attributes...
     )
 end
 
@@ -46,11 +47,15 @@ end
 
 function Slider(name, values::AbstractArray; container_class="", attributes...)
     s = JSServe.Slider(values; style="width: 100%;", attributes...)
-    title = Title(DOM.div(name, DOM.div(s.value; class="float-right")))
+    title = Title(DOM.div(name, DOM.div(s.value; class="float-right text-right text w-32")))
     return Slider(s, WidgetContainer(title, s; class=container_class))
 end
 JSServe.jsrender(session::Session, x::Slider) = JSServe.jsrender(session, x.dom)
 
+JSServe.is_widget(::Slider) = true
+JSServe.value_range(slider::Slider) = JSServe.value_range(slider.widget)
+JSServe.update_value!(slider::Slider, idx) = JSServe.update_value!(slider.widget, idx)
+JSServe.to_watch(slider::Slider) = JSServe.to_watch(slider.widget)
 
 struct Dropdown
     widget::JSServe.Dropdown
@@ -65,6 +70,11 @@ end
 
 JSServe.jsrender(session::Session, x::Dropdown) = JSServe.jsrender(session, x.dom)
 
+JSServe.is_widget(::Dropdown) = true
+JSServe.value_range(dropdown::Dropdown) = JSServe.value_range(dropdown.widget)
+JSServe.update_value!(dropdown::Dropdown, idx) = JSServe.update_value!(dropdown.widget, idx)
+JSServe.to_watch(dropdown::Dropdown) = JSServe.to_watch(dropdown.widget)
+
 struct Checkbox
     widget::JSServe.Checkbox
     dom::Hyperscript.Node{Hyperscript.HTMLSVG}
@@ -75,6 +85,11 @@ function Checkbox(name, value::Bool; container_class="", attributes...)
     return Checkbox(c, WidgetContainer(Title(name), c; class=container_class))
 end
 JSServe.jsrender(session::Session, x::Checkbox) = JSServe.jsrender(session, x.dom)
+
+JSServe.is_widget(::Checkbox) = true
+JSServe.value_range(checkbox::Checkbox) = JSServe.value_range(checkbox.widget)
+JSServe.update_value!(checkbox::Checkbox, idx) = JSServe.update_value!(checkbox.widget, idx)
+JSServe.to_watch(checkbox::Checkbox) = JSServe.to_watch(checkbox.widget)
 
 function Button(name; class="", attributes...)
     class = "$class focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow"
@@ -91,6 +106,10 @@ function NumberInput(number::Number; class="", attributes...)
     return JSServe.NumberInput(number; class=class, attributes...)
 end
 
+
+Base.getproperty(x::Dropdown, f::Symbol) = f === :value ? x.widget.value : f === :option_index ? x.widget.option_index : getfield(x, f)
+Base.getproperty(x::Checkbox, f::Symbol) = f === :value ? x.widget.value : getfield(x, f)
+Base.getproperty(x::Slider, f::Symbol) = f === :value ? x.widget.value : getfield(x, f)
 
 function FileInput()
     container_class = "flex justify-center"

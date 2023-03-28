@@ -3,7 +3,6 @@ import * as MsgPack from "http://cdn.esm.sh/v97/@msgpack/msgpack@2.8.0/es2022/ms
 import * as Pako from "https://cdn.esm.sh/v66/pako@2.0.4/es2021/pako.js";
 import { Observable } from "./Observables.js";
 import {
-    deserialize_cached,
     update_session_cache,
     lookup_global_object,
 } from "./Sessions.js";
@@ -102,21 +101,20 @@ register_ext(
     }
 );
 
-register_ext(100, (uint_8_array) => {
+const OBSERVABLE_TAG = 101;
+const JSCODE_TAG = 102;
+const RETAIN_TAG = 103;
+const CACHE_KEY_TAG = 104;
+const DOM_NODE_TAG = 105;
+const SESSION_CACHE_TAG = 106;
+const SERIALIZED_MESSAGE_TAG = 107;
+
+register_ext(OBSERVABLE_TAG, (uint_8_array) => {
     const [id, value] = unpack(uint_8_array);
     return new Observable(id, value);
 });
 
-register_ext(101, (uint_8_array) => {
-    const [es6module, url] = unpack(uint_8_array);
-    if (es6module) {
-        return import(url);
-    } else {
-        return fetch(url); // return url for now
-    }
-});
-
-register_ext(102, (uint_8_array) => {
+register_ext(JSCODE_TAG, (uint_8_array) => {
     const [interpolated_objects, source, julia_file] = unpack(uint_8_array);
     const lookup_interpolated = (id) => interpolated_objects[id];
     // create a new func, that has __lookup_cached as argument
@@ -129,7 +127,7 @@ register_ext(102, (uint_8_array) => {
         // return a closure, that when called runs the code!
         return () => {
             try {
-                return eval_func(lookup_interpolated, JSServe);
+                return eval_func(lookup_interpolated, window.JSServe);
             } catch (err) {
                 console.log(`error in closure from: ${julia_file}`);
                 console.log(`Source:`);
@@ -145,20 +143,33 @@ register_ext(102, (uint_8_array) => {
     }
 });
 
-register_ext(103, (uint_8_array) => {
+register_ext(RETAIN_TAG, (uint_8_array) => {
     const real_value = unpack(uint_8_array);
     return new Retain(real_value);
 });
 
-register_ext(104, (uint_8_array) => {
+register_ext(CACHE_KEY_TAG, (uint_8_array) => {
     const key = unpack(uint_8_array);
     return lookup_global_object(key);
 });
 
-register_ext(105, (uint_8_array) => {
+function create_tag(tag, attributes) {
+    if (attributes.juliasvgnode) {
+        // painfully figured out, that if you don't use createElementNS for
+        // svg, it will simply show up as an svg div with size 0x0
+        return document.createElementNS("http://www.w3.org/2000/svg", tag);
+    } else {
+        return document.createElement(tag);
+    }
+}
+
+register_ext(DOM_NODE_TAG, (uint_8_array) => {
     const [tag, children, attributes] = unpack(uint_8_array);
-    const node = document.createElement(tag);
+    const node = create_tag(tag, attributes);
     Object.keys(attributes).forEach((key) => {
+        if (key == "juliasvgnode"){
+            return //skip our internal node, needed to create proper svg
+        }
         if (key == "class") {
             node.className = attributes[key];
         } else {
@@ -169,17 +180,21 @@ register_ext(105, (uint_8_array) => {
     return node;
 });
 
-register_ext(106, (uint_8_array) => {
-    const [session_id, objects] = unpack(uint_8_array);
-    update_session_cache(session_id, objects);
+register_ext(SESSION_CACHE_TAG, (uint_8_array) => {
+    const [session_id, objects, session_status] = unpack(uint_8_array);
+    update_session_cache(session_id, objects, session_status);
     return session_id;
 });
 
-register_ext(107, (uint_8_array) => {
+register_ext(SERIALIZED_MESSAGE_TAG, (uint_8_array) => {
     const [session_id, message] = unpack(uint_8_array);
     return message;
 });
 
+
+/**
+ * @param {Uint8Array} data_as_uint8array
+ */
 export function base64encode(data_as_uint8array) {
     // Use a FileReader to generate a base64 data URI
     const base64_promise = new Promise((resolve) => {
@@ -200,6 +215,9 @@ export function base64encode(data_as_uint8array) {
     return base64_promise;
 }
 
+/**
+ * @param {string} base64_str
+ */
 export function base64decode(base64_str) {
     return new Promise((resolve) => {
         fetch("data:application/octet-stream;base64," + base64_str).then(
@@ -212,19 +230,45 @@ export function base64decode(base64_str) {
     });
 }
 
-export function decode_binary_message(binary) {
-    return deserialize_cached(decode_binary(binary));
+/**
+ *
+ * @param {string} base64_string
+ * @param {boolean} compression_enabled
+ */
+export function decode_base64_message(base64_string, compression_enabled) {
+    return base64decode(base64_string).then((x) =>
+        decode_binary(x, compression_enabled)
+    );
 }
 
-export function decode_base64_message(base64_string) {
-    return base64decode(base64_string).then(decode_binary_message);
+export function decode_binary(binary, compression_enabled) {
+    // This should ALWAYS be a `SerializedMessage` from the Julia side
+    const serialized_message = unpack_binary(binary, compression_enabled);
+    const [session_id, message_data] = serialized_message
+    return message_data
 }
 
-export function decode_binary(binary) {
-    const msg_binary = Pako.inflate(binary);
-    return unpack(msg_binary);
+/**
+ *
+ * @param {Uint8Array} binary
+ * @param {boolean} compression_enabled
+ */
+export function unpack_binary(binary, compression_enabled) {
+    if (compression_enabled) {
+        return unpack(Pako.inflate(binary));
+    } else {
+        return unpack(binary);
+    }
 }
 
-export function encode_binary(data) {
-    return Pako.deflate(pack(data));
+/**
+ * @param {any} data
+ * @param {boolean} compression_enabled
+ */
+export function encode_binary(data, compression_enabled) {
+    if (compression_enabled) {
+        return pack(Pako.deflate(pack(data)));
+    } else {
+        return pack(data);
+    }
 }

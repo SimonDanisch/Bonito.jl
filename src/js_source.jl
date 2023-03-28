@@ -36,6 +36,7 @@ macro js_str(js_source)
     append!(value_array.args, iterate_interpolations(js_source))
     return :(JSCode($value_array, $(string(__source__.file, ":", __source__.line))))
 end
+JSCode(source::String) = JSCode([JSString(source)])
 
 struct JSSourceContext
     session::Union{Nothing,Session}
@@ -63,7 +64,7 @@ function print_js_code(io::IO, x::Number, context::JSSourceContext)
     return context
 end
 
-function print_js_code(io::IO, x::String, context::JSSourceContext)
+function print_js_code(io::IO, x::Union{Symbol, AbstractString}, context::JSSourceContext)
     print(io, "'", x, "'")
     return context
 end
@@ -74,7 +75,8 @@ function print_js_code(io::IO, jss::JSString, context::JSSourceContext)
 end
 
 function print_js_code(io::IO, node::Node, context::JSSourceContext)
-    print(io, "document.querySelector('[data-jscall-id=\"$(uuid(node))\"]')")
+    session = context.session # can be nothing
+    print(io, "document.querySelector('[data-jscall-id=\"$(uuid(session, node))\"]')")
     return context
 end
 
@@ -93,18 +95,25 @@ function print_js_code(io::IO, jsss::AbstractVector{JSCode}, context::JSSourceCo
     return context
 end
 
-function import_in_js(io::IO, session::Session, asset_server, asset::Asset)
-    print(io, "import('$(url(session, asset))')")
+function import_in_js(io::IO, session::Session, asset_server, asset::BinaryAsset)
+    print(io, "JSServe.fetch_binary('$(url(session, asset))')")
 end
 
-function print_js_code(io::IO, asset::Asset, context::JSSourceContext)
+function import_in_js(io::IO, session::Session, asset_server, asset::Asset)
+    ref = url(session, asset)
     if asset.es6module
+        print(io, "import('$(ref)')")
+    else
+        print(io, "JSServe.fetch_binary($(ref))")
+    end
+end
+
+function print_js_code(io::IO, asset::Union{Asset, BinaryAsset}, context::JSSourceContext)
+    if asset isa BinaryAsset || asset.es6module
         bundle!(asset) # no-op if not needed
         session = context.session
         if !isnothing(session)
             import_in_js(io, session, session.asset_server, asset)
-            push!(session.imports, asset)
-            push!(root_session(session).imports, asset)
         else
             # This should be mainly for `print(jscode)`
             print(io, "import('$(get_path(asset))')")
@@ -133,17 +142,17 @@ function inline_code(session::Session, asset_server, js::JSCode)
     code = sprint() do io
         print_js_code(io, js, context)
     end
-    # TODO, give imports their own dict?
     if isempty(context.objects)
         src = code
     else
         # reverse lookup and serialize elements
+
         interpolated_objects = Dict(v => k for (k, v) in context.objects)
-        data_str = serialize_string(session, interpolated_objects)
+        binary = BinaryAsset(session, interpolated_objects)
         src = """
             // JSCode from $(js.file)
-            const data_str = '$(data_str)'
-            JSServe.decode_base64_message(data_str).then(objects=> {
+            JSServe.fetch_binary('$(url(session, binary))').then(bin_messages=>{
+                const objects = JSServe.decode_binary(bin_messages, $(session.compression_enabled));
                 const __lookup_interpolated = (id) => objects[id]
                 $code
             })

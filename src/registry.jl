@@ -208,3 +208,9 @@ register_connection!(PlutoConnection) do
     isdefined(Main, :PlutoRunner) && return PlutoConnection()
     return nothing
 end
+
+
+const COMPRESSION_ENABLED = RefValue{Bool}(false)
+
+default_compression() = COMPRESSION_ENABLED[]
+default_compression!(enable) = (COMPRESSION_ENABLED[] = enable)

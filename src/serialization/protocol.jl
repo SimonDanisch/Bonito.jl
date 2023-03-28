@@ -9,6 +9,7 @@ const JSDoneLoading = "8"
 const FusedMessage = "9"
 const CloseSession = "10"
 const PingPong = "11"
+const UpdateSession = "12"
 
 """
     process_message(session::Session, bytes::AbstractVector{UInt8})
@@ -27,7 +28,7 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         obs = get(session.session_objects, data["id"], nothing)
         if isnothing(obs)
             # this is usually non fatal and may happen when old exported HTML gets reconnected
-            @debug "Observable $(data["id"]) not found :( "
+            @warn "Observable $(data["id"]) not found :( "
         else
             # Observable can be wrapped inside Retain
             _obs = obs isa Retain ? obs.value : obs
@@ -38,7 +39,7 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
     elseif typ == JavascriptWarning
         @warn "Error in Javascript: $(data["message"])\n)"
     elseif typ == JSDoneLoading
-        if data["exception"] !== "null"
+        if data["exception"] != "nothing"
             exception = JSException(session, data)
             show(stderr, exception)
             session.init_error[] = exception

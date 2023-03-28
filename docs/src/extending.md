@@ -7,7 +7,6 @@ using JSServe
 JSServe.Page()
 ```
 
-
 ```Julia
 
 struct MyConnection <: JSServe.FrontendConnection
@@ -36,7 +35,7 @@ function setup_connection(session::Session{MyConnection})
     // register sending message
     JSServe.on_connection_open((binary) => {
         comm.send(binary)
-    });
+    }, $(session.compression_enabled));
     """
 end
 ```

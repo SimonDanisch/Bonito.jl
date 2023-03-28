@@ -3,44 +3,82 @@
 MsgPack.msgpack_type(::Type{Float16}) = MsgPack.FloatType()
 MsgPack.to_msgpack(::MsgPack.FloatType, x::Float16) = Float32(x)
 
-# taken from MsgPack docs... Did I miss a type that natively supports this?
-struct ByteVec{T}
-    bytes::T
-end
-
-Base.length(bv::ByteVec) = sizeof(bv.bytes)
-Base.write(io::IO, bv::ByteVec) = write(io, bv.bytes)
-Base.:(==)(a::ByteVec, b::ByteVec) = a.bytes == b.bytes
-MsgPack.msgpack_type(::Type{<:ByteVec}) = MsgPack.BinaryType()
-MsgPack.to_msgpack(::MsgPack.BinaryType, x::ByteVec) = x
-MsgPack.from_msgpack(::Type{ByteVec}, bytes::Vector{UInt8}) = ByteVec(bytes)
-function ByteVec(array::AbstractVector{T}) where T
-    # copies abstract arrays, but leaves Vector{T} unchanged
-    return ByteVec(convert(Vector{T}, array))
-end
 
 MsgPack.msgpack_type(::Type{<: AbstractVector{<: JSTypedNumber}}) = MsgPack.ExtensionType()
 
-function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::AbstractVector{T}) where T <: JSTypedNumber
-    type = findfirst(isequal(T), JSTypedArrayEltypes) + 0x10
-    # return MsgPack.Extension(Int8(type), convert(Vector{T}, x)) # TODO tag MsgPack for PERFORMANCE!!!
-    return MsgPack.Extension(Int8(type), collect(reinterpret(UInt8, convert(Vector{T}, x))))
+function real_unsafe_write(io::IOBuffer, data::Array{T}) where T
+    @assert isbitstype(T)
+    nbytes = sizeof(data)
+    Base.ensureroom(io, nbytes)
+    ptr = (io.append ? io.size + 1 : io.ptr)
+    written = Int(min(nbytes, Int(length(io.data))::Int - ptr + 1))
+    towrite = written
+    GC.@preserve data begin
+        Base.unsafe_copyto!(pointer(io.data, ptr), Ptr{UInt8}(pointer(data)), nbytes)
+    end
+    io.size = max(io.size, ptr - 1 + written)
+    if !io.append
+        io.ptr += written
+    end
+    return written
+end
+
+convert_for_write(x::Array) = x
+convert_for_write(x::Base.ReinterpretArray) = x.parent
+convert_for_write(x::AbstractArray) = collect(x)
+convert_for_write(x::AbstractArray{Float16,N}) where {N} = convert(Array{Float32,N}, x)
+convert_for_write(x::Array{Float16,N}) where {N} = convert(Array{Float32,N}, x)
+
+array_tag(::Type{<: Float16}) = array_tag(Float32)
+
+for (IDX, T) in enumerate(JSTypedArrayEltypes)
+    @eval begin
+        array_tag(::Type{$T}) = $(Int8(IDX + 0x10))
+        function MsgPack.pack_type(io, ::MsgPack.ExtensionType, x::AbstractVector{$T})
+            type = $(Int8(IDX + 0x10))
+            array = convert_for_write(x)::Vector
+            MsgPack.write_extension_header(io, sizeof(array), type)
+            real_unsafe_write(io, array)
+        end
+    end
 end
 
 MsgPack.msgpack_type(::Type{<: AbstractVector{Float16}}) = MsgPack.ExtensionType()
 
-function MsgPack.to_msgpack(EXT::MsgPack.ExtensionType, x::AbstractVector{Float16})
-    return MsgPack.to_msgpack(EXT, convert(Vector{Float32}, x))
+function MsgPack.pack_type(io, ext::MsgPack.ExtensionType, x::AbstractVector{Float16})
+    return MsgPack.pack_type(io, ext, convert(Vector{Float32}, x))
 end
 
 const ARRAY_TAG = Int8(99)
 MsgPack.msgpack_type(::Type{<: AbstractArray{<: Union{Float16, JSTypedNumber}}}) = MsgPack.ExtensionType()
-function MsgPack.to_msgpack(EXT::MsgPack.ExtensionType, x::AbstractArray{<: Union{Float16, JSTypedNumber}})
-    return MsgPack.Extension(ARRAY_TAG, pack(Any[UInt32[size(x)...], vec(x)]))
+
+_eltype(x) = eltype(x) == Float16 ? Float32 : Float16
+
+
+function MsgPack.pack_type(io, ::MsgPack.ExtensionType, x::AbstractArray{<:Union{Float16,JSTypedNumber}})
+    array = convert_for_write(x)
+    dims = pack(UInt32[size(x)...])
+    f = MsgPack.ArrayFixFormat(MsgPack.magic_byte_min(MsgPack.ArrayFixFormat) | UInt8(2))
+    tagtype = array_tag(eltype(x))
+    # Size of the final binary array we attach to the extension
+    nbytes = sizeof(f.byte) + sizeof(dims) + MsgPack.ext_header_size(sizeof(array)) + sizeof(array)
+    MsgPack.write_extension_header(io, nbytes, ARRAY_TAG)
+    write(io, f.byte)
+    real_unsafe_write(io, dims)
+    MsgPack.write_extension_header(io, sizeof(array), tagtype)
+    real_unsafe_write(io, array)
 end
 
-const OBSERVABLE_TAG = Int8(100)
+const OBSERVABLE_TAG = Int8(101)
+const JSCODE_TAG = Int8(102)
+const RETAIN_TAG = Int8(103)
+const CACHE_KEY_TAG = Int8(104)
+const DOM_NODE_TAG = Int8(105)
+const SESSION_CACHE_TAG = Int8(106)
+const SERIALIZED_MESSAGE_TAG = Int8(107)
+
 MsgPack.msgpack_type(::Type{<: SerializedObservable}) = MsgPack.ExtensionType()
+
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedObservable)
     return MsgPack.Extension(OBSERVABLE_TAG, pack([x.id, x.value]))
 end
@@ -50,47 +88,36 @@ function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::Observable)
     return MsgPack.Extension(OBSERVABLE_TAG, pack([x.id, x[]]))
 end
 
-const ASSET_TAG = Int8(101)
-MsgPack.msgpack_type(::Type{SerializedAsset}) = MsgPack.ExtensionType()
-function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedAsset)
-    return MsgPack.Extension(ASSET_TAG, pack([x.es6module, x.url]))
-end
-
-const JSCODE_TAG = Int8(102)
 MsgPack.msgpack_type(::Type{SerializedJSCode}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedJSCode)
     return MsgPack.Extension(JSCODE_TAG, pack([x.interpolated_objects, x.source, x.julia_file]))
 end
 
-const RETAIN_TAG = Int8(103)
 MsgPack.msgpack_type(::Type{Retain}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::Retain)
     return MsgPack.Extension(RETAIN_TAG, pack(x.value))
 end
 
-const CACHE_KEY_TAG = Int8(104)
 MsgPack.msgpack_type(::Type{CacheKey}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::CacheKey)
     return MsgPack.Extension(CACHE_KEY_TAG, pack(x.key))
 end
 
-const DOM_NODE_TAG = Int8(105)
 MsgPack.msgpack_type(::Type{SerializedNode}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedNode)
     return MsgPack.Extension(DOM_NODE_TAG, pack([x.tag, x.children, x.attributes]))
 end
 
-const SESSION_CACHE_TAG = Int8(106)
 MsgPack.msgpack_type(::Type{SessionCache}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SessionCache)
-    return MsgPack.Extension(SESSION_CACHE_TAG, pack([x.session_id, x.objects]))
+    return MsgPack.Extension(SESSION_CACHE_TAG, pack([x.session_id, x.objects, x.session_type]))
 end
 
-const SERIALIZED_MESSAGE_TAG = Int8(107)
 MsgPack.msgpack_type(::Type{SerializedMessage}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedMessage)
     return MsgPack.Extension(SERIALIZED_MESSAGE_TAG, x.bytes)
 end
+
 
 # The other side does the same (/frontend/common/MsgPack.js), and we decode it here:
 function decode_extension_and_addbits(ext::MsgPack.Extension)
@@ -116,8 +143,12 @@ function decode_extension_and_addbits(ext::MsgPack.Extension)
             value = decode_extension_and_addbits(MsgPack.unpack(ext.data))
             # MsgPack.Extension(JSCODE_TAG, pack([x.interpolated_objects, x.source, x.julia_file]))
             return JSCode([JSString(value[2])], value[3])
+        elseif DOM_NODE_TAG == ext.type
+            tag, children, attributes = decode_extension_and_addbits(MsgPack.unpack(ext.data))
+            return Hyperscript.Node{Hyperscript.HTMLSVG}(Hyperscript.DEFAULT_HTMLSVG_CONTEXT, tag, children, attributes)
         elseif ARRAY_TAG == ext.type
-            unpacked = decode_extension_and_addbits(MsgPack.unpack(ext.data))
+            data = MsgPack.unpack(ext.data)
+            unpacked = decode_extension_and_addbits(data)
             return reshape(unpacked[2], map(Int, unpacked[1])...)
         else
             idx = Int(ext.type - 0x10)

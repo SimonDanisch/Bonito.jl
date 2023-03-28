@@ -48,7 +48,8 @@ function Base.isopen(connection::IJuliaConnection)
 end
 
 _close(connection::WebSocketConnection) = close(connection)
-_close(comm) = IJulia().close_comm(connection.comm)
+_close(connection) = IJulia().close_comm(connection.comm)
+_close(::Nothing) = nothing
 Base.close(connection::IJuliaConnection) = _close(connection.comm)
 
 function setup_connection(session::Session{IJuliaConnection})
@@ -75,31 +76,30 @@ function setup_connection(session::Session, ::Nothing)
     end)
     id = session.id
     return js"""
-        const init_ijulia = () => {
-            console.log("setting up IJulia");
-            if (!window.Jupyter) {
-                throw new Error("Jupyter not loaded");
-            }
-            const plugin_name = $(JSServe.PLUGIN_NAME);
-            const comm_manager = Jupyter.notebook.kernel.comm_manager;
-            comm_manager.unregister_target(plugin_name);
-            comm_manager.register_target(plugin_name, () => {});
-            const comm = comm_manager.new_comm(
-                plugin_name, // target_name
-                {session_id: $(session.id)}, // data
-                undefined, // callbacks
-                undefined, // metadata
-                undefined, // comm_id
-                undefined, // buffers
-            );
-            comm.on_msg((msg) => {
-                JSServe.decode_base64_message(msg.content.data.data).then(JSServe.process_message)
-            });
-
-            JSServe.on_connection_open((binary) => {
-                JSServe.base64encode(binary).then(x=> comm.send(x))
-            });
+    (() => {
+        console.log("setting up IJulia");
+        if (!window.Jupyter) {
+            throw new Error("Jupyter not loaded");
         }
-        init_ijulia();
+        const plugin_name = $(JSServe.PLUGIN_NAME);
+        const comm_manager = Jupyter.notebook.kernel.comm_manager;
+        comm_manager.unregister_target(plugin_name);
+        comm_manager.register_target(plugin_name, () => {});
+        const comm = comm_manager.new_comm(
+            plugin_name, // target_name
+            {session_id: $(session.id)}, // data
+            undefined, // callbacks
+            undefined, // metadata
+            undefined, // comm_id
+            undefined, // buffers
+        );
+        comm.on_msg((msg) => {
+            JSServe.decode_base64_message(msg.content.data.data, $(session.compression_enabled)).then(JSServe.process_message)
+        });
+
+        JSServe.on_connection_open((binary) => {
+            JSServe.base64encode(binary).then(x=> comm.send(x))
+        }, $(session.compression_enabled));
+    })()
     """
 end

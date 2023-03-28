@@ -7,32 +7,32 @@ To enable putting YourType into a dom element/div.
 You can also overload it to take a session as first argument, to register
 messages with the current web session (e.g. via onjs).
 """
-jsrender(::Session, @nospecialize(x)) = jsrender(x)
-jsrender(value::Union{String, Symbol}) = string(value)
+jsrender(::Session, value::Union{String,Symbol}) = string(value)
 jsrender(::Nothing) = DOM.span()
+jsrender(@nospecialize(x)) = x
 
-function render_mime(m::MIME"text/html", @nospecialize(value))
-    html = repr(m, value)
+function render_mime(session::Session, m::MIME"text/html", @nospecialize(value))
+    html = Base.invokelatest(repr, m, value)
     return HTML(html)
 end
 
-function render_mime(m::MIME"image/png", @nospecialize(value))
-    img = repr(m, value)
-    src = "data:image/png;base64," * Base64.base64encode(img)
-    return DOM.img(src=src)
+function render_mime(session::Session, m::Union{MIME"image/png", MIME"image/jpeg", MIME"image/svg+xml"}, @nospecialize(value))
+    io = IOBuffer()
+    show(io, m, value)
+    bindeps = BinaryAsset(take!(io), mime_string(m))
+    return DOM.img(src=url(session, bindeps))
 end
 
-function render_mime(m::MIME"image/svg+xml", @nospecialize(value))
-    img = repr(m, value)
-    src = "data:image/svg+xml;base64," * Base64.base64encode(img)
-    return DOM.img(src=src)
+function render_mime(session::Session, m::MIME"text/plain", @nospecialize(value))
+    return DOM.p(Base.invokelatest(repr, m, value))
 end
 
-function render_mime(m::MIME"text/plain", @nospecialize(value))
-    return DOM.p(repr(m, value))
-end
-
-function jsrender(@nospecialize(value))
-    mime = richest_mime(value)
-    return render_mime(mime, value)
+function jsrender(session::Session, @nospecialize(value))
+    rendered = jsrender(value)
+    if rendered === value
+        mime = richest_mime(value)
+        return render_mime(session, mime, value)
+    else
+        return rendered
+    end
 end

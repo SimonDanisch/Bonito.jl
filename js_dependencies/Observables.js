@@ -16,7 +16,9 @@ class Observable {
      * @param {boolean} dont_notify_julia
      */
     notify(value, dont_notify_julia) {
-        this.value = value;
+        if (value) {
+            this.value = value;
+        }
         this.#callbacks.forEach((callback) => {
             try {
                 const deregister = callback(value);
@@ -50,6 +52,13 @@ class Observable {
     on(callback) {
         this.#callbacks.push(callback);
     }
+}
+
+export function onany(observables, f) {
+    const callback = (x)=> f(observables.map(x=> x.value))
+    observables.forEach(obs => {
+        obs.on(callback);
+    })
 }
 
 export { Observable };

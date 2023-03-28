@@ -1,5 +1,6 @@
 struct Routes
     table::Vector{Pair{Any, Any}}
+    lock::Base.ReentrantLock
 end
 
 """
@@ -16,7 +17,7 @@ mutable struct Server
     websocket_routes::Routes
 end
 
-Routes(pairs::Pair...) = Routes(Pair{Any, Any}[pairs...])
+Routes(pairs::Pair...) = Routes(Pair{Any, Any}[pairs...], Base.ReentrantLock())
 
 # Priorities, so that e.g. r".*" doesn't catch absolut matches by e.g a string
 pattern_priority(x::Pair) = pattern_priority(x[1])
@@ -28,24 +29,28 @@ delete_route!(server::Server, pattern) = delete_route!(server.routes, pattern)
 delete_websocket_route!(server::Server, pattern) = delete_route!(server.websocket_routes, pattern)
 
 function delete_route!(routes::Routes, pattern)
-    filter!(((key, f),) -> !(key == pattern), routes.table)
+    lock(routes.lock) do
+        filter!(((key, f),) -> !(key == pattern), routes.table)
+    end
     return
 end
 
 function route!(routes::Routes, pattern_func::Pair)
     pattern, func = pattern_func
-    idx = findfirst(pair-> pair[1] == pattern, routes.table)
-    old = nothing
-    if idx !== nothing
-        old = routes.table[idx][2]
-        routes.table[idx] = pattern_func
-    else
-        push!(routes.table, pattern_func)
+    return lock(routes.lock) do
+        idx = findfirst(pair-> pair[1] == pattern, routes.table)
+        old = nothing
+        if idx !== nothing
+            old = routes.table[idx][2]
+            routes.table[idx] = pattern_func
+        else
+            push!(routes.table, pattern_func)
+        end
+        # Sort for priority so that exact string matches come first
+        sort!(routes.table, by = pattern_priority)
+        # return old route (nothing if new)
+        return old
     end
-    # Sort for priority so that exact string matches come first
-    sort!(routes.table, by = pattern_priority)
-    # return old route (nothing if new)
-    return old
 end
 
 function route!(application::Server, pattern_func::Pair)
@@ -146,7 +151,7 @@ function stream_handler(application::Server, stream::Stream)
     catch e
         # we expect the IOError to happen, if either the page gets closed
         # or we close the server!
-        if !(e isa Base.IOError && e.msg == "stream is closed or unusable")
+        if !(e isa Base.IOError && (e.msg == "stream is closed or unusable" || e.code == -4081))
             rethrow(e)
         end
     end
@@ -212,8 +217,8 @@ function Base.close(application::Server)
             # Somehow wait(task) deadlocks when there is still an open page?
             # Really weird, especially since I can't make an MWE ... (Windows, Julia 1.8.2, HTTP@v1.5.5)
             # TODO, do we hold on to resources in the stream handler??
-            JSServe.wait_for(()-> isdone(task))
-            @assert !Base.isdone(task)
+            JSServe.wait_for(() -> istaskdone(task))
+            @assert !Base.istaskdone(task)
         catch e
             @debug "Server task failed with an (expected) exception on close" exception=e
         end
@@ -272,3 +277,42 @@ Wait on the server task, i.e. block execution by bringing the server event loop 
 function Base.wait(server::Server)
     wait(server.server_task[])
 end
+
+function get_error(server::Server)
+    # Running server has no problems!
+    isrunning(server) && return nothing
+    !istaskfailed(server.server_task[]) && return nothing
+    try
+        return fetch(server.server_task[])
+    catch e
+        return e
+    end
+end
+
+function show_server(io::IO, server::Server)
+    println(io, "Server:")
+    println(io, "  isrunning: $(isrunning(server))")
+    println(io, "  listen_url: $(local_url(server, ""))")
+    println(io, "  online_url: $(online_url(server, ""))")
+    println(io, "  http routes: ", length(server.routes.table))
+    if !isempty(server.routes.table)
+        for (route, app) in server.routes.table
+            println(io, "    ", route, " => ", typeof(app))
+        end
+    end
+    println(io, "  websocket routes: ", length(server.websocket_routes.table))
+    if !isempty(server.websocket_routes.table)
+        for (route, app) in server.websocket_routes.table
+            println(io, "    ", route, " => ", typeof(app))
+        end
+    end
+    err = get_error(server)
+    if !isnothing(err)
+        print(io, "  error: ")
+        Base.showerror(io, err)
+        println(io)
+    end
+end
+
+Base.show(io::IO, ::MIME"text/plain", server::Server) = show_server(io, server)
+Base.show(io::IO, server::Server) = show_server(io, server)
