@@ -51,7 +51,7 @@ function ensure_connection() {
     }
 }
 
-function isopen() {
+export function isopen() {
     if (session_websocket.length === 0) {
         return false;
     }
@@ -60,6 +60,8 @@ function isopen() {
     }
     return false;
 }
+
+window.js_websocket_isopen = isopen
 
 function websocket_send(binary_data) {
     const status = ensure_connection();

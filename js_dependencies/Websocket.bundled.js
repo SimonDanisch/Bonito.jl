@@ -50,6 +50,7 @@ function isopen() {
     }
     return false;
 }
+window.js_websocket_isopen = isopen;
 function websocket_send(binary_data) {
     const status = ensure_connection();
     if (status === 'ok') {
@@ -126,5 +127,6 @@ function setup_connection(config) {
     const url = websocket_url(session_id, proxy_url);
     tryconnect(url);
 }
+export { isopen as isopen };
 export { setup_connection as setup_connection };
 
