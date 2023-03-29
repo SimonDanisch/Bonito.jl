@@ -1,12 +1,8 @@
 using Markdown
 using JSServe, Observables
-using JSServe: Session, evaljs, linkjs
-using JSServe: @js_str, onjs, Button, Slider, Asset
 using WGLMakie
 
-JSServe.browser_display()
-
- app = App() do
+app = App() do
     cmap_button = Button("change colormap")
     algorithm_button = Button("change algorithm")
     algorithms = ["mip", "iso", "absorption"]
@@ -22,7 +18,7 @@ JSServe.browser_display()
     N = 100
     slice_idx = Slider(1:N)
 
-    signal = map(Observables.async_latest(data_slider.value)) do α
+    signal = map(data_slider.value) do α
         a = -1; b = 2
         r = LinRange(-2, 2, N)
         z = ((x,y) -> x + y).(r, r') ./ 5

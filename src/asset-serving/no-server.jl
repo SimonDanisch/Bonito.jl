@@ -7,18 +7,19 @@ end
 Base.similar(asset::NoServer) = asset # no copy needed
 
 function import_in_js(io::IO, session::Session, ns::NoServer, asset::Asset)
-    import_key = "JSServe_IMPORTS['$(unique_key(asset))']"
+    import_key = "JSSERVE_IMPORTS['$(unique_key(asset))']"
     if asset.es6module
         imports = "import($(import_key))"
     else
         imports = "JSServe.fetch_binary($(import_key))"
     end
+    # first time we import this asset, we need to add it to the imports!
     str = if !(asset in session.imports)
-        # first time something import_define
-        import_define = isempty(session.imports) ?  "window.JSServe_IMPORTS = {};" : ""
         push!(session.imports, asset)
         "(() => {
-            $(import_define)
+            if (!window.JSSERVE_IMPORTS) {
+                window.JSSERVE_IMPORTS = {};
+            }
             $(import_key) = `$(url(ns, asset))`;
             return $(imports);
         })()"

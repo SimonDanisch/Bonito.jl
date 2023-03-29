@@ -1,8 +1,6 @@
-using AbstractPlotting, WGLMakie, JSServe
+using WGLMakie, JSServe
 using Colors, ImageTransformations, Markdown
-using WGLMakie, JSServe, AbstractPlotting
-using JSServe.DOM
-using JSServe: styled_slider, @js_str
+using JSServe: styled_slider
 
 folder = joinpath(@__DIR__, "simulation")
 

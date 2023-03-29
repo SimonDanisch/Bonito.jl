@@ -1,8 +1,9 @@
 using CSV, Shapefile
-using JSServe, WGLMakie, AbstractPlotting, Markdown
-using JSServe.DOM
-using JSServe: styled_slider
-using AbstractPlotting.MakieLayout
+using JSServe, WGLMakie, Markdown
+using Downloads: download
+import JSServe.TailwindDashboard as D
+using GeoInterfaceMakie
+GeoInterfaceMakie.@enable Shapefile.Polygon
 
 read_data(path) = open(path) do io
     # skip first line since it contains an invalid comment
@@ -34,7 +35,7 @@ shape_path = joinpath(data_dir, "gadm36_DEU_1.shp")
 shape_zip = joinpath(data_dir, "gadm36_DEU_1.zip")
 download(url_gadm, shape_zip)
 run(`unzip $shape_zip -d $data_dir`)
-tbl_states = Shapefile.Table(shape_path)
+tbl_states = collect(Shapefile.Table(shape_path))
 
 states = map(normalize_names, tbl_states.NAME_1)
 states_geom_map = Dict(zip(map(normalize_names, tbl_states.NAME_1), tbl_states.NAME_1))
@@ -57,13 +58,13 @@ function visualize_data(scene, data, cmap, colorrange, s)
     colors = map(s) do idx
         map(states_to_plot) do state
             datapoint = data[idx][statenames_to_sym[state]]
-            return AbstractPlotting.interpolated_getindex(colormap, datapoint, colorrange)
+            return Makie.interpolated_getindex(colormap, datapoint, colorrange)
         end
     end
 
     polys = map(states_to_plot) do state
         idx = findfirst(x-> x.NAME_1 == states_geom_map[state], tbl_states)
-        return tbl_states[idx].Geometry
+        return tbl_states[idx].geometry
     end
     # Plot each state individually, so we can update one color per state
     for i in 1:length(states_to_plot)
@@ -71,41 +72,20 @@ function visualize_data(scene, data, cmap, colorrange, s)
     end
     return scene
 end
-fig = Figure()
-ax = fig[1,1] = Axis(fig)
 
-fig = Figure(resolution = (900, 700))
-to_plot = (
-    (1, "Temperatur", temp_data, :heat),
-    (2, "Regen", prec_data, :blues))
-s = Observable(1)
-foreach(to_plot) do (i, title, data, cmap)
-    colorrange = data_extrema(data)
-    ax = fig[1, i] = Axis(fig; title=title)
-    hidedecorations!(ax, grid = false)
-    visualize_data(ax, data, cmap, colorrange, s)
-    layout[2, i] = Colorbar(fig, colormap=cmap, limits=colorrange, vertical=false, height=30, flipaxisposition=false, labelvisible=false,
-    ticklabelalign=(:center, :top), ticksize=5)
-    return
-end
-display(fig)
-
-function handler(session, req)
-    s = JSServe.Slider(1:length(temp_data))
-
-    scene, layout = layoutscene(20, resolution = (900, 700))
+app = App() do session
+    fig = Figure(resolution=(900, 700))
     to_plot = (
         (1, "Temperatur", temp_data, :heat),
         (2, "Regen", prec_data, :blues))
+    s = JSServe.Slider(1:length(temp_data))
 
-    foreach(to_plot) do (i, title, data, cmap)
+    for (i, title, data, cmap) in to_plot
         colorrange = data_extrema(data)
-        ax = layout[1, i] = LAxis(scene; title=title)
-        hidedecorations!(ax, grid = false)
+        ax = Axis(fig[1, i]; title=title)
+        hidedecorations!(ax, grid=false)
         visualize_data(ax, data, cmap, colorrange, s)
-        layout[2, i] = LColorbar(scene, colormap=cmap, limits=colorrange, vertical=false, height=30, flipaxisposition=false, labelvisible=false,
-        ticklabelalign=(:center, :top), ticksize=5)
-        return
+        fig[2, i] = Colorbar(fig, colormap=cmap, limits=colorrange, vertical=false, height=30, labelvisible=false)
     end
 
     year = map(idx-> temp_data[idx].Jahr, s)
@@ -116,7 +96,7 @@ function handler(session, req)
     ## Reise vom Jahr 1881 bis 2019
     $(styled_slider(s, year))
 
-    $(scene)
+    $(fig)
 
     [Quelle: Deutscher Wetterdienst](https://opendata.dwd.de/climate_environment/CDC/regional_averages_DE/annual/)
 
@@ -125,11 +105,12 @@ function handler(session, req)
 
     dom = DOM.div(JSServe.MarkdownCSS, JSServe.TailwindCSS, JSServe.Styling, markdown)
     # return dom
-    return JSServe.record_state_map(session, dom).dom
-end
+    return JSServe.record_states(session, dom)
+end;
 
 # Either export standalone
-JSServe.export_standalone(handler, "dev/WGLDemos/german_heat", clear_folder=true)
+mkpath("./dev/WGLDemos/")
+JSServe.export_static("./dev/WGLDemos/german_heat.html", app)
 
-# Or serve!
-# app = JSServe.Server(handler, "0.0.0.0", 8082)
+# Or serve as a website!
+# app = JSServe.Server(app, "0.0.0.0", 80)

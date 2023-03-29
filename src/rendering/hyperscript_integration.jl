@@ -85,8 +85,11 @@ attribute_render(session::Session, parent, attribute::String, x::Nothing) = x
 attribute_render(session::Session, parent, attribute::String, x::Bool) = x
 
 function attribute_render(session::Session, parent, attribute::String, obs::Observable)
-    onjs(session, obs, js"value=> JSServe.update_node_attribute($(parent), $attribute, value)")
-    return attribute_render(session, parent, attribute, obs[])
+    rendered = map(obs) do value
+        attribute_render(session, parent, attribute, value)
+    end
+    onjs(session, rendered, js"value=> JSServe.update_node_attribute($(parent), $attribute, value)")
+    return rendered[]
 end
 
 struct DontEscape
@@ -112,7 +115,7 @@ function attribute_render(session::Session, parent, attribute::String, asset::As
         # css seems to require an url object
         return "url($(url(session, asset)))"
     else
-        return "$(url(session, asset))"
+        return url(session, asset)
     end
 end
 

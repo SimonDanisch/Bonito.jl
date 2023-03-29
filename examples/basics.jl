@@ -78,8 +78,6 @@ sliderstyle = JSServe.Asset(joinpath(@__DIR__, "sliderstyle.css"))
 image = JSServe.Asset(joinpath(@__DIR__, "assets", "julia.png"))
 s = JSServe.get_server();
 
-JSServe.url(Session(asset_server=JSServe.HTTPAssetServer(s)).asset_server, MUI)
-
 app = App() do
     button = JSServe.Button("hi", class="mui-btn mui-btn--primary")
     slider = JSServe.Slider(1:10, class="slider")
@@ -118,20 +116,19 @@ display(app)
 
 JSServe.route!(JSServe.get_server(), "/example1" => app)
 
-begin
-    app = App() do session::Session
-        slider = JSServe.Slider(1:10, class="slider m-4")
-        squared = map(slider) do slidervalue
-            return slidervalue^2
-        end
-        class = "p-2 rounded border-2 border-gray-600 m-4"
-        v1 = DOM.div(slider.value, class=class)
-        v2 = DOM.div(squared, class=class)
-        dom = DOM.div(JSServe.TailwindCSS, "meep11", slider, sliderstyle, v1, v2)
-        # statemap for static serving
-        return dom
-    end;
-end
+app = App() do session::Session
+    slider = JSServe.Slider(1:10, class="slider m-4")
+    squared = map(slider) do slidervalue
+        return slidervalue^2
+    end
+    class = "p-2 rounded border-2 border-gray-600 m-4"
+    v1 = DOM.div(slider.value, class=class)
+    v2 = DOM.div(squared, class=class)
+    dom = DOM.div(JSServe.TailwindCSS, "Hello", slider, sliderstyle, v1, v2)
+    # statemap for static serving
+    # return dom
+    return JSServe.record_states(session, dom)
+end;
 
 export_path = joinpath(@__DIR__, "demo")
 mkdir(export_path)
@@ -139,12 +136,9 @@ routes = JSServe.Routes()
 routes["/"] = app
 JSServe.export_static(export_path, routes)
 
+# Or just `JSServe.export_static("index.html", app)` to export the app to a single file!
+
+# Then one can use liveserver to host the static export:
 using LiveServer
 cd(export_path)
 LiveServer.serve()
-
-
-using WGLMakie
-
-
-scatter(rand(Point2f, 10))
