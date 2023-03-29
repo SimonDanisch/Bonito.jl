@@ -40,9 +40,13 @@ end
 
 function js_to_local_url(server::HTTPAssetServer, url::AbstractString)
     m = match(ASSET_URL_REGEX, url)
-    key = m[1]
-    path = server.registered_files[string(key)]
-    return path * ":" * m[2]
+    if isempty(m)
+        return url
+    else
+        key = m[1]
+        path = server.registered_files[string(key)]
+        return path * ":" * m[2]
+    end
 end
 
 function js_to_local_stacktrace(server::HTTPAssetServer, line::AbstractString)

@@ -1,5 +1,12 @@
 # Poor mans Require.jl for Deno
 const DENO_PKG_ID = Base.PkgId(Base.UUID("04572ae6-984a-583e-9378-9577a1c2574d"), "Deno_jll")
+try
+    # since Deno doesn't seem to work on all platforms we put it in a try catch-.-
+    # Note, that it's not required for most use cases
+    using Deno_jll
+catch e
+    @warn "Can't load Deno, which is ok for non dev purposes" exception = e
+end
 
 function Deno()
     if haskey(Base.loaded_modules, DENO_PKG_ID)
@@ -18,7 +25,7 @@ function deno_bundle(path_to_js::AbstractString, output_file::String)
     # We treat Deno as a development dependency,
     # so if deno isn't loaded, don't bundle!
     isnothing(Deno_jll) && return false
-
+    written_file = false
     Deno_jll.deno() do exe
         stdout = IOBuffer()
         err = IOBuffer()
@@ -26,8 +33,10 @@ function deno_bundle(path_to_js::AbstractString, output_file::String)
             run(pipeline(`$exe bundle $(path_to_js)`; stdout=stdout, stderr=err))
         catch e
             write(stderr, seekstart(err))
+            written_file = false
         end
         write(output_file, seekstart(stdout))
+        written_file = true
     end
-    return true
+    return written_file
 end

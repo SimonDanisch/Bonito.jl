@@ -19,13 +19,13 @@ app = App() do session
         HSV(hue, 0.5, 0.5)
     end
     plot = scatter(cat, markersize=markersize, color=color, figure=(resolution=(800, 500),))
-    m_slider = styled_slider(markersize, markersize.value)
+    m_slider = styled_slider(markersize, map(x -> round(x, digits=1), markersize.value))
     color_swatch = DOM.div(class="h-6 w-6 p-1 rounded dropshadow", style=map(css_color, color))
     h_slider = styled_slider(hue_slider, color_swatch)
     sliders = rows(m_slider, h_slider)
     dom = DOM.div(JSServe.Styling, JSServe.TailwindCSS, columns(sliders, plot))
     return JSServe.record_states(session, dom)
-end
+end;
 
 # mkdir("simple")
-JSServe.export_static("simple", app)
+JSServe.export_static("simple.html", app)
