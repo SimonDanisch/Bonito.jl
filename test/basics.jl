@@ -7,15 +7,16 @@
     msg = JSServe.fused_messages!(session)
     data = JSServe.serialize_cached(session, msg)
     decoded = JSServe.deserialize(msg[:payload][1]) |> JSServe.decode_extension_and_addbits
-    @test haskey(session.session_objects, obs1.id)
+    mapped = obs1.listeners[1][2].result # we map(render, obs1) when rendering attributes, so only that will be in the session
+    @test haskey(session.session_objects, mapped.id)
     # Obs registered correctly
-    @test obs1.listeners[1][2] isa JSServe.JSUpdateObservable
+    @test mapped.listeners[1][2] isa JSServe.JSUpdateObservable
     session_cache = decoded[1]
     @test session_cache isa JSServe.SessionCache
-    @test haskey(session_cache.objects, obs1.id)
+    @test haskey(session_cache.objects, mapped.id)
 
     # Will deregisters correctly on session close
-    @test session.deregister_callbacks[1].observable === obs1
+    @test session.deregister_callbacks[1].observable === mapped
     @test occursin("JSServe.update_node_attribute", string(decoded[2]["payload"]))
 end
 
