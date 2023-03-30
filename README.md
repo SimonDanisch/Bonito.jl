@@ -1,8 +1,7 @@
 # JSServe
 
 ![CI](https://github.com/SimonDanisch/JSServe.jl/workflows/CI/badge.svg) [![Codecov](https://codecov.io/gh/SimonDanisch/JSServe.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/SimonDanisch/JSServe.jl)
-[![Docs - stable](https://img.shields.io/badge/docs-stable-lightgrey.svg)](https://simondanisch.github.io/JSServe.jl/stable/)
-[![Docs - dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://simondanisch.github.io/JSServe.jl/dev/)
+[![Docs - stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://simondanisch.github.io/JSServe.jl/stable/)
 
 Easy way of building interactive applications from Julia.
 Uses Hyperscript to create HTML descriptions, and allows to execute Javascript & building of widgets. It also supports an offline mode, that exports your interactive app to a folder, and optionally records a statemap for all UI elements, so that a running Julia process isn't necessary anymore.
