@@ -104,8 +104,8 @@ function jsrender(session::Session, slider::RangeSlider)
         value = slider.value[]
         return Dict(
             "range" => Dict(
-                "min" => fill(range[1], length(value)),
-                "max" => fill(range[end], length(value)),
+                "min" => range[1],
+                "max" => range[end],
             ),
             "step" => step(range),
             "start" => value,
