@@ -235,8 +235,7 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
         you may try setting `error_on_closed=false`")
     end
 
-    comm = session.js_comm
-    comm.val = nothing
+    comm = Observable{Any}(nothing)
     js_with_result = js"""
     try{
         const maybe_promise = $(js);
