@@ -55,14 +55,8 @@ function Base.isopen(ws::WebSocketConnection)
     end
     # So, it turns out, ws connection where the tab gets closed
     # stay open indefinitely, but aren't writable anymore
+    # TODO, figure out how to check for that
     return true
-    # result = save_write(ws.socket, UInt8[0])
-    # if isnothing(result)
-    #     close(ws)
-    #     return false
-    # else
-    #     return true
-    # end
 end
 
 function Base.write(ws::WebSocketConnection, binary)
@@ -72,6 +66,7 @@ function Base.write(ws::WebSocketConnection, binary)
     lock(ws.lock) do
         written = save_write(ws.socket, binary)
         if written != true
+            @debug "couldnt write, closing ws"
             close(ws)
         end
     end
@@ -93,9 +88,10 @@ function Base.close(ws::WebSocketConnection)
     end
 end
 
-function run_connection_loop(server::Server, session::Session, websocket::WebSocket)
+function run_connection_loop(server::Server, session::Session, connection::WebSocketConnection)
     try
         @debug("opening ws connection for session: $(session.id)")
+        websocket = connection.socket
         while !isclosed(websocket)
             bytes = save_read(websocket)
             # nothing means the browser closed the connection so we're done
@@ -133,7 +129,7 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
         error("Session already has connection")
     end
     connection.socket = websocket
-    run_connection_loop(application, session, websocket)
+    run_connection_loop(application, session, connection)
 end
 
 function setup_connection(session::Session, connection::WebSocketConnection)
