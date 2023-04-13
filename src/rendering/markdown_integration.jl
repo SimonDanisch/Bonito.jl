@@ -159,14 +159,14 @@ function replace_expressions(session::Session, markdown::Markdown.Code; eval_jul
 end
 
 """
-    string_to_markdown(source::String, context; eval_julia_code=false)
+    string_to_markdown(session::Session, source::String; eval_julia_code=false)
 
 Replaces all interpolation expressions inside `markdown` savely, by only supporting
 getindex/getfield expression that will index into `context`.
 You can eval Julia code blocks by setting `eval_julia_code` to a Module, into which
 the code gets evaluated!
 """
-function string_to_markdown(session::Session, source::String, context; eval_julia_code=false)
+function string_to_markdown(session::Session, source::String; eval_julia_code=false)
     markdown = Markdown.parse(source)
     return replace_expressions(session, markdown; eval_julia_code=eval_julia_code)
 end
