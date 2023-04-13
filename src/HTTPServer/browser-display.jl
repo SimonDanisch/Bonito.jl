@@ -24,7 +24,6 @@ Forces JSServe.App to be displayed in a browser window that gets opened.
 function browser_display()
     displays = Base.Multimedia.displays
     if last(displays) isa BrowserDisplay
-        @info("already in there!")
         return
     end
     # if browserdisplay is anywhere not at the last position
