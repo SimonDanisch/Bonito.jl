@@ -84,7 +84,7 @@ Configures the parameters for the automatically started server.
 
     * listen_port::Integer=SERVER_CONFIGURATION.listen_port[],
         The Port to which the default server listens to
-        If not set differently by an ENV variable, will default to 9284
+        If not set differently by an ENV variable, will default to 9384
 
     * forwarded_port::Integer=listen_port,
         if port gets forwarded to some other port, set it here!
