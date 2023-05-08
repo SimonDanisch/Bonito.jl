@@ -113,12 +113,12 @@ end
 
 function update_app!(handler::DisplayHandler, app::App)
     # the connection is open, so we can just use it to update the dom!
+    handler.current_app = app
     if isready(handler.session)
         update_app!(handler.session, app)
         return false
     else
         # Need to wait for someone to actually visit http://.../browser-display
-        handler.current_app = app
         return true # needs loading!
     end
 end
