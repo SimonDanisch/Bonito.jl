@@ -320,10 +320,9 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
             dom = Hyperscript.m("html", head, body)
         else
             # Emit a "fragment"
-            application = DOM.div(dom, id=session.id, dataJscallId=dom_id)
-            head = DOM.div(application)
-            dom = head
+            head = DOM.div()
             body = dom
+            dom = DOM.div(head, dom, id=session.id, dataJscallId=dom_id)
         end
     end
 

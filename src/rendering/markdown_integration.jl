@@ -145,9 +145,10 @@ end
 function replace_expressions(session::Session, markdown::Markdown.Code; eval_julia_code=false)
     if markdown.language == "julia" && eval_julia_code isa Module
         hide = occursin("# hide", markdown.code)
+        no_eval = occursin("# no-eval", markdown.code)
         md_expr = hide ? "" : markdown
         expr = parseall(markdown.code)
-        evaled = eval_julia_code.eval(expr)
+        evaled = no_eval ? nothing : eval_julia_code.eval(expr)
         if !isnothing(evaled)
             return Markdown.MD([md_expr, jsrender(session, evaled)])
         else
