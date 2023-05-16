@@ -62,7 +62,7 @@ function richest_mime(val)
     for mimetype in mime_order
         showable(mimetype, val) && return mimetype
     end
-    error("value not writable for any mimetypes")
+    error("value with type $(typeof(val)) not writable for any mimetypes")
 end
 
 mime_string(::MIME{T}) where {T} = string(T)

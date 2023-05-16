@@ -28,14 +28,14 @@ function url(server::HTTPAssetServer, asset::Asset)
     target = normpath(abspath(expanduser(file)))
     key = server_key(server) * unique_file_key(target)
     get!(()-> target, server.registered_files, key)
-    return JSServe.HTTPServer.online_url(server.server, key)
+    return HTTPServer.online_url(server.server, key)
 end
 
 function url(server::HTTPAssetServer, asset::BinaryAsset)
     filename = unique_file_key(asset)
     key = server_key(server) * filename
     get!(() -> asset, server.registered_files, key)
-    return JSServe.HTTPServer.online_url(server.server, key)
+    return HTTPServer.online_url(server.server, key)
 end
 
 function js_to_local_url(server::HTTPAssetServer, url::AbstractString)
