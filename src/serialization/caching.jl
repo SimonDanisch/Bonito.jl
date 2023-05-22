@@ -90,28 +90,38 @@ function add_cached!(create_cached_object::Function, session::Session, send_to_j
     result = CacheKey(key)
     # If already in session, there's nothing we need to do, since we've done the work the first time we added the object
     haskey(session.session_objects, key) && return result
+    # If not in session, we just create it
+    send_to_js[key] = create_cached_object()
+    return result
+    
+    #
+    # NOTE The code below is commented out because the synchronization logic is broken at the time of writing this.
+    #      The cache is shared between sessions, and hence individial JS modules, coming with the requirement that
+    #      a fixed the execution order of the modules must be preserved. However, since modules may execute in any
+    #      order this invariant is broken.
+    #
     # Now, we have two code paths, depending on whether we have a child session or a root session
-    root = root_session(session)
-    if root === session # we are root, so we simply cache the object (we already checked it's not cached yet)
-        send_to_js[key] = create_cached_object()
-        session.session_objects[key] = object
-        return result
-    else
-        # This session is a child session.
-        # Now we need to figure out if the root session has the object cached already
-        # The root session has our object cached already.
-        session.session_objects[key] = nothing # session needs to reference this to "own" it
-        if haskey(root.session_objects, key)
-            # in this case, we just add the key to send to js, so that the JS side can associate the object with this session
-            send_to_js[key] = "tracking-only"
-            return result
-        end
-        # Nobody has the object cached,
-        # so we add this session as the owner, but also add it to the root session
-        send_to_js[key] = create_cached_object()
-        root.session_objects[key] = object
-        return result
-    end
+    # root = root_session(session)
+    # if root === session # we are root, so we simply cache the object (we already checked it's not cached yet)
+    #     send_to_js[key] = create_cached_object()
+    #     session.session_objects[key] = object
+    #     return result
+    # else
+    #     # This session is a child session.
+    #     # Now we need to figure out if the root session has the object cached already
+    #     # The root session has our object cached already.
+    #     session.session_objects[key] = nothing # session needs to reference this to "own" it
+    #     if haskey(root.session_objects, key)
+    #         # in this case, we just add the key to send to js, so that the JS side can associate the object with this session
+    #         send_to_js[key] = "tracking-only"
+    #         return result
+    #     end
+    #     # Nobody has the object cached,
+    #     # so we add this session as the owner, but also add it to the root session
+    #     send_to_js[key] = create_cached_object()
+    #     root.session_objects[key] = object
+    #     return result
+    # end
 end
 
 function child_has_reference(child::Session, key)
