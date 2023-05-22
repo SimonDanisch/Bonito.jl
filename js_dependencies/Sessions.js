@@ -148,6 +148,7 @@ export function init_session(session_id, binary_messages, session_status) {
         }
         done_initializing_session(session_id);
     } catch (error) {
+        console.warn(`init of session ${session_id} failed with error: ${error}`);
         send_done_loading(session_id, error);
     } finally {
         OBJECT_FREEING_LOCK.task_unlock(session_id);
@@ -234,6 +235,7 @@ export function update_session_dom(message) {
             process_message(messages);
             done_initializing_session(session_id);
         } catch (error) {
+            console.warn(`Failed to update session ${session_id} dom`);
             send_done_loading(session_id, error);
         } finally {
             // this locks corresponds to the below task_lock from update session cache for an unitialized session
