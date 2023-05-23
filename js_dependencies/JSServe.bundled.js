@@ -2992,44 +2992,6 @@ register_ext(103, (uint_8_array)=>{
     const real_value = unpack(uint_8_array);
     return new Retain(real_value);
 });
-function lookup_global_object(key) {
-    const object = GLOBAL_OBJECT_CACHE[key];
-    if (object) {
-        if (object instanceof Retain) {
-            return object.value;
-        } else {
-            return object;
-        }
-    }
-    throw new Error(`Key ${key} not found! ${object}`);
-}
-register_ext(104, (uint_8_array)=>{
-    const key = unpack(uint_8_array);
-    return lookup_global_object(key);
-});
-function create_tag(tag, attributes) {
-    if (attributes.juliasvgnode) {
-        return document.createElementNS("http://www.w3.org/2000/svg", tag);
-    } else {
-        return document.createElement(tag);
-    }
-}
-register_ext(105, (uint_8_array)=>{
-    const [tag, children, attributes] = unpack(uint_8_array);
-    const node = create_tag(tag, attributes);
-    Object.keys(attributes).forEach((key)=>{
-        if (key == "juliasvgnode") {
-            return;
-        }
-        if (key == "class") {
-            node.className = attributes[key];
-        } else {
-            node.setAttribute(key, attributes[key]);
-        }
-    });
-    children.forEach((child)=>node.append(child));
-    return node;
-});
 function send_warning(message) {
     console.warn(message);
     send_to_julia({
@@ -3145,6 +3107,21 @@ const mod = {
     process_message: process_message
 };
 const OBJECT_FREEING_LOCK = new Lock();
+const SESSION_LOAD_LOCK = new Lock();
+function lock_loading(f) {
+    SESSION_LOAD_LOCK.lock(f);
+}
+function lookup_global_object(key) {
+    const object = GLOBAL_OBJECT_CACHE[key];
+    if (object) {
+        if (object instanceof Retain) {
+            return object.value;
+        } else {
+            return object;
+        }
+    }
+    throw new Error(`Key ${key} not found! ${object}`);
+}
 function is_still_referenced(id) {
     for(const session_id in SESSIONS){
         const [tracked_objects, allow_delete] = SESSIONS[session_id];
@@ -3224,6 +3201,33 @@ function done_initializing_session(session_id) {
     }
     console.log(`session ${session_id} fully initialized`);
 }
+register_ext(104, (uint_8_array)=>{
+    const key = unpack(uint_8_array);
+    return lookup_global_object(key);
+});
+function create_tag(tag, attributes) {
+    if (attributes.juliasvgnode) {
+        return document.createElementNS("http://www.w3.org/2000/svg", tag);
+    } else {
+        return document.createElement(tag);
+    }
+}
+register_ext(105, (uint_8_array)=>{
+    const [tag, children, attributes] = unpack(uint_8_array);
+    const node = create_tag(tag, attributes);
+    Object.keys(attributes).forEach((key)=>{
+        if (key == "juliasvgnode") {
+            return;
+        }
+        if (key == "class") {
+            node.className = attributes[key];
+        } else {
+            node.setAttribute(key, attributes[key]);
+        }
+    });
+    children.forEach((child)=>node.append(child));
+    return node;
+});
 function decode_binary(binary, compression_enabled) {
     const serialized_message = unpack_binary(binary, compression_enabled);
     const [session_id, message_data] = serialized_message;
@@ -3244,6 +3248,8 @@ function init_session(session_id, binary_messages, session_status) {
         done_initializing_session(session_id);
     } catch (error) {
         send_done_loading(session_id, error);
+        console.error(error.stack);
+        throw error;
     } finally{
         OBJECT_FREEING_LOCK.task_unlock(session_id);
     }
@@ -3317,6 +3323,8 @@ function update_session_dom(message) {
             done_initializing_session(session_id);
         } catch (error) {
             send_done_loading(session_id, error);
+            console.error(error.stack);
+            throw error;
         } finally{
             OBJECT_FREEING_LOCK.task_unlock(session_id);
         }
@@ -3357,6 +3365,7 @@ function update_session_cache(session_id, new_jl_objects, session_status) {
 const mod1 = {
     SESSIONS: SESSIONS,
     GLOBAL_OBJECT_CACHE: GLOBAL_OBJECT_CACHE,
+    lock_loading: lock_loading,
     lookup_global_object: lookup_global_object,
     track_deleted_sessions: track_deleted_sessions,
     done_initializing_session: done_initializing_session,
@@ -3427,7 +3436,7 @@ function onany(observables, f) {
 }
 const { send_error: send_error1 , send_warning: send_warning1 , process_message: process_message1 , on_connection_open: on_connection_open1 , on_connection_close: on_connection_close1 , send_close_session: send_close_session1 , send_pingpong: send_pingpong1 , with_message_lock: with_message_lock1  } = mod;
 const { base64decode: base64decode1 , base64encode: base64encode1 , decode_binary: decode_binary1 , encode_binary: encode_binary1 , decode_base64_message: decode_base64_message1  } = mod2;
-const { init_session: init_session1 , free_session: free_session1 , lookup_global_object: lookup_global_object1 , update_or_replace: update_or_replace1  } = mod1;
+const { init_session: init_session1 , free_session: free_session1 , lookup_global_object: lookup_global_object1 , update_or_replace: update_or_replace1 , lock_loading: lock_loading1  } = mod1;
 function update_node_attribute(node, attribute, value) {
     if (node) {
         if (node[attribute] != value) {
@@ -3474,6 +3483,7 @@ const JSServe = {
     Sessions: mod1,
     init_session: init_session1,
     free_session: free_session1,
+    lock_loading: lock_loading1,
     update_node_attribute,
     update_dom_node,
     lookup_global_object: lookup_global_object1,
@@ -3481,5 +3491,5 @@ const JSServe = {
     onany
 };
 window.JSServe = JSServe;
-export { mod2 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, mod as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, with_message_lock1 as with_message_lock, mod1 as Sessions, init_session1 as init_session, free_session1 as free_session, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany };
+export { mod2 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, mod as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, with_message_lock1 as with_message_lock, mod1 as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany };
 

@@ -1004,21 +1004,19 @@ const known_mimetypes = Dict([
     "kml" => "application/vnd.google-earth.kml+xml",
     "pdb" => "application/vnd.palm",
     "xo" => "application/vnd.olpc-sugar",
-    ("curl", "text/vnd.curl")
+    "curl" => "text/vnd.curl"
 ])
 
-const mime2fileending = Dict((mime => fe for (fe, mime) in known_mimetypes if "svgz" != fe))
+const mime2fileending = let
+    dict = Dict((mime => fe for (fe, mime) in known_mimetypes if "svgz" != fe))
+    dict["application/octet-stream"] = "bin" # default to bin ending for octet-stream
+    dict
+end
 
 extension(f) = last(splitext(f))[2:end]
 
-function file_mimetype(filepath)
-    get(
-        known_mimetypes,
-        extension(filepath),
-        "application/octet-stream"
-    )
-end
+file_mimetype(filepath) = ext_to_mimetype(extension(filepath))
 
-function mimetype_to_extension(mime)
-    return get(mime2fileending, mime, "bin")
-end
+ext_to_mimetype(ext) = get(known_mimetypes, ext, "application/octet-stream")
+
+mimetype_to_extension(mime) = get(mime2fileending, mime, "bin")

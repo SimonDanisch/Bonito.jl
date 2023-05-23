@@ -17,9 +17,11 @@ function unique_key(asset::Asset)
     end
 end
 
+mediatype(asset::BinaryAsset) = Symbol(HTTPServer.mimetype_to_extension(asset.mime))
+
 function unique_file_key(asset::BinaryAsset)
     key = unique_file_key(string(hash(asset.data)))
-    ext = HTTPServer.mimetype_to_extension(asset.mime)
+    ext = mediatype(asset)
     return "$key.$ext"
 end
 
