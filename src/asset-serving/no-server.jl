@@ -125,7 +125,7 @@ function url(assetfolder::DocumenterAssets, asset::Asset)
     path = write_to_assetfolder((; folder=assetfolder.folder[]), asset)
     # TODO, how to properly get the real relative path to assetfolder
     import_path = relpath(path, folder)
-    return import_path
+    return replace(import_path, "\\" => "/")
 end
 
 function import_in_js(io::IO, session::Session, assetfolder::DocumenterAssets, asset::Asset)
