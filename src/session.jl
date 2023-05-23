@@ -345,11 +345,13 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         msgs = fused_messages!(session)
         type = issubsession ? "sub" : "root"
         if isempty(msgs[:payload])
-            init_session = js"""JSServe.init_session($(session.id), null, $(type))"""
+            init_session = js"""JSServe.lock_loading(() => JSServe.init_session($(session.id), null, $(type)))"""
         else
             binary = BinaryAsset(session, msgs)
             init_session = js"""
-                $(binary).then(msgs=> JSServe.init_session($(session.id), msgs, $(type)));
+                JSServe.lock_loading(() => {
+                    return $(binary).then(msgs=> JSServe.init_session($(session.id), msgs, $(type)));
+                })
             """
         end
         pushfirst!(children(body), jsrender(session, init_session))

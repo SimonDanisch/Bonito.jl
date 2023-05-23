@@ -11,7 +11,7 @@ const {
     on_connection_close,
     send_close_session,
     send_pingpong,
-    with_message_lock,
+    with_message_lock
 } = Connection;
 
 const {
@@ -27,6 +27,7 @@ const {
     free_session,
     lookup_global_object,
     update_or_replace,
+    lock_loading
 } = Sessions;
 
 function update_node_attribute(node, attribute, value) {
@@ -83,6 +84,7 @@ const JSServe = {
     Sessions,
     init_session,
     free_session,
+    lock_loading,
     // Util
     update_node_attribute,
     update_dom_node,
@@ -115,6 +117,7 @@ export {
     Sessions,
     init_session,
     free_session,
+    lock_loading,
     // Util
     update_node_attribute,
     update_dom_node,
