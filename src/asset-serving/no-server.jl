@@ -56,17 +56,37 @@ Base.similar(asset::AssetFolder) = asset # no copy needed
 
 setup_asset_server(::AbstractAssetFolder) = nothing
 
-function write_to_assetfolder(assetfolder, asset)
+subdir(asset::Union{BinaryAsset,Asset}) = string(mediatype(asset))
+
+function desired_location(assetfolder, asset)
     folder = abspath(assetfolder.folder)
     path = abspath(local_path(asset))
     if !occursin(folder, path)
         file = basename(path)
-        _path = normpath(joinpath(folder, file))
-        isdir(dirname(_path)) || mkpath(dirname(_path))
-        cp(path, _path; force=true)
-        path = _path
+        sub = subdir(asset)
+        return normpath(joinpath(folder, "jsserve", sub, file))
     end
     return path
+end
+
+function desired_location(assetfolder, asset::BinaryAsset)
+    folder = abspath(assetfolder.folder[])
+    file = unique_file_key(asset)
+    sub = subdir(asset)
+    return normpath(joinpath(folder, "jsserve", sub, file))
+end
+
+function write_to_assetfolder(assetfolder, asset)
+    folder = abspath(assetfolder.folder)
+    path = abspath(local_path(asset))
+    if occursin(folder, path)
+        return path
+    else
+        filepath = desired_location(assetfolder, asset)
+        isdir(dirname(filepath)) || mkpath(dirname(filepath))
+        cp(path, filepath; force=true)
+        return filepath
+    end
 end
 
 function url(assetfolder::AbstractAssetFolder, asset::Asset)
@@ -80,12 +100,12 @@ end
 folder(assetfolder::AssetFolder) = abspath(assetfolder.folder)
 
 function url(assetfolder::AbstractAssetFolder, asset::BinaryAsset)
-    fname = unique_file_key(asset)
-    path = joinpath(folder(assetfolder), fname)
-    if !isfile(path)
-        write(path, asset.data)
+    filepath = desired_location(assetfolder, asset)
+    if !isfile(filepath)
+        isdir(dirname(filepath)) || mkpath(dirname(filepath))
+        write(filepath, asset.data)
     end
-    return url(assetfolder, Asset(path))
+    return url(assetfolder, Asset(filepath))
 end
 
 struct DocumenterAssets <: AbstractAssetFolder
