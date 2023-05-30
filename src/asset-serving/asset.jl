@@ -101,17 +101,15 @@ function Base.show(io::IO, asset::Asset)
     print(io, get_path(asset))
 end
 
-function Asset(path_or_url::Union{String, Path}; name=nothing, es6module=false, check_isfile=false, bundle_dir::Union{Nothing, String, Path}=nothing)
+function Asset(path_or_url::Union{String,Path}; name=nothing, es6module=false, check_isfile=false, bundle_dir::Union{Nothing,String,Path}=nothing, mediatype=Symbol(getextension(path_or_url)))
     local_path = ""; real_online_path = ""
     if is_online(path_or_url)
         local_path = ""
         real_online_path = path_or_url
     else
         local_path = normalize_path(path_or_url; check_isfile=check_isfile)
-
     end
     _bundle_dir = isnothing(bundle_dir) ? dirname(local_path) : bundle_dir
-    mediatype = Symbol(getextension(path_or_url))
     return Asset(name, es6module, mediatype, real_online_path, local_path, _bundle_dir)
 end
 
