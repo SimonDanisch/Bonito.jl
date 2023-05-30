@@ -13,6 +13,6 @@ dependency_path(paths...) = joinpath(@__DIR__, "..", "..", "js_dependencies", pa
 
 const JSServeLib = ES6Module(dependency_path("JSServe.js"))
 const Websocket = ES6Module(dependency_path("Websocket.js"))
-const TailwindCSS = Asset(dependency_path("tailwind.min.css"))
 const Styling = Asset(dependency_path("styling.css"))
 const MarkdownCSS = Asset(dependency_path("markdown.css"))
+const TailwindCSS = Asset("https://cdn.tailwindcss.com/3.3.1"; mediatype=:js) # For Development
