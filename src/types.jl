@@ -281,5 +281,5 @@ struct Routes
 end
 
 Routes() = Routes(Dict{String, App}())
-
+Routes(pairs::Pair{String, App}...) = Routes(Dict{String, App}(pairs))
 Base.setindex!(routes::Routes, app::App, key::String) = (routes.routes[key] = app)

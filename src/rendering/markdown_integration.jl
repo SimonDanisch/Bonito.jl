@@ -9,7 +9,9 @@ function md_html(session::Session, content::Vector)
 end
 
 function md_html(session::Session, header::Markdown.Header{l}) where l
-    return [DOM.m("h$l", htmlinline(session, header.text)...)]
+    title = header.text
+    id = length(title) == 1 && title[1] isa String ? title[1] : ""
+    return [DOM.m("h$l", htmlinline(session, header.text)...; id=id)]
 end
 
 function md_html(session::Session, code::Markdown.Code)
@@ -43,7 +45,7 @@ function md_html(session::Session, md::Markdown.List)
         map(md.items) do item
             DOM.m("li", md_html(session, item)...)
         end...
-    )]
+        ; style="list-style-type: disc; list-style: inside;")]
 end
 
 function md_html(session::Session, md::Markdown.HorizontalRule)
@@ -63,7 +65,7 @@ function md_html(session::Session, md::Markdown.Table)
 end
 
 function htmlinline(session::Session, content::Vector)
-    return htmlinline.((session,), content)
+    return [htmlinline.((session,), content)...]
 end
 
 function htmlinline(session::Session, code::Markdown.Code)

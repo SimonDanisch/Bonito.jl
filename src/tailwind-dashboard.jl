@@ -11,7 +11,7 @@ function FlexRow(args...; class="", attributes...)
         TailwindMini,
         args...;
         attributes...,
-        class="m-2 flex flex-row $class",
+        class="mx-2 flex flex-row $class",
     )
 end
 
@@ -20,7 +20,7 @@ function FlexCol(args...; class="", attributes...)
         TailwindMini,
         args...;
         attributes...,
-        class="m-2 flex flex-col $class",
+        class="my-2 flex flex-col $class",
     )
 end
 

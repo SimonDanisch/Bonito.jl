@@ -70,7 +70,8 @@ function desired_location(assetfolder, asset)
 end
 
 function desired_location(assetfolder, asset::BinaryAsset)
-    folder = abspath(assetfolder.folder[])
+    dir = assetfolder.folder isa Ref ? assetfolder.folder[] : assetfolder.folder
+    folder = abspath(dir)
     file = unique_file_key(asset)
     sub = subdir(asset)
     return normpath(joinpath(folder, "jsserve", sub, file))
@@ -94,7 +95,7 @@ function url(assetfolder::AbstractAssetFolder, asset::Asset)
         return asset.online_path
     end
     path = write_to_assetfolder(assetfolder, asset)
-    return "/" * replace(normpath(relpath(path, folder(assetfolder))), "\\" => "/")
+    return "./" * replace(normpath(relpath(path, folder(assetfolder))), "\\" => "/")
 end
 
 folder(assetfolder::AssetFolder) = abspath(assetfolder.folder)
