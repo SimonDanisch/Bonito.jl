@@ -39,6 +39,10 @@ struct Asset
     bundle_dir::Union{String, Path}
 end
 
+struct Link
+    target::String
+end
+
 struct JSException <: Exception
     exception::String
     message::String

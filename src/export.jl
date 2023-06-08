@@ -189,14 +189,14 @@ function export_static(html_io::IO, app::App;
     return session
 end
 
-function export_static(folder::String, routes::Routes; connection=NoConnection(), asset_server=AssetFolder(folder))
+function export_static(folder::String, routes::Routes; connection=NoConnection(), asset_server= AssetFolder(folder, ""))
     isdir(folder) || mkpath(folder)
     for (route, app) in routes.routes
-        if route == "/"
-            route = "index"
-        end
-        html_file = normpath(joinpath(folder, route) * ".html")
+        startswith(route, "/") && (route = route[2:end])
+        dir = joinpath(folder, route)
+        html_file = normpath(joinpath(dir, "index.html"))
         isdir(dirname(html_file)) || mkpath(dirname(html_file))
+        asset_server.current_dir = dir
         export_static(html_file, app; session=Session(connection; asset_server=asset_server))
     end
 end

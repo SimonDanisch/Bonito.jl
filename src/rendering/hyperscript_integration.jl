@@ -110,7 +110,7 @@ function attribute_render(session::Session, parent, attribute::String, jss::JSCo
     return ""
 end
 
-function attribute_render(session::Session, parent, attribute::String, asset::Asset)
+function attribute_render(session::Session, parent, attribute::String, asset::Union{Link, Asset})
     if parent isa Hyperscript.Node{Hyperscript.CSS}
         # css seems to require an url object
         return "url($(url(session, asset)))"

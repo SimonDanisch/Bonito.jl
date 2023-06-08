@@ -15,7 +15,7 @@ function interactive_server(f, paths, modules=[]; url="127.0.0.1", port=8081, tr
         R = Main.Revise
         R.tracking_Main_includes[] = track_main_includes
         routes_channel = Channel{Routes}(1)
-        task = @async R.entr(paths, modules; all=all) do
+        R.entr(paths, modules; all=all) do
             routes = f()
             for (route, app) in routes.routes
                 update_route!(server, (route, app))

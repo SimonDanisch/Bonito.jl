@@ -92,7 +92,10 @@ function delegate(routes::Routes, application, request::Request, args...)
 end
 
 function match_request(pattern::String, request)
-    return request.target == pattern ? pattern : nothing
+    request.target == pattern && return pattern
+    uri = URI(request.target)
+    uri.path == pattern && return pattern
+    return nothing
 end
 
 function match_request(pattern::Regex, request)
