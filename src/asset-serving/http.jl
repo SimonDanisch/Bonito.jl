@@ -22,6 +22,8 @@ function Base.close(server::HTTPAssetServer)
     empty!(server.registered_files)
 end
 
+url(server::HTTPAssetServer, link::Link) = link.target
+
 function url(server::HTTPAssetServer, asset::Asset)
     file = local_path(asset)
     isempty(file) && return asset.online_path

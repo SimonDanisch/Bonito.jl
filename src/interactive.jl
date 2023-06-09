@@ -9,27 +9,50 @@ function update_route!(server, (route, app))
     end
 end
 
-function interactive_server(f, paths, modules=[]; url="127.0.0.1", port=8081, track_main_includes=true, all=false)
-    server = Server(url, port)
+
+const REVISE_LOOP = Base.RefValue(Base.RefValue(true))
+const REVISE_SERVER = Base.RefValue{Union{Nothing, Server}}(nothing)
+
+function interactive_server(f, paths, modules=[]; url="127.0.0.1", port=8081, all=true)
+    if isnothing(REVISE_SERVER[])
+        server = Server(url, port)
+        REVISE_SERVER[] = server
+    else
+        server = REVISE_SERVER[]
+    end
+    if server.url != url && server.port != port
+        close(server)
+        server.url = url
+        server.port = port
+        HTTPServer.start(server)
+    end
     if isdefined(Main, :Revise)
-        R = Main.Revise
-        R.tracking_Main_includes[] = track_main_includes
-        routes_channel = Channel{Routes}(1)
-        R.entr(paths, modules; all=all) do
-            routes = f()
+        Revise = Main.Revise
+        # important to make `index = App(....)` work
+        @eval Main __revise_mode__ = :evalassign
+        function update_routes()
+            routes = Base.invokelatest(f)
             for (route, app) in routes.routes
                 update_route!(server, (route, app))
             end
-            put!(routes_channel, routes)
+            return routes
         end
-        Base.timedwait(10) do
-            istaskfailed(task) || isready(routes_channel)
-        end
-        if istaskfailed(task)
-            fetch(task)
+
+        routes = update_routes()
+        Revise.add_callback(update_routes, paths, modules; all=true, key="jsserver-revise")
+
+        REVISE_LOOP[][] = false # stop old loop
+        run = Base.RefValue(true) # get us a new loop variable
+        REVISE_LOOP[] = run
+        task = @async begin
+            while run[]
+                wait(Revise.revision_event)
+                Revise.revise()
+            end
+            @info("quitting revise loop")
         end
         errormonitor(task)
-        routes = take!(routes_channel)
+
         server_routes = Set(first.(server.routes.table))
         if !Base.all(r-> r in server_routes, keys(routes.routes))
             @warn "not all routes in server. Required routes: $(first(routes.routes)). Routes in server: $(server_routes)"
