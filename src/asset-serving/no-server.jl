@@ -29,7 +29,6 @@ function import_in_js(io::IO, session::Session, ns::NoServer, asset::Asset)
     print(io, str)
 end
 
-
 # This is better for e.g. exporting static sides
 # TODO make this more straightforward and easy to customize
 # (this gets called/overloaded in js_source.jl)
@@ -40,6 +39,7 @@ end
 setup_asset_server(::NoServer) = nothing
 
 function url(::NoServer, asset::Asset)
+    !isempty(asset.online_path) && return asset.online_path
     return to_data_url(local_path(asset))
 end
 
