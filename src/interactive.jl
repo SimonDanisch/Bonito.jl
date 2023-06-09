@@ -9,7 +9,6 @@ function update_route!(server, (route, app))
     end
 end
 
-
 const REVISE_LOOP = Base.RefValue(Base.RefValue(true))
 const REVISE_SERVER = Base.RefValue{Union{Nothing, Server}}(nothing)
 

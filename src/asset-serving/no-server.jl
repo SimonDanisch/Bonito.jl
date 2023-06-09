@@ -99,6 +99,7 @@ current_dir(assetfolder) = ""
 to_unix_path(path) = replace(path, "\\" => "/")
 
 function url(assetfolder::AbstractAssetFolder, asset::Link)
+    is_online(asset.target) && return asset.target
     html_dir = to_unix_path(current_dir(assetfolder))
     root_dir = to_unix_path(folder(assetfolder))
     path_to_root = relpath(root_dir, html_dir)
@@ -118,6 +119,7 @@ function url(assetfolder::AbstractAssetFolder, asset::Asset)
     return path_to_root * relative * "/" * basename(path)
 end
 
+folder(folder) = folder.folder
 folder(assetfolder::AssetFolder) = abspath(assetfolder.folder)
 
 function url(assetfolder::AbstractAssetFolder, asset::BinaryAsset)

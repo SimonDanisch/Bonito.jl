@@ -53,9 +53,6 @@ function (ignore::IgnoreObsUpdates2)(msg)
         # because otherwise, that will trigger itself recursively, once those messages are applied
         # via `$(wid).on(x=> ....)`
         msg[:id] in ignore.widget_ids && return true
-        if msg[:payload] isa Vector
-            @show length(msg[:payload])
-        end
     end
     return false
 end
@@ -72,7 +69,7 @@ function record_values(f, session, widget_ids)
         do_session(session) do s
             append!(messages, s.message_queue)
         end
-        return unique(messages)
+        return messages
     catch e
         Base.showerror(stderr, e)
     finally
