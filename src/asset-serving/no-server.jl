@@ -49,14 +49,18 @@ end
 
 abstract type AbstractAssetFolder <: AbstractAssetServer end
 
-struct AssetFolder <: AbstractAssetFolder
+mutable struct AssetFolder <: AbstractAssetFolder
     folder::String
+    current_dir::String # The dir the current html page gets written out to
 end
 Base.similar(asset::AssetFolder) = asset # no copy needed
 
 setup_asset_server(::AbstractAssetFolder) = nothing
 
 subdir(asset::Union{BinaryAsset,Asset}) = string(mediatype(asset))
+
+desired_location(assetfolder, asset::Link) = link.target
+write_to_assetfolder(assetfolder, asset::Link) = link.target
 
 function desired_location(assetfolder, asset)
     folder = abspath(assetfolder.folder)
@@ -70,16 +74,16 @@ function desired_location(assetfolder, asset)
 end
 
 function desired_location(assetfolder, asset::BinaryAsset)
-    folder = abspath(assetfolder.folder[])
+    dir = folder(assetfolder)
     file = unique_file_key(asset)
     sub = subdir(asset)
-    return normpath(joinpath(folder, "jsserve", sub, file))
+    return normpath(joinpath(dir, "jsserve", sub, file))
 end
 
 function write_to_assetfolder(assetfolder, asset)
-    folder = abspath(assetfolder.folder)
+    dir = folder(assetfolder)
     path = abspath(local_path(asset))
-    if occursin(folder, path)
+    if occursin(dir, path)
         return path
     else
         filepath = desired_location(assetfolder, asset)
@@ -89,14 +93,33 @@ function write_to_assetfolder(assetfolder, asset)
     end
 end
 
+current_dir(assetfolder::AssetFolder) = assetfolder.current_dir
+current_dir(assetfolder) = ""
+
+to_unix_path(path) = replace(path, "\\" => "/")
+
+function url(assetfolder::AbstractAssetFolder, asset::Link)
+    is_online(asset.target) && return asset.target
+    html_dir = to_unix_path(current_dir(assetfolder))
+    root_dir = to_unix_path(folder(assetfolder))
+    path_to_root = relpath(root_dir, html_dir)
+    return path_to_root * asset.target
+end
+
 function url(assetfolder::AbstractAssetFolder, asset::Asset)
     if !isempty(asset.online_path)
         return asset.online_path
     end
     path = write_to_assetfolder(assetfolder, asset)
-    return "/" * replace(normpath(relpath(path, folder(assetfolder))), "\\" => "/")
+    html_dir = to_unix_path(current_dir(assetfolder))
+    root_dir = to_unix_path(folder(assetfolder))
+    target_dir = to_unix_path(dirname(path))
+    relative = replace(target_dir, root_dir => "")
+    path_to_root = relpath(root_dir, html_dir)
+    return path_to_root * relative * "/" * basename(path)
 end
 
+folder(folder) = folder.folder
 folder(assetfolder::AssetFolder) = abspath(assetfolder.folder)
 
 function url(assetfolder::AbstractAssetFolder, asset::BinaryAsset)

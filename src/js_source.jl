@@ -1,5 +1,4 @@
-function iterate_interpolations(source::String)
-    result = Union{Expr, JSString, Symbol}[]
+function iterate_interpolations(source::String, result=Union{Expr,JSString,Symbol}[], text_func=JSString)
     lastidx = 1; i = 1; lindex = lastindex(source)
     isempty(source) && return result
     while true
@@ -7,7 +6,7 @@ function iterate_interpolations(source::String)
         if c == '$'
             # add elements before $
             if !isempty(lastidx:(i - 1))
-                push!(result, JSString(source[lastidx:(i - 1)]))
+                push!(result, text_func(source[lastidx:(i-1)]))
             end
             # parse the $ expression
             expr, i2 = Meta.parse(source, i + 1, greedy = false, raise = false)
@@ -21,7 +20,7 @@ function iterate_interpolations(source::String)
         else
             if i == lindex
                 if !isempty(lastidx:lindex)
-                    push!(result, JSString(source[lastidx:lindex]))
+                    push!(result, text_func(source[lastidx:lindex]))
                 end
                 break
             end
@@ -36,6 +35,12 @@ macro js_str(js_source)
     append!(value_array.args, iterate_interpolations(js_source))
     return :(JSCode($value_array, $(string(__source__.file, ":", __source__.line))))
 end
+
+macro dom_str(str)
+    result = iterate_interpolations(str, [], string)
+    return :(DOM.div($(result...)))
+end
+
 JSCode(source::String) = JSCode([JSString(source)])
 
 struct JSSourceContext

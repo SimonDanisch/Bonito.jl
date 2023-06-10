@@ -7,7 +7,7 @@ To enable putting YourType into a dom element/div.
 You can also overload it to take a session as first argument, to register
 messages with the current web session (e.g. via onjs).
 """
-jsrender(::Session, value::Union{String,Symbol}) = string(value)
+jsrender(::Session, value::Union{String,Symbol,Number}) = string(value)
 jsrender(::Nothing) = DOM.span()
 jsrender(@nospecialize(x)) = x
 

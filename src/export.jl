@@ -132,7 +132,6 @@ function record_states(session::Session, dom::Hyperscript.Node)
             console.log(states)
             // messages to send for this state of that observable
             const messages = statemap[states]
-            console.log(messages)
             // not all states trigger events
             // so some states won't have any messages recorded
             if (messages){
@@ -187,14 +186,23 @@ function export_static(html_io::IO, app::App;
     return session
 end
 
-function export_static(folder::String, routes::Routes; connection=NoConnection(), asset_server=NoServer())
+function export_static(folder::String, routes::Routes; connection=NoConnection(), asset_server= AssetFolder(folder, ""))
     isdir(folder) || mkpath(folder)
     for (route, app) in routes.routes
-        if route == "/"
-            route = "index"
-        end
-        html_file = normpath(joinpath(folder, route) * ".html")
+        startswith(route, "/") && (route = route[2:end])
+        dir = joinpath(folder, route)
+        html_file = normpath(joinpath(dir, "index.html"))
         isdir(dirname(html_file)) || mkpath(dirname(html_file))
+        asset_server.current_dir = dir
         export_static(html_file, app; session=Session(connection; asset_server=asset_server))
     end
+end
+
+
+
+function export_static(routes)
+    dir = joinpath(@__DIR__, "docs")
+    # rm(dir; recursive=true, force=true); mkdir(dir)
+    folder = AssetFolder(dir)
+    JSServe.export_static(dir, routes; asset_server=folder)
 end

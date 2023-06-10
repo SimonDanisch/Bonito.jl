@@ -39,6 +39,10 @@ struct Asset
     bundle_dir::Union{String, Path}
 end
 
+struct Link
+    target::String
+end
+
 struct JSException <: Exception
     exception::String
     message::String
@@ -281,5 +285,5 @@ struct Routes
 end
 
 Routes() = Routes(Dict{String, App}())
-
+Routes(pairs::Pair{String, App}...) = Routes(Dict{String, App}(pairs))
 Base.setindex!(routes::Routes, app::App, key::String) = (routes.routes[key] = app)

@@ -36,6 +36,13 @@ include("types.jl")
 include("HTTPServer/HTTPServer.jl")
 include("app.jl")
 
+function HTTPServer.route!(server::HTTPServer.Server, routes::Routes)
+    for (key, app) in routes.routes
+        HTTPServer.route!(server, key => app)
+    end
+end
+
+
 import .HTTPServer: browser_display
 using .HTTPServer: Server, html, online_url, route!, file_mimetype, delete_websocket_route!, delete_route!, use_electron_display
 
@@ -56,6 +63,7 @@ include("widgets.jl")
 include("display.jl")
 include("export.jl")
 include("tailwind-dashboard.jl")
+include("interactive.jl")
 
 # Core functionality
 export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset
@@ -65,7 +73,7 @@ export Observable, on, onany, bind_global
 export linkjs, evaljs, evaljs_value, onjs
 export NoServer, AssetFolder, HTTPAssetServer, DocumenterAssets
 export NoConnection, IJuliaConnection, PlutoConnection, WebSocketConnection
-export export_static
+export export_static, Routes, interactive_server
 
 
 function has_html_display()

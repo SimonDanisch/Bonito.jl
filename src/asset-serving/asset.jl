@@ -25,7 +25,7 @@ function unique_file_key(asset::BinaryAsset)
     return "$key.$ext"
 end
 
-url(session::Session, asset::Union{BinaryAsset, Asset}) = url(session.asset_server, asset)
+url(session::Session, asset::Union{BinaryAsset, Asset, Link}) = url(session.asset_server, asset)
 function url(::Nothing, asset::Asset)
     # Allow to use nothing for specifying an online url
     @assert !isempty(asset.online_path)
