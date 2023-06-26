@@ -29,18 +29,25 @@ function interactive_server(f, paths, modules=[]; url="127.0.0.1", port=8081, al
         Revise = Main.Revise
         # important to make `index = App(....)` work
         @eval Main __revise_mode__ = :evalassign
+        returned_routes = nothing
         function update_routes()
             routes = Base.invokelatest(f)
             for (route, app) in routes.routes
                 update_route!(server, (route, app))
             end
+            # Update routes returned to the user, so they're up do date!
+            if !isnothing(returned_routes)
+                # TODO, could this be called from another task and needs a lock?
+                empty!(returned_routes.routes)
+                merge!(returned_routes.routes, routes.routes)
+            end
             return routes
         end
 
-        routes = update_routes()
+        returned_routes = update_routes()
         Revise.add_callback(update_routes, paths, modules; all=true, key="jsserver-revise")
 
-        REVISE_LOOP[][] = false # stop old loop
+        REVISE_LOOP[][] = false # stop any old loop
         run = Base.RefValue(true) # get us a new loop variable
         REVISE_LOOP[] = run
         task = @async begin
@@ -51,14 +58,16 @@ function interactive_server(f, paths, modules=[]; url="127.0.0.1", port=8081, al
             @info("quitting revise loop")
         end
         errormonitor(task)
-
+        route_dict = returned_routes.routes
+        user_routes = keys(route_dict)
         server_routes = Set(first.(server.routes.table))
-        if !Base.all(r-> r in server_routes, keys(routes.routes))
-            @warn "not all routes in server. Required routes: $(first(routes.routes)). Routes in server: $(server_routes)"
+        if !Base.all(r -> r in server_routes, user_routes)
+            # Sanity check, that all routes have been added to server. Not sure how this could fail, but better to check it!
+            @warn "Not all routes in server. Required routes: $(user_routes). Routes in server: $(server_routes)"
         end
-        page = haskey(routes.routes, "/") ? "/" : first(routes.routes)[1]
-        HTTPServer.openurl(online_url(server, page))
-        return routes, task, server
+        startpage = haskey(route_dict, "/") ? "/" : first(route_dict)[1]
+        HTTPServer.openurl(online_url(server, startpage))
+        return returned_routes, task, server
     else
         error("Please load Revise into Main scope")
     end
