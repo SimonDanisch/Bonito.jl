@@ -42,7 +42,6 @@ function HTTPServer.route!(server::HTTPServer.Server, routes::Routes)
     end
 end
 
-
 import .HTTPServer: browser_display
 using .HTTPServer: Server, html, online_url, route!, file_mimetype, delete_websocket_route!, delete_route!, use_electron_display
 
@@ -71,10 +70,9 @@ export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor
 export browser_display, configure_server!, Server, html, route!, online_url, use_electron_display
 export Observable, on, onany, bind_global
 export linkjs, evaljs, evaljs_value, onjs
-export NoServer, AssetFolder, HTTPAssetServer, DocumenterAssets
+export NoServer, AssetFolder, HTTPAssetServer
 export NoConnection, IJuliaConnection, PlutoConnection, WebSocketConnection
 export export_static, Routes, interactive_server
-
 
 function has_html_display()
     for display in Base.Multimedia.displays

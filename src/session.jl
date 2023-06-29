@@ -24,11 +24,6 @@ end
 
 function get_messages!(session::Session, messages=[])
     append!(messages, session.message_queue)
-    for js in session.on_document_load
-        onload = Dict(:msg_type=>EvalJavascript, :payload=>js)
-        push!(messages, SerializedMessage(session, onload))
-    end
-    empty!(session.on_document_load)
     empty!(session.message_queue)
     root = root_session(session)
     if root !== session
@@ -295,7 +290,7 @@ function render_dependencies(session::Session)
         setdiff(session.imports, root_session(session).imports)
     end
     assets_rendered = render_asset.((session,), assets)
-    if any(x-> mediatype(x) == :js && !x.es6module, assets)
+    if any(x-> mediatype(x) == :js && !is_es6module(x), assets)
         # if a js non es6module is included, we may need to hack require... because JS! :(
         return DOM.div(require_off, assets_rendered..., require_on)
     else
@@ -355,6 +350,17 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
             """
         end
         pushfirst!(children(body), jsrender(session, init_session))
+    end
+    # Onload javascript
+    if !isempty(session.on_document_load)
+        merged_onload_js = merge_js(session.on_document_load)
+        empty!(session.on_document_load)
+        onload_js = js"""
+        window.addEventListener("load", (event) => {
+            $(merged_onload_js)
+        })
+        """
+        push!(children(body), jsrender(session, onload_js))
     end
 
     if !issubsession

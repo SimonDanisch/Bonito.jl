@@ -43,6 +43,21 @@ end
 
 JSCode(source::String) = JSCode([JSString(source)])
 
+function merge_js(iterable_of_js_code)
+    merged_js = JSCode()
+    for js in iterable_of_js_code
+        # Put into closure, to create its own scope and make sure to not drop file!
+        js_sanitized = js"""
+            /*File: $(js.file)*/
+            (()=> {
+                $js
+            })();
+        """
+        append!(merged_js.source, js_sanitized.source)
+    end
+    return merged_js
+end
+
 struct JSSourceContext
     session::Union{Nothing,Session}
     objects::IdDict
@@ -55,8 +70,6 @@ end
 function Base.show(io::IO, jsc::JSCode)
     print_js_code(io, jsc, JSSourceContext())
 end
-
-
 
 function print_js_code(io::IO, @nospecialize(object), context::JSSourceContext)
     id = get!(() -> string(hash(object)), context.objects, object)
@@ -100,21 +113,12 @@ function print_js_code(io::IO, jsss::AbstractVector{JSCode}, context::JSSourceCo
     return context
 end
 
-function import_in_js(io::IO, session::Session, asset_server, asset::BinaryAsset)
-    print(io, "JSServe.fetch_binary('$(url(session, asset))')")
-end
 
-function import_in_js(io::IO, session::Session, asset_server, asset::Asset)
-    ref = url(session, asset)
-    if asset.es6module
-        print(io, "import('$(ref)')")
-    else
-        print(io, "JSServe.fetch_binary($(ref))")
-    end
-end
+is_es6module(asset) = false
+is_es6module(asset::Asset) = asset.es6module
 
-function print_js_code(io::IO, asset::Union{Asset, BinaryAsset}, context::JSSourceContext)
-    if asset isa BinaryAsset || asset.es6module
+function print_js_code(io::IO, asset::AbstractAsset, context::JSSourceContext)
+    if asset isa BinaryAsset || is_es6module(asset)
         bundle!(asset) # no-op if not needed
         session = context.session
         if !isnothing(session)
@@ -130,15 +134,6 @@ function print_js_code(io::IO, asset::Union{Asset, BinaryAsset}, context::JSSour
     return context
 end
 
-
-# This works better with Pluto, which doesn't allow <script> the script </script>
-# and only allows `<script src=url>  </script>`
-# TODO, NoServer is kind of misussed here, since Pluto happens to use it
-# I guess the best solution would be a trait system or some other config object
-# for deciding how to inline code into pure HTML
-function inline_code(session::Session, noserver, source::String)
-    return DOM.script(source; type="module")
-end
 
 function inline_code(session::Session, asset_server, js::JSCode)
     # Print code while collecting all interpolated objects in an IdDict

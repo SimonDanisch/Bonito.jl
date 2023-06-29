@@ -1,12 +1,9 @@
 
-mediatype(asset::Asset) = asset.media_type
 
 function get_path(asset::Asset)
     isempty(asset.online_path) ? asset.local_path : asset.online_path
 end
 
-unique_file_key(path::String) = bytes2hex(sha1(abspath(path))) * "-" * basename(path)
-unique_file_key(path) = unique_file_key(string(path))
 function unique_key(asset::Asset)
     if isempty(asset.online_path)
         path = asset.local_path
@@ -17,13 +14,18 @@ function unique_key(asset::Asset)
     end
 end
 
-mediatype(asset::BinaryAsset) = Symbol(HTTPServer.mimetype_to_extension(asset.mime))
-
 function unique_file_key(asset::BinaryAsset)
     key = unique_file_key(string(hash(asset.data)))
     ext = mediatype(asset)
     return "$key.$ext"
 end
+unique_file_key(path::String) = bytes2hex(sha1(abspath(path))) * "-" * basename(path)
+unique_file_key(path) = unique_file_key(string(path))
+
+
+mediatype(asset::Asset) = asset.media_type
+mediatype(asset::BinaryAsset) = Symbol(HTTPServer.mimetype_to_extension(asset.mime))
+
 
 url(session::Session, asset::Union{BinaryAsset, Asset, Link}) = url(session.asset_server, asset)
 function url(::Nothing, asset::Asset)
@@ -32,7 +34,7 @@ function url(::Nothing, asset::Asset)
     return asset.online_path
 end
 
-function render_asset(session::Session, asset::Asset)
+function render_asset(session::Session, asset::AbstractAsset)
     @assert mediatype(asset) in (:css, :js)
     ref = url(session, asset)
     if mediatype(asset) == :js
@@ -46,7 +48,7 @@ function render_asset(session::Session, asset::Asset)
     end
 end
 
-function jsrender(session::Session, asset::Asset)
+function jsrender(session::Session, asset::AbstractAsset)
     if mediatype(asset) in (:jpeg, :jpg, :png)
         return DOM.img(src=url(session, asset))
     elseif mediatype(asset) in (:css, :js)
@@ -61,13 +63,19 @@ function jsrender(session::Session, asset::Asset)
 end
 
 """
-    is_online(path)
+    is_online(path::Union{Path, String, AbstractAsset})
 
 Determine whether or not the specified path is a local filesystem path (and not
 a remote resource that is hosted on, for example, a CDN).
 """
 is_online(path::AbstractString) = any(startswith.(path, ("//", "https://", "http://", "ftp://")))
 is_online(path::Path) = false # RelocatableFolders is only used for local filesystem paths
+is_online(asset::Asset) = !isempty(asset.online_path)
+is_online(::BinaryAsset) = false
+is_online(link::Link) = is_online(link.target)
+
+online_path(asset::Asset) = asset.online_path
+online_path(link::Link) = link.target
 
 function normalize_path(path::AbstractString; check_isfile=false)
     local_path = normpath(abspath(expanduser(path)))

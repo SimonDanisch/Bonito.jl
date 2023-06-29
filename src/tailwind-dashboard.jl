@@ -1,14 +1,12 @@
 module TailwindDashboard
 
 import ..JSServe
-import ..JSServe: DOM, Session, Observable, @js_str, Asset
+import ..JSServe: DOM, Session, Observable, @js_str, Asset, TailwindCSS
 using Hyperscript
-const TailwindMini = Asset(JSServe.dependency_path("tailwind.min.css"))
-
 
 function FlexRow(args...; class="", attributes...)
     return DOM.div(
-        TailwindMini,
+        TailwindCSS,
         args...;
         attributes...,
         class="mx-2 flex flex-row $class",
@@ -17,7 +15,7 @@ end
 
 function FlexCol(args...; class="", attributes...)
     return DOM.div(
-        TailwindMini,
+        TailwindCSS,
         args...;
         attributes...,
         class="my-2 flex flex-col $class",
@@ -26,7 +24,7 @@ end
 
 function Card(content; class="", style="", width="fit-content", height="fit-content", attributes...)
     return DOM.div(
-        TailwindMini,
+        TailwindCSS,
         content;
         style="width: $(width); height: $(height); $(style)",
         class="rounded-md p-2 m-2 shadow $class",

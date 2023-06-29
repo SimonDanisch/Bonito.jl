@@ -131,7 +131,7 @@ end
     end
 
     # make sure that assets with `String` or with `RelocatableFolders.Path` behave consistently
-    libpath1 = joinpath(@__DIR__, "..", "js_dependencies", "styled.css")
+    libpath1 = JSServer.Styling.local_path
     libpath2 = @path libpath1
     asset1, asset2 = Asset(libpath1), Asset(libpath2)
     for key in (:media_type, :online_path, :local_path, :onload)

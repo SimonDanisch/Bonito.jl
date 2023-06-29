@@ -49,8 +49,8 @@ function Page(;
         force_connection!(connection)
     end
     asset_server = default_asset_server()
-    if asset_server isa DocumenterAssets
-        asset_server.folder[] = current_page_dir
+    if asset_server isa AssetFolder
+        asset_server.folder = current_page_dir
     end
     force_subsession!(true)
     return

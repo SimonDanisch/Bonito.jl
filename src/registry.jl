@@ -175,9 +175,9 @@ register_asset_server!(NoServer) do
 end
 
 # Needs to be globally shared while building the docs
-# TODO, reuse the same DocumenterAssets instance more cleanly
-const DOCUMENTER_ASSETS = DocumenterAssets()
-register_asset_server!(DocumenterAssets) do
+# TODO, reuse the same AssetFolder instance more cleanly
+const DOCUMENTER_ASSETS = AssetFolder()
+register_asset_server!(AssetFolder) do
     if isdefined(Main, :Documenter)
         return DOCUMENTER_ASSETS
     else

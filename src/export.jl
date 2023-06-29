@@ -186,6 +186,9 @@ function export_static(html_io::IO, app::App;
     return session
 end
 
+
+post_export_hook(routes::Routes, asset_server, any) = nothing
+
 function export_static(folder::String, routes::Routes; connection=NoConnection(), asset_server= AssetFolder(folder, ""))
     isdir(folder) || mkpath(folder)
     for (route, app) in routes.routes
@@ -196,9 +199,19 @@ function export_static(folder::String, routes::Routes; connection=NoConnection()
         asset_server.current_dir = dir
         export_static(html_file, app; session=Session(connection; asset_server=asset_server))
     end
+    dependency_set = OrderedSet{AbstractAsset}()
+    for (route, app) in routes.routes
+        session = app.session[]
+        if isnothing(session)
+            @warn("No session for exported app $(repr(app.title)) at route: $(route)")
+        else
+            union!(dependency_set, session.imports)
+        end
+    end
+    for asset in dependency_set
+        post_export_hook(routes, asset_server, asset)
+    end
 end
-
-
 
 function export_static(routes)
     dir = joinpath(@__DIR__, "docs")

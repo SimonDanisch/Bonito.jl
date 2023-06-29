@@ -22,12 +22,22 @@ struct JSCode
 end
 
 JSCode(source) = JSCode(source, "")
+JSCode() = JSCode(Union{JSString,Any}[], "")
+
+
+abstract type AbstractAsset end
+
+# Interface
+# For is_es6module(asset) = true:
+# import_in_js(io::IO, session::Session, ns::AbstractAssetServer, asset::AbstractAsset)
+# For all types of asset:
+# url(assetfolder:: , asset::AbstractAsset)
 
 """
 Represent an asset stored at an URL.
 We try to always have online & local files for assets
 """
-struct Asset
+struct Asset <: AbstractAsset
     name::Union{Nothing, String}
     es6module::Bool
     media_type::Symbol
@@ -39,8 +49,13 @@ struct Asset
     bundle_dir::Union{String, Path}
 end
 
-struct Link
+struct Link <: AbstractAsset
     target::String
+end
+
+struct BinaryAsset <: AbstractAsset
+    data::Vector{UInt8}
+    mime::String
 end
 
 struct JSException <: Exception
@@ -118,7 +133,7 @@ mutable struct Session{Connection <: FrontendConnection}
     # For rendering Hyperscript.Node, and giving them a unique id inside the session
     dom_uuid_counter::Int
     ignore_message::RefValue{Function}
-    imports::OrderedSet{Asset}
+    imports::OrderedSet{AbstractAsset}
     title::String
     compression_enabled::Bool
     deletion_lock::Base.ReentrantLock
@@ -141,7 +156,7 @@ mutable struct Session{Connection <: FrontendConnection}
             session_objects::Dict{String, Any},
             dom_uuid_counter::Int,
             ignore_message::RefValue{Function},
-            imports::OrderedSet{Asset},
+            imports::OrderedSet{AbstractAsset},
             title::String,
             compression_enabled::Bool,
         ) where {Connection}
@@ -174,10 +189,6 @@ mutable struct Session{Connection <: FrontendConnection}
     end
 end
 
-struct BinaryAsset
-    data::Vector{UInt8}
-    mime::String
-end
 BinaryAsset(session::Session, @nospecialize(data)) = BinaryAsset(SerializedMessage(session, data).bytes, "application/octet-stream")
 
 """
@@ -205,7 +216,7 @@ function Session(connection=default_connection();
                 on_close=Observable(false),
                 deregister_callbacks=Observables.ObserverFunction[],
                 session_objects=Dict{String, Any}(),
-                imports=OrderedSet{Asset}(),
+                imports=OrderedSet{AbstractAsset}(),
                 title="JSServe App",
                 compression_enabled=default_compression())
 
