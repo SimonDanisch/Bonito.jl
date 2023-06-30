@@ -219,3 +219,12 @@ function export_static(routes)
     folder = AssetFolder(dir)
     JSServe.export_static(dir, routes; asset_server=folder)
 end
+
+
+
+function export_static(routes)
+    dir = joinpath(@__DIR__, "docs")
+    # rm(dir; recursive=true, force=true); mkdir(dir)
+    folder = AssetFolder(dir)
+    JSServe.export_static(dir, routes; asset_server=folder)
+end

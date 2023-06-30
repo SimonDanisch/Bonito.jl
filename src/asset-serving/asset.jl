@@ -22,10 +22,8 @@ end
 unique_file_key(path::String) = bytes2hex(sha1(abspath(path))) * "-" * basename(path)
 unique_file_key(path) = unique_file_key(string(path))
 
-
 mediatype(asset::Asset) = asset.media_type
 mediatype(asset::BinaryAsset) = Symbol(HTTPServer.mimetype_to_extension(asset.mime))
-
 
 url(session::Session, asset::Union{BinaryAsset, Asset, Link}) = url(session.asset_server, asset)
 function url(::Nothing, asset::Asset)
