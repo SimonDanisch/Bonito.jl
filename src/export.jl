@@ -186,7 +186,6 @@ function export_static(html_io::IO, app::App;
     return session
 end
 
-
 post_export_hook(routes::Routes, asset_server, any) = nothing
 
 function export_static(folder::String, routes::Routes; connection=NoConnection(), asset_server= AssetFolder(folder, ""))
@@ -211,20 +210,4 @@ function export_static(folder::String, routes::Routes; connection=NoConnection()
     for asset in dependency_set
         post_export_hook(routes, asset_server, asset)
     end
-end
-
-function export_static(routes)
-    dir = joinpath(@__DIR__, "docs")
-    # rm(dir; recursive=true, force=true); mkdir(dir)
-    folder = AssetFolder(dir)
-    JSServe.export_static(dir, routes; asset_server=folder)
-end
-
-
-
-function export_static(routes)
-    dir = joinpath(@__DIR__, "docs")
-    # rm(dir; recursive=true, force=true); mkdir(dir)
-    folder = AssetFolder(dir)
-    JSServe.export_static(dir, routes; asset_server=folder)
 end

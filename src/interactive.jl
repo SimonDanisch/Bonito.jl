@@ -3,6 +3,7 @@ function update_route!(server, (route, app))
     if old isa App && !isnothing(old.session[]) && isready(old.session[])
         try
             JSServe.evaljs(old.session[], js"window.location.reload()")
+            wait_for(() -> !isnothing(app.session[]) && isready(app.session[]))
         catch e
             @warn "Failed to reload route $(route)" exception = e
         end
@@ -28,20 +29,22 @@ function interactive_server(f, paths, modules=[]; url="127.0.0.1", port=8081, al
     if isdefined(Main, :Revise)
         Revise = Main.Revise
         # important to make `index = App(....)` work
-        @eval Main __revise_mode__ = :evalassign
         returned_routes = nothing
+        update_lock = Base.ReentrantLock()
         function update_routes()
-            routes = Base.invokelatest(f)
-            for (route, app) in routes.routes
-                update_route!(server, (route, app))
+            return lock(update_lock) do
+                routes = Base.invokelatest(f)
+                for (route, app) in routes.routes
+                    update_route!(server, (route, app))
+                end
+                # Update routes returned to the user, so they're up do date!
+                if !isnothing(returned_routes)
+                    # TODO, could this be called from another task and needs a lock?
+                    empty!(returned_routes.routes)
+                    merge!(returned_routes.routes, routes.routes)
+                end
+                return routes
             end
-            # Update routes returned to the user, so they're up do date!
-            if !isnothing(returned_routes)
-                # TODO, could this be called from another task and needs a lock?
-                empty!(returned_routes.routes)
-                merge!(returned_routes.routes, routes.routes)
-            end
-            return routes
         end
 
         returned_routes = update_routes()
