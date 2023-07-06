@@ -42,7 +42,7 @@ end
 
 function js_to_local_url(server::HTTPAssetServer, url::AbstractString)
     m = match(ASSET_URL_REGEX, url)
-    if isempty(m)
+    if isnothing(m) || isempty(m)
         return url
     else
         key = m[1]
