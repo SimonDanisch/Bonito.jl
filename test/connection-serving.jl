@@ -1,4 +1,4 @@
-const THREE = ES6Module("https://cdn.esm.sh/v66/three@0.136/es2021/three.js")
+const THREE = ES6Module(joinpath(@__DIR__, "three.js"))
 
 function export_test_app(session, request)
     result = DOM.div("failed"; dataTestId="result")
@@ -22,13 +22,13 @@ path = joinpath(@__DIR__, "test.html")
     export_static(path, app; connection=connection(), asset_server=server())
     # We need to drop a bit lower and cant use `testapp` here, since that uses fixed connection + asset server
     window = Window(URI("file://" * path))
+    sleep(0.5) # how did this work before without syncronization?
     result = run(window, "$(query_testid("result")).innerText")
     @test result == "passed"
     close(window)
     close(app)
 end
 rm(path; force=true)
-
 
 # Finalizers and other problems have been closing our connection unintentional,
 # So we do this little stress test:
