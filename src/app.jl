@@ -130,6 +130,7 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
     # so, if we serve the display handler url, it means to start fresh
     # But if UNINITIALIZED, it's simply the first request to the page!
     if handler.session.status != UNINITIALIZED
+        @debug("creating new Session for unititialized display handler")
         handler.session = HTTPSession(handler.server) # new session
     end
     parent = handler.session

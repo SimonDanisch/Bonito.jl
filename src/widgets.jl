@@ -92,9 +92,8 @@ function jsrender(session::Session, tb::Checkbox)
         tb.attributes...
     ))
 end
-
 # TODO, clean this up
-const noUiSlider = ES6Module("https://esm.sh/v99/nouislider@15.6.1/es2022/nouislider.js")
+const noUiSlider = ES6Module(dependency_path("nouislider.min.js"))
 const noUiSliderCSS = Asset(dependency_path("noUISlider.css"))
 
 function jsrender(session::Session, slider::RangeSlider)
