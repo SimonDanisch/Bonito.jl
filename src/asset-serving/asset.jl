@@ -33,7 +33,7 @@ function url(::Nothing, asset::Asset)
 end
 
 function render_asset(session::Session, asset::Asset)
-    @assert mediatype(asset) in (:css, :js)
+    @assert mediatype(asset) in (:css, :js, :mjs) "Found: $(mediatype(asset)))"
     ref = url(session, asset)
     if mediatype(asset) == :js
         if asset.es6module
