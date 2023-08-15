@@ -23,11 +23,13 @@ end
 
 JSCode(source) = JSCode(source, "")
 
+abstract type AbstractAsset end
+
 """
 Represent an asset stored at an URL.
 We try to always have online & local files for assets
 """
-struct Asset
+struct Asset <: AbstractAsset
     name::Union{Nothing, String}
     es6module::Bool
     media_type::Symbol
@@ -39,7 +41,8 @@ struct Asset
     bundle_dir::Union{String, Path}
 end
 
-struct Link
+
+struct Link <: AbstractAsset
     target::String
 end
 
@@ -174,7 +177,7 @@ mutable struct Session{Connection <: FrontendConnection}
     end
 end
 
-struct BinaryAsset
+struct BinaryAsset <: AbstractAsset
     data::Vector{UInt8}
     mime::String
 end

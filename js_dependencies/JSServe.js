@@ -1,5 +1,5 @@
 import * as Connection from "./Connection.js";
-import { Observable, onany } from "./Observables.js";
+import { onany } from "./Observables.js";
 import * as Protocol from "./Protocol.js";
 import * as Sessions from "./Sessions.js";
 
@@ -91,7 +91,7 @@ const JSServe = {
     lookup_global_object,
     update_or_replace,
 
-    onany,
+    onany
 };
 
 // @ts-ignore

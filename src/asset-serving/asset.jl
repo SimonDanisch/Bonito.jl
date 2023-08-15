@@ -19,13 +19,18 @@ end
 
 mediatype(asset::BinaryAsset) = Symbol(HTTPServer.mimetype_to_extension(asset.mime))
 
+function unique_file_key(asset::Asset)
+    file = local_path(asset)
+    return unique_file_key(normpath(abspath(expanduser(file))))
+end
+
 function unique_file_key(asset::BinaryAsset)
     key = unique_file_key(string(hash(asset.data)))
     ext = mediatype(asset)
     return "$key.$ext"
 end
 
-url(session::Session, asset::Union{BinaryAsset, Asset, Link}) = url(session.asset_server, asset)
+url(session::Session, asset::AbstractAsset) = url(session.asset_server, asset)
 function url(::Nothing, asset::Asset)
     # Allow to use nothing for specifying an online url
     @assert !isempty(asset.online_path)
@@ -68,6 +73,13 @@ a remote resource that is hosted on, for example, a CDN).
 """
 is_online(path::AbstractString) = any(startswith.(path, ("//", "https://", "http://", "ftp://")))
 is_online(path::Path) = false # RelocatableFolders is only used for local filesystem paths
+is_online(asset::Asset) = isempty(local_path(asset))
+is_online(asset::BinaryAsset) = false
+is_online(asset::Link) = true
+
+online_path(asset::Link) = asset.target
+online_path(asset::Asset) = asset.online_path
+online_path(::BinaryAsset) = ""
 
 function normalize_path(path::AbstractString; check_isfile=false)
     local_path = normpath(abspath(expanduser(path)))
