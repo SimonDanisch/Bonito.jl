@@ -35,6 +35,21 @@ function delete_route!(routes::Routes, pattern)
     return
 end
 
+function get_route(routes::Routes, pattern)
+    lock(routes.lock) do
+        for (key, route) in routes.table
+            key == pattern && return route
+        end
+        return nothing
+    end
+end
+
+function has_route(routes::Routes, pattern)
+    lock(routes.lock) do
+        return any(x -> x[1] == pattern, routes.table)
+    end
+end
+
 function route!(routes::Routes, pattern_func::Pair)
     pattern, func = pattern_func
     return lock(routes.lock) do
@@ -73,22 +88,26 @@ function apply_handler(chain::Tuple, context, args...)
 end
 
 function delegate(routes::Routes, application, request::Request, args...)
-    for (pattern, f) in routes.table
-        match = match_request(pattern, request)
-        if match !== nothing
-            context = (
-                routes = routes,
-                application = application,
-                request = request,
-                match = match
-            )
-            return apply_handler(f, context, args...)
+    try
+        for (pattern, f) in routes.table
+            match = match_request(pattern, request)
+            if match !== nothing
+                context = (
+                    routes = routes,
+                    application = application,
+                    request = request,
+                    match = match
+                )
+                return apply_handler(f, context, args...)
+            end
         end
+        @debug("Didn't find route for $(request.target)")
+        # If no route is found we have a classic case of 404!
+        # What a classic this response!
+        return response_404("Didn't find route for $(request.target)")
+    catch e
+        return response_500(CapturedException(e, Base.catch_backtrace()))
     end
-    @debug("Didn't find route for $(request.target)")
-    # If no route is found we have a classic case of 404!
-    # What a classic this response!
-    return response_404("Didn't find route for $(request.target)")
 end
 
 function match_request(pattern::String, request)

@@ -12,6 +12,6 @@ include("implementation.jl")
 include("browser-display.jl")
 include("mimetypes.jl")
 
-export route!, Server, html, file_mimetype
+export route!, has_route, get_route, Server, html, file_mimetype
 
 end

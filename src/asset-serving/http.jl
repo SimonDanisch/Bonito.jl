@@ -1,43 +1,91 @@
+using .HTTPServer: has_route, get_route, route!
+
 mutable struct HTTPAssetServer <: AbstractAssetServer
-    registered_files::Dict{String, Any}
+    # Reference count the files/binary assets, so we can clean them up for child sessions
+    registered_files::Dict{String,Tuple{Set{UInt},Union{String, BinaryAsset}}}
     server::Server
+    lock::ReentrantLock
+end
+
+# AssetServer that uses HTTPAssetServer to host the files
+# We need to have this, to keep track of files that are registered by child sessions
+# So we can clean them up if the child session gets closed.
+# We track them in the parent via `registered_files::Dict{String,Tuple{Set{UInt},Union{String, BinaryAsset}}}`
+# Where the Set{UInt} is the set of all ChildAssetServer's objectids that have registered the file
+mutable struct ChildAssetServer <: AbstractAssetServer
+    parent::HTTPAssetServer
 end
 
 const MATCH_HEX = r"[\da-f]"
 const ASSET_ROUTE_REGEX = r"assets-(?:\d+){20}"
 const UNIQUE_FILE_KEY_REGEX = MATCH_HEX^40 * r"-.*"
 const ASSET_URL_REGEX = "/" * ASSET_ROUTE_REGEX * "/" * UNIQUE_FILE_KEY_REGEX
-const WHOLE_URL_REGEX = r"http://.*" * ASSET_URL_REGEX
-
-server_key(server::HTTPAssetServer) = "/assets-$(hash(server))/"
-route_key(server::HTTPAssetServer) = server_key(server) * UNIQUE_FILE_KEY_REGEX
+const HTTP_ASSET_ROUTE_KEY = "/assets/" * UNIQUE_FILE_KEY_REGEX
 
 HTTPAssetServer() = HTTPAssetServer(get_server())
-HTTPAssetServer(server::Server) = HTTPAssetServer(Dict{String, Any}(), server)
 
-Base.similar(s::HTTPAssetServer) = HTTPAssetServer(s.server)
+function HTTPAssetServer(server::Server)
+    # We only have one HTTPAssetServer per Server,
+    # And always just hand out ChildAssetServer to the session.
+    # It's a bit of an abuse of the constructor,
+    # but the API for Session is to just call the constructor of the desired assset server
+    key = HTTP_ASSET_ROUTE_KEY
+    lock(server.routes.lock) do
+        if has_route(server.routes, key)
+            return ChildAssetServer(get_route(server.routes, key))
+        else
+            http = HTTPAssetServer(Dict{String,Tuple{Set{UInt},AbstractAsset}}(), server, ReentrantLock())
+            route!(server, HTTP_ASSET_ROUTE_KEY => http)
+            return ChildAssetServer(http)
+        end
+    end
+end
+
+Base.similar(s::HTTPAssetServer) = ChildAssetServer(s)
+Base.similar(s::ChildAssetServer) = ChildAssetServer(s.parent)
 
 function Base.close(server::HTTPAssetServer)
-    HTTPServer.delete_route!(server.server, route_key(server))
+    @debug "Closing HTTPAssetServer"
+    HTTPServer.delete_route!(server.server, HTTP_ASSET_ROUTE_KEY)
     empty!(server.registered_files)
 end
 
-url(server::HTTPAssetServer, link::Link) = link.target
-
-function url(server::HTTPAssetServer, asset::Asset)
-    file = local_path(asset)
-    isempty(file) && return asset.online_path
-    target = normpath(abspath(expanduser(file)))
-    key = server_key(server) * unique_file_key(target)
-    get!(()-> target, server.registered_files, key)
-    return HTTPServer.online_url(server.server, key)
+function Base.close(server::ChildAssetServer)
+    lock(server.parent.lock) do
+        id = objectid(server)
+        to_delete = Set{String}()
+        reg_files = server.parent.registered_files
+        for (key, (refs, _)) in reg_files
+            delete!(refs, id)
+            isempty(refs) && push!(to_delete, key)
+        end
+        foreach(key -> delete!(reg_files, key), to_delete)
+    end
 end
 
-function url(server::HTTPAssetServer, asset::BinaryAsset)
-    filename = unique_file_key(asset)
-    key = server_key(server) * filename
-    get!(() -> asset, server.registered_files, key)
-    return HTTPServer.online_url(server.server, key)
+serving_target(asset::Asset) = normpath(abspath(expanduser(local_path(asset))))
+serving_target(asset::AbstractAsset) = asset
+
+function refs_and_url(server, asset::AbstractAsset)
+    key = "/assets/" * unique_file_key(asset)
+    refs, target = get!(()-> (Set{UInt}(), serving_target(asset)), server.registered_files, key)
+    return refs, HTTPServer.online_url(server.server, key)
+end
+
+function url(server::HTTPAssetServer, asset::AbstractAsset)
+    is_online(asset) && return online_path(asset)
+    lock(server.lock) do
+        return refs_and_url(server, asset)[2]
+    end
+end
+
+function url(child::ChildAssetServer, asset::AbstractAsset)
+    lock(child.parent.lock) do
+        is_online(asset) && return online_path(asset)
+        refs, _url = refs_and_url(child.parent, asset)
+        push!(refs, objectid(child))
+        return _url
+    end
 end
 
 function js_to_local_url(server::HTTPAssetServer, url::AbstractString)
@@ -46,7 +94,7 @@ function js_to_local_url(server::HTTPAssetServer, url::AbstractString)
         return url
     else
         key = m[1]
-        path = server.registered_files[string(key)]
+        refs, path = server.registered_files[string(key)]
         return path * ":" * m[2]
     end
 end
@@ -62,7 +110,7 @@ function (server::HTTPAssetServer)(context)
     path = context.request.target
     rf = server.registered_files
     if haskey(rf, path)
-        filepath = rf[path]
+        refs, filepath = rf[path]
         if filepath isa BinaryAsset
             header = ["Access-Control-Allow-Origin" => "*",
                 "Content-Type" => "application/octet-stream"]
@@ -78,7 +126,5 @@ function (server::HTTPAssetServer)(context)
     return HTTP.Response(404)
 end
 
-function setup_asset_server(server::HTTPAssetServer)
-    HTTPServer.route!(server.server, route_key(server) => server)
-    return
-end
+setup_asset_server(server::ChildAssetServer) = nothing
+setup_asset_server(server::HTTPAssetServer) = nothing

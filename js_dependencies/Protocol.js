@@ -1,5 +1,5 @@
 // https://www.npmjs.com/package/@msgpack/msgpack
-import * as MsgPack from "http://cdn.esm.sh/v97/@msgpack/msgpack@2.8.0/es2022/msgpack.js";
+import * as MsgPack from "https://cdn.jsdelivr.net/npm/@msgpack/msgpack/mod.ts";
 import * as Pako from "https://cdn.esm.sh/v66/pako@2.0.4/es2021/pako.js";
 import { Observable } from "./Observables.js";
 import {

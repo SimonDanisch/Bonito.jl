@@ -90,9 +90,5 @@ end
     @test isempty(sub2.session_objects)
     @test isempty(subsub.session_objects)
 
-    server = session.asset_server.server
-
-    for (route, s) in server.routes.table
-        @test !(s isa HTTPAssetServer)
-    end
+    @test isempty(session.asset_server.parent.registered_files)
 end
