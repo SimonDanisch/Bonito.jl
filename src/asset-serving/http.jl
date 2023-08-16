@@ -7,6 +7,11 @@ mutable struct HTTPAssetServer <: AbstractAssetServer
     lock::ReentrantLock
 end
 
+# AssetServer that uses HTTPAssetServer to host the files
+# We need to have this, to keep track of files that are registered by child sessions
+# So we can clean them up if the child session gets closed.
+# We track them in the parent via `registered_files::Dict{String,Tuple{Set{UInt},Union{String, BinaryAsset}}}`
+# Where the Set{UInt} is the set of all ChildAssetServer's objectids that have registered the file
 mutable struct ChildAssetServer <: AbstractAssetServer
     parent::HTTPAssetServer
 end
@@ -20,6 +25,10 @@ const HTTP_ASSET_ROUTE_KEY = "/assets/" * UNIQUE_FILE_KEY_REGEX
 HTTPAssetServer() = HTTPAssetServer(get_server())
 
 function HTTPAssetServer(server::Server)
+    # We only have one HTTPAssetServer per Server,
+    # And always just hand out ChildAssetServer to the session.
+    # It's a bit of an abuse of the constructor,
+    # but the API for Session is to just call the constructor of the desired assset server
     key = HTTP_ASSET_ROUTE_KEY
     lock(server.routes.lock) do
         if has_route(server.routes, key)
