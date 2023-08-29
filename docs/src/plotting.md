@@ -25,12 +25,13 @@ end
 
 # As far as I can tell, PlotlyLight doesn't handle require inside documenter correctly
 # So we just use JSServe to do it correctly via `Asset`:
-const Plotly = JSServe.Asset(PL.cdn_url)
+const Plotly = JSServe.Asset(PL.cdn_url[])
 function JSServe.jsrender(session::Session, plot::PL.Plot)
     # Pretty much copied from the PlotlyLight source to create the JS + div for creating the plot:
-    div = DOM.div(DOM.div(id=plot.id, style="width: 100%; height: 100%"), id="parent-of-$(plot.id)"; style="width: 400px; height: 300px")
+    id = session.id
+    div = DOM.div(id=id, style="height: 100%")
     src = js"""
-        Plotly.newPlot($(plot.id), $(plot.data), $(plot.layout), $(plot.config))
+        Plotly.newPlot($(id), $(plot.data), $(plot.layout), $(plot.config))
     """
     return JSServe.jsrender(session, DOM.div(Plotly, div, src))
 end
