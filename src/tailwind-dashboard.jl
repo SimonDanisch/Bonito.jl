@@ -5,6 +5,8 @@ import ..JSServe: DOM, Session, Observable, @js_str, Asset
 using Hyperscript
 const TailwindMini = Asset(JSServe.dependency_path("tailwind.min.css"))
 
+FlexGrid(elems...; class="", kwargs...) = DOM.div(elems...; class=join(["flex flex-wrap", class], " "), kwargs...)
+Grid(elems...; class="", kwargs...) = DOM.div(elems...; class=join(["grid ", class], " "), kwargs...)
 
 function FlexRow(args...; class="", attributes...)
     return DOM.div(
