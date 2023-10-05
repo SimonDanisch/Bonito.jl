@@ -3815,6 +3815,12 @@ register_ext(105, (uint_8_array)=>{
     children.forEach((child)=>node.append(child));
     return node;
 });
+register_ext(108, (uint_8_array)=>{
+    const html = unpack(uint_8_array);
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    return div;
+});
 function decode_binary(binary, compression_enabled) {
     const serialized_message = unpack_binary(binary, compression_enabled);
     const [session_id, message_data] = serialized_message;

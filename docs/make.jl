@@ -7,7 +7,7 @@ makedocs(
     modules=[JSServe],
     sitename="JSServe",
     clean=false,
-    format=Documenter.HTML(prettyurls=false),
+    format=Documenter.HTML(prettyurls=false, size_threshold=300000),
     authors="Simon Danisch and other contributors",
     pages=[
         "Home" => "index.md",
