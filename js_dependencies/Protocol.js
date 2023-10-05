@@ -2,10 +2,7 @@
 import * as MsgPack from "https://cdn.jsdelivr.net/npm/@msgpack/msgpack/mod.ts";
 import * as Pako from "https://cdn.esm.sh/v66/pako@2.0.4/es2021/pako.js";
 import { Observable } from "./Observables.js";
-import {
-    update_session_cache,
-    lookup_global_object,
-} from "./Sessions.js";
+import { update_session_cache, lookup_global_object } from "./Sessions.js";
 
 export class Retain {
     constructor(value) {
@@ -54,9 +51,13 @@ function register_ext_array(type_tag, array_type) {
         decode: (uint8array) => reinterpret_array(array_type, uint8array),
         encode: (object) => {
             if (object instanceof array_type) {
-                return new Uint8Array(object.buffer, object.byteOffset, object.byteLength)
+                return new Uint8Array(
+                    object.buffer,
+                    object.byteOffset,
+                    object.byteLength
+                );
             } else {
-                return null
+                return null;
             }
         },
     });
@@ -108,6 +109,7 @@ const CACHE_KEY_TAG = 104;
 const DOM_NODE_TAG = 105;
 const SESSION_CACHE_TAG = 106;
 const SERIALIZED_MESSAGE_TAG = 107;
+const RAW_HTML_TAG = 108;
 
 register_ext(OBSERVABLE_TAG, (uint_8_array) => {
     const [id, value] = unpack(uint_8_array);
@@ -167,8 +169,8 @@ register_ext(DOM_NODE_TAG, (uint_8_array) => {
     const [tag, children, attributes] = unpack(uint_8_array);
     const node = create_tag(tag, attributes);
     Object.keys(attributes).forEach((key) => {
-        if (key == "juliasvgnode"){
-            return //skip our internal node, needed to create proper svg
+        if (key == "juliasvgnode") {
+            return; //skip our internal node, needed to create proper svg
         }
         if (key == "class") {
             node.className = attributes[key];
@@ -178,6 +180,13 @@ register_ext(DOM_NODE_TAG, (uint_8_array) => {
     });
     children.forEach((child) => node.append(child));
     return node;
+});
+
+register_ext(RAW_HTML_TAG, (uint_8_array) => {
+    const html = unpack(uint_8_array);
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    return div;
 });
 
 register_ext(SESSION_CACHE_TAG, (uint_8_array) => {
@@ -190,7 +199,6 @@ register_ext(SERIALIZED_MESSAGE_TAG, (uint_8_array) => {
     const [session_id, message] = unpack(uint_8_array);
     return message;
 });
-
 
 /**
  * @param {Uint8Array} data_as_uint8array
@@ -244,8 +252,8 @@ export function decode_base64_message(base64_string, compression_enabled) {
 export function decode_binary(binary, compression_enabled) {
     // This should ALWAYS be a `SerializedMessage` from the Julia side
     const serialized_message = unpack_binary(binary, compression_enabled);
-    const [session_id, message_data] = serialized_message
-    return message_data
+    const [session_id, message_data] = serialized_message;
+    return message_data;
 }
 
 /**

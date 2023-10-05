@@ -4,12 +4,14 @@
 using JSServe
 using WGLMakie
 import WGLMakie as W
-import Plots as P
+import Gadfly as G
 import PlotlyLight as PL
 import JSServe.TailwindDashboard as D
+
 Page()
+
 function makie_plot()
-    N = 60
+    N = 10
     function xy_data(x, y)
         r = sqrt(x^2 + y^2)
         r == 0.0 ? 1.0f0 : (sin(r) / r)
@@ -28,10 +30,9 @@ end
 const Plotly = JSServe.Asset(PL.cdn_url[])
 function JSServe.jsrender(session::Session, plot::PL.Plot)
     # Pretty much copied from the PlotlyLight source to create the JS + div for creating the plot:
-    id = session.id
-    div = DOM.div(id=id, style="height: 100%")
+    div = DOM.div(style="width: 400px;")
     src = js"""
-        Plotly.newPlot($(id), $(plot.data), $(plot.layout), $(plot.config))
+        Plotly.newPlot($(div), $(plot.data), $(plot.layout), $(plot.config))
     """
     return JSServe.jsrender(session, DOM.div(Plotly, div, src))
 end
@@ -39,9 +40,11 @@ end
 App() do
     p = PL.Plot(x=1:20, y=cumsum(randn(20)), type="scatter", mode="lines+markers")
     width = "400px"
-    return D.FlexRow(
-        D.Card(P.scatter(1:4; windowsize=(200, 200)); width),
+    G.set_default_plot_size(400G.px, 400G.px)
+    gp = G.plot([sin, cos], 0, 2pi)
+    return DOM.div(D.FlexGrid(
+        D.Card(gp; width),
         D.Card(p; width),
-        D.Card(makie_plot()); width)
+        D.Card(makie_plot(); width); style="width: 900px"))
 end
 ```

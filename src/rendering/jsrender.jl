@@ -11,9 +11,9 @@ jsrender(::Session, value::Union{String,Symbol,Number}) = string(value)
 jsrender(::Nothing) = DOM.span()
 jsrender(@nospecialize(x)) = x
 
-function render_mime(session::Session, m::MIME"text/html", @nospecialize(value))
+function render_mime(::Session, m::MIME"text/html", @nospecialize(value))
     html = Base.invokelatest(repr, m, value)
-    return HTML(html)
+    return HTML{String}(html)
 end
 
 function render_mime(session::Session, m::Union{MIME"image/png", MIME"image/jpeg", MIME"image/svg+xml"}, @nospecialize(value))
@@ -23,7 +23,7 @@ function render_mime(session::Session, m::Union{MIME"image/png", MIME"image/jpeg
     return DOM.img(src=url(session, bindeps))
 end
 
-function render_mime(session::Session, m::MIME"text/plain", @nospecialize(value))
+function render_mime(::Session, m::MIME"text/plain", @nospecialize(value))
     return DOM.p(Base.invokelatest(repr, m, value))
 end
 

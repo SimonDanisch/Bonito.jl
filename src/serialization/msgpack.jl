@@ -76,6 +76,7 @@ const CACHE_KEY_TAG = Int8(104)
 const DOM_NODE_TAG = Int8(105)
 const SESSION_CACHE_TAG = Int8(106)
 const SERIALIZED_MESSAGE_TAG = Int8(107)
+const RAW_HTML_TAG = Int8(108)
 
 MsgPack.msgpack_type(::Type{<: SerializedObservable}) = MsgPack.ExtensionType()
 
@@ -106,6 +107,11 @@ end
 MsgPack.msgpack_type(::Type{SerializedNode}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedNode)
     return MsgPack.Extension(DOM_NODE_TAG, pack([x.tag, x.children, x.attributes]))
+end
+
+MsgPack.msgpack_type(::Type{Base.HTML{String}}) = MsgPack.ExtensionType()
+function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::Base.HTML)
+    return MsgPack.Extension(RAW_HTML_TAG, pack(x.content))
 end
 
 MsgPack.msgpack_type(::Type{SessionCache}) = MsgPack.ExtensionType()
