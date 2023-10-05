@@ -10,7 +10,7 @@ on:
 jobs:
   test:
     name: Julia ${{ matrix.version }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     env:
       JULIA_PKG_SERVER: ""
       JULIA_NUM_THREADS: "4"
