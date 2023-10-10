@@ -168,6 +168,18 @@ display(example_app)
 ```
 ![](electron.png)
 
+!!! note
+    By default, `JSServe` will create the Electron window with an open Developer
+    Tools panel in order to help debugging. You can control this behavior at
+    window creation using the `devtools` keyword arg:
+    ```
+    display = JSServe.use_electron_display(devtools = false)
+    ```
+    Alternatively, you can toggle the Developer Tools at any later time using:
+    ```
+    Electron.toggle_devtools(display.window)
+    ```
+
 ## Documenter
 
 JSServe works in Documenter without additional setup.
