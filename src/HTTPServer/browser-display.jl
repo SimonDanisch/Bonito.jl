@@ -113,7 +113,7 @@ struct ElectronDisplay{EWindow} <: Base.Multimedia.AbstractDisplay
     browserdisplay::BrowserDisplay
 end
 
-function ElectronDisplay(; devtools = true)
+function ElectronDisplay(; devtools = false)
     w = Electron().Window()
     devtools && Electron().toggle_devtools(w)
     return ElectronDisplay(w, BrowserDisplay(; open_browser=false))
@@ -131,7 +131,7 @@ function Base.display(display::ElectronDisplay, app::App)
     return display
 end
 
-function use_electron_display(; devtools = true)
+function use_electron_display(; devtools = false)
     disp = ElectronDisplay(; devtools = devtools)
     Base.Multimedia.pushdisplay(disp)
     return disp
