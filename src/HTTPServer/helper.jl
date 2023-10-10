@@ -23,5 +23,6 @@ function response_500(exception)
     ], body=body)
 end
 
-# TODO, can we n
-# Base.convert(::Type{HTTP.Response}, s::Exception) = response_500(s)
+# TODO, how to do this without pircay? THis happens inside HTTP, so we can't just use try & catch in our own code
+# WIthout this overload, we'll get a `cant convert Exception to HTTP.Response` error, without seeing the error.
+Base.convert(::Type{HTTP.Response}, s::Exception) = response_500(s)

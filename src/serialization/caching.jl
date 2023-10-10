@@ -26,7 +26,8 @@ function register_observable!(session::Session, obs::Observable)
     # Only register one time
     if !haskey(root.session_objects, obs.id)
         updater = JSUpdateObservable(root, obs.id)
-        on(updater, root, obs)
+        deregister = on(updater, obs)
+        push!(session.deregister_callbacks, deregister)
     end
     return
 end
