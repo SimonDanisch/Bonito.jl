@@ -257,7 +257,8 @@ function try_listen(url, port)
         return port, ioserver
     catch e
         if e isa Base.IOError
-            if e.code == -4091 || e.code == -98#address already in use
+            #address already in use
+            if e.code == Base.UV_EADDRINUSE
                 return try_listen(url, port+1)
             end
         end
