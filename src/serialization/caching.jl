@@ -122,6 +122,12 @@ function child_has_reference(child::Session, key)
     return any(((id, s),)-> child_has_reference(s, key), child.children)
 end
 
+function remove_js_updates!(session::Session, observable::Observable)
+    filter!(observable.listeners) do (prio, f)
+        !(f isa JSUpdateObservable && f.session === session)
+    end
+end
+
 function delete_cached!(root::Session, key::String)
     if !haskey(root.session_objects, key)
         # This should uncover any fault in our caching logic!
@@ -137,9 +143,7 @@ function delete_cached!(root::Session, key::String)
         object = pop!(root.session_objects, key)
         if object isa Observable
             # unregister all listeners updating the session
-            filter!(object.listeners) do (prio, f)
-                !(f isa JSUpdateObservable && f.session === root)
-            end
+            remove_js_updates!(root, object)
         end
     end
 end
