@@ -89,6 +89,10 @@ function free(session::Session)
             end
         end
     end
+    # We need to remove all JSUpdateObservable from session observables
+    for (k, v) in session.session_objects
+        v isa Observable && remove_js_updates!(session, v)
+    end
     # delete_cached! only deletes in the root session so we need to still empty the session_objects:
     empty!(session.session_objects)
     empty!(session.on_document_load)

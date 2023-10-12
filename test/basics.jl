@@ -14,10 +14,15 @@
     session_cache = decoded[1]
     @test session_cache isa JSServe.SessionCache
     @test haskey(session_cache.objects, mapped.id)
+    @test haskey(session.session_objects, mapped.id)
 
     # Will deregisters correctly on session close
-    @test session.deregister_callbacks[1].observable === mapped
+    @test length(session.deregister_callbacks) == 1
+    @test session.deregister_callbacks[1].observable === obs1
     @test occursin("JSServe.update_node_attribute", string(decoded[2]["payload"]))
+    close(session)
+    @test isempty(obs1.listeners)
+    @test isempty(mapped.listeners)
 end
 
 struct DebugConnection <: JSServe.FrontendConnection

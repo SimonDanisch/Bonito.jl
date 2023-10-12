@@ -85,7 +85,7 @@ attribute_render(session::Session, parent, attribute::String, x::Nothing) = x
 attribute_render(session::Session, parent, attribute::String, x::Bool) = x
 
 function attribute_render(session::Session, parent, attribute::String, obs::Observable)
-    rendered = map(obs) do value
+    rendered = map(session, obs) do value
         attribute_render(session, parent, attribute, value)
     end
     onjs(session, rendered, js"value=> JSServe.update_node_attribute($(parent), $attribute, value)")

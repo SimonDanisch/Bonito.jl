@@ -26,8 +26,9 @@ function register_observable!(session::Session, obs::Observable)
     # Only register one time
     if !haskey(root.session_objects, obs.id)
         updater = JSUpdateObservable(root, obs.id)
-        deregister = on(updater, obs)
-        push!(session.deregister_callbacks, deregister)
+        # Don't deregister on root / or session close
+        # The updaters callbacks are freed manually in delete_cached!`
+        on(updater, obs)
     end
     return
 end
@@ -93,7 +94,8 @@ function add_cached!(create_cached_object::Function, session::Session, send_to_j
     haskey(session.session_objects, key) && return result
     # Now, we have two code paths, depending on whether we have a child session or a root session
     root = root_session(session)
-    if root === session # we are root, so we simply cache the object (we already checked it's not cached yet)
+    # we are root, so we simply cache the object (we already checked it's not cached yet)
+    if root === session
         send_to_js[key] = create_cached_object()
         session.session_objects[key] = object
         return result
@@ -120,6 +122,12 @@ function child_has_reference(child::Session, key)
     return any(((id, s),)-> child_has_reference(s, key), child.children)
 end
 
+function remove_js_updates!(session::Session, observable::Observable)
+    filter!(observable.listeners) do (prio, f)
+        !(f isa JSUpdateObservable && f.session === session)
+    end
+end
+
 function delete_cached!(root::Session, key::String)
     if !haskey(root.session_objects, key)
         # This should uncover any fault in our caching logic!
@@ -135,9 +143,7 @@ function delete_cached!(root::Session, key::String)
         object = pop!(root.session_objects, key)
         if object isa Observable
             # unregister all listeners updating the session
-            filter!(object.listeners) do (prio, f)
-                !(f isa JSUpdateObservable && f.session === root)
-            end
+            remove_js_updates!(root, object)
         end
     end
 end
