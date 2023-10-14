@@ -113,9 +113,15 @@ end
 
 function update_app!(handler::DisplayHandler, app::App)
     # the connection is open, so we can just use it to update the dom!
+    old_app = handler.current_app
+
     handler.current_app = app
     if isready(handler.session)
         update_app!(handler.session, app)
+        # Close old session after rendering, so we can don't delete re-used resources
+        if !isnothing(old_app.session[])
+            close(old_app.session[])
+        end
         return false
     else
         # Need to wait for someone to actually visit http://.../browser-display

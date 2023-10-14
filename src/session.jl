@@ -233,13 +233,14 @@ Blocks until value is returned. May block indefinitely, when called with a sessi
 that doesn't have a connection to the browser.
 """
 function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
-    if error_on_closed && !isopen(session)
+    root = root_session(session)
+    if error_on_closed && !isopen(root)
         error("Session is not open and would result in this function to indefinitely block.
         It may unblock, if the browser is still connecting and opening the session later on. If this is expected,
         you may try setting `error_on_closed=false`")
     end
-
-    comm = Observable{Any}(nothing)
+    comm = root.js_comm
+    comm[] = nothing
     js_with_result = js"""
     try{
         const maybe_promise = $(js);
@@ -252,12 +253,13 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
     }
     """
 
-    evaljs(session, js_with_result)
+    evaljs(root, js_with_result)
     # TODO, have an on error callback, that triggers when evaljs goes wrong
     # (e.g. because of syntax error that isn't caught by the above try catch!)
     # TODO do this with channels, but we still dont have a way to timeout for wait(channel)... so...
     wait_for(()-> !isnothing(comm[]); timeout=timeout)
     value = comm[]
+    Observables.clear(comm) # cleanup
     if isnothing(value)
         error("Timed out")
     end
