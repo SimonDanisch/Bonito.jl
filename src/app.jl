@@ -76,7 +76,7 @@ end
 function Base.close(app::App)
     session = app.session[]
     # Needs to be async because of finalizers (todo, figure out better ways!)
-    !isnothing(session) && close(session)
+    !isnothing(session) && free(session)
     app.session[] = nothing
 end
 
