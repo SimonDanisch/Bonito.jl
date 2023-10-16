@@ -104,25 +104,29 @@ function free(session::Session)
     return
 end
 
+function soft_close(session::Session)
+    session.status = SOFT_CLOSED
+    session.closing_time = time()
+end
+
 function Base.close(session::Session)
-    return lock(root_session(session).deletion_lock) do
-        while !isempty(session.children)
-            close(last(first(session.children))) # child removes itself from parent!
-        end
-        free(session)
-        # unregister all cached objects from parent session
-        root = root_session(session)
-        # If we're a child session, we need to remove all objects tracked in our root session:
-        # If parent session still open, close it on js side as well
-        if session !== root && isready(root)
-            evaljs(root, js"""JSServe.free_session($(session.id))""")
-        end
-        close(session.connection)
-        close(session.asset_server)
-        session.on_close[] = true
-        Observables.clear(session.on_close)
-        return
+    session.on_close[] = true
+    while !isempty(session.children)
+        close(last(first(session.children))) # child removes itself from parent!
     end
+    free(session)
+    # unregister all cached objects from parent session
+    root = root_session(session)
+    # If we're a child session, we need to remove all objects tracked in our root session:
+    if session !== root
+        #  Close session on js side as well
+        # If not ready, we already lost connection to JS frontend, so no need to close things on the JS side
+        isready(root) && evaljs(root, js"""JSServe.free_session($(session.id))""")
+    end
+    close(session.connection)
+    close(session.asset_server)
+    Observables.clear(session.on_close)
+    return
 end
 
 """

@@ -75,7 +75,7 @@ struct SerializedMessage
     bytes::Vector{UInt8}
 end
 
-@enum SessionStatus UNINITIALIZED RENDERED DISPLAYED OPEN CLOSED
+@enum SessionStatus UNINITIALIZED RENDERED DISPLAYED OPEN CLOSED SOFT_CLOSED
 
 # Very simple and lazy ordered set
 # (Don't want to depend on OrderedCollections for something so simple)
@@ -99,6 +99,7 @@ A web session with a user
 """
 mutable struct Session{Connection <: FrontendConnection}
     status::SessionStatus
+    closing_time::Float64
     parent::Union{Session, Nothing}
     children::Dict{String, Session{SubConnection}}
     id::String
@@ -150,6 +151,7 @@ mutable struct Session{Connection <: FrontendConnection}
         ) where {Connection}
         session = new{Connection}(
             UNINITIALIZED,
+            0.0,
             parent,
             children,
             id,

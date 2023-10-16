@@ -73,9 +73,6 @@ function Base.write(ws::WebSocketConnection, binary)
 end
 
 function Base.close(ws::WebSocketConnection)
-    if !isnothing(ws.session)
-        delete_websocket_route!(ws.server, "/$(ws.session.id)")
-    end
     isnothing(ws.socket) && return
     try
         socket = ws.socket
@@ -106,7 +103,7 @@ function run_connection_loop(server::Server, session::Session, connection::WebSo
     finally
         # This always needs to happen, which is why we need a try catch!
         @debug("Closing: $(session.id)")
-        close(session)
+        soft_close(session)
     end
 end
 
@@ -123,18 +120,70 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
         error("Websocket connection skipped setup")
     end
     @assert session_id == session.id
-    if isopen(session)
-        # Would be nice to not error here - but I think this should never
-        # Happen, and if it happens, we need to debug it!
-        error("Session already has connection")
-    end
+    status = session.status
     connection.socket = websocket
+    if status == SOFT_CLOSED && !isnothing(session.current_app[])
+        update_app!(session, session.current_app[])
+    end
     run_connection_loop(application, session, connection)
+end
+
+
+const SERVER_CLEANUP_TASKS = Dict{Server, Task}()
+
+const CLEANUP_TIME = Ref(0.0)
+
+function set_cleanup_time!(time)
+    CLEANUP_TIME[] = time
+end
+
+function cleanup_server(server::Server)
+    remove = Set{WebSocketConnection}()
+    lock(server.websocket_routes.lock) do
+        for (route, handler) in server.websocket_routes.table
+            if handler isa WebSocketConnection
+                session = handler.session
+                if isnothing(session)
+                    push!(remove, handler)
+                elseif session.status == SOFT_CLOSED
+                    age = time() - session.closing_time
+                    age_hours = age / 60 / 60
+                    if age_hours > CLEANUP_TIME[]
+                        push!(remove, handler)
+                    end
+                elseif session.status == CLOSED
+                    push!(remove, handler)
+                end
+            end
+        end
+        for handler in remove
+            if !isnothing(handler.session)
+                session = handler.session
+                delete_websocket_route!(server, "/$(session.id)")
+                close(session)
+            end
+        end
+    end
+end
+
+
+function add_cleanup_task!(server::Server)
+    get!(SERVER_CLEANUP_TASKS, server) do
+        @async while true
+            try
+                sleep(1)
+                cleanup_server(server)
+            catch e
+                @warn "error while cleaning up server" exception=(e, Base.catch_backtrace())
+            end
+        end
+    end
 end
 
 function setup_connection(session::Session, connection::WebSocketConnection)
     connection.session = session
     server = connection.server
+    add_cleanup_task!(server)
     HTTPServer.websocket_route!(server, "/$(session.id)" => connection)
     proxy_url = online_url(server, "")
     return js"""

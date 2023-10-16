@@ -1,5 +1,3 @@
-using Electron, JSServe, Test
-ENV["JULIA_DEBUG"] = JSServe
 
 function electron_evaljs(window, js)
     js_str = sprint(show, js)
@@ -80,4 +78,5 @@ end
         end
     end
     @test all(results)
+    # It would be nice to close all opened windows, but somehow that seems to hang....
 end

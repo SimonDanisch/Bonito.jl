@@ -54,6 +54,7 @@ end
 
 edisplay = JSServe.use_electron_display()
 
+
 @testset "JSServe" begin
     @testset "threading" begin; include("threading.jl"); end
     @testset "subsessions" begin; include("subsessions.jl"); end

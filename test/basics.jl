@@ -123,6 +123,7 @@ end
     @test test_dangling_app()
 end
 
+
 # @testset "" begin
 #     obs2 = Observable("hey")
 #     obs[] = App() do s

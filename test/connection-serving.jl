@@ -35,8 +35,10 @@ rm(path; force=true)
 # So we do this little stress test:
 @testset "GC connection test" begin
     app = App(export_test_app)
-    for i in 1:50
+    @testset for i in 1:50
         display(edisplay, app)
+        s = app.session[]
+        p = parent(s)
         success = JSServe.wait_for(timeout=5) do
             result = run(edisplay.window, "$(query_testid("result")).innerText")
             return result == "passed"

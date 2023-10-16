@@ -3850,7 +3850,7 @@ function init_session(session_id, binary_messages, session_status) {
 function close_session(session_id) {
     const session = SESSIONS[session_id];
     if (!session) {
-        console.error("double freeing session!");
+        console.warn("double freeing session from JS!");
         return;
     }
     const [session_objects, status] = session;
@@ -3873,7 +3873,7 @@ function free_session(session_id) {
         console.log(`actually freeing session ${session_id}`);
         const session = SESSIONS[session_id];
         if (!session) {
-            console.error("double freeing session!");
+            console.warn("double freeing session from Julia!");
             return;
         }
         const [tracked_objects, status] = session;
