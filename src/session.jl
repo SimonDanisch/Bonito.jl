@@ -126,6 +126,7 @@ function Base.close(session::Session)
     close(session.connection)
     close(session.asset_server)
     Observables.clear(session.on_close)
+    session.current_app[] = nothing
     return
 end
 
@@ -257,7 +258,7 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
     }
     """
 
-    evaljs(root, js_with_result)
+    evaljs(session, js_with_result)
     # TODO, have an on error callback, that triggers when evaljs goes wrong
     # (e.g. because of syntax error that isn't caught by the above try catch!)
     # TODO do this with channels, but we still dont have a way to timeout for wait(channel)... so...
@@ -338,7 +339,6 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
 
     # first render JSServeLib
     JSServe_import = DOM.script(src=url(session, JSServeLib), type="module")
-
     init_server = setup_asset_server(session.asset_server)
     if !isnothing(init_server)
         pushfirst!(children(body), jsrender(session, init_server))
@@ -349,7 +349,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     end
 
     push!(children(head), render_dependencies(session))
-    issubsession = !isnothing(parent(session))
+    issubsession = !isroot(session)
 
     if init
         msgs = fused_messages!(session)

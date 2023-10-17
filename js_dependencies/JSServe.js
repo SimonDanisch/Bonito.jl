@@ -11,7 +11,6 @@ const {
     on_connection_close,
     send_close_session,
     send_pingpong,
-    with_message_lock
 } = Connection;
 
 const {
@@ -79,7 +78,6 @@ const JSServe = {
     on_connection_close,
     send_close_session,
     send_pingpong,
-    with_message_lock,
 
     Sessions,
     init_session,
@@ -113,7 +111,6 @@ export {
     on_connection_close,
     send_close_session,
     send_pingpong,
-    with_message_lock,
     Sessions,
     init_session,
     free_session,

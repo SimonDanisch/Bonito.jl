@@ -103,9 +103,36 @@ function run_connection_loop(server::Server, session::Session, connection::WebSo
     finally
         # This always needs to happen, which is why we need a try catch!
         @debug("Closing: $(session.id)")
-        soft_close(session)
+        if CLEANUP_TIME[] == 0.0
+            close(session) # might as well close it immediately
+        else
+            soft_close(session)
+        end
     end
 end
+
+
+function update_subsession_dom!(sub::Session, app::App; replace=true)
+    html = session_dom(Session(sub), app; init=false)
+    # We need to manually do the serialization,
+    # Since we send it via the parent, but serialization needs to happen
+    # for `sub`.
+    # sub is not open yet, and only opens if we send the below message for initialization
+    # which is why we need to send it via the parent session
+    UpdateSession = "12" # msg type
+    session_update = Dict(
+        "msg_type" => UpdateSession,
+        "session_id" => sub.id,
+        "messages" => fused_messages!(sub),
+        "html" => html,
+        "replace" => replace,
+        "dom_node_selector" => "root"
+    )
+    message = SerializedMessage(sub, session_update)
+    send(root_session(sub), message)
+    return sub
+end
+
 
 """
     handles a new websocket connection to a session
@@ -122,9 +149,10 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
     @assert session_id == session.id
     status = session.status
     connection.socket = websocket
-    if status == SOFT_CLOSED && !isnothing(session.current_app[])
-        update_app!(session, session.current_app[])
-    end
+    # TODO implement synchronizsation correctly!
+    # if status == SOFT_CLOSED && !isnothing(session.current_app[])
+    #     update_subsession_dom!(session, session.current_app[])
+    # end
     run_connection_loop(application, session, connection)
 end
 
@@ -165,7 +193,6 @@ function cleanup_server(server::Server)
         end
     end
 end
-
 
 function add_cleanup_task!(server::Server)
     get!(SERVER_CLEANUP_TASKS, server) do

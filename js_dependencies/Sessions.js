@@ -22,11 +22,9 @@ const GLOBAL_OBJECT_CACHE = {};
 // the check for `is_still_referenced(object-x)` will return false so object-x will actually get deleted.
 // Even though a moment later after initialization of session1, `is_still_referenced(object-x)` will return true and object won't get deleted.
 const OBJECT_FREEING_LOCK = new Lock();
-const SESSION_LOAD_LOCK = new Lock();
-
 
 export function lock_loading(f) {
-    SESSION_LOAD_LOCK.lock(f);
+    OBJECT_FREEING_LOCK.lock(f);
 }
 
 export function lookup_global_object(key) {
