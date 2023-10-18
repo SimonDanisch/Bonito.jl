@@ -74,7 +74,7 @@ function get_session(session::Session, id::String)
 end
 
 function free(session::Session)
-    # don't double free!
+        # don't double free!
     session.status === CLOSED && return
     # unregister all cached objects from root session
     root = root_session(session)
@@ -110,23 +110,25 @@ function soft_close(session::Session)
 end
 
 function Base.close(session::Session)
-    session.on_close[] = true
-    while !isempty(session.children)
-        close(last(first(session.children))) # child removes itself from parent!
+    lock(root_session(session).deletion_lock) do
+        session.on_close[] = true
+        while !isempty(session.children)
+            close(last(first(session.children))) # child removes itself from parent!
+        end
+        free(session)
+        # unregister all cached objects from parent session
+        root = root_session(session)
+        # If we're a child session, we need to remove all objects tracked in our root session:
+        if session !== root
+            #  Close session on js side as well
+            # If not ready, we already lost connection to JS frontend, so no need to close things on the JS side
+            isready(root) && evaljs(root, js"""JSServe.free_session($(session.id))""")
+        end
+        close(session.connection)
+        close(session.asset_server)
+        Observables.clear(session.on_close)
+        session.current_app[] = nothing
     end
-    free(session)
-    # unregister all cached objects from parent session
-    root = root_session(session)
-    # If we're a child session, we need to remove all objects tracked in our root session:
-    if session !== root
-        #  Close session on js side as well
-        # If not ready, we already lost connection to JS frontend, so no need to close things on the JS side
-        isready(root) && evaljs(root, js"""JSServe.free_session($(session.id))""")
-    end
-    close(session.connection)
-    close(session.asset_server)
-    Observables.clear(session.on_close)
-    session.current_app[] = nothing
     return
 end
 
@@ -239,7 +241,7 @@ that doesn't have a connection to the browser.
 """
 function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
     root = root_session(session)
-    if error_on_closed && !isopen(root)
+    if error_on_closed && !isready(root)
         error("Session is not open and would result in this function to indefinitely block.
         It may unblock, if the browser is still connecting and opening the session later on. If this is expected,
         you may try setting `error_on_closed=false`")
@@ -265,6 +267,7 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
     wait_for(()-> !isnothing(comm[]); timeout=timeout)
     value = comm[]
     Observables.clear(comm) # cleanup
+    comm[] = nothing
     if isnothing(value)
         error("Timed out")
     end

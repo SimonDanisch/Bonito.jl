@@ -88,32 +88,34 @@ We return nothing if already cached, or the serialized object if not cached.
 We also handle the part of adding things to the message_cache from the serialization context.
 """
 function add_cached!(create_cached_object::Function, session::Session, send_to_js::Dict{String, Any}, @nospecialize(object))::CacheKey
-    key = object_identity(object)::String
-    result = CacheKey(key)
-    # If already in session, there's nothing we need to do, since we've done the work the first time we added the object
-    haskey(session.session_objects, key) && return result
-    # Now, we have two code paths, depending on whether we have a child session or a root session
     root = root_session(session)
-    # we are root, so we simply cache the object (we already checked it's not cached yet)
-    if root === session
-        send_to_js[key] = create_cached_object()
-        session.session_objects[key] = object
-        return result
-    else
-        # This session is a child session.
-        # Now we need to figure out if the root session has the object cached already
-        # The root session has our object cached already.
-        session.session_objects[key] = nothing # session needs to reference this to "own" it
-        if haskey(root.session_objects, key)
-            # in this case, we just add the key to send to js, so that the JS side can associate the object with this session
-            send_to_js[key] = "tracking-only"
+    lock(root.deletion_lock) do
+        key = object_identity(object)::String
+        result = CacheKey(key)
+        # If already in session, there's nothing we need to do, since we've done the work the first time we added the object
+        haskey(session.session_objects, key) && return result
+        # Now, we have two code paths, depending on whether we have a child session or a root session
+        # we are root, so we simply cache the object (we already checked it's not cached yet)
+        if root === session
+            send_to_js[key] = create_cached_object()
+            session.session_objects[key] = object
+            return result
+        else
+            # This session is a child session.
+            # Now we need to figure out if the root session has the object cached already
+            # The root session has our object cached already.
+            session.session_objects[key] = nothing # session needs to reference this to "own" it
+            if haskey(root.session_objects, key)
+                # in this case, we just add the key to send to js, so that the JS side can associate the object with this session
+                send_to_js[key] = "tracking-only"
+                return result
+            end
+            # Nobody has the object cached,
+            # so we add this session as the owner, but also add it to the root session
+            send_to_js[key] = create_cached_object()
+            root.session_objects[key] = object
             return result
         end
-        # Nobody has the object cached,
-        # so we add this session as the owner, but also add it to the root session
-        send_to_js[key] = create_cached_object()
-        root.session_objects[key] = object
-        return result
     end
 end
 
@@ -129,21 +131,23 @@ function remove_js_updates!(session::Session, observable::Observable)
 end
 
 function delete_cached!(root::Session, key::String)
-    if !haskey(root.session_objects, key)
-        # This should uncover any fault in our caching logic!
-        @warn("Deleting key that doesn't belong to any cached object")
-        return
-    end
-    # We never free Retain, since that's the whole point of it
-    root.session_objects[key] isa Retain && return
-    # We don't do reference counting, but we check if any child still holds a reference to the object we want to delete
-    has_ref = any(((id, s),)-> child_has_reference(s, key), root.children)
-    if !has_ref
-        # So only delete it if nobody has it anymore!
-        object = pop!(root.session_objects, key)
-        if object isa Observable
-            # unregister all listeners updating the session
-            remove_js_updates!(root, object)
+    lock(root.deletion_lock) do
+        if !haskey(root.session_objects, key)
+            # This should uncover any fault in our caching logic!
+            @warn("Deleting key that doesn't belong to any cached object")
+            return
+        end
+        # We never free Retain, since that's the whole point of it
+        root.session_objects[key] isa Retain && return
+        # We don't do reference counting, but we check if any child still holds a reference to the object we want to delete
+        has_ref = any(((id, s),)-> child_has_reference(s, key), root.children)
+        if !has_ref
+            # So only delete it if nobody has it anymore!
+            object = pop!(root.session_objects, key)
+            if object isa Observable
+                # unregister all listeners updating the session
+                remove_js_updates!(root, object)
+            end
         end
     end
 end

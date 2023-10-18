@@ -26,7 +26,8 @@ const {
     free_session,
     lookup_global_object,
     update_or_replace,
-    lock_loading
+    lock_loading,
+    OBJECT_FREEING_LOCK,
 } = Sessions;
 
 function update_node_attribute(node, attribute, value) {
@@ -88,7 +89,7 @@ const JSServe = {
     update_dom_node,
     lookup_global_object,
     update_or_replace,
-
+    OBJECT_FREEING_LOCK,
     onany
 };
 
@@ -120,5 +121,6 @@ export {
     update_dom_node,
     lookup_global_object,
     update_or_replace,
-    onany
+    onany,
+    OBJECT_FREEING_LOCK,
 };

@@ -110,12 +110,14 @@ export function setup_connection(config) {
                         // test write
                         return resolve(null);
                     }
-                    JSServe.process_message(
-                        JSServe.decode_binary(
-                            binary,
-                            config.compression_enabled
-                        )
-                    );
+                    JSServe.OBJECT_FREEING_LOCK.lock(() => {
+                        JSServe.process_message(
+                            JSServe.decode_binary(
+                                binary,
+                                config.compression_enabled
+                            )
+                        );
+                    });
 
                     return resolve(null);
                 });

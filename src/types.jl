@@ -174,7 +174,6 @@ mutable struct Session{Connection <: FrontendConnection}
             Base.ReentrantLock(),
             RefValue{Any}(nothing)
         )
-        finalizer(free, session)
         return session
     end
 end

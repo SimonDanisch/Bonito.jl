@@ -23,10 +23,10 @@ function ensure_connection() {
             var popup = document.getElementById("WEBSOCKET_CONNECTION_WARNING");
             if (!popup) {
                 const doc_root = document.getElementById("application-dom");
-                const popup1 = document.createElement("div");
-                popup1.id = "WEBSOCKET_CONNECTION_WARNING";
-                popup1.innerText = "Lost connection to server!";
-                doc_root.appendChild(popup1);
+                const popup = document.createElement("div");
+                popup.id = "WEBSOCKET_CONNECTION_WARNING";
+                popup.innerText = "Lost connection to server!";
+                doc_root.appendChild(popup);
             }
             return 'offline';
         } else {
@@ -91,7 +91,9 @@ function setup_connection(config) {
                     if (binary.length === 1 && binary[0] === 0) {
                         return resolve(null);
                     }
-                    JSServe.process_message(JSServe.decode_binary(binary, config.compression_enabled));
+                    JSServe.OBJECT_FREEING_LOCK.lock(()=>{
+                        JSServe.process_message(JSServe.decode_binary(binary, config.compression_enabled));
+                    });
                     return resolve(null);
                 });
             };
