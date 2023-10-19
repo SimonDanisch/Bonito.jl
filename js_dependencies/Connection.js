@@ -32,6 +32,10 @@ export function on_connection_close() {
     CONNECTION.status = "closed";
 }
 
+export function can_send_to_julia() {
+    return CONNECTION.status === "open";
+}
+
 export function send_to_julia(message) {
     const { send_message, status, compression_enabled } = CONNECTION;
     if (send_message && status === "open") {
@@ -179,5 +183,5 @@ export {
     JavascriptWarning,
     RegisterObservable,
     JSDoneLoading,
-    FusedMessage,
+    FusedMessage
 };

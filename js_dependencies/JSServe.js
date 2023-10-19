@@ -11,6 +11,7 @@ const {
     on_connection_close,
     send_close_session,
     send_pingpong,
+    can_send_to_julia,
 } = Connection;
 
 const {
@@ -90,6 +91,7 @@ const JSServe = {
     lookup_global_object,
     update_or_replace,
     OBJECT_FREEING_LOCK,
+    can_send_to_julia,
     onany
 };
 
@@ -123,4 +125,5 @@ export {
     update_or_replace,
     onany,
     OBJECT_FREEING_LOCK,
+    can_send_to_julia,
 };
