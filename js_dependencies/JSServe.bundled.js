@@ -3878,6 +3878,7 @@ function free_session(session_id) {
         tracked_objects.forEach(free_object);
         tracked_objects.clear();
         delete SESSIONS[session_id];
+        sweep_object_cache();
     });
 }
 function on_node_available(node_id, timeout) {
@@ -3952,7 +3953,6 @@ function update_session_cache(session_id, new_jl_objects, session_status) {
                 GLOBAL_OBJECT_CACHE[key] = new_object;
             }
         }
-        sweep_object_cache();
     }
     const session = SESSIONS[session_id];
     if (session) {
