@@ -67,7 +67,7 @@ function free_object(id) {
         }
         return;
     } else {
-        send_warning(
+        console.warn(
             `Trying to delete object ${id}, which is not in global session cache.`
         );
     }
@@ -191,18 +191,15 @@ export function close_session(session_id) {
 // called from julia!
 export function free_session(session_id) {
     OBJECT_FREEING_LOCK.lock(() => {
-        console.log(`actually freeing session ${session_id}`);
         const session = SESSIONS[session_id];
         if (!session) {
             console.warn("double freeing session from Julia!");
-            //double free?
             return
         }
         const [tracked_objects, status] = session;
+        delete SESSIONS[session_id];
         tracked_objects.forEach(free_object);
         tracked_objects.clear();
-        delete SESSIONS[session_id];
-        sweep_object_cache();
     });
 }
 
