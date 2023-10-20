@@ -52,7 +52,7 @@ function test_value(app, statement)
     fetch(val_t) # fetch the value!
 end
 
-edisplay = JSServe.use_electron_display()
+edisplay = JSServe.use_electron_display(devtools=true)
 
 
 @testset "JSServe" begin
