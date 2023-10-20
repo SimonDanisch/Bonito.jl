@@ -93,7 +93,10 @@ function run_connection_loop(server::Server, session::Session, connection::WebSo
             bytes = save_read(websocket)
             # nothing means the browser closed the connection so we're done
             isnothing(bytes) && break
-            try
+            # Needs to be async to not block websocket read loop if events
+            # messages being processed are blocking, which happens
+            # Easily with on(some_longer_processing, obs)
+            @async try
                 process_message(session, bytes)
             catch e
                 # Only print any internal error to not close the connection

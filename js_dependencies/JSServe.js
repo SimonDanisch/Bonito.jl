@@ -29,6 +29,7 @@ const {
     update_or_replace,
     lock_loading,
     OBJECT_FREEING_LOCK,
+    free_object,
 } = Sessions;
 
 function update_node_attribute(node, attribute, value) {
@@ -92,7 +93,8 @@ const JSServe = {
     update_or_replace,
     OBJECT_FREEING_LOCK,
     can_send_to_julia,
-    onany
+    onany,
+    free_object,
 };
 
 // @ts-ignore
@@ -126,4 +128,5 @@ export {
     onany,
     OBJECT_FREEING_LOCK,
     can_send_to_julia,
+    free_object,
 };

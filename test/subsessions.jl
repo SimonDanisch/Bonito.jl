@@ -125,23 +125,18 @@ edisplay = JSServe.use_electron_display(devtools=true)
 
 end
 
-@testset "js comm" begin
+@testset "cleanup comm" begin
     app = App() do s
         return DOM.div()
     end
     display(edisplay, app)
     @test !isnothing(app.session[])
     @test isready(app.session[])
-    @test evaljs_value(app.session[], js"Object.keys(JSServe.Sessions.SESSIONS).length") == 2
+    @test run(edisplay.window, "Object.keys(JSServe.Sessions.SESSIONS).length") == 2
     root = JSServe.root_session(app.session[])
     @test root !== app.session[]
-    @test evaljs_value(app.session[], js"Object.keys(JSServe.Sessions.GLOBAL_OBJECT_CACHE).length") == 1
-    @test evaljs_value(app.session[], js"Object.keys(JSServe.Sessions.GLOBAL_OBJECT_CACHE)[0]") == root.js_comm.id
-    @test length(root.session_objects) == 1
-    @test haskey(root.session_objects, root.js_comm.id)
+    @test run(edisplay.window, "Object.keys(JSServe.Sessions.GLOBAL_OBJECT_CACHE).length") == 0
+    @test isempty(root.session_objects)
     close(app.session[])
-    @test evaljs_value(root, js"Object.keys(JSServe.Sessions.GLOBAL_OBJECT_CACHE).length") == 1
-    @test evaljs_value(root, js"Object.keys(JSServe.Sessions.GLOBAL_OBJECT_CACHE)[0]") == root.js_comm.id
-    @test evaljs_value(root, js"Object.keys(JSServe.Sessions.SESSIONS).length") == 1
-    @test isempty(root.js_comm.listeners)
+    @test run(edisplay.window, "Object.keys(JSServe.Sessions.SESSIONS).length") == 1
 end

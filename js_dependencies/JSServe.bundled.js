@@ -3957,6 +3957,7 @@ const mod1 = {
     OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK,
     lock_loading: lock_loading,
     lookup_global_object: lookup_global_object,
+    free_object: free_object,
     track_deleted_sessions: track_deleted_sessions,
     done_initializing_session: done_initializing_session,
     init_session: init_session,
@@ -4026,7 +4027,7 @@ function onany(observables, f) {
 }
 const { send_error: send_error1 , send_warning: send_warning1 , process_message: process_message1 , on_connection_open: on_connection_open1 , on_connection_close: on_connection_close1 , send_close_session: send_close_session1 , send_pingpong: send_pingpong1 , can_send_to_julia: can_send_to_julia1  } = mod;
 const { base64decode: base64decode1 , base64encode: base64encode1 , decode_binary: decode_binary1 , encode_binary: encode_binary1 , decode_base64_message: decode_base64_message1  } = mod2;
-const { init_session: init_session1 , free_session: free_session1 , lookup_global_object: lookup_global_object1 , update_or_replace: update_or_replace1 , lock_loading: lock_loading1 , OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK1  } = mod1;
+const { init_session: init_session1 , free_session: free_session1 , lookup_global_object: lookup_global_object1 , update_or_replace: update_or_replace1 , lock_loading: lock_loading1 , OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK1 , free_object: free_object1  } = mod1;
 function update_node_attribute(node, attribute, value) {
     if (node) {
         if (node[attribute] != value) {
@@ -4079,8 +4080,9 @@ const JSServe = {
     update_or_replace: update_or_replace1,
     OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK1,
     can_send_to_julia: can_send_to_julia1,
-    onany
+    onany,
+    free_object: free_object1
 };
 window.JSServe = JSServe;
-export { mod2 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, mod as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, mod1 as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany, OBJECT_FREEING_LOCK1 as OBJECT_FREEING_LOCK, can_send_to_julia1 as can_send_to_julia };
+export { mod2 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, mod as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, mod1 as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany, OBJECT_FREEING_LOCK1 as OBJECT_FREEING_LOCK, can_send_to_julia1 as can_send_to_julia, free_object1 as free_object };
 

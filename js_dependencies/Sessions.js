@@ -50,7 +50,7 @@ function is_still_referenced(id) {
     return false;
 }
 
-function free_object(id) {
+export function free_object(id) {
     const data = GLOBAL_OBJECT_CACHE[id];
     if (data) {
         if (data instanceof Promise) {

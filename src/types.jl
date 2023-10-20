@@ -239,13 +239,14 @@ end
 function Session(parent_session::Session;
     asset_server=similar(parent_session.asset_server),
     on_connection_ready=init_session, title=parent_session.title)
-
     root = root_session(parent_session)
-    connection = SubConnection(root)
-    session = Session(connection; asset_server=asset_server, on_connection_ready=on_connection_ready, title=title)
-    session.parent = parent_session
-    parent_session.children[session.id] = session
-    return session
+    return lock(root.deletion_lock) do
+        connection = SubConnection(root)
+        session = Session(connection; asset_server=asset_server, on_connection_ready=on_connection_ready, title=title)
+        session.parent = parent_session
+        parent_session.children[session.id] = session
+        return session
+    end
 end
 
 mutable struct App
