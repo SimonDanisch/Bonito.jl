@@ -101,7 +101,7 @@ function page_html(io::IO, session::Session, app_node::Union{Node, App})
     return
 end
 
-function Base.show(io::IOContext, m::MIME"application/vnd.JSServe.application+html", dom::App)
+function Base.show(io::IOContext, ::MIME"application/vnd.JSServe.application+html", dom::App)
     show(io.io, MIME"text/html"(), dom)
 end
 
@@ -110,5 +110,22 @@ function Base.show(io::IO, m::MIME"application/vnd.JSServe.application+html", ap
 end
 
 function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
-    show(IOContext(io), MIME"text/html"(), app)
+    println("hi!?")
+    session = Session(title=app.title)
+    sub = Session(session)
+    sub.current_app[] = app
+    @show sub.id
+    fetch_app = App() do s
+        dom_node = DOM.div()
+        request = js"""
+            JSServe.send_to_julia({
+                msg_type: "13",
+                session: $(sub.id),
+                replace: $(uuid(sub, dom_node)),
+            });
+        """
+        return DOM.div(request, dom_node)
+    end
+    dom = session_dom(session, fetch_app)
+    show(io, Hyperscript.Pretty(dom))
 end

@@ -12,6 +12,7 @@ const {
     send_close_session,
     send_pingpong,
     can_send_to_julia,
+    send_to_julia,
 } = Connection;
 
 const {
@@ -95,6 +96,7 @@ const JSServe = {
     can_send_to_julia,
     onany,
     free_object,
+    send_to_julia,
 };
 
 // @ts-ignore
@@ -129,4 +131,5 @@ export {
     OBJECT_FREEING_LOCK,
     can_send_to_julia,
     free_object,
+    send_to_julia,
 };
