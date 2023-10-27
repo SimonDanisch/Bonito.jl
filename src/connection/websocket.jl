@@ -86,6 +86,18 @@ function Base.close(ws::WebSocketConnection)
 end
 
 function run_connection_loop(server::Server, session::Session, connection::WebSocketConnection)
+    # the channel is used so that we can do async processing of messages
+    # While still keeping the order of messages
+    # channel = Channel{Vector{UInt8}}(100) do ch
+    #     for bytes in ch
+    #         try
+    #             process_message(session, bytes)
+    #         catch e
+    #             # Only print any internal error to not close the connection
+    #             @warn "error while processing received msg" exception=(e, Base.catch_backtrace())
+    #         end
+    #     end
+    # end
     try
         @debug("opening ws connection for session: $(session.id)")
         websocket = connection.socket
@@ -93,14 +105,14 @@ function run_connection_loop(server::Server, session::Session, connection::WebSo
             bytes = save_read(websocket)
             # nothing means the browser closed the connection so we're done
             isnothing(bytes) && break
-            # Needs to be async to not block websocket read loop if events
+            # Needs to be async to not block websocket read loop if
             # messages being processed are blocking, which happens
             # Easily with on(some_longer_processing, obs)
             @async try
                 process_message(session, bytes)
             catch e
                 # Only print any internal error to not close the connection
-                @warn "error while processing received msg" exception=(e, Base.catch_backtrace())
+                @warn "error while processing received msg" exception = (e, Base.catch_backtrace())
             end
         end
     finally
@@ -177,7 +189,9 @@ function add_cleanup_task!(server::Server)
                 sleep(1)
                 cleanup_server(server)
             catch e
-                @warn "error while cleaning up server" exception=(e, Base.catch_backtrace())
+                if !(e isa EOFError)
+                    @warn "error while cleaning up server" exception=(e, Base.catch_backtrace())
+                end
             end
         end
     end

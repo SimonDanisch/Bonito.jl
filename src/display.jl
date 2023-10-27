@@ -110,7 +110,6 @@ function Base.show(io::IO, m::MIME"application/vnd.JSServe.application+html", ap
 end
 
 function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
-    println("hi!?")
     session = Session(title=app.title)
     sub = Session(session)
     sub.current_app[] = app

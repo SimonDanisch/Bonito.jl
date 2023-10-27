@@ -71,9 +71,9 @@ mime_string(::MIME{T}) where {T} = string(T)
 function wait_for(condition; timeout=10)
     tstart = time()
     while true
+        yield()
         condition() && return :success
         (time() - tstart > timeout) && return :timed_out
-        yield()
     end
     return
 end
