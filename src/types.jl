@@ -127,6 +127,7 @@ mutable struct Session{Connection <: FrontendConnection}
     compression_enabled::Bool
     deletion_lock::Base.ReentrantLock
     current_app::RefValue{Any}
+    current_dom::Any
 
     function Session(
             parent::Union{Session, Nothing},
@@ -172,7 +173,8 @@ mutable struct Session{Connection <: FrontendConnection}
             title,
             compression_enabled,
             Base.ReentrantLock(),
-            RefValue{Any}(nothing)
+            RefValue{Any}(nothing),
+            nothing
         )
         return session
     end
@@ -251,7 +253,7 @@ end
 
 mutable struct App
     handler::Function
-    session::Base.RefValue{Union{Session, Nothing}}
+    session::Base.RefValue{Union{Session,Nothing}}
     title::String
     threaded::Bool
     function App(handler::Function;

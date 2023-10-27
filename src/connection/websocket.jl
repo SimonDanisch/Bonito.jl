@@ -86,6 +86,18 @@ function Base.close(ws::WebSocketConnection)
 end
 
 function run_connection_loop(server::Server, session::Session, connection::WebSocketConnection)
+    # the channel is used so that we can do async processing of messages
+    # While still keeping the order of messages
+    # channel = Channel{Vector{UInt8}}(100) do ch
+    #     for bytes in ch
+    #         try
+    #             process_message(session, bytes)
+    #         catch e
+    #             # Only print any internal error to not close the connection
+    #             @warn "error while processing received msg" exception=(e, Base.catch_backtrace())
+    #         end
+    #     end
+    # end
     try
         @debug("opening ws connection for session: $(session.id)")
         websocket = connection.socket
@@ -93,14 +105,14 @@ function run_connection_loop(server::Server, session::Session, connection::WebSo
             bytes = save_read(websocket)
             # nothing means the browser closed the connection so we're done
             isnothing(bytes) && break
-            # Needs to be async to not block websocket read loop if events
+            # Needs to be async to not block websocket read loop if
             # messages being processed are blocking, which happens
             # Easily with on(some_longer_processing, obs)
             @async try
                 process_message(session, bytes)
             catch e
                 # Only print any internal error to not close the connection
-                @warn "error while processing received msg" exception=(e, Base.catch_backtrace())
+                @warn "error while processing received msg" exception = (e, Base.catch_backtrace())
             end
         end
     finally
@@ -112,28 +124,6 @@ function run_connection_loop(server::Server, session::Session, connection::WebSo
             soft_close(session)
         end
     end
-end
-
-
-function update_subsession_dom!(sub::Session, app::App; replace=true)
-    html = session_dom(Session(sub), app; init=false)
-    # We need to manually do the serialization,
-    # Since we send it via the parent, but serialization needs to happen
-    # for `sub`.
-    # sub is not open yet, and only opens if we send the below message for initialization
-    # which is why we need to send it via the parent session
-    UpdateSession = "12" # msg type
-    session_update = Dict(
-        "msg_type" => UpdateSession,
-        "session_id" => sub.id,
-        "messages" => fused_messages!(sub),
-        "html" => html,
-        "replace" => replace,
-        "dom_node_selector" => "root"
-    )
-    message = SerializedMessage(sub, session_update)
-    send(root_session(sub), message)
-    return sub
 end
 
 
@@ -150,12 +140,7 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
         error("Websocket connection skipped setup")
     end
     @assert session_id == session.id
-    status = session.status
     connection.socket = websocket
-    # TODO implement synchronizsation correctly!
-    # if status == SOFT_CLOSED && !isnothing(session.current_app[])
-    #     update_subsession_dom!(session, session.current_app[])
-    # end
     run_connection_loop(application, session, connection)
 end
 
@@ -204,7 +189,9 @@ function add_cleanup_task!(server::Server)
                 sleep(1)
                 cleanup_server(server)
             catch e
-                @warn "error while cleaning up server" exception=(e, Base.catch_backtrace())
+                if !(e isa EOFError)
+                    @warn "error while cleaning up server" exception=(e, Base.catch_backtrace())
+                end
             end
         end
     end

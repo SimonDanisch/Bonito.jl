@@ -1,5 +1,5 @@
 using JSServe
-ENV["JULIA_DEBUG"] = JSServe
+# ENV["JULIA_DEBUG"] = JSServe
 @show Threads.nthreads()
 
 using Deno_jll
