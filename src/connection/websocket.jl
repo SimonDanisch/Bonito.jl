@@ -85,19 +85,25 @@ function Base.close(ws::WebSocketConnection)
     end
 end
 
+# function create_message_channel(session)
+#     return Channel{Vector{UInt8}}(1) do ch
+#         for bytes in ch
+#             try
+#                 println("processing message")
+#                 process_message(session, bytes)
+#                 println("processing done")
+#             catch e
+#                 # Only print any internal error to not close the connection
+#                 @warn "error while processing received msg" exception=(e, Base.catch_backtrace())
+#             end
+#         end
+#     end
+# end
+
+
 function run_connection_loop(server::Server, session::Session, connection::WebSocketConnection)
     # the channel is used so that we can do async processing of messages
     # While still keeping the order of messages
-    # channel = Channel{Vector{UInt8}}(100) do ch
-    #     for bytes in ch
-    #         try
-    #             process_message(session, bytes)
-    #         catch e
-    #             # Only print any internal error to not close the connection
-    #             @warn "error while processing received msg" exception=(e, Base.catch_backtrace())
-    #         end
-    #     end
-    # end
     try
         @debug("opening ws connection for session: $(session.id)")
         websocket = connection.socket
@@ -108,6 +114,7 @@ function run_connection_loop(server::Server, session::Session, connection::WebSo
             # Needs to be async to not block websocket read loop if
             # messages being processed are blocking, which happens
             # Easily with on(some_longer_processing, obs)
+            # TODO, can we do this more efficiently by not creating a task for each message!?
             @async try
                 process_message(session, bytes)
             catch e
