@@ -113,7 +113,7 @@ function run_connection_loop(server::Server, session::Session, connection::WebSo
             isnothing(bytes) && break
             # Needs to be async to not block websocket read loop if
             # messages being processed are blocking, which happens
-            # Easily with on(some_longer_processing, obs)
+            # Easily with e.g. evaljs_value, which waits on a new message to be processed
             # TODO, can we do this more efficiently by not creating a task for each message!?
             @async try
                 process_message(session, bytes)

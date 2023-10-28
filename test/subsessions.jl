@@ -168,6 +168,6 @@ end
         return DOM.div("Value: ", obs, script)
     end
     display(edisplay, app)
-    JSServe.wait_for(() -> test_obs[] == 19)
-    @test test_obs[] == 19
+    JSServe.wait_for(() -> test_obs[] == 20)
+    @test test_obs[] == 20
 end
