@@ -132,11 +132,42 @@ end
     display(edisplay, app)
     @test !isnothing(app.session[])
     @test isready(app.session[])
+    JSServe.wait_for(() -> run(edisplay.window, "Object.keys(JSServe.Sessions.SESSIONS).length") == 2)
     @test run(edisplay.window, "Object.keys(JSServe.Sessions.SESSIONS).length") == 2
     root = JSServe.root_session(app.session[])
     @test root !== app.session[]
     @test run(edisplay.window, "Object.keys(JSServe.Sessions.GLOBAL_OBJECT_CACHE).length") == 0
     @test isempty(root.session_objects)
     close(app.session[])
+    JSServe.wait_for(() -> run(edisplay.window, "Object.keys(JSServe.Sessions.SESSIONS).length") == 1)
     @test run(edisplay.window, "Object.keys(JSServe.Sessions.SESSIONS).length") == 1
+end
+
+
+@testset "Async evaljs_value" begin
+    test_obs = Observable(0)
+    app = App() do session
+        obs = Observable(0)
+
+        script = js"""
+        window.obs_value = 0;
+        for(let i = 0; i < 20; i++) {
+            $(obs).notify(i);
+            window.obs_value = i;
+        }
+        """
+        # on(obs_triggered_from_js)
+        # with evaljs_value requires messages to be processed
+        # async, since evaljs_value waits for a message from JS
+        # while being triggered
+        on(obs) do val
+            jsval = evaljs_value(session, js"window.obs_value"; timeout=1)
+            test_obs[] = test_obs[] + 1
+            return
+        end
+        return DOM.div("Value: ", obs, script)
+    end
+    display(edisplay, app)
+    JSServe.wait_for(() -> test_obs[] == 19)
+    @test test_obs[] == 19
 end
