@@ -153,7 +153,6 @@ end
         window.obs_value = 0;
         for(let i = 0; i < 20; i++) {
             $(obs).notify(i);
-            window.obs_value = i;
         }
         """
         # on(obs_triggered_from_js)
@@ -161,13 +160,16 @@ end
         # async, since evaljs_value waits for a message from JS
         # while being triggered
         on(obs) do val
-            jsval = evaljs_value(session, js"window.obs_value"; timeout=1)
-            test_obs[] = test_obs[] + 1
-            return
+            @async begin
+                jsval = evaljs_value(session, js"window.obs_value = $(val)"; timeout=1)
+                test_obs[] = test_obs[] + 1
+                return
+            end
         end
         return DOM.div("Value: ", obs, script)
     end
     display(edisplay, app)
     JSServe.wait_for(() -> test_obs[] == 20)
     @test test_obs[] == 20
+    @test run(edisplay.window, "window.obs_value") == 19
 end

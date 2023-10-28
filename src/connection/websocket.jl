@@ -85,21 +85,6 @@ function Base.close(ws::WebSocketConnection)
     end
 end
 
-# function create_message_channel(session)
-#     return Channel{Vector{UInt8}}(1) do ch
-#         for bytes in ch
-#             try
-#                 println("processing message")
-#                 process_message(session, bytes)
-#                 println("processing done")
-#             catch e
-#                 # Only print any internal error to not close the connection
-#                 @warn "error while processing received msg" exception=(e, Base.catch_backtrace())
-#             end
-#         end
-#     end
-# end
-
 
 function run_connection_loop(server::Server, session::Session, connection::WebSocketConnection)
     # the channel is used so that we can do async processing of messages
@@ -115,7 +100,7 @@ function run_connection_loop(server::Server, session::Session, connection::WebSo
             # messages being processed are blocking, which happens
             # Easily with e.g. evaljs_value, which waits on a new message to be processed
             # TODO, can we do this more efficiently by not creating a task for each message!?
-            @async try
+            try
                 process_message(session, bytes)
             catch e
                 # Only print any internal error to not close the connection
