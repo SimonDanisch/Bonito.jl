@@ -47,7 +47,12 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         else
             sub = get_session(session, data["session"])
             if !isnothing(sub)
-                sub.on_connection_ready(sub)
+                # this may block the connection!
+                @async try
+                    sub.on_connection_ready(sub)
+                catch e
+                    @warn "error while processing on_connection_ready" exception = (e, Base.catch_backtrace())
+                end
             else
                 # This can happen for IJulia output after kernel restart,
                 # since the loaded html will try to init + connect back
@@ -72,21 +77,26 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         # Ping back that pong!!
         send(session, msg_type=PingPong)
     elseif typ == GetSessionDOM
-        sub = get_session(session, data["session"])
-        if !isnothing(sub)
-            app = sub.current_app[]
-            if isnothing(app)
-                @warn "requesting dom for uninitialized app"
+        # this may block the connection!
+        @async try
+            sub = get_session(session, data["session"])
+            if !isnothing(sub)
+                app = sub.current_app[]
+                if isnothing(app)
+                    @warn "requesting dom for uninitialized app"
+                else
+                    free(sub)
+                    session.children[sub.id] = sub
+                    empty!(session.session_objects)
+                    open!(sub.connection)
+                    sub.status = OPEN
+                    update_subsession_dom!(sub, data["replace"], app)
+                end
             else
-                free(sub)
-                session.children[sub.id] = sub
-                empty!(session.session_objects)
-                open!(sub.connection)
-                sub.status = OPEN
-                update_subsession_dom!(sub, data["replace"], app)
+                @warn "cant update session is nothing"
             end
-        else
-            @warn "cant update session is nothing"
+        catch e
+            @warn "error while processing update App message" exception = (e, Base.catch_backtrace())
         end
     else
         @error "Unrecognized message: $(typ) with type: $(typeof(typ))"
@@ -101,7 +111,6 @@ function update_subsession_dom!(sub::Session, selector, app::App)
     # sub is not open yet, and only opens if we send the below message for initialization
     # which is why we need to send it via the parent session
     UpdateSession = "12" # msg type
-    println("Updating subby!")
     session_update = Dict(
         "msg_type" => UpdateSession,
         "session_id" => sub.id,

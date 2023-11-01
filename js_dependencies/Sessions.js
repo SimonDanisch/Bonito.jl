@@ -250,23 +250,6 @@ export function update_session_dom(message) {
     return;
 }
 
-function sweep_object_cache() {
-    for (const id in GLOBAL_OBJECT_CACHE) {
-        const data = GLOBAL_OBJECT_CACHE[id];
-        if (data instanceof Promise) {
-            // Promise => Module. We don't free Modules, since they'll be cached by the active page anyways
-            continue;
-        }
-        if (data instanceof Retain) {
-            // Retain is a reserved type to never free an object from a session
-            continue;
-        }
-        if (!is_still_referenced(id)) {
-            delete GLOBAL_OBJECT_CACHE[id];
-        }
-    }
-}
-
 export function update_session_cache(session_id, new_jl_objects, session_status) {
     function update_cache(tracked_objects) {
         for (const key in new_jl_objects) {

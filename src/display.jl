@@ -113,7 +113,6 @@ function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
     session = Session(title=app.title)
     sub = Session(session)
     sub.current_app[] = app
-    @show sub.id
     fetch_app = App() do s
         dom_node = DOM.div()
         request = js"""
