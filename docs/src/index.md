@@ -58,8 +58,8 @@ It's quite easy to integrate existing Libraries into your JSServe App:
 
 ```@example 1
 App() do
-    js = ES6Module("https://esm.sh/v111/leaflet@1.9.3/es2022/leaflet.js")
-    css = Asset("https://unpkg.com/leaflet@1.9.3/dist/leaflet.css")
+    js = ES6Module("https://esm.sh/v133/leaflet@1.9.4/es2022/leaflet.mjs")
+    css = Asset("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css")
     map_div = DOM.div(id="map"; style="height: 300px; width: 100%")
     return DOM.div(
         css, map_div,
