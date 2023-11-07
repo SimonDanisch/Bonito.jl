@@ -130,7 +130,7 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
     end
     parent = handler.session
     sub = Session(parent)
-    init_dom = session_dom(parent, App(nothing))
+    init_dom = session_dom(parent, App(nothing); html_document=true)
     sub_dom = session_dom(sub, handler.current_app)
     # first time rendering in a subsession, we combine init of parent session
     # with the dom we're rendering right now
