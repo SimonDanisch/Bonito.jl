@@ -106,7 +106,11 @@ julia> JSServe.getextension("https://my-cdn.net/foo.bar.css?version=1")
 ```
 Taken from WebIO.jl
 """
-getextension(path::AbstractString) = lowercase(last(split(first(split(path, "?")), ".")))
+function getextension(path::AbstractString)
+    sym = lowercase(last(split(first(split(path, "?")), ".")))
+    sym == "mjs" && return "js"
+    return sym
+end
 getextension(path::Path) = getextension(getroot(path))
 
 function Base.show(io::IO, asset::Asset)
