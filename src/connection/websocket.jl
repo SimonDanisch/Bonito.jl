@@ -36,8 +36,8 @@ function save_write(websocket, binary)
         send(websocket, binary)
         return true
     catch e
-        @warn "sending message to a closed websocket" maxlog = 1
         if WebSockets.isok(e) || e isa Union{Base.IOError,EOFError}
+            @warn "sending message to a closed websocket" maxlog = 1
             # it's ok :shrug:
             return nothing
         else
@@ -96,10 +96,6 @@ function run_connection_loop(server::Server, session::Session, connection::WebSo
             bytes = save_read(websocket)
             # nothing means the browser closed the connection so we're done
             isnothing(bytes) && break
-            # Needs to be async to not block websocket read loop if
-            # messages being processed are blocking, which happens
-            # Easily with e.g. evaljs_value, which waits on a new message to be processed
-            # TODO, can we do this more efficiently by not creating a task for each message!?
             try
                 process_message(session, bytes)
             catch e
@@ -109,10 +105,13 @@ function run_connection_loop(server::Server, session::Session, connection::WebSo
         end
     finally
         # This always needs to happen, which is why we need a try catch!
-        @debug("Closing: $(session.id)")
         if CLEANUP_TIME[] == 0.0
-            close(session) # might as well close it immediately
+            @debug("Closing: $(session.id)")
+            # might as well close it immediately
+            close(session)
+            delete_websocket_route!(server, "/$(session.id)")
         else
+            @debug("Soft closing: $(session.id)")
             soft_close(session)
         end
     end
@@ -141,8 +140,17 @@ const SERVER_CLEANUP_TASKS = Dict{Server, Task}()
 
 const CLEANUP_TIME = Ref(0.0)
 
-function set_cleanup_time!(time)
-    CLEANUP_TIME[] = time
+"""
+    set_cleanup_time!(time_in_hrs::Real)
+
+Sets the time that sessions remain open after the browser tab is closed.
+This allows reconnecting to the same session.
+Only works for Websocket connection inside VSCode right now,
+and will display the same App again from first display.
+State that isn't stored in Observables inside that app is lost.
+"""
+function set_cleanup_time!(time_in_hrs::Real)
+    CLEANUP_TIME[] = time_in_hrs
 end
 
 function cleanup_server(server::Server)
@@ -159,8 +167,13 @@ function cleanup_server(server::Server)
                     if age_hours > CLEANUP_TIME[]
                         push!(remove, handler)
                     end
-                elseif session.status == CLOSED
-                    push!(remove, handler)
+                elseif !isopen(session)
+                    # if the session is not SOFT_CLOSED, closing time means creation time
+                    creation_time = session.closing_time
+                    # close unopend sessions after 20 seconds
+                    if time() - creation_time > 20
+                        push!(remove, handler)
+                    end
                 end
             end
         end

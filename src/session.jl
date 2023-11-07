@@ -386,7 +386,6 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         pushfirst!(children(head), JSServe_import)
     end
     session.status = RENDERED
-    session.current_dom = dom
     return dom
 end
 

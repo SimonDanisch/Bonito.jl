@@ -127,7 +127,6 @@ mutable struct Session{Connection <: FrontendConnection}
     compression_enabled::Bool
     deletion_lock::Base.ReentrantLock
     current_app::RefValue{Any}
-    current_dom::Any
 
     function Session(
             parent::Union{Session, Nothing},
@@ -152,7 +151,7 @@ mutable struct Session{Connection <: FrontendConnection}
         ) where {Connection}
         session = new{Connection}(
             UNINITIALIZED,
-            0.0,
+            time(),
             parent,
             children,
             id,
@@ -174,7 +173,6 @@ mutable struct Session{Connection <: FrontendConnection}
             compression_enabled,
             Base.ReentrantLock(),
             RefValue{Any}(nothing),
-            nothing
         )
         return session
     end

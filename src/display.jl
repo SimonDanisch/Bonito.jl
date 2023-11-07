@@ -110,20 +110,26 @@ function Base.show(io::IO, m::MIME"application/vnd.JSServe.application+html", ap
 end
 
 function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
-    session = Session(title=app.title)
-    sub = Session(session)
-    sub.current_app[] = app
-    fetch_app = App() do s
-        dom_node = DOM.div()
-        request = js"""
-            JSServe.send_to_julia({
-                msg_type: "13",
-                session: $(sub.id),
-                replace: $(uuid(sub, dom_node)),
-            });
-        """
-        return DOM.div(request, dom_node)
+    # If we clean up sessions immediately and disallow reconnect
+    # We might as well display the app directly!
+    if CLEANUP_TIME[] == 0.0
+        show(io, MIME"text/html"(), app)
+    else
+        session = Session(title=app.title)
+        sub = Session(session)
+        sub.current_app[] = app
+        fetch_app = App() do s
+            dom_node = DOM.div()
+            request = js"""
+                JSServe.send_to_julia({
+                    msg_type: "13",
+                    session: $(sub.id),
+                    replace: $(uuid(sub, dom_node)),
+                });
+            """
+            return DOM.div(request, dom_node)
+        end
+        dom = session_dom(session, fetch_app)
+        show(io, Hyperscript.Pretty(dom))
     end
-    dom = session_dom(session, fetch_app)
-    show(io, Hyperscript.Pretty(dom))
 end

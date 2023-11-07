@@ -1,4 +1,3 @@
-
 @testset "Retain + Observable + Session cleanup" begin
     global_obs = JSServe.Retain(Observable{Any}("hiii"))
     for i in 1:5

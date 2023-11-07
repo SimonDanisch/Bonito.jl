@@ -25,18 +25,15 @@ function deno_bundle(path_to_js::AbstractString, output_file::String)
     # We treat Deno as a development dependency,
     # so if deno isn't loaded, don't bundle!
     isnothing(Deno_jll) && return false
-    written_file = false
-    Deno_jll.deno() do exe
-        stdout = IOBuffer()
-        err = IOBuffer()
-        try
-            run(pipeline(`$exe bundle $(path_to_js)`; stdout=stdout, stderr=err))
-        catch e
-            write(stderr, seekstart(err))
-            written_file = false
-        end
-        write(output_file, seekstart(stdout))
-        written_file = true
+    exe = Deno_jll.deno()
+    stdout = IOBuffer()
+    err = IOBuffer()
+    try
+        run(pipeline(`$exe bundle $(path_to_js)`; stdout=stdout, stderr=err))
+    catch e
+        write(stderr, seekstart(err))
+        return false
     end
-    return written_file
+    write(output_file, seekstart(stdout))
+    return true
 end
