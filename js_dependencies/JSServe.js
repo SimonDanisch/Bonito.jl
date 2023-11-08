@@ -11,7 +11,8 @@ const {
     on_connection_close,
     send_close_session,
     send_pingpong,
-    with_message_lock
+    can_send_to_julia,
+    send_to_julia,
 } = Connection;
 
 const {
@@ -27,7 +28,9 @@ const {
     free_session,
     lookup_global_object,
     update_or_replace,
-    lock_loading
+    lock_loading,
+    OBJECT_FREEING_LOCK,
+    free_object,
 } = Sessions;
 
 function update_node_attribute(node, attribute, value) {
@@ -79,7 +82,6 @@ const JSServe = {
     on_connection_close,
     send_close_session,
     send_pingpong,
-    with_message_lock,
 
     Sessions,
     init_session,
@@ -90,8 +92,11 @@ const JSServe = {
     update_dom_node,
     lookup_global_object,
     update_or_replace,
-
-    onany
+    OBJECT_FREEING_LOCK,
+    can_send_to_julia,
+    onany,
+    free_object,
+    send_to_julia,
 };
 
 // @ts-ignore
@@ -113,7 +118,6 @@ export {
     on_connection_close,
     send_close_session,
     send_pingpong,
-    with_message_lock,
     Sessions,
     init_session,
     free_session,
@@ -123,5 +127,9 @@ export {
     update_dom_node,
     lookup_global_object,
     update_or_replace,
-    onany
+    onany,
+    OBJECT_FREEING_LOCK,
+    can_send_to_julia,
+    free_object,
+    send_to_julia,
 };

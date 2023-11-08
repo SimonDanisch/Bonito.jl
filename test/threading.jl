@@ -1,5 +1,3 @@
-using Electron, JSServe, Test
-ENV["JULIA_DEBUG"] = JSServe
 
 function electron_evaljs(window, js)
     js_str = sprint(show, js)
@@ -65,8 +63,11 @@ end
 
     nwindows = 4
     all_windows = Channel{Window}(nwindows)
+    created_windows = Window[]
     for i in 1:nwindows
-        put!(all_windows, Window(Application()))
+        win = Window(Application())
+        put!(all_windows, win)
+        push!(created_windows, win)
     end
     url = URI(online_url(server, "/"))
     # Only use half of the available threads to not block the response because we hogged all threads
@@ -80,4 +81,12 @@ end
         end
     end
     @test all(results)
+    # It would be nice to close all opened windows, but somehow that seems to hang....
+    for win in created_windows
+        close(win)
+    end
+    empty!(created_windows)
+    success = JSServe.wait_for(() -> isempty(server.websocket_routes.table), timeout=10)
+    @test success == :success
+    close(server)
 end

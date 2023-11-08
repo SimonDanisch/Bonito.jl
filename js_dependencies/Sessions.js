@@ -22,11 +22,9 @@ const GLOBAL_OBJECT_CACHE = {};
 // the check for `is_still_referenced(object-x)` will return false so object-x will actually get deleted.
 // Even though a moment later after initialization of session1, `is_still_referenced(object-x)` will return true and object won't get deleted.
 const OBJECT_FREEING_LOCK = new Lock();
-const SESSION_LOAD_LOCK = new Lock();
-
 
 export function lock_loading(f) {
-    SESSION_LOAD_LOCK.lock(f);
+    OBJECT_FREEING_LOCK.lock(f);
 }
 
 export function lookup_global_object(key) {
@@ -52,7 +50,7 @@ function is_still_referenced(id) {
     return false;
 }
 
-function free_object(id) {
+export function free_object(id) {
     const data = GLOBAL_OBJECT_CACHE[id];
     if (data) {
         if (data instanceof Promise) {
@@ -69,7 +67,7 @@ function free_object(id) {
         }
         return;
     } else {
-        send_warning(
+        console.warn(
             `Trying to delete object ${id}, which is not in global session cache.`
         );
     }
@@ -172,7 +170,7 @@ so once it actually arrives in JS, it'd be already gone.
 export function close_session(session_id) {
     const session = SESSIONS[session_id];
     if (!session) {
-        console.error("double freeing session!")
+        console.warn("double freeing session from JS!")
         // when does this happen...Double close?
         return
     }
@@ -193,17 +191,15 @@ export function close_session(session_id) {
 // called from julia!
 export function free_session(session_id) {
     OBJECT_FREEING_LOCK.lock(() => {
-        console.log(`actually freeing session ${session_id}`);
         const session = SESSIONS[session_id];
         if (!session) {
-            console.error("double freeing session!");
-            //double free?
+            console.warn("double freeing session from Julia!");
             return
         }
         const [tracked_objects, status] = session;
+        delete SESSIONS[session_id];
         tracked_objects.forEach(free_object);
         tracked_objects.clear();
-        delete SESSIONS[session_id];
     });
 }
 
@@ -268,13 +264,15 @@ export function update_session_cache(session_id, new_jl_objects, session_status)
                     );
                 }
             } else {
-                if (!(key in GLOBAL_OBJECT_CACHE)) {
-                    GLOBAL_OBJECT_CACHE[key] = new_object;
-                } else {
-                    console.warn(`${key} in session cache and send again!!`);
+                if (key in GLOBAL_OBJECT_CACHE) {
+                    console.warn(
+                        `${key} in session cache and send again!! ${new_object}`
+                    );
                 }
+                GLOBAL_OBJECT_CACHE[key] = new_object;
             }
         }
+
     }
 
     const session = SESSIONS[session_id];
@@ -291,4 +289,4 @@ export function update_session_cache(session_id, new_jl_objects, session_status)
     }
 }
 
-export { SESSIONS, GLOBAL_OBJECT_CACHE };
+export { SESSIONS, GLOBAL_OBJECT_CACHE, OBJECT_FREEING_LOCK };

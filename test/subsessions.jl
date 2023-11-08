@@ -1,34 +1,64 @@
-
-@testset "subsession" begin
+@testset "Retain + Observable + Session cleanup" begin
     global_obs = JSServe.Retain(Observable{Any}("hiii"))
-    dom_obs1 = Observable{Any}(DOM.div("12345", js"$(global_obs).notify('hello')"))
-    app = App() do s
-        global session = s
-        return DOM.div(dom_obs1)
+    for i in 1:5
+        dom_obs1 = Observable{Any}(DOM.div("12345", js"$(global_obs).notify('hello')"))
+        app = App() do s
+            return DOM.div(dom_obs1)
+        end
+        display(edisplay, app)
+        app_id = app.session[].id
+        obs_id = first(app.session[].children)[2].id
+        session = app.session[]
+        @test length(session.children) == 1
+        @test JSServe.wait_for(()-> global_obs.value[] == "hello") == :success
+        obs_sub = last(first(session.children)) # the session used to render dom_obs1
+        @test isnothing(obs_sub.session_objects[global_obs.value.id])
+        root = JSServe.root_session(session)
+        @test root.session_objects[global_obs.value.id] == global_obs
+        @test length(session.children) == 1
+
+        dom_obs1[] = DOM.div("95384", js"""$(global_obs).notify('melo')""")
+
+        @test JSServe.wait_for(() -> global_obs.value[] == "melo") == :success
+
+        # Sessions should be closed!
+        @test isempty(obs_sub.session_objects)
+        @test obs_sub.status == JSServe.CLOSED
+        @test !isopen(obs_sub)
+        @test length(session.children) == 1 # there should be a new session though
+        obs_sub = last(first(session.children)) # the session used to render dom_obs1
+        @test isnothing(obs_sub.session_objects[global_obs.value.id])
+        @test haskey(session.parent.session_objects, global_obs.value.id)
     end
-    display(edisplay, app)
-    @test app.session[] == session
-    @test length(session.children) == 1
-    @test JSServe.wait_for(()-> global_obs.value[] == "hello") == :success
-    obs_sub = last(first(session.children)) # the session used to render dom_obs1
-    @test obs_sub.session_objects[global_obs.value.id] == nothing
-    root = JSServe.root_session(session)
-    @test root.session_objects[global_obs.value.id] == global_obs
-    @test length(session.children) == 1
-
-    dom_obs1[] = DOM.div("95384", js"""$(global_obs).notify('melo')""")
-
-    @test JSServe.wait_for(() -> global_obs.value[] == "melo") == :success
-
-    # Sessions should be closed!
-    @test isempty(obs_sub.session_objects)
-    @test obs_sub.status == JSServe.CLOSED
-    @test !isopen(obs_sub)
-    @test length(session.children) == 1 # there should be a new session though
-    obs_sub = last(first(session.children)) # the session used to render dom_obs1
-    @test obs_sub.session_objects[global_obs.value.id] == nothing
-    @test haskey(session.parent.session_objects, global_obs.value.id)
+    @testset "no residuals" begin
+        app = App(nothing)
+        display(edisplay, app)
+        js_sessions = run(edisplay.window, "JSServe.Sessions.SESSIONS")
+        js_objects = run(edisplay.window, "JSServe.Sessions.GLOBAL_OBJECT_CACHE")
+        @test Set([app.session[].id, app.session[].parent.id]) == keys(js_sessions)
+        @test keys(js_objects) == Set([global_obs.value.id]) # we used Retain for global_obs, so it should stay as long as root session is open
+    end
 end
+
+@testset "server cleanup" begin
+    # Close edisplay to remove Retain (gotta add a functionality to do this nonviolently)
+    # But this is also a good chance to test server cleanup :)
+    close(edisplay.window)
+    server = edisplay.browserdisplay.server
+    # It may take a while for close(edisplay.window) to remove the websocket route (by closing the socket)
+    success = JSServe.wait_for(() -> isempty(server.websocket_routes.table); timeout=5)
+    for (r, handler) in server.websocket_routes.table
+        @show handler.session handler.session.status
+    end
+    @test success == :success
+    # browser display route & asset server
+    @test Set(first.(server.routes.table)) == Set(["/browser-display", r"\Q/assets/\E(?:(?:(?:[\da-f]){40})(?:-.*))"])
+    asset_server = server.routes.table[2][2]
+    @test isempty(asset_server.registered_files)
+end
+
+# Re-Create edisplay for other tests
+edisplay = JSServe.use_electron_display(devtools=true)
 
 @testset "subsession & freing" begin
     server = Server("0.0.0.0", 9433)
@@ -91,4 +121,54 @@ end
     @test isempty(subsub.session_objects)
 
     @test isempty(session.asset_server.parent.registered_files)
+
+end
+
+@testset "cleanup comm" begin
+    app = App() do s
+        return DOM.div()
+    end
+    display(edisplay, app)
+    @test !isnothing(app.session[])
+    @test isready(app.session[])
+    JSServe.wait_for(() -> run(edisplay.window, "Object.keys(JSServe.Sessions.SESSIONS).length") == 2)
+    @test run(edisplay.window, "Object.keys(JSServe.Sessions.SESSIONS).length") == 2
+    root = JSServe.root_session(app.session[])
+    @test root !== app.session[]
+    @test run(edisplay.window, "Object.keys(JSServe.Sessions.GLOBAL_OBJECT_CACHE).length") == 0
+    @test isempty(root.session_objects)
+    close(app.session[])
+    JSServe.wait_for(() -> run(edisplay.window, "Object.keys(JSServe.Sessions.SESSIONS).length") == 1)
+    @test run(edisplay.window, "Object.keys(JSServe.Sessions.SESSIONS).length") == 1
+end
+
+
+@testset "Async evaljs_value" begin
+    test_obs = Observable(0)
+    app = App() do session
+        obs = Observable(0)
+
+        script = js"""
+        window.obs_value = 0;
+        for(let i = 0; i < 20; i++) {
+            $(obs).notify(i);
+        }
+        """
+        # on(obs_triggered_from_js)
+        # with evaljs_value requires messages to be processed
+        # async, since evaljs_value waits for a message from JS
+        # while being triggered
+        on(obs) do val
+            @async begin
+                jsval = evaljs_value(session, js"window.obs_value = $(val)"; timeout=1)
+                test_obs[] = test_obs[] + 1
+                return
+            end
+        end
+        return DOM.div("Value: ", obs, script)
+    end
+    display(edisplay, app)
+    JSServe.wait_for(() -> test_obs[] == 20)
+    @test test_obs[] == 20
+    @test run(edisplay.window, "window.obs_value") == 19
 end

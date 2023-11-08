@@ -104,8 +104,15 @@ function free(session::Session)
     return
 end
 
+function soft_close(session::Session)
+    session.status = SOFT_CLOSED
+    session.closing_time = time()
+end
+
 function Base.close(session::Session)
-    return lock(root_session(session).deletion_lock) do
+    lock(root_session(session).deletion_lock) do
+        session.status === CLOSED && return
+        session.on_close[] = true
         while !isempty(session.children)
             close(last(first(session.children))) # child removes itself from parent!
         end
@@ -113,16 +120,17 @@ function Base.close(session::Session)
         # unregister all cached objects from parent session
         root = root_session(session)
         # If we're a child session, we need to remove all objects tracked in our root session:
-        # If parent session still open, close it on js side as well
-        if session !== root && isready(root)
-            evaljs(root, js"""JSServe.free_session($(session.id))""")
+        if session !== root
+            #  Close session on js side as well
+            # If not ready, we already lost connection to JS frontend, so no need to close things on the JS side
+            isready(root) && evaljs(root, js"""JSServe.free_session($(session.id))""")
         end
         close(session.connection)
         close(session.asset_server)
-        session.on_close[] = true
         Observables.clear(session.on_close)
-        return
+        session.current_app[] = nothing
     end
+    return
 end
 
 """
@@ -233,31 +241,45 @@ Blocks until value is returned. May block indefinitely, when called with a sessi
 that doesn't have a connection to the browser.
 """
 function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
-    if error_on_closed && !isopen(session)
+    root = root_session(session)
+    if error_on_closed && !isready(root)
         error("Session is not open and would result in this function to indefinitely block.
         It may unblock, if the browser is still connecting and opening the session later on. If this is expected,
         you may try setting `error_on_closed=false`")
     end
-
+    # For each request we need a new observable to have this thread safe
+    # And multiple request not waiting on the same observable
     comm = Observable{Any}(nothing)
-    js_with_result = js"""
-    try{
-        const maybe_promise = $(js);
-        // support returning a promise:
-        Promise.resolve(maybe_promise).then(result=> {
-            $(comm).notify({result});
-        })
-    }catch(e){
-        $(comm).notify({error: e.toString()});
+    js_with_result = js"""{
+        const comm = $(comm);
+        try{
+            const maybe_promise = $(js);
+            // support returning a promise:
+            Promise.resolve(maybe_promise).then(result=> {
+                comm.notify({result});
+            })
+        }catch(e){
+            comm.notify({error: e.toString()});
+        } finally {
+            // manually free!!
+            JSServe.free_object(comm.id);
+        }
     }
     """
-
     evaljs(session, js_with_result)
     # TODO, have an on error callback, that triggers when evaljs goes wrong
     # (e.g. because of syntax error that isn't caught by the above try catch!)
     # TODO do this with channels, but we still dont have a way to timeout for wait(channel)... so...
-    wait_for(()-> !isnothing(comm[]); timeout=timeout)
+    wait_for(timeout=timeout) do
+        return !isnothing(comm[])
+    end
     value = comm[]
+    # manually free observable, since it exists outside session lifetimes
+    lock(root.deletion_lock) do
+        delete!(session.session_objects, comm.id)
+        delete!(root.session_objects, comm.id)
+    end
+    Observables.clear(comm) # cleanup
     if isnothing(value)
         error("Timed out")
     end
@@ -332,7 +354,6 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
 
     # first render JSServeLib
     JSServe_import = DOM.script(src=url(session, JSServeLib), type="module")
-
     init_server = setup_asset_server(session.asset_server)
     if !isnothing(init_server)
         pushfirst!(children(body), jsrender(session, init_server))
@@ -343,7 +364,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     end
 
     push!(children(head), render_dependencies(session))
-    issubsession = !isnothing(parent(session))
+    issubsession = !isroot(session)
 
     if init
         msgs = fused_messages!(session)

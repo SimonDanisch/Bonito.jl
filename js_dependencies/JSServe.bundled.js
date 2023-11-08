@@ -3413,6 +3413,9 @@ function on_connection_open(send_message_callback, compression_enabled) {
 function on_connection_close() {
     CONNECTION.status = "closed";
 }
+function can_send_to_julia() {
+    return CONNECTION.status === "open";
+}
 const EXTENSION_CODEC = new ExtensionCodec();
 window.EXTENSION_CODEC = EXTENSION_CODEC;
 function unpack(uint8array) {
@@ -3616,8 +3619,8 @@ class Lock {
         }
     }
     task_lock(task_id) {
-        this.locking_tasks.add(task_id);
         this.locked = true;
+        this.locking_tasks.add(task_id);
     }
     task_unlock(task_id) {
         this.locking_tasks.delete(task_id);
@@ -3639,10 +3642,6 @@ class Lock {
             }
         });
     }
-}
-const MESSAGE_PROCESS_LOCK = new Lock();
-function with_message_lock(func) {
-    return MESSAGE_PROCESS_LOCK.lock(func);
 }
 function process_message(data) {
     try {
@@ -3683,6 +3682,7 @@ const mod = {
     FusedMessage: FusedMessage,
     on_connection_open: on_connection_open,
     on_connection_close: on_connection_close,
+    can_send_to_julia: can_send_to_julia,
     send_to_julia: send_to_julia,
     send_pingpong: send_pingpong,
     send_error: send_error,
@@ -3690,13 +3690,11 @@ const mod = {
     send_done_loading: send_done_loading,
     send_close_session: send_close_session,
     Lock: Lock,
-    with_message_lock: with_message_lock,
     process_message: process_message
 };
 const OBJECT_FREEING_LOCK = new Lock();
-const SESSION_LOAD_LOCK = new Lock();
 function lock_loading(f) {
-    SESSION_LOAD_LOCK.lock(f);
+    OBJECT_FREEING_LOCK.lock(f);
 }
 function lookup_global_object(key) {
     const object = GLOBAL_OBJECT_CACHE[key];
@@ -3732,7 +3730,7 @@ function free_object(id) {
         }
         return;
     } else {
-        send_warning(`Trying to delete object ${id}, which is not in global session cache.`);
+        console.warn(`Trying to delete object ${id}, which is not in global session cache.`);
     }
     return;
 }
@@ -3850,7 +3848,7 @@ function init_session(session_id, binary_messages, session_status) {
 function close_session(session_id) {
     const session = SESSIONS[session_id];
     if (!session) {
-        console.error("double freeing session!");
+        console.warn("double freeing session from JS!");
         return;
     }
     const [session_objects, status] = session;
@@ -3870,16 +3868,15 @@ function close_session(session_id) {
 }
 function free_session(session_id) {
     OBJECT_FREEING_LOCK.lock(()=>{
-        console.log(`actually freeing session ${session_id}`);
         const session = SESSIONS[session_id];
         if (!session) {
-            console.error("double freeing session!");
+            console.warn("double freeing session from Julia!");
             return;
         }
         const [tracked_objects, status] = session;
+        delete SESSIONS[session_id];
         tracked_objects.forEach(free_object);
         tracked_objects.clear();
-        delete SESSIONS[session_id];
     });
 }
 function on_node_available(node_id, timeout) {
@@ -3934,11 +3931,10 @@ function update_session_cache(session_id, new_jl_objects, session_status) {
                     throw new Error(`Key ${key} only send for tracking, but not already tracked!!!`);
                 }
             } else {
-                if (!(key in GLOBAL_OBJECT_CACHE)) {
-                    GLOBAL_OBJECT_CACHE[key] = new_object;
-                } else {
-                    console.warn(`${key} in session cache and send again!!`);
+                if (key in GLOBAL_OBJECT_CACHE) {
+                    console.warn(`${key} in session cache and send again!! ${new_object}`);
                 }
+                GLOBAL_OBJECT_CACHE[key] = new_object;
             }
         }
     }
@@ -3958,8 +3954,10 @@ function update_session_cache(session_id, new_jl_objects, session_status) {
 const mod1 = {
     SESSIONS: SESSIONS,
     GLOBAL_OBJECT_CACHE: GLOBAL_OBJECT_CACHE,
+    OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK,
     lock_loading: lock_loading,
     lookup_global_object: lookup_global_object,
+    free_object: free_object,
     track_deleted_sessions: track_deleted_sessions,
     done_initializing_session: done_initializing_session,
     init_session: init_session,
@@ -4027,9 +4025,9 @@ function onany(observables, f) {
         obs.on(callback);
     });
 }
-const { send_error: send_error1 , send_warning: send_warning1 , process_message: process_message1 , on_connection_open: on_connection_open1 , on_connection_close: on_connection_close1 , send_close_session: send_close_session1 , send_pingpong: send_pingpong1 , with_message_lock: with_message_lock1  } = mod;
+const { send_error: send_error1 , send_warning: send_warning1 , process_message: process_message1 , on_connection_open: on_connection_open1 , on_connection_close: on_connection_close1 , send_close_session: send_close_session1 , send_pingpong: send_pingpong1 , can_send_to_julia: can_send_to_julia1 , send_to_julia: send_to_julia1  } = mod;
 const { base64decode: base64decode1 , base64encode: base64encode1 , decode_binary: decode_binary1 , encode_binary: encode_binary1 , decode_base64_message: decode_base64_message1  } = mod2;
-const { init_session: init_session1 , free_session: free_session1 , lookup_global_object: lookup_global_object1 , update_or_replace: update_or_replace1 , lock_loading: lock_loading1  } = mod1;
+const { init_session: init_session1 , free_session: free_session1 , lookup_global_object: lookup_global_object1 , update_or_replace: update_or_replace1 , lock_loading: lock_loading1 , OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK1 , free_object: free_object1  } = mod1;
 function update_node_attribute(node, attribute, value) {
     if (node) {
         if (node[attribute] != value) {
@@ -4072,7 +4070,6 @@ const JSServe = {
     on_connection_close: on_connection_close1,
     send_close_session: send_close_session1,
     send_pingpong: send_pingpong1,
-    with_message_lock: with_message_lock1,
     Sessions: mod1,
     init_session: init_session1,
     free_session: free_session1,
@@ -4081,8 +4078,12 @@ const JSServe = {
     update_dom_node,
     lookup_global_object: lookup_global_object1,
     update_or_replace: update_or_replace1,
-    onany
+    OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK1,
+    can_send_to_julia: can_send_to_julia1,
+    onany,
+    free_object: free_object1,
+    send_to_julia: send_to_julia1
 };
 window.JSServe = JSServe;
-export { mod2 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, mod as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, with_message_lock1 as with_message_lock, mod1 as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany };
+export { mod2 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, mod as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, mod1 as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany, OBJECT_FREEING_LOCK1 as OBJECT_FREEING_LOCK, can_send_to_julia1 as can_send_to_julia, free_object1 as free_object, send_to_julia1 as send_to_julia };
 

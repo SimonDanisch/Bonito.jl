@@ -75,7 +75,7 @@ struct SerializedMessage
     bytes::Vector{UInt8}
 end
 
-@enum SessionStatus UNINITIALIZED RENDERED DISPLAYED OPEN CLOSED
+@enum SessionStatus UNINITIALIZED RENDERED DISPLAYED OPEN CLOSED SOFT_CLOSED
 
 # Very simple and lazy ordered set
 # (Don't want to depend on OrderedCollections for something so simple)
@@ -99,6 +99,7 @@ A web session with a user
 """
 mutable struct Session{Connection <: FrontendConnection}
     status::SessionStatus
+    closing_time::Float64
     parent::Union{Session, Nothing}
     children::Dict{String, Session{SubConnection}}
     id::String
@@ -150,6 +151,7 @@ mutable struct Session{Connection <: FrontendConnection}
         ) where {Connection}
         session = new{Connection}(
             UNINITIALIZED,
+            time(),
             parent,
             children,
             id,
@@ -170,9 +172,8 @@ mutable struct Session{Connection <: FrontendConnection}
             title,
             compression_enabled,
             Base.ReentrantLock(),
-            RefValue{Any}(nothing)
+            RefValue{Any}(nothing),
         )
-        finalizer(free, session)
         return session
     end
 end
@@ -238,18 +239,19 @@ end
 function Session(parent_session::Session;
     asset_server=similar(parent_session.asset_server),
     on_connection_ready=init_session, title=parent_session.title)
-
     root = root_session(parent_session)
-    connection = SubConnection(root)
-    session = Session(connection; asset_server=asset_server, on_connection_ready=on_connection_ready, title=title)
-    session.parent = parent_session
-    parent_session.children[session.id] = session
-    return session
+    return lock(root.deletion_lock) do
+        connection = SubConnection(root)
+        session = Session(connection; asset_server=asset_server, on_connection_ready=on_connection_ready, title=title)
+        session.parent = parent_session
+        parent_session.children[session.id] = session
+        return session
+    end
 end
 
 mutable struct App
     handler::Function
-    session::Base.RefValue{Union{Session, Nothing}}
+    session::Base.RefValue{Union{Session,Nothing}}
     title::String
     threaded::Bool
     function App(handler::Function;

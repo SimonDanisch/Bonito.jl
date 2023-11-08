@@ -10,6 +10,7 @@ const FusedMessage = "9"
 const CloseSession = "10"
 const PingPong = "11"
 const UpdateSession = "12"
+const GetSessionDOM = "13"
 
 """
     process_message(session::Session, bytes::AbstractVector{UInt8})
@@ -46,7 +47,12 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         else
             sub = get_session(session, data["session"])
             if !isnothing(sub)
-                sub.on_connection_ready(sub)
+                # this may block the connection!
+                @async try
+                    sub.on_connection_ready(sub)
+                catch e
+                    @warn "error while processing on_connection_ready" exception = (e, Base.catch_backtrace())
+                end
             else
                 # This can happen for IJulia output after kernel restart,
                 # since the loaded html will try to init + connect back
@@ -70,7 +76,50 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
     elseif typ == PingPong
         # Ping back that pong!!
         send(session, msg_type=PingPong)
+    elseif typ == GetSessionDOM
+        # this may block the connection!
+        @async try
+            sub = get_session(session, data["session"])
+            if !isnothing(sub)
+                app = sub.current_app[]
+                if isnothing(app)
+                    @warn "requesting dom for uninitialized app"
+                else
+                    free(sub)
+                    session.children[sub.id] = sub
+                    empty!(session.session_objects)
+                    open!(sub.connection)
+                    sub.status = OPEN
+                    update_subsession_dom!(sub, data["replace"], app)
+                end
+            else
+                @warn "cant update session is nothing"
+            end
+        catch e
+            @warn "error while processing update App message" exception = (e, Base.catch_backtrace())
+        end
     else
         @error "Unrecognized message: $(typ) with type: $(typeof(typ))"
     end
+end
+
+function update_subsession_dom!(sub::Session, selector, app::App)
+    html = session_dom(sub, app; init=false)
+    # We need to manually do the serialization,
+    # Since we send it via the parent, but serialization needs to happen
+    # for `sub`.
+    # sub is not open yet, and only opens if we send the below message for initialization
+    # which is why we need to send it via the parent session
+    UpdateSession = "12" # msg type
+    session_update = Dict(
+        "msg_type" => UpdateSession,
+        "session_id" => sub.id,
+        "messages" => fused_messages!(sub),
+        "html" => html,
+        "replace" => true,
+        "dom_node_selector" => selector
+    )
+    message = SerializedMessage(sub, session_update)
+    send(root_session(sub), message)
+    return sub
 end

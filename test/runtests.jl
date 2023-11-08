@@ -1,5 +1,5 @@
 using JSServe
-ENV["JULIA_DEBUG"] = JSServe
+# ENV["JULIA_DEBUG"] = JSServe
 @show Threads.nthreads()
 
 using Deno_jll
@@ -52,10 +52,12 @@ function test_value(app, statement)
     fetch(val_t) # fetch the value!
 end
 
-edisplay = JSServe.use_electron_display()
+edisplay = JSServe.use_electron_display(devtools=true)
+
 
 @testset "JSServe" begin
     @testset "threading" begin; include("threading.jl"); end
+    @testset "server" begin; include("server.jl"); end
     @testset "subsessions" begin; include("subsessions.jl"); end
     @testset "connection-serving" begin; include("connection-serving.jl"); end
     @testset "serialization" begin; include("serialization.jl"); end

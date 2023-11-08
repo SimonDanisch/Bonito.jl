@@ -59,19 +59,6 @@ function serve_app(app, context)
         page_html(io, session, html_dom)
     end
     response = html(html_str)
-    @async begin
-        # If someone visits the page very quickly and immediately closes the tab/closes the connection
-        # We'll open + add a new session, but never close + clean the session up
-        # This is hard to do cleanly... I'm not sure if there's anything better we can do besides
-        # starting a task that checks after e.g. 100s, if the session has been initialied
-        # The best alternative would be to push to a clean up task in server, which would save us from spawning so many tasks
-        # But that's quite a bit more complicated and shouldn't be that much faster (this seems to add 300ns overhead right now)
-        sleep(100) # better a long time with compilation etc
-        if session.status != OPEN && session.status !== CLOSED # should not double close
-            @debug("closing unopened connection")
-            close(session)
-        end
-    end
     session.status = DISPLAYED
     return response
 end
@@ -87,7 +74,9 @@ function HTTPServer.apply_handler(app::App, context)
 end
 
 function Base.close(app::App)
-    !isnothing(app.session[]) && free(app.session[])
+    session = app.session[]
+    # Needs to be async because of finalizers (todo, figure out better ways!)
+    !isnothing(session) && free(session)
     app.session[] = nothing
 end
 
@@ -113,9 +102,15 @@ end
 
 function update_app!(handler::DisplayHandler, app::App)
     # the connection is open, so we can just use it to update the dom!
+    old_session = handler.current_app.session[]
+
     handler.current_app = app
     if isready(handler.session)
         update_app!(handler.session, app)
+        # Close old session after rendering, so we can don't delete re-used resources
+        if !isnothing(old_session)
+            close(old_session)
+        end
         return false
     else
         # Need to wait for someone to actually visit http://.../browser-display
@@ -135,7 +130,7 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
     end
     parent = handler.session
     sub = Session(parent)
-    init_dom = session_dom(parent, App(nothing))
+    init_dom = session_dom(parent, App(nothing); html_document=true)
     sub_dom = session_dom(sub, handler.current_app)
     # first time rendering in a subsession, we combine init of parent session
     # with the dom we're rendering right now

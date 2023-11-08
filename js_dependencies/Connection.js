@@ -13,6 +13,7 @@ const FusedMessage = "9";
 const CloseSession = "10";
 const PingPong = "11";
 const UpdateSession = "12";
+const GetSessionDOM = "13"
 
 const CONNECTION = {
     send_message: undefined,
@@ -30,6 +31,10 @@ export function on_connection_open(send_message_callback, compression_enabled) {
 
 export function on_connection_close() {
     CONNECTION.status = "closed";
+}
+
+export function can_send_to_julia() {
+    return CONNECTION.status === "open";
 }
 
 export function send_to_julia(message) {
@@ -106,8 +111,8 @@ export class Lock {
      * @param {string} task_id
      */
     task_lock(task_id) {
-        this.locking_tasks.add(task_id)
         this.locked = true
+        this.locking_tasks.add(task_id)
     }
     task_unlock(task_id) {
         this.locking_tasks.delete(task_id);
@@ -132,12 +137,6 @@ export class Lock {
     }
 }
 
-const MESSAGE_PROCESS_LOCK = new Lock();
-
-// Makes sure, we process all messages in order... Used in initilization in session.jl
-export function with_message_lock(func) {
-    return MESSAGE_PROCESS_LOCK.lock(func);
-}
 
 export function process_message(data) {
     try {
@@ -185,5 +184,5 @@ export {
     JavascriptWarning,
     RegisterObservable,
     JSDoneLoading,
-    FusedMessage,
+    FusedMessage
 };
