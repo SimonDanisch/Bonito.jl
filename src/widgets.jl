@@ -107,7 +107,8 @@ function jsrender(session::Session, slider::RangeSlider)
                 "max" => range[end],
             ),
             "step" => step(range),
-            "start" => value,
+            # Too strongly typed and we get a TypedArray in JS which doesn't work with noUiSlider
+            "start" => Any[value...],
             "connect" => connect,
             "tooltips" => tooltips,
             "direction" => "ltr",
