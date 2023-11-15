@@ -1,3 +1,17 @@
+const GLOBAL_SERVER = Ref{Union{Server,Nothing}}(nothing)
+
+const SERVER_CONFIGURATION = (
+    # The URL used to which the default server listens to
+    listen_url=Ref{Union{String,Nothing}}(nothing),
+    # The Port to which the default server listens to
+    listen_port=Ref(9384),
+    # The url Javascript uses to connect to the websocket.
+    # if empty, it will use:
+    # `window.location.protocol + "//" + window.location.host`
+    proxy_url=Ref(""),
+    # Verbosity for logging!
+    verbose=Ref(-1)
+)
 
 # Should only be called if IJulia is loaded!\
 
@@ -41,7 +55,9 @@ function on_julia_hub()
 end
 
 function find_proxy_in_environment()
-    if on_julia_hub()
+    if !isempty(SERVER_CONFIGURATION.proxy_url[])
+        return port-> SERVER_CONFIGURATION.proxy_url[]
+    elseif on_julia_hub()
         # JuliaHub & VSCode
         return port-> ENV["JH_APP_URL"] * "proxy/$(port)"
     elseif haskey(ENV, "JULIA_WEBIO_BASEURL")
@@ -68,7 +84,7 @@ end
             listen_url::String=SERVER_CONFIGURATION.listen_url[],
             listen_port::Integer=SERVER_CONFIGURATION.listen_port[],
             forwarded_port::Integer=listen_port,
-            external_url=nothing,
+            proxy_url=nothing,
             content_delivery_url=nothing
         )
 
@@ -88,38 +104,23 @@ Configures the parameters for the automatically started server.
     * forwarded_port::Integer=listen_port,
         if port gets forwarded to some other port, set it here!
 
-    * external_url=nothing
+    * proxy_url=nothing
         The url from which the server is reachable.
         If served on "127.0.0.1", this will default to http://localhost:forwarded_port
         if listen_url is "0.0.0.0", this will default to http://\$(Sockets.getipaddr()):forwarded_port
         so that the server is reachable inside the local network.
         If the server should be reachable from some external dns server,
         this needs to be set here.
-
-    * content_delivery_url=nothing
-        You can server files from another server.
-        Make sure any file referenced from Julia is reachable at
-        content_delivery_url * "/the_file"
 """
 function configure_server!(;
         listen_url=nothing,
-        # The Port to which the default server listens to
         listen_port::Integer=SERVER_CONFIGURATION.listen_port[],
-        # if port gets forwarded to some other port, set it here!
         forwarded_port::Integer=listen_port,
-        # The url from which the server is reachable.
-        # If served on "127.0.0.1", this will default to
-        # if listen_url is "0.0.0.0", this will default to
-        # Sockets.getipaddr() so that it's the ip address in the local network.
-        # If the server should be reachable from some external dns server,
-        # this needs to be set here
-        external_url=nothing,
-        # deprecated
-        content_delivery_url=nothing
+        proxy_url=nothing,
     )
 
     if isnothing(listen_url)
-        if !isnothing(external_url)
+        if !isnothing(proxy_url)
             # if we serve to an external url, server must listen to 0.0.0.0
             listen_url = "0.0.0.0"
         else
@@ -127,41 +128,29 @@ function configure_server!(;
         end
     end
 
-    if isnothing(external_url)
+    if isnothing(proxy_url)
         if listen_url == "0.0.0.0"
-            external_url = string(Sockets.getipaddr(), ":$forwarded_port")
+            proxy_url = string(Sockets.getipaddr(), ":$forwarded_port")
         elseif listen_url in ("127.0.0.1", "localhost")
-            external_url = "http://localhost:$forwarded_port"
+            proxy_url = "http://localhost:$forwarded_port"
         else
             error("Trying to listen to $(listen_url), while only \"127.0.0.1\", \"0.0.0.0\" and \"localhost\" are supported")
         end
     end
     # set the config!
     SERVER_CONFIGURATION.listen_url[] = listen_url
-    SERVER_CONFIGURATION.external_url[] = external_url
+    SERVER_CONFIGURATION.proxy_url[] = proxy_url
     SERVER_CONFIGURATION.listen_port[] = listen_port
     return
 end
 
-const GLOBAL_SERVER = Ref{Union{Server, Nothing}}(nothing)
 
-const SERVER_CONFIGURATION = (
-    # The URL used to which the default server listens to
-    listen_url=Ref{Union{String, Nothing}}(nothing),
-    # The Port to which the default server listens to
-    listen_port=Ref(9384),
-    # The url Javascript uses to connect to the websocket.
-    # if empty, it will use:
-    # `window.location.protocol + "//" + window.location.host`
-    external_url=Ref(""),
-    # Verbosity for logging!
-    verbose=Ref(-1),
-)
 
 function singleton_server(;
     listen_url = "127.0.0.1",
     listen_port=SERVER_CONFIGURATION.listen_port[],
-    verbose=SERVER_CONFIGURATION.verbose[])
+    verbose=SERVER_CONFIGURATION.verbose[],
+    proxy_url=SERVER_CONFIGURATION.proxy_url[])
 
     from_user = SERVER_CONFIGURATION.listen_url[]
     if !isnothing(from_user) # user set the listen url explicitely
@@ -180,6 +169,7 @@ function singleton_server(;
             GLOBAL_SERVER[] = create()
         end
     end
+    GLOBAL_SERVER[].proxy_url = proxy_url
     return GLOBAL_SERVER[]
 end
 
@@ -197,5 +187,4 @@ function get_server(proxy_callback)
         server.proxy_url = proxy_callback(real_port) # which is why the url needs to be a callbacks
         return server
     end
-
 end
