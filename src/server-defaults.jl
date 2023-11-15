@@ -37,8 +37,7 @@ function jupyterlab_proxy_url(port)
 end
 
 function on_julia_hub()
-    jhub = ["JULIAHUB_USERNAME", "JH_APP_URL", "JULIAHUB_USEREMAIL"]
-    return all(x -> haskey(ENV, x), jhub)
+    return haskey(ENV, "JH_APP_URL")
 end
 
 function find_proxy_in_environment()
