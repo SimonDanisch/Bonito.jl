@@ -13,12 +13,27 @@ JSServe.Page()
 
 ```Julia
 
-struct MyConnection <: JSServe.FrontendConnection
-    parent::Session
+mutable struct MyConnection <: JSServe.FrontendConnection
+    # TODO: your implementation here
+    isopen::Bool
+    socket
+    blabla
+    ...
+end
+
+function MyConnection
+    # If you need to do something like start an HTTP server, you can do it here, synchronously.
+    
+    
+    return new(
+        true,
+        ...
+    )
 end
 
 function Base.write(connection::MyConnection, binary)
-    write(connection.connection, binary)
+    # TODO: send the data to JavaScript
+    write(connection.socket, binary)
 end
 
 Base.isopen(connection::MyConnection) = connection.isopen
@@ -26,7 +41,7 @@ Base.close(connection::MyConnection) = (connection.isopen = false)
 open!(connection::MyConnection) = (connection.isopen = true)
 
 function setup_connection(session::Session{MyConnection})
-    # If you need to do something like start an HTTP server, you can do it here, synchronously.
+    # If you need to do something specific for this new session, you can do it here.
 
     return js"""
     // TODO: create a connection
@@ -56,10 +71,9 @@ You can test your new connection like so:
 
 ```Julia
 JSServe.register_connection!(MyConnection) do
+    # you can make this registration conditional, e.g. only use the new connection type on Thursdays...
     if i_want_to_use_it
-        # TODO: should I create a new session myself?
-        session = Session()
-        return MyConnection(session)
+        return MyConnection()
     else
         return nothing
     end
