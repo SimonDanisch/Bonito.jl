@@ -62,6 +62,7 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
         # We render in a subsession
         parent = CURRENT_SESSION[]
         sub = Session(parent; title=app.title)
+        sub.current_rendering_io[] = io
         dom = session_dom(sub, app)
     else
         session = Session(title=app.title)
@@ -69,6 +70,7 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
             CURRENT_SESSION[] = session
             empty_app = App(nothing)
             sub = Session(session)
+            sub.current_rendering_io[] = io
             init_dom = session_dom(session, empty_app)
             sub_dom = session_dom(sub, app)
             # first time rendering in a subsession, we combine init of parent session
@@ -76,6 +78,7 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
             dom = DOM.div(init_dom, sub_dom)
         else
             sub = session
+            sub.current_rendering_io[] = io
             dom = session_dom(session, app)
         end
     end
@@ -118,6 +121,7 @@ function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
         session = Session(title=app.title)
         sub = Session(session)
         sub.current_app[] = app
+        sub.current_rendering_io[] = io
         fetch_app = App() do s
             dom_node = DOM.div()
             request = js"""
