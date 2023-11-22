@@ -127,6 +127,7 @@ mutable struct Session{Connection <: FrontendConnection}
     compression_enabled::Bool
     deletion_lock::Base.ReentrantLock
     current_app::RefValue{Any}
+    current_rendering_io::RefValue{Any}
 
     function Session(
             parent::Union{Session, Nothing},
@@ -172,6 +173,7 @@ mutable struct Session{Connection <: FrontendConnection}
             title,
             compression_enabled,
             Base.ReentrantLock(),
+            RefValue{Any}(nothing),
             RefValue{Any}(nothing),
         )
         return session
