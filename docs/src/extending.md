@@ -21,7 +21,7 @@ mutable struct MyConnection <: JSServe.FrontendConnection
     ...
 end
 
-function MyConnection
+function MyConnection()
     # If you need to do something like start an HTTP server, you can do it here, synchronously.
     
     
