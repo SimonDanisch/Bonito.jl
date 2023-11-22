@@ -54,4 +54,14 @@ end
 
 You can test your new connection like so:
 
-TODO
+```Julia
+JSServe.register_connection!(MyConnection) do
+    if i_want_to_use_it
+        # TODO: should I create a new session myself?
+        session = Session()
+        return MyConnection(session)
+    else
+        return nothing
+    end
+end
+```
