@@ -94,6 +94,16 @@ function Base.union!(set1::OrderedSet, set2)
     union!(set1.items, set2)
 end
 
+
+struct CSS
+    attributes::Dict{String,Any}
+    function CSS(attributes::Dict{String,Any})
+        return new(attributes)
+    end
+end
+
+const HTMLElement = Node{Hyperscript.HTMLSVG}
+
 """
 A web session with a user
 """
@@ -127,6 +137,7 @@ mutable struct Session{Connection <: FrontendConnection}
     compression_enabled::Bool
     deletion_lock::Base.ReentrantLock
     current_app::RefValue{Any}
+    stylesheets::Dict{HTMLElement, CSS}
 
     function Session(
             parent::Union{Session, Nothing},
@@ -173,6 +184,7 @@ mutable struct Session{Connection <: FrontendConnection}
             compression_enabled,
             Base.ReentrantLock(),
             RefValue{Any}(nothing),
+            Dict{HTMLElement,CSS}()
         )
         return session
     end

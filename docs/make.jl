@@ -12,6 +12,7 @@ makedocs(
     pages=[
         "Home" => "index.md",
         "Plotting" => "plotting.md",
+        "Layouting" => "layouting.md",
         "Widgets" => "widgets.md",
         "Animation" => "animation.md",
         "Deployment" => "deployment.md",
