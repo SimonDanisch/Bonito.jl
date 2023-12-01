@@ -53,7 +53,8 @@ App() do sess
     container_width = Slider(5:0.1:100)
     container_width[] = 100
     imstyle = CSS(
-        "display" => :block, "position" => :relative, "overflow" => :clip, "overflow-clip-margin" => :content_box, "width" => "100px"
+        "display" => :block, "position" => :relative, "width" => "100px",
+        "max-width" => :none # needs to be set so it's not overwridden by others
     )
     img = DOM.img(; src="https://docs.makie.org/stable/assets/makie_logo_transparent.svg", style=imstyle)
     style = CSS("position" => :relative, "background-color" => :gray, "display" => :flex, "justify-content" => :center, "align-items" => :center)
