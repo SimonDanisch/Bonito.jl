@@ -78,7 +78,6 @@ export NoConnection, IJuliaConnection, PlutoConnection, WebSocketConnection
 export export_static, Routes, interactive_server
 export Card, Grid
 
-
 function has_html_display()
     for display in Base.Multimedia.displays
         # Ugh, why would textdisplay say it supports HTML??

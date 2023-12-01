@@ -18,7 +18,7 @@ function convert_css_attribute(color::Colorant)
 end
 
 function render_style(io, id, css)
-    println(io, ".$id {")
+    println(io, ".jsserve-fragment .$id[data-jscall-id] {")
     for (k, v) in css.attributes
         println(io, "  ", k, ": ", convert_css_attribute(v), ";")
     end

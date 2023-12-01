@@ -5,8 +5,8 @@ function Card(content;
               padding="6px",
               margin="2px",
               shadow_color=RGBA(0, 0, 0.2, 0.2),
-              width="fit-content",
-              height="fit-content",
+              width="auto",
+              height="auto",
               border_radius = "10px",
               attributes...)
     color = convert_css_attribute(shadow_color)
@@ -27,9 +27,11 @@ function Grid(elems...;
         columns = "none",
         rows="none",
         gap="10px",
-        template_areas="none",
+        areas="none",
         justify_content="normal",
         justify_items="legacy",
+        align_content="normal",
+        align_items="legacy",
         width="100%",
         height="100%",
         kwargs...)
@@ -39,9 +41,14 @@ function Grid(elems...;
         "grid-template-columns" => columns,
         "grid-template-rows" => rows,
         "grid-gap" => gap,
-        "grid-template-areas" => template_areas,
+        "grid-template-areas" => areas,
+
         "justify-content" => justify_content,
         "justify-items" => justify_items,
+
+        "align-content" => align_content,
+        "align-items" => align_items,
+
         "width" => width,
         "height" => height,
     )

@@ -345,12 +345,12 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
             head = Hyperscript.m("head", Hyperscript.m("meta"; charset="UTF-8"),
                                  Hyperscript.m("title", session.title), session_style)
             body = Hyperscript.m("body", body_dom)
-            dom = Hyperscript.m("html", head, body)
+            dom = Hyperscript.m("html", head, body; class="jsserve-fragment")
         else
             # Emit a "fragment"
             head = DOM.div(session_style)
             body = dom
-            dom = DOM.div(head, dom, id=session.id, dataJscallId=dom_id)
+            dom = DOM.div(head, dom, id=session.id, class="jsserve-fragment", dataJscallId=dom_id)
         end
     end
     # first render JSServeLib
