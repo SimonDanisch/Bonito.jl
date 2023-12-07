@@ -97,7 +97,7 @@ JSServe.to_watch(checkbox::Checkbox) = JSServe.to_watch(checkbox.widget)
 
 function Button(name; class="", attributes...)
     class = "$class focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow"
-    return JSServe.Button(name; class=class, style="min-width: 8rem;", attributes...)
+    return JSServe.Button(name; class=class, style=JSServe.Styles("min-width" => "8rem"), attributes...)
 end
 
 function TextField(content::String; class="", attributes...)

@@ -4,7 +4,7 @@
 The main Layouting primitive JSServe offers is `Grid`, `Column` and `Row`.
 They are all based on css `display: grid` and JSServe only offers a small convenience wrapper around it.
 
-We recommend to read through the great introduction to CSS grids by Josh Comeau: https://www.joshwcomeau.com/css/interactive-guide-to-grid, for a better understanding on how grids work. It's recommended to read this before following this tutorial, since the examples are styled much nicer and explain everything in much greater detail.
+We recommend to read through the great introduction to Styles grids by Josh Comeau: https://www.joshwcomeau.com/css/interactive-guide-to-grid, for a better understanding on how grids work. It's recommended to read this before following this tutorial, since the examples are styled much nicer and explain everything in much greater detail.
 
 To easier apply the tutorial to JSServe, we ported all the examples of the tutorial, while only describing them with the bare minimum. To get the full picture, please refer to the linked, original tutorial!
 
@@ -12,7 +12,7 @@ Lets start with how JSServe defines the main primitive `Grid`:
 
 ```julia
 function Grid(elems...;
-        style::CSS=CSS(),
+        style::Styles=Styles(),
         columns = "none",
         rows="none",
         gap="10px",
@@ -23,7 +23,7 @@ function Grid(elems...;
         height="100%",
         kwargs...)
 
-    css = CSS(style,
+    css = Styles(style,
         "display" => "grid",
         "grid-template-columns" => columns,
         "grid-template-rows" => rows,
@@ -38,8 +38,8 @@ function Grid(elems...;
 end
 ```
 
-It pretty much just sets the css attributes to some defaults, but everything can be overwritten or extended by passing your own `style=CSS(...)` object.
-All CSS objects inside one App will be merged into a single stylesheet, so using many grids with the same keyword arguments will only generate one entry into the global stylesheet. You can read more about this in the styling section.
+It pretty much just sets the css attributes to some defaults, but everything can be overwritten or extended by passing your own `style=Styles(...)` object.
+All Styles objects inside one App will be merged into a single stylesheet, so using many grids with the same keyword arguments will only generate one entry into the global stylesheet. You can read more about this in the styling section.
 
 
 
@@ -54,7 +54,7 @@ If we don't speficy any attributes for the `Grid`, the default will be one dynam
 
 ```@example 1
 
-DemoCard(content=DOM.div(); style=CSS(), attributes...) = Card(content; backgroundcolor=:gray, border_radius="2px", style=CSS(style, "color" => :white),attributes...)
+DemoCard(content=DOM.div(); style=Styles(), attributes...) = Card(content; backgroundcolor=:gray, border_radius="2px", style=Styles(style, "color" => :white),attributes...)
 
 App() do sess
     s = JSServe.Slider(1:5)
@@ -97,16 +97,16 @@ To see what that means, the below example shows how the percent based unit will 
 App() do sess
     container_width = JSServe.Slider(5:0.1:100)
     container_width[] = 100
-    imstyle = CSS(
+    imstyle = Styles(
         "display" => :block, "position" => :relative, "width" => "100px",
         "max-width" => :none # needs to be set so it's not overwritten by others
     )
     img = DOM.img(; src="https://docs.makie.org/stable/assets/makie_logo_transparent.svg", style=imstyle)
-    style = CSS("position" => :relative, "background-color" => :gray, "display" => :flex, "justify-content" => :center, "align-items" => :center)
+    style = Styles("position" => :relative, "background-color" => :gray, "display" => :flex, "justify-content" => :center, "align-items" => :center)
 
     function example_grid(cols)
         grid = Grid(DemoCard(img; style=style), DemoCard(DOM.div(); style=style); columns=cols)
-        container = DOM.div(grid; style=CSS("height" => "200px", "width" => "500px"))
+        container = DOM.div(grid; style=Styles("height" => "200px", "width" => "500px"))
         return Grid(container; rows="1fr", justify_content="center"), container
     end
     pgrid, p1 = example_grid("25% 75%")
@@ -128,13 +128,13 @@ Now, what happens if we add more then 2 items to a Grid with 2 columns?
 ```@example 1
 
 # Little helper to create a Card with centered content
-centered(c; style=CSS(), kw...) = DemoCard(Grid(DOM.h4(c; style=CSS("color" => :white)); justify_content=:center, justify_items=:center, columns="1fr", style=CSS("align-items"=> :center), kw...); style=style)
+centered(c; style=Styles(), kw...) = DemoCard(Grid(DOM.h4(c; style=Styles("color" => :white)); justify_content=:center, justify_items=:center, columns="1fr", style=Styles("align-items"=> :center), kw...); style=style)
 
 
 App() do
     cards = [centered(i) for i in 1:3]
     grid = Grid(cards...; columns="1fr 3fr")
-    return DOM.div(grid; style=CSS("margin" => "20px"))
+    return DOM.div(grid; style=Styles("margin" => "20px"))
 end
 ```
 
@@ -144,7 +144,7 @@ Specifying the size of the rows works exactly the same as with `columns`:
 App() do
     cards = [centered(i) for i in 1:4]
     grid = Grid(cards...; columns="1fr 3fr", rows="5rem 1fr")
-    return DOM.div(grid; style=CSS("width" => "400px", "height" => "300px", "margin" => "20px"))
+    return DOM.div(grid; style=Styles("width" => "400px", "height" => "300px", "margin" => "20px"))
 end
 ```
 
@@ -154,7 +154,7 @@ Now, if we want to do something with lots of rows/columns, e.g. a calendar, it m
 App() do
     cards = [centered(i) for i in 1:31]
     grid = Grid(cards...; columns="repeat(7, 1fr)")
-    return DOM.div(grid; style=CSS("width" => "400px", "margin" => "5px"))
+    return DOM.div(grid; style=Styles("width" => "400px", "margin" => "5px"))
 end
 ```
 
@@ -169,8 +169,8 @@ end_column = 3
 start_row = 1
 end_row = 3
 
-style = CSS(
-    "grid-column" => "$start_column / $end_column"
+style = Styles(
+    "grid-column" => "$start_column / $end_column",
     "grid-row" => "$start_row / $end_row"
 )
 child = DOM.div(style=style) # assign child from slot 1-2
@@ -181,13 +181,13 @@ To illustrate how this works, here is an interactive app where you can select th
 ```@example 1
 
 function centered2d(i, j;)
-    return centered("($i, $j)"; dataCol="$i,$j", style=CSS("user-select" => :none))
+    return centered("($i, $j)"; dataCol="$i,$j", style=Styles("user-select" => :none))
 end
 
 App() do
     cards = [centered2d(i, j) for i in 1:4 for j in 1:4]
 
-    hover_style = CSS(
+    hover_style = Styles(
         "background-color" => :blue,
         "opacity" => 0.2,
         "z-index" => 1,
@@ -197,7 +197,7 @@ App() do
 
     hover = DOM.div(; style=hover_style)
 
-    grid_style = CSS("position" => :absolute, "top" => 0, "left" => 0)
+    grid_style = Styles("position" => :absolute, "top" => 0, "left" => 0)
     size = "300px"
     background_grid = Grid(cards...; columns="repeat(4, 1fr)", gap="0px",
         style=grid_style, height=size, width=size)
@@ -207,7 +207,7 @@ App() do
     selected_grid = Grid(hover, rows...; columns="repeat(4, 1fr)", gap="0px",
         style=grid_style, height=size, width=size)
 
-    style_display = centered("CSS(...)"; width="100%")
+    style_display = centered("Styles(...)"; width="100%")
 
     hover_js = js"""
         const hover = $(hover);
@@ -251,7 +251,7 @@ App() do
                     child.style.display = nelems >= i ? "block" : "none";
                 }
 
-                h2_node.innerText = 'CSS(\n\"grid-row\" => \"' + row + '\",\n \"grid-column\" => \"' + col + '\"\n)';
+                h2_node.innerText = 'Styles(\n\"grid-row\" => \"' + row + '\",\n \"grid-column\" => \"' + col + '\"\n)';
             }
         }
 
@@ -281,7 +281,7 @@ App() do
         });
 
     """
-    grids = DOM.div(background_grid, selected_grid, hover_js; style=CSS("position" => :relative, "height" => size))
+    grids = DOM.div(background_grid, selected_grid, hover_js; style=Styles("position" => :relative, "height" => size))
 
     return Grid(style_display, grids; columns="1fr 2fr", width="100%")
 end
@@ -297,7 +297,7 @@ App() do
 
     sidebar = DemoCard(
         "SIDEBAR",
-        style = CSS(
+        style = Styles(
             "grid-column" =>  "1",
             "grid-row" =>  "1 / 3",
         )
@@ -305,7 +305,7 @@ App() do
 
     header = DemoCard(
         "HEADER",
-        style = CSS(
+        style = Styles(
             "grid-column" =>  "2",
             "grid-row" =>  "1",
         )
@@ -313,7 +313,7 @@ App() do
 
     main = DemoCard(
         "MAIN",
-        style = CSS(
+        style = Styles(
             "grid-column" =>  "2",
             "grid-row" =>  "2",
         )
@@ -324,7 +324,7 @@ App() do
         columns = "2fr 5fr",
         rows = "50px 1fr"
     )
-    return DOM.div(grid; style=CSS("height" => "600px", "margin" => "20px", "position" => :relative))
+    return DOM.div(grid; style=Styles("height" => "600px", "margin" => "20px", "position" => :relative))
 end
 ```
 
@@ -335,17 +335,17 @@ App() do
 
     sidebar = DemoCard(
         "SIDEBAR",
-        style = CSS("grid-area" =>  "sidebar")
+        style = Styles("grid-area" =>  "sidebar")
     )
 
     header = DemoCard(
         "HEADER",
-        style = CSS("grid-area" =>  "header")
+        style = Styles("grid-area" =>  "header")
     )
 
     main = DemoCard(
         "MAIN",
-        style = CSS("grid-area" =>  "main")
+        style = Styles("grid-area" =>  "main")
     )
 
     grid = Grid(
@@ -357,7 +357,7 @@ App() do
             'sidebar main';
         """
     )
-    return DOM.div(grid; style=CSS("height" => "600px", "margin" => "20px", "position" => :relative))
+    return DOM.div(grid; style=Styles("height" => "600px", "margin" => "20px", "position" => :relative))
 end
 ```
 The syntax is quite similar to julias matrix syntax, just wrapping all rows into `'...row...'`!
@@ -373,14 +373,14 @@ App() do
         DemoCard(), DemoCard(),
         columns = "90px 90px",
     )
-    return DOM.div(grid; style=CSS("height" => "200px", "margin" => "20px", "position" => :relative, "background-color" => "#F88379", "padding" => "5px"))
+    return DOM.div(grid; style=Styles("height" => "200px", "margin" => "20px", "position" => :relative, "background-color" => "#F88379", "padding" => "5px"))
 end
 ```
 
 
 ```@example 1
 App() do session
-    justification = JSServe.Dropdown(["space-evenly", "center", "end", "space-between", "space-around", "space-evenly"], style="width: 200px;")
+    justification = JSServe.Dropdown(["space-evenly", "center", "end", "space-between", "space-around", "space-evenly"], style=Styles("width" => "200px"))
 
     grid = Grid(
         DemoCard(), DemoCard(),
@@ -390,15 +390,16 @@ App() do session
         grid = $(grid)
         grid.style["justify-content"] = $(justification.options[])[idx-1]
     }""")
-    grid_area = DOM.div(grid; style=CSS("height" => "200px", "width" => "600px", "margin" => "20px", "position" => :relative, "background-color" => "#F88379", "padding" => "5px"))
+    area_style = Styles("height" => "200px", "width" => "600px", "margin" => "20px", "position" => :relative, "background-color" => "#F88379", "padding" => "5px")
+    grid_area = DOM.div(grid; style=area_style)
     return Grid(justification, grid_area; justify_items="center")
 end
 ```
 
 ```@example 1
 App() do session
-    content = JSServe.Dropdown(["space-evenly", "center", "end", "space-between", "space-around"], style="width: 200px;")
-    items = JSServe.Dropdown(["stretch", "start", "center", "end"], style="width: 200px;")
+    content = JSServe.Dropdown(["space-evenly", "center", "end", "space-between", "space-around"])
+    items = JSServe.Dropdown(["stretch", "start", "center", "end"])
     grid = Grid(
         DemoCard(), DemoCard(),
         DemoCard(), DemoCard(),
@@ -414,7 +415,7 @@ App() do session
         const val = $(items.options[])[idx-1]
         grid.style["justify-items"] = val
     }""")
-    grid_area = DOM.div(grid; style=CSS("height" => "200px", "width" => "600px", "margin" => "20px", "position" => :relative, "background-color" => "#F88379", "padding" => "5px",
+    grid_area = DOM.div(grid; style=Styles("height" => "200px", "width" => "600px", "margin" => "20px", "position" => :relative, "background-color" => "#F88379", "padding" => "5px",
         "grid-column" => "1 / 3", "grid-row" => "2"))
     return Grid(content, items, grid_area; width="500px", justify_items="space-around")
 end
@@ -423,12 +424,11 @@ end
 
 ```@example 1
 App() do session
-    content = JSServe.Dropdown(["space-evenly", "center", "end", "space-between", "space-around"], style="width: 200px;")
-    items = JSServe.Dropdown(["stretch", "start", "center", "end"], style="width: 200px;")
-    align_content = JSServe.Dropdown(["space-evenly", "center", "end", "space-between", "space-around"], style="width: 200px;")
-    align_items = JSServe.Dropdown(["stretch", "start", "center", "end"], style="width: 200px;")
-    #
-    grid_style = CSS("position" => :absolute, "top" => 0, "left" => 0)
+    content = JSServe.Dropdown(["space-evenly", "center", "end", "space-between", "space-around"])
+    items = JSServe.Dropdown(["stretch", "start", "center", "end"])
+    align_content = JSServe.Dropdown(["space-evenly", "center", "end", "space-between", "space-around"])
+    align_items = JSServe.Dropdown(["stretch", "start", "center", "end"])
+    grid_style = Styles("position" => :absolute, "top" => 0, "left" => 0)
     grid = Grid(
         centered("One"), centered("Two"),
         centered("Three"), centered("Four"),
@@ -437,8 +437,8 @@ App() do session
         style=grid_style
     )
 
-    grid_col() = DOM.div(style=CSS("border" => "2px dashed white", "width"=>"100px"))
-    grid_row() = DOM.div(style=CSS("border" => "2px dashed white", "height"=>"100px"))
+    grid_col() = DOM.div(style=Styles("border" => "2px dashed white", "width"=>"100px"))
+    grid_row() = DOM.div(style=Styles("border" => "2px dashed white", "height"=>"100px"))
 
     shadow_cols = Grid(
         grid_col(), grid_col(),
@@ -475,7 +475,7 @@ App() do session
         grids.forEach(x=> x.style["align-items"] = val)
     }""")
 
-    grid_area = DOM.div(grid, shadow_cols, shadow_rows; style=CSS(
+    grid_area = DOM.div(grid, shadow_cols, shadow_rows; style=Styles(
         "height" => "400px", "width" => "400px",
         "margin" => "20px",
         "padding" => "5px",
@@ -483,17 +483,17 @@ App() do session
         "background-color" => "#F88379",
         "grid-column" => "1 / 3", "grid-row" => "4"))
 
-    text(t) = DOM.div(t; style=CSS("font-size" => "1.3rem", "font-weight" => "bold"))
+    text(t) = DOM.div(t; style=Styles("font-size" => "1.3rem", "font-weight" => "bold"))
     final_grid = Grid(
         text("Row Alignment"), text("Col Justification"),
         align_content, content,
         align_items, items,
         grid_area;
-        rows = "2rem 1rem 1rem 1fr",
+        rows = "2rem 1rem 2rem 1fr",
         align_items = "center",
-        justify_items="center", justify_content="center",
+        justify_items="begin", justify_content="center",
         width="400px")
 
-    return DOM.div(final_grid, style=CSS("padding" => "20px"))
+    return DOM.div(final_grid, style=Styles("padding" => "20px"))
 end
 ```

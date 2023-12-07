@@ -3,7 +3,17 @@ function attribute_render(session::Session, parent, attribute::String, css::CSS)
     if attribute != "style"
         error("`CSS(...)` can only be used for the style attribute! Found: $(attribute) with css:\n $(css)")
     end
-    session.stylesheets[parent] = css
+    node_styles = get!(session.stylesheets, parent, Set{CSS}())
+    push!(node_styles, css)
+    return ""
+end
+
+function attribute_render(session::Session, parent, attribute::String, styles::Styles)
+    if attribute != "style"
+        error("`Styles(...)` can only be used for the style attribute! Found: $(attribute) with css:\n $(css)")
+    end
+    node_styles = get!(session.stylesheets, parent, Set{CSS}())
+    union!(node_styles, values(styles.styles))
     return ""
 end
 
@@ -17,21 +27,28 @@ function convert_css_attribute(color::Colorant)
     return "rgba($(rgba.r * 255), $(rgba.g * 255), $(rgba.b * 255), $(rgba.alpha))"
 end
 
+function to_selector(selector::String)
+    isempty(selector) && return ""
+    return ":" * selector
+end
+
 function render_style(io, id, css)
-    println(io, ".jsserve-fragment .$id[data-jscall-id] {")
+    println(io, ".$id$(to_selector(css.selector)) {")
     for (k, v) in css.attributes
         println(io, "  ", k, ": ", convert_css_attribute(v), ";")
     end
     println(io, "}")
 end
 
-function render_stylesheets(stylesheets::Dict{HTMLElement, CSS})
-    combined = Dict{CSS,Vector{HTMLElement}}()
-    for (node, css) in stylesheets
-        if haskey(combined, css)
-            push!(combined[css], node)
-        else
-            combined[css] = [node]
+function render_stylesheets(stylesheets::Dict{HTMLElement, Set{CSS}})
+    combined = Dict{CSS,Set{HTMLElement}}()
+    for (node, styles) in stylesheets
+        for css in styles
+            if haskey(combined, css)
+                push!(combined[css], node)
+            else
+                combined[css] = Set([node])
+            end
         end
     end
     io = IOBuffer()
@@ -47,14 +64,38 @@ function render_stylesheets(stylesheets::Dict{HTMLElement, CSS})
     return DOM.style(stylesheet)
 end
 
-function CSS(args::Pair...)
-    return CSS(Dict{String,Any}(args...))
+function CSS(selector::String, args::Pair...)
+    return CSS(selector, Dict{String,Any}(args...))
 end
 
-function CSS(style::CSS, args::Pair...)
+function CSS(selector::String, style::CSS, args::Pair...)
     css = Dict{String,Any}(args...)
     merge!(css, style.attributes)
-    return CSS(css)
+    return CSS(selector, css)
+end
+
+CSS(style::CSS, args::Pair...) = CSS("", style, args...)
+CSS(args::Pair...) = CSS("", args...)
+
+
+function Base.merge(target::Styles, defaults::Styles)
+    result = Styles(copy(target.styles))
+    merge!(result, defaults)
+    return result
+end
+
+function Base.merge!(target::Styles, styles::Styles)
+    for (selector, css) in styles.styles
+        if haskey(target.styles, selector)
+            merge!(target.styles[selector], css)
+        else
+            target.styles[selector] = css
+        end
+    end
+end
+function Base.merge!(a::CSS, b::CSS)
+    a.selector == b.selector || error("Can't merge CSS with different selectors: $(a.selector) != $(b.selector)")
+    merge!(a.attributes, b.attributes)
 end
 
 #=

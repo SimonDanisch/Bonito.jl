@@ -21,7 +21,7 @@ function makie_plot()
     W.surface(
         -1 .. 1, -1 .. 1, z,
         colormap=:Spectral,
-        figure=(; resolution=(500, 500))
+        figure=(; size=(300, 300))
     )
 end
 
@@ -30,7 +30,7 @@ end
 const Plotly = JSServe.Asset(PL.cdn_url[])
 function JSServe.jsrender(session::Session, plot::PL.Plot)
     # Pretty much copied from the PlotlyLight source to create the JS + div for creating the plot:
-    div = DOM.div(style="width: 400px;")
+    div = DOM.div(style="width: 300px;height: 300px;")
     src = js"""
         Plotly.newPlot($(div), $(plot.data), $(plot.layout), $(plot.config))
     """
@@ -38,13 +38,18 @@ function JSServe.jsrender(session::Session, plot::PL.Plot)
 end
 
 App() do
-    p = PL.Plot(x=1:20, y=cumsum(randn(20)), type="scatter", mode="lines+markers")
-    width = "400px"
-    G.set_default_plot_size(400G.px, 400G.px)
+    p = PL.Plot(
+        x=1:20, y=cumsum(randn(20)), type="scatter", mode="lines+markers";
+        layout=PL.Config(margin=PL.Config(l=20, r=20, t=20, b=20))
+    )
+    G.set_default_plot_size(300G.px, 300G.px)
     gp = G.plot([sin, cos], 0, 2pi)
-    return DOM.div(D.FlexGrid(
-        D.Card(gp; width),
-        D.Card(p; width),
-        D.Card(makie_plot(); width); style="width: 900px"))
+    # The plots already leave lots of white space
+    PCard(p) = Card(p, padding="0px", margin="0px")
+    return Grid(
+        PCard(gp),
+        PCard(p),
+        PCard(makie_plot());
+        columns="repeat(auto-fit, minmax(300px, 1fr))", justify_items="center")
 end
 ```
