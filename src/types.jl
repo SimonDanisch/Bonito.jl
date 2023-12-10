@@ -107,18 +107,7 @@ struct Styles
     # Dict(selector => CSS)
     styles::Dict{String, CSS}
 end
-Styles() = Styles(Dict{String, CSS}())
-Styles(csss::CSS...) = Styles(Dict((css.selector => css for css in csss)))
-Styles(pairs::Pair...) = Styles(Dict("" => CSS(pairs...)))
-Styles(selector::String, pairs::Pair...) = Styles(Dict(selector => CSS(pairs...)))
-Styles(css::CSS, pairs::Pair...) = Styles(Dict(css.selector => CSS(css, pairs...)))
-function Styles(styles::Styles, args...)
-    argstyles = Styles(args...)
-    merge!(argstyles, styles)
-    return argstyles
-end
 
-Styles(target::Styles, defaults::Styles) = merge(target, defaults)
 
 const HTMLElement = Node{Hyperscript.HTMLSVG}
 

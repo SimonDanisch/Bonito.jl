@@ -8,34 +8,10 @@ We recommend to read through the great introduction to Styles grids by Josh Come
 
 To easier apply the tutorial to JSServe, we ported all the examples of the tutorial, while only describing them with the bare minimum. To get the full picture, please refer to the linked, original tutorial!
 
-Lets start with how JSServe defines the main primitive `Grid`:
+Lets start with the docstring for `Grid`:
 
-```julia
-function Grid(elems...;
-        style::Styles=Styles(),
-        columns = "none",
-        rows="none",
-        gap="10px",
-        template_areas="none",
-        justify_content="normal",
-        justify_items="legacy",
-        width="100%",
-        height="100%",
-        kwargs...)
-
-    css = Styles(style,
-        "display" => "grid",
-        "grid-template-columns" => columns,
-        "grid-template-rows" => rows,
-        "grid-gap" => gap,
-        "grid-template-areas" => template_areas,
-        "justify-content" => justify_content,
-        "justify-items" => justify_items,
-        "width" => width,
-        "height" => height,
-    )
-    return DOM.div(elems...; style=css, kwargs...)
-end
+```@docs
+Grid
 ```
 
 It pretty much just sets the css attributes to some defaults, but everything can be overwritten or extended by passing your own `style=Styles(...)` object.

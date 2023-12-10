@@ -77,6 +77,24 @@ end
 CSS(style::CSS, args::Pair...) = CSS("", style, args...)
 CSS(args::Pair...) = CSS("", args...)
 
+Styles() = Styles(Dict{String,CSS}())
+Styles(css::CSS) = Styles(Dict(css.selector => css))
+
+function Styles(csss::CSS...)
+    result = Styles()
+    merge!(result, Set(csss))
+    return result
+end
+
+Styles(pairs::Pair...) = Styles(Dict("" => CSS(pairs...)))
+Styles(selector::String, pairs::Pair...) = Styles(Dict(selector => CSS(pairs...)))
+Styles(css::CSS, pairs::Pair...) = Styles(css, CSS(pairs...))
+function Styles(styles::Styles, args...)
+    argstyles = Styles(args...)
+    merge!(argstyles, styles)
+    return argstyles
+end
+Styles(target::Styles, defaults::Styles) = merge(target, defaults)
 
 function Base.merge(target::Styles, defaults::Styles)
     result = Styles(copy(target.styles))
@@ -84,18 +102,30 @@ function Base.merge(target::Styles, defaults::Styles)
     return result
 end
 
-function Base.merge!(target::Styles, styles::Styles)
-    for (selector, css) in styles.styles
+function Base.merge!(target::Styles, styles::Set{CSS})
+    for css in styles
+        selector = css.selector
         if haskey(target.styles, selector)
-            merge!(target.styles[selector], css)
+            target.styles[selector] = merge(target.styles[selector], css)
         else
             target.styles[selector] = css
         end
     end
 end
-function Base.merge!(a::CSS, b::CSS)
+
+function Base.merge!(target::Styles, styles::Styles)
+    for (selector, css) in styles.styles
+        if haskey(target.styles, selector)
+            target.styles[selector] = merge(target.styles[selector], css)
+        else
+            target.styles[selector] = css
+        end
+    end
+end
+
+function Base.merge(a::CSS, b::CSS)
     a.selector == b.selector || error("Can't merge CSS with different selectors: $(a.selector) != $(b.selector)")
-    merge!(a.attributes, b.attributes)
+    return CSS(a.selector, merge(a.attributes, b.attributes))
 end
 
 #=

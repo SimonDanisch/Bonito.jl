@@ -1,16 +1,64 @@
 # Widgets
 
+```@setup 1
+using JSServe
+Page()
+```
 
+
+```@docs
+Card
+```
+```@example 1
+include_string(@__MODULE__, JSServe.CARD_EXAMPLE1) # hide
+```
+
+```@docs
+StylableSlider
+```
+```@example 1
+include_string(@__MODULE__, JSServe.STYLABLE_SLIDER_EXAMPLE) # hide
+```
+
+```@docs
+Labeled
+```
+```@example 1
+include_string(@__MODULE__, JSServe.LABELED_EXAMPLE) # hide
+```
+
+
+
+```@example 1
+
+App() do session
+    s = JSServe.StylableSlider(0:10;)
+    d = Dropdown(["a", "b", "c"])
+    ni = NumberInput(10.0)
+    ti = JSServe.TextField("helo")
+    button = Button("click")
+    clicks = Observable(0)
+    on(session, button.value) do bool
+        clicks[] = clicks[] + 1
+    end
+    return Card(Grid(
+            button, JSServe.Label(clicks),
+            s, JSServe.Label(s.value),
+            d, JSServe.Label(d.value),
+            ni, JSServe.Label(ni.value),
+            ti, JSServe.Label(ti.value);
+            columns="1fr min-content",
+            justify_content="begin",
+            align_items="center",
+        ); width="300px",)
+end
+```
 
 ## Editor
 
 This editor works in pure Javascript, so feel free to try out editing the Javascript and clicking `eval` to see how the output changes.
 In `JSServe/examples/editor.jl`, you will find a version that works with Julia code, but that requires a running Julia server of course.
 
-```@setup 1
-using JSServe
-Page()
-```
 
 ```@example 1
 using JSServe

@@ -1,3 +1,47 @@
+CARD_EXAMPLE1 = """
+    App() do
+        Card(
+            DOM.h1("This is a card");
+            width="200px",
+            height="200px",
+            backgroundcolor="white",
+            shadow_size="0 0 10px",
+            shadow_color="blue",
+            padding="20px",
+            margin="20px",
+            border_radius="20px",
+            style = Styles(
+                CSS("hover", "background-color" => "lightgray")
+            )
+        )
+    end
+"""
+
+"""
+    Card(
+        content;
+        style::Styles=Styles(),
+        backgroundcolor=RGBA(1, 1, 1, 0.2),
+        shadow_size="0 4px 8px",
+        padding="12px",
+        margin="2px",
+        shadow_color=RGBA(0, 0, 0.2, 0.2),
+        width="auto",
+        height="auto",
+        border_radius="10px",
+        div_attributes...,
+    )
+
+A Card is a container with a shadow and rounded corners.
+It is a good way to group elements together and make them stand out from the background.
+One can easily style them via the above keyword arguments or via the `style` argument with any CSS attribute.
+
+# Example
+
+```@example
+$(CARD_EXAMPLE1)
+```
+"""
 function Card(
     content;
     style::Styles=Styles(),
@@ -9,7 +53,7 @@ function Card(
     width="auto",
     height="auto",
     border_radius="10px",
-    attributes...,
+    div_attributes...,
 )
     color = convert_css_attribute(shadow_color)
     css = Styles(
@@ -22,23 +66,44 @@ function Card(
         "border-radius" => border_radius,
         "box-shadow" => "$(shadow_size) $(color)",
     )
-    return DOM.div(content; style=css, attributes...)
+    return DOM.div(content; style=css, div_attributes...)
 end
 
+"""
+    Grid(
+        elems...;
+        gap="10px",
+        width="100%",
+        height="100%",
+        # All below Attributes are set to the default CSS values:
+        columns="none",
+        rows="none",
+        areas="none",
+        justify_content="normal",
+        justify_items="legacy",
+        align_content="normal",
+        align_items="legacy",
+        style::Styles=Styles(),
+        div_attributes...,
+    )
+
+A Grid is a container that lays out its children in a grid, based on the powerful css `display: grid` property.
+"""
 function Grid(
     elems...;
-    style::Styles=Styles(),
+    gap="10px",
+    width="100%",
+    height="100%",
+    # All below Attributes are set to the default CSS values:
     columns="none",
     rows="none",
-    gap="10px",
     areas="none",
     justify_content="normal",
     justify_items="legacy",
     align_content="normal",
     align_items="legacy",
-    width="100%",
-    height="100%",
-    kwargs...,
+    style::Styles=Styles(),
+    div_attributes...,
 )
     css = Styles(
         style,
@@ -54,16 +119,27 @@ function Grid(
         "width" => width,
         "height" => height,
     )
-    return DOM.div(elems...; style=css, kwargs...)
+    return DOM.div(elems...; style=css, div_attributes...)
 end
 
-function Row(args...; attributes...)
+"""
+    Row(elems...; grid_attributes...)
+
+Places objects in a row, based on `Grid`.
+"""
+function Row(args...; grid_attributes...)
     return Grid(args...; rows="1fr", columns="repeat($(length(args)), 1fr)", attributes...)
 end
 
+"""
+    Col(elems...; grid_attributes...)
+
+Places objects in a column, based on `Grid`.
+"""
 function Col(args...; attributes...)
     return Grid(args...; columns="1fr", attributes...)
 end
+
 
 struct StylableSlider{T} <: AbstractSlider{T}
     values::Observable{Vector{T}}
@@ -74,6 +150,63 @@ struct StylableSlider{T} <: AbstractSlider{T}
     track_active_style::Styles
 end
 
+
+const STYLABLE_SLIDER_EXAMPLE = """
+App() do
+    JSServe.StylableSlider(
+        1:10;
+        value=5,
+        slider_height=20,
+        track_color="lightblue",
+        track_active_color="#F0F8FF",
+        thumb_color="#fff",
+        style=Styles(
+            CSS("hover", "background-color" => "lightgray"),
+            "border-radius" => "0px",
+        ),
+        track_style=Styles(
+            "border-radius" => "3px",
+            "border" => "1px solid black",
+        ),
+        thumb_style=Styles(
+            "border-radius" => "3px",
+            "border" => "1px solid black",
+        ),
+    )
+end
+"""
+
+"""
+    StylableSlider(
+        range::AbstractVector;
+        value=first(range),
+        slider_height=15,
+        thumb_width=slider_height,
+        thumb_height=slider_height,
+        track_height=slider_height / 2,
+        track_active_height=track_height + 2,
+        backgroundcolor="transparent",
+        track_color="#eee",
+        track_active_color="#ddd",
+        thumb_color="#fff",
+        style::Styles=Styles(),
+        track_style::Styles=Styles(),
+        thumb_style::Styles=Styles(),
+        track_active_style::Styles=Styles(),
+    )
+
+Creates a Stylable Slider, where the basic attributes are easily custimizable via keyword arguments,
+while the more advanced details can be styled via the `style`, `track_style`, `thumb_style` and `track_active_style` arguments with the whole might of CSS.
+This does not use `<input type="range">` but is a custom implementation using `<div>`s javascript,
+since it is not easily possible to style the native slider in a cross-browser way.
+For using pure HTML sliders, use `JSServe.Slider`.
+
+# Example
+
+```@example
+$(STYLABLE_SLIDER_EXAMPLE)
+```
+"""
 function StylableSlider(
     range::AbstractVector{T};
     value=first(range),
@@ -91,7 +224,6 @@ function StylableSlider(
     thumb_style::Styles=Styles(),
     track_active_style::Styles=Styles(),
 ) where {T}
-
     half_thumb_width = thumb_width / 2
 
     style = Styles(
@@ -100,10 +232,10 @@ function StylableSlider(
         "grid-template-columns" => "1fr",
         "grid-template-rows" => "$(slider_height)px",
         "align-items" => "center",
-        "margin" => "5px",
+        "margin" => "$(slider_height ÷ 3)px",
         "position" => "relative",
-        "padding-right" => "$(half_thumb_width)px",
-        "padding-left" => "$(half_thumb_width)px",
+        "padding-right" => "$(2 + half_thumb_width)px",
+        "padding-left" => "$(2 + half_thumb_width)px",
         "background-color" => backgroundcolor,
     )
 
@@ -151,22 +283,15 @@ function StylableSlider(
     slider[] = value
     return slider
 end
+
+"""
+    Label(value; style=Styles(), attributes...)
+
+A Label is a simple text element, with a bold font and a font size of 1rem.
+"""
 function Label(value; style=Styles(), attributes...)
     styled = Styles(style, "font-size" => "1rem", "font-weight" => 600)
     return DOM.span(value; style=styled)
-end
-
-function Labeled(object, value; value_style=Styles(), attributes...)
-    return Grid(
-        object,
-        Label(value; style=value_style);
-        rows="1fr",
-        columns="1fr min-content",
-        align_items="center",
-        justify_items="stretch",
-        width="100%",
-        attributes...
-    )
 end
 
 function jsrender(session::Session, slider::StylableSlider)
@@ -246,4 +371,37 @@ function Base.setindex!(slider::StylableSlider, value)
     end
     slider.value[] = values[][idx]
     return idx
+end
+
+const LABELED_EXAMPLE = """
+App() do
+    label_style = Styles(
+        "color" => "white",
+        "padding" => "3px",
+        "font-size" => "1.5rem",
+        "text-shadow" => "0px 0px 10px black, 1px 1px 3px black")
+    slider = StylableSlider(1:10)
+    Card(Labeled(slider, slider.value; label_style=label_style, width="auto"); backgroundcolor="gray")
+end
+"""
+
+"""
+    Labeled(object, label; label_style=Styles(), attributes...)
+
+A Labeled container with a simople layout to put a label next to an object.
+
+```@example
+$(LABELED_EXAMPLE)
+```
+"""
+function Labeled(object, label; label_style=Styles(), attributes...)
+    return Grid(
+        object,
+        Label(label; style=label_style);
+        rows="1fr",
+        columns="1fr min-content",
+        align_items="center",
+        justify_items="stretch",
+        attributes...,
+    )
 end

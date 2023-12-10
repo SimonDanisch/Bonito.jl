@@ -2,7 +2,6 @@ using Deno_jll, JSServe
 using Documenter
 
 ci = get(ENV, "CI", "false") == "true"
-
 makedocs(
     modules=[JSServe],
     sitename="JSServe",
