@@ -10,10 +10,11 @@ makedocs(
     authors="Simon Danisch and other contributors",
     pages=[
         "Home" => "index.md",
-        "Plotting" => "plotting.md",
+        "Styling" => "styling.md",
         "Layouting" => "layouting.md",
         "Widgets" => "widgets.md",
         "Animation" => "animation.md",
+        "Plotting" => "plotting.md",
         "Deployment" => "deployment.md",
         "Assets" => "assets.md",
         "Extending" => "extending.md",

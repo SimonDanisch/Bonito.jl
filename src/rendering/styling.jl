@@ -17,6 +17,14 @@ function attribute_render(session::Session, parent, attribute::String, styles::S
     return ""
 end
 
+function jsrender(style::Styles)
+    io = IOBuffer()
+    for (_, css) in style.styles
+        render_style(io, "", css)
+    end
+    return DOM.style(String(take!(io)))
+end
+
 convert_css_attribute(attribute::String) = chomp(attribute)
 convert_css_attribute(color::Symbol) = convert_css_attribute(string(color))
 convert_css_attribute(@nospecialize(obs::Observable)) = convert_css_attribute(obs[])
@@ -27,20 +35,28 @@ function convert_css_attribute(color::Colorant)
     return "rgba($(rgba.r * 255), $(rgba.g * 255), $(rgba.b * 255), $(rgba.alpha))"
 end
 
-function to_selector(selector::String)
-    isempty(selector) && return ""
-    return ":" * selector
-end
-
-function render_style(io, id, css)
-    println(io, ".$id$(to_selector(css.selector)) {")
+function render_style(io, prefix, css)
+    println(io, prefix, css.selector, " {")
     for (k, v) in css.attributes
         println(io, "  ", k, ": ", convert_css_attribute(v), ";")
     end
     println(io, "}")
 end
 
-function render_stylesheets(stylesheets::Dict{HTMLElement, Set{CSS}})
+Base.show(io::IO, css::CSS) = show(io, MIME"text/plain"(), css)
+
+function Base.show(io::IO, ::MIME"text/plain", css::CSS)
+    render_style(io, "", css)
+end
+
+Base.show(io::IO, styles::Styles) = show(io, MIME"text/plain"(), styles)
+function Base.show(io::IO, ::MIME"text/plain", styles::Styles)
+    for (selector, css) in styles.styles
+        render_style(io, "", css)
+    end
+end
+
+function render_stylesheets!(root_session, stylesheets::Dict{HTMLElement, Set{CSS}})
     combined = Dict{CSS,Set{HTMLElement}}()
     for (node, styles) in stylesheets
         for css in styles
@@ -53,8 +69,10 @@ function render_stylesheets(stylesheets::Dict{HTMLElement, Set{CSS}})
     end
     io = IOBuffer()
     for (css, nodes) in combined
-        id = string("css_", uuid4())
-        render_style(io, id, css)
+        idx = root_session.style_counter += 1
+        root_session.style_counter
+        id = string("style_", idx)
+        render_style(io, "." * id, css)
         for node in nodes
             attr = Hyperscript.attrs(node)
             attr["class"] = get!(attr, "class", "") * " " * id
@@ -67,38 +85,32 @@ end
 function CSS(selector::String, args::Pair...)
     return CSS(selector, Dict{String,Any}(args...))
 end
-
-function CSS(selector::String, style::CSS, args::Pair...)
-    css = Dict{String,Any}(args...)
-    merge!(css, style.attributes)
-    return CSS(selector, css)
-end
-
-CSS(style::CSS, args::Pair...) = CSS("", style, args...)
 CSS(args::Pair...) = CSS("", args...)
+
 
 Styles() = Styles(Dict{String,CSS}())
 Styles(css::CSS) = Styles(Dict(css.selector => css))
-
 function Styles(csss::CSS...)
     result = Styles()
     merge!(result, Set(csss))
     return result
 end
 
-Styles(pairs::Pair...) = Styles(Dict("" => CSS(pairs...)))
-Styles(selector::String, pairs::Pair...) = Styles(Dict(selector => CSS(pairs...)))
-Styles(css::CSS, pairs::Pair...) = Styles(css, CSS(pairs...))
-function Styles(styles::Styles, args...)
-    argstyles = Styles(args...)
-    merge!(argstyles, styles)
-    return argstyles
+function Styles(css::CSS, pairs::Pair...)
+    error("Style $(css) with $(pairs) unaccaptable!")
 end
-Styles(target::Styles, defaults::Styles) = merge(target, defaults)
+Styles(pairs::Pair...) = Styles(CSS(pairs...))
+function Styles(priority::Styles, defaults...)
+    default = Styles(defaults...)
+    merge!(default, priority)
+    return default
+end
 
-function Base.merge(target::Styles, defaults::Styles)
-    result = Styles(copy(target.styles))
-    merge!(result, defaults)
+Styles(priority::Styles, defaults::Styles) = merge(defaults, priority)
+
+function Base.merge(defaults::Styles, priority::Styles) # second argument takes priority
+    result = Styles(copy(defaults.styles))
+    merge!(result, priority)
     return result
 end
 

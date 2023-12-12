@@ -1,4 +1,4 @@
-CARD_EXAMPLE1 = """
+CARD_EXAMPLE = """
     App() do
         Card(
             DOM.h1("This is a card");
@@ -39,7 +39,7 @@ One can easily style them via the above keyword arguments or via the `style` arg
 # Example
 
 ```@example
-$(CARD_EXAMPLE1)
+$(CARD_EXAMPLE)
 ```
 """
 function Card(
@@ -162,7 +162,7 @@ App() do
         thumb_color="#fff",
         style=Styles(
             CSS("hover", "background-color" => "lightgray"),
-            "border-radius" => "0px",
+            CSS("border-radius" => "0px"),
         ),
         track_style=Styles(
             "border-radius" => "3px",

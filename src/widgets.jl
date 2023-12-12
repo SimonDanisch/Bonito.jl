@@ -18,29 +18,86 @@ const BUTTON_STYLE = Styles(
         "box-shadow" => "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px";
     ),
     CSS(
-        "hover",
+        ":hover",
         "background-color" => "#F9FAFB",
         "box-shadow" => "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px",
     ),
     CSS(
-        "focus",
+        ":focus",
         "outline" => "1px solid transparent",
         "outline-offset" => "1px",
         "box-shadow" => "rgba(66, 153, 225, 0.5) 0px 0px 0px 1px",
     ),
 )
 
+const BUTTON_EXAMPLE = """
+App() do
+    style = Styles(
+        CSS("font-weight" => "500"),
+        CSS(":hover", "background-color" => "silver"),
+        CSS(":focus", "box-shadow" => "rgba(0, 0, 0, 0.5) 0px 0px 5px"),
+    )
+    button = Button("Click me"; style=style)
+    on(button.value) do click::Bool
+        @info "Button clicked!"
+    end
+    return button
+end
+"""
+
+"""
+    Button(name; style=Styles(), dom_attributes...)
+
+A simple button, which can be styled a `style::Styles`.
+
+### Example
+
+```julia
+$(BUTTON_EXAMPLE)
+```
+"""
+Button
+
 function jsrender(session::Session, button::Button)
     css = Styles(get(button.attributes, :style, Styles()), BUTTON_STYLE)
     button_dom = DOM.button(
         button.content[];
         onclick=js"event=> $(button.value).notify(true);",
-        style=css,
         button.attributes...,
+        style=css
     )
     onjs(session, button.content, js"x=> $(button_dom).innerText = x")
     return jsrender(session, button_dom)
 end
+
+
+const TEXTFIELD_EXAMPLE = """
+App() do
+    style = Styles(
+        CSS("font-weight" => "500"),
+        CSS(":hover", "background-color" => "silver"),
+        CSS(":focus", "box-shadow" => "rgba(0, 0, 0, 0.5) 0px 0px 5px"),
+    )
+    textfield = TextField("write something"; style=style)
+    on(textfield.value) do text::String
+        @info text
+    end
+    return textfield
+end
+"""
+
+"""
+    TextField(default_text; style=Styles(), dom_attributes...)
+
+A simple TextField, which can be styled via the `style::Styles` attribute.
+
+### Example
+
+```julia
+$(TEXTFIELD_EXAMPLE)
+```
+"""
+TextField
 
 function jsrender(session::Session, tf::TextField)
     css = Styles(get(tf.attributes, :style, Styles()), BUTTON_STYLE)
@@ -50,11 +107,39 @@ function jsrender(session::Session, tf::TextField)
             type="textfield",
             value=tf.value,
             onchange=js"event => $(tf.value).notify(event.srcElement.value);",
-            style=css,
             tf.attributes...,
+            style=css
         ),
     )
 end
+
+const NUMBERINPUT_EXAMPLE = """
+App() do
+    style = Styles(
+        CSS("font-weight" => "500"),
+        CSS(":hover", "background-color" => "silver"),
+        CSS(":focus", "box-shadow" => "rgba(0, 0, 0, 0.5) 0px 0px 5px"),
+    )
+    numberinput = NumberInput(0.0; style=style)
+    on(numberinput.value) do value::Float64
+        @info value
+    end
+    return numberinput
+end
+"""
+
+"""
+    NumberInput(default_value; style=Styles(), dom_attributes...)
+
+A simple NumberInput, which can be styled via the `style::Styles` attribute.
+
+### Example
+
+```julia
+$(NUMBERINPUT_EXAMPLE)
+```
+"""
+NumberInput
 
 function jsrender(session::Session, ni::NumberInput)
     css = Styles(get(ni.attributes, :style, Styles()), BUTTON_STYLE)
@@ -69,12 +154,38 @@ function jsrender(session::Session, ni::NumberInput)
                     $(ni.value).notify(new_value);
                 }
             }",
-            style=css,
             ni.attributes...,
+            style=css,
         ),
     )
 end
 
+const DROPDOWN_EXAMPLE = """
+App() do
+    style = Styles(
+        CSS("font-weight" => "500"),
+        CSS(":hover", "background-color" => "silver"),
+        CSS(":focus", "box-shadow" => "rgba(0, 0, 0, 0.5) 0px 0px 5px"),
+    )
+    dropdown = Dropdown(["a", "b", "c"]; index=2, style=style)
+    on(dropdown.value) do value
+        @info value
+    end
+    return dropdown
+end
+"""
+
+"""
+    Dropdown(options; index=1, option_to_string=string, style=Styles(), dom_attributes...)
+
+A simple Dropdown, which can be styled via the `style::Styles` attribute.
+
+### Example
+
+```julia
+$(DROPDOWN_EXAMPLE)
+```
+"""
 struct Dropdown
     options::Observable{Vector{Any}}
     value::Observable{Any}

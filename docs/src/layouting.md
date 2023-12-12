@@ -17,7 +17,11 @@ Grid
 It pretty much just sets the css attributes to some defaults, but everything can be overwritten or extended by passing your own `style=Styles(...)` object.
 All Styles objects inside one App will be merged into a single stylesheet, so using many grids with the same keyword arguments will only generate one entry into the global stylesheet. You can read more about this in the styling section.
 
-
+There's also `Row` and `Col` which uses `Grid` under the hood:
+```@docs
+Row
+Col
+```
 
 ```@setup 1
 using JSServe

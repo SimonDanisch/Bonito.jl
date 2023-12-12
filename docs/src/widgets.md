@@ -5,12 +5,41 @@ using JSServe
 Page()
 ```
 
+## All Available widgets
+
+```@example 1
+@doc Button # hide
+```
+```@example 1
+include_string(@__MODULE__, JSServe.BUTTON_EXAMPLE) # hide
+```
+
+```@example 1
+@doc TextField # hide
+```
+```@example 1
+include_string(@__MODULE__, JSServe.TEXTFIELD_EXAMPLE) # hide
+```
+
+```@example 1
+@doc NumberInput # hide
+```
+```@example 1
+include_string(@__MODULE__, JSServe.NUMBERINPUT_EXAMPLE) # hide
+```
+
+```@example 1
+@doc Dropdown # hide
+```
+```@example 1
+include_string(@__MODULE__, JSServe.DROPDOWN_EXAMPLE) # hide
+```
 
 ```@docs
 Card
 ```
 ```@example 1
-include_string(@__MODULE__, JSServe.CARD_EXAMPLE1) # hide
+include_string(@__MODULE__, JSServe.CARD_EXAMPLE) # hide
 ```
 
 ```@docs
@@ -20,6 +49,13 @@ StylableSlider
 include_string(@__MODULE__, JSServe.STYLABLE_SLIDER_EXAMPLE) # hide
 ```
 
+
+## Widgets in Layouts
+
+
+There are a few helpers to e.g. put a label next to a widget:
+
+
 ```@docs
 Labeled
 ```
@@ -27,6 +63,7 @@ Labeled
 include_string(@__MODULE__, JSServe.LABELED_EXAMPLE) # hide
 ```
 
+To create more complex layouts, one should use e.g. [`Grid`](@ref), and visit the [Layouting](@ref) tutorial.
 
 
 ```@example 1
@@ -58,6 +95,55 @@ end
 
 This editor works in pure Javascript, so feel free to try out editing the Javascript and clicking `eval` to see how the output changes.
 In `JSServe/examples/editor.jl`, you will find a version that works with Julia code, but that requires a running Julia server of course.
+
+
+```@example 1
+using JSServe, Observables
+src = """
+(() => {
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext('2d');
+    const width = 500
+    const height = 400
+    canvas.width = width;
+    canvas.height = height;
+    const gradient = context.createRadialGradient(200, 200, 0, 200, 200, 200);
+    gradient.addColorStop("0", "magenta");
+    gradient.addColorStop(".25", "blue");
+    gradient.addColorStop(".50", "green");
+    gradient.addColorStop(".75", "yellow");
+    gradient.addColorStop("1.0", "red");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, height);
+    return canvas;
+})();
+"""
+App() do session::Session
+    editor = CodeEditor("javascript"; initial_source=src, width=800, height=300)
+    eval_button = Button("eval")
+    output = DOM.div(DOM.span())
+    JSServe.onjs(session, eval_button.value, js"""function (click){
+        const js_src = $(editor.onchange).value;
+        const result = new Function("return " + (js_src))()
+        let dom;
+        if (typeof result === 'object' && result.nodeName) {
+            dom = result
+        } else {
+            const span = document.createElement("span")
+            span.innerText = result;
+            dom = span
+        }
+        JSServe.update_or_replace($(output), dom, false);
+        return
+    }
+    """)
+    notify(eval_button.value)
+    return DOM.div(editor, eval_button, output)
+end
+```
+
+
+## Tailwinddashboard
 
 
 ```@example 1
@@ -129,50 +215,5 @@ App() do
             ),
         ])...
     )
-end
-```
-
-```@example 1
-using JSServe, Observables
-src = """
-(() => {
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext('2d');
-    const width = 500
-    const height = 400
-    canvas.width = width;
-    canvas.height = height;
-    const gradient = context.createRadialGradient(200, 200, 0, 200, 200, 200);
-    gradient.addColorStop("0", "magenta");
-    gradient.addColorStop(".25", "blue");
-    gradient.addColorStop(".50", "green");
-    gradient.addColorStop(".75", "yellow");
-    gradient.addColorStop("1.0", "red");
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, width, height);
-    return canvas;
-})();
-"""
-App() do session::Session
-    editor = CodeEditor("javascript"; initial_source=src, width=800, height=300)
-    eval_button = Button("eval")
-    output = DOM.div(DOM.span())
-    JSServe.onjs(session, eval_button.value, js"""function (click){
-        const js_src = $(editor.onchange).value;
-        const result = new Function("return " + (js_src))()
-        let dom;
-        if (typeof result === 'object' && result.nodeName) {
-            dom = result
-        } else {
-            const span = document.createElement("span")
-            span.innerText = result;
-            dom = span
-        }
-        JSServe.update_or_replace($(output), dom, false);
-        return
-    }
-    """)
-    notify(eval_button.value)
-    return DOM.div(editor, eval_button, output)
 end
 ```
