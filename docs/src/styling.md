@@ -7,8 +7,11 @@ using JSServe
 Page()
 ```
 
-```@example 1
-@doc Styles # hide
+The main type to style the DOM via css is `Style`:
+
+
+```@docs; canonical=false
+Styles
 ```
 
 ## Using CSS and pseudo classes
@@ -80,11 +83,11 @@ end
 ```
 
 
-## Using Styles as complete Stylesheet
+## Using Styles as global Stylesheet
 
-One can also define a complete stylesheet with `Styles` using selectors to style an HTML document.
+One can also define a global stylesheet with `Styles` using selectors to style parts of an HTML document.
 This can be handy to set some global styling, but please be careful, since this will affect the whole document. That's also why we need to set a specific attribute selector for all, to not affect the whole documentation page.
-This will not happen when assigning a style to `DOM.div(style=Styles(...))`.
+This will not happen when assigning a style to `DOM.div(style=Styles(...))`, which will always just apply to that particular div and any other div assigned to.
 Note, that a style object directly inserted into the DOM will be rendered exactly where it occurs without deduplication!
 
 ```@example 1

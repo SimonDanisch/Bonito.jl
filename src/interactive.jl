@@ -12,6 +12,36 @@ end
 const REVISE_LOOP = Base.RefValue(Base.RefValue(true))
 const REVISE_SERVER = Base.RefValue{Union{Nothing, Server}}(nothing)
 
+"""
+    interactive_server(f, paths, modules=[]; url="127.0.0.1", port=8081, all=true)
+
+Revise base server that will serve a static side based on JSServe and will update on any code change!
+
+Usage:
+
+```julia
+using Revise, Website
+using Website.JSServe
+
+# Start the interactive server and develop your website!
+routes, task, server = interactive_server(Website.asset_paths()) do
+    return Routes(
+        "/" => App(index, title="Makie"),
+        "/team" => App(team, title="Team"),
+        "/contact" => App(contact, title="Contact"),
+        "/support" => App(support, title="Support")
+    )
+end
+
+# Once everything looks goo, export the static site
+dir = joinpath(@__DIR__, "docs")
+# only delete the jsserve generated files
+rm(joinpath(dir, "jsserve"); recursive=true, force=true)
+JSServe.export_static(dir, routes)
+```
+For the complete code, visit the Makie website repository which is using JSServe:
+[MakieOrg/Website](https://github.com/MakieOrg/Website/blob/sd/jsserve/make.jl)
+"""
 function interactive_server(f, paths, modules=[]; url="127.0.0.1", port=8081, all=true)
     if isnothing(REVISE_SERVER[])
         server = Server(url, port)

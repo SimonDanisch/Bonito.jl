@@ -7,29 +7,30 @@ Page()
 
 ## All Available widgets
 
-```@example 1
-@doc Button # hide
+```@docs; canonical=false
+Button
 ```
+
 ```@example 1
 include_string(@__MODULE__, JSServe.BUTTON_EXAMPLE) # hide
 ```
 
-```@example 1
-@doc TextField # hide
+```@docs; canonical=false
+TextField
 ```
 ```@example 1
 include_string(@__MODULE__, JSServe.TEXTFIELD_EXAMPLE) # hide
 ```
 
-```@example 1
-@doc NumberInput # hide
+```@docs; canonical=false
+NumberInput
 ```
 ```@example 1
 include_string(@__MODULE__, JSServe.NUMBERINPUT_EXAMPLE) # hide
 ```
 
-```@example 1
-@doc Dropdown # hide
+```@docs; canonical=false
+Dropdown
 ```
 ```@example 1
 include_string(@__MODULE__, JSServe.DROPDOWN_EXAMPLE) # hide

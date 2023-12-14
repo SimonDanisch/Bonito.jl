@@ -1,16 +1,16 @@
-`JSServe.jl` is a pretty simple package allowing to render HTML and serve it from within Julia and build up a communication bridge with the Browser. This allows to combine any of your Julia applications with libraries like [WGLMakie](https://docs.makie.org/dev/documentation/backends/wglmakie/index.html#export) and create interactive Dashboards like this:
+`JSServe.jl` is a pretty simple package allowing you to render HTML and serve it from within Julia and build up a communication bridge with the Browser. This allows to combine any of your Julia applications with libraries like [WGLMakie](https://docs.makie.org/dev/documentation/backends/wglmakie/index.html#export) and create interactive Dashboards like this:
 
 ![dashboard](https://user-images.githubusercontent.com/1010467/214651671-2f8174b6-48ab-4627-b15f-e19c35042faf.gif)
 
 JSServe is tightly integrated with WGLMakie, which makes them a great pair for high performance, interactive visualizations.
 If performance is not a high priority, many other plotting/visualization libraries which overload the Julia display system should work with `JSServe.jl` as well.
 
-`JSServe.jl` itself tries to stay out of major choices like the HTML/CSS/Javascript framework to use for creating UIs and Dashboards.
+`JSServe.jl` itself tries to stay out of major choices like the HTML/CSS/Javascript framework to use for creating UIs and Dashboards. Instead, it allows to create modular components and makes it easy to use any CSS/Javascript library.
 
-It uses plain HTML widgets for UI elements where it can, and only to give some base convenience, there is `JSServe.TailwindDashboard` which gives the basic JSServe widgets some nicer look and make it a bit easier to construct complex layouts.
+It uses plain HTML widgets for UI elements where it can, and there are a few styleable components like `Card`, `Grid`, `Row`, `Col` to make it easy to create some more complex dashboards out of the box.
 
-As you can see in `JSServe/src/tailwind-dashboard.jl`, it's just a thin wrapper around the basic `JSServe.jl` widgets, which gives them some class(es) to style them via [TailwindCSS](https://tailwindcss.com/).
-Anyone can do this with their own CSS or HTML/Javascript framework, which should help to create a rich ecosystem of extensions around `JSServe.jl`.
+If you look at the source of those components, one will see that they're very simple and easy to create, which should help to create a rich ecosystem of extensions around `JSServe.jl`.
+Read more about it in [Components](@ref).
 
 ## Quickstart
 
@@ -73,7 +73,7 @@ App() do
 end
 ```
 
-Read more about wrapping libraries in [Tutorial](@ref).
+Read more about wrapping libraries in [Javascript](@ref).
 
 ## Deploying
 

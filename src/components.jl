@@ -140,6 +140,23 @@ function Col(args...; attributes...)
     return Grid(args...; columns="1fr", attributes...)
 end
 
+"""
+    Centered(content; style=Styles(), grid_attributes...)
+
+Creates an element where the content is centered via `Grid`.
+"""
+function Centered(content; style=Styles(), grid_attributes...)
+    return Grid(
+        content;
+        justify_content=:center,
+        justify_items=:center,
+        align_content=:center,
+        align_items=:center,
+        columns="1fr",
+        style=Styles(style),
+        grid_attributes...,
+    )
+end
 
 struct StylableSlider{T} <: AbstractSlider{T}
     values::Observable{Vector{T}}

@@ -27,7 +27,7 @@ end
 
 convert_css_attribute(attribute::String) = chomp(attribute)
 convert_css_attribute(color::Symbol) = convert_css_attribute(string(color))
-convert_css_attribute(@nospecialize(obs::Observable)) = convert_css_attribute(obs[])
+convert_css_attribute(@nospecialize(::Observable)) = error("Observable not supported in CSS attributes right now!")
 convert_css_attribute(@nospecialize(any)) = string(any)
 
 function convert_css_attribute(color::Colorant)
@@ -38,7 +38,7 @@ end
 function render_style(io, prefix, css)
     println(io, prefix, css.selector, " {")
     for (k, v) in css.attributes
-        println(io, "  ", k, ": ", convert_css_attribute(v), ";")
+        println(io, "  ", k, ": ", v, ";")
     end
     println(io, "}")
 end
@@ -125,12 +125,12 @@ function Base.merge!(target::Styles, styles::Set{CSS})
     end
 end
 
-function Base.merge!(target::Styles, styles::Styles)
-    for (selector, css) in styles.styles
-        if haskey(target.styles, selector)
-            target.styles[selector] = merge(target.styles[selector], css)
+function Base.merge!(defaults::Styles, priority::Styles)
+    for (selector, css) in priority.styles
+        if haskey(defaults.styles, selector)
+            defaults.styles[selector] = merge(defaults.styles[selector], css)
         else
-            target.styles[selector] = css
+            defaults.styles[selector] = css
         end
     end
 end

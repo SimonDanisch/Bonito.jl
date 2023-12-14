@@ -1,14 +1,13 @@
 # Layouting
 
+The main layouting primitive JSServe offers is `Grid`, `Column` and `Row`.
+They are all based on css `display: grid` and JSServe offers a small convenience wrapper around it.
 
-The main Layouting primitive JSServe offers is `Grid`, `Column` and `Row`.
-They are all based on css `display: grid` and JSServe only offers a small convenience wrapper around it.
-
-We recommend to read through the great introduction to Styles grids by Josh Comeau: https://www.joshwcomeau.com/css/interactive-guide-to-grid, for a better understanding on how grids work. It's recommended to read this before following this tutorial, since the examples are styled much nicer and explain everything in much greater detail.
+We recommend reading through the great introduction to Styles grids by Josh Comeau: [interactive guide to grid](https://www.joshwcomeau.com/css/interactive-guide-to-grid), for a better understanding of how grids work. It's recommended to read this before following this tutorial, since the examples are styled much nicer and explain everything in much greater detail.
 
 To easier apply the tutorial to JSServe, we ported all the examples of the tutorial, while only describing them with the bare minimum. To get the full picture, please refer to the linked, original tutorial!
 
-Lets start with the docstring for `Grid`:
+Let's start with the docstring for `Grid`:
 
 ```@docs
 Grid
@@ -18,6 +17,7 @@ It pretty much just sets the css attributes to some defaults, but everything can
 All Styles objects inside one App will be merged into a single stylesheet, so using many grids with the same keyword arguments will only generate one entry into the global stylesheet. You can read more about this in the styling section.
 
 There's also `Row` and `Col` which uses `Grid` under the hood:
+
 ```@docs
 Row
 Col
@@ -30,11 +30,13 @@ Page()
 
 ## Implicit Grids
 
-If we don't speficy any attributes for the `Grid`, the default will be one dynamic column, where every item gets their own row:
+If we don't specify any attributes for the `Grid`, the default will be one dynamic column, where every item gets their own row:
 
 ```@example 1
 
-DemoCard(content=DOM.div(); style=Styles(), attributes...) = Card(content; backgroundcolor=:gray, border_radius="2px", style=Styles(style, "color" => :white),attributes...)
+
+DemoCard(content=DOM.div(); style=Styles(), attributes...) = Card(content; backgroundcolor=:silver, border_radius="2px", style=Styles(style, "color" => :white),attributes...)
+
 
 App() do sess
     s = JSServe.Slider(1:5)
@@ -46,7 +48,7 @@ App() do sess
 end
 ```
 
-If we specify a height, while not specifiying a height for the elements, the space will be partitioned for the n children:
+If we specify a height, while not specifying a height for the elements, the space will be partitioned for the n children:
 
 ```@example 1
 App() do sess
@@ -82,7 +84,8 @@ App() do sess
         "max-width" => :none # needs to be set so it's not overwritten by others
     )
     img = DOM.img(; src="https://docs.makie.org/stable/assets/makie_logo_transparent.svg", style=imstyle)
-    style = Styles("position" => :relative, "background-color" => :gray, "display" => :flex, "justify-content" => :center, "align-items" => :center)
+    style = Styles("position" => :relative, "display" => :flex, "justify-content" => :center, "align-items" => :center)
+
 
     function example_grid(cols)
         grid = Grid(DemoCard(img; style=style), DemoCard(DOM.div(); style=style); columns=cols)
@@ -94,6 +97,7 @@ App() do sess
     grid_percent = DOM.div(Grid(pgrid; rows="1fr"))
     grid_fr = DOM.div(Grid(frgrid; rows="1fr"))
 
+
     onjs(sess, container_width.value, js"w=> {$(p1).style.width = (5 * w) + 'px';}")
     onjs(sess, container_width.value, js"w=> {$(p2).style.width = (5 * w) + 'px';}")
     title_percent = DOM.h2("Grid(...; columns=\"25% 75%\")")
@@ -104,11 +108,9 @@ end
 
 Now, what happens if we add more then 2 items to a Grid with 2 columns?
 
-
 ```@example 1
-
 # Little helper to create a Card with centered content
-centered(c; style=Styles(), kw...) = DemoCard(Grid(DOM.h4(c; style=Styles("color" => :white)); justify_content=:center, justify_items=:center, columns="1fr", style=Styles("align-items"=> :center), kw...); style=style)
+centered(c; style=Styles(), kw...) = DemoCard(Centered(DOM.h4(c; style=Styles("color" => :white))); style=style)
 
 
 App() do
@@ -140,7 +142,7 @@ end
 
 ## Assigning children
 
-Children can be assigned slots in the layout explicitely, and it's also possible to assign them to multiple slots.
+Children can be assigned slots in the layout explicitly, and it's also possible to assign them to multiple slots.
 The css syntax for this is:
 
 ```julia
@@ -148,6 +150,7 @@ start_column = 1
 end_column = 3
 start_row = 1
 end_row = 3
+
 
 style = Styles(
     "grid-column" => "$start_column / $end_column",
@@ -160,12 +163,15 @@ To illustrate how this works, here is an interactive app where you can select th
 
 ```@example 1
 
+
 function centered2d(i, j;)
     return centered("($i, $j)"; dataCol="$i,$j", style=Styles("user-select" => :none))
 end
 
+
 App() do
     cards = [centered2d(i, j) for i in 1:4 for j in 1:4]
+
 
     hover_style = Styles(
         "background-color" => :blue,
@@ -175,25 +181,32 @@ App() do
         "user-select" => :none,
     )
 
+
     hover = DOM.div(; style=hover_style)
+
 
     grid_style = Styles("position" => :absolute, "top" => 0, "left" => 0)
     size = "300px"
     background_grid = Grid(cards...; columns="repeat(4, 1fr)", gap="0px",
         style=grid_style, height=size, width=size)
 
+
     rows = [DOM.div() for i in 1:15]
+
 
     selected_grid = Grid(hover, rows...; columns="repeat(4, 1fr)", gap="0px",
         style=grid_style, height=size, width=size)
 
+
     style_display = centered("Styles(...)"; width="100%")
+
 
     hover_js = js"""
         const hover = $(hover);
         const grid = $(selected_grid);
         const style_display = $(style_display);
         const h2_node = style_display.children[0].children[0];
+
 
         let is_dragging = false;
         let start_position = null;
@@ -208,12 +221,14 @@ App() do
             return
         }
 
+
         function handle_click(current) {
             // Check if the current element is a child of the container
             const index = current.getAttribute('data-col')
             if (index) {
                 const start = start_position.split(",").map(x=> parseInt(x))
                 const end = index.split(",").map(x=> parseInt(x))
+
 
                 const [start_row, end_row] = [start[0], end[0]].sort()
                 const [start_col, end_col] = [start[1], end[1]].sort()
@@ -231,9 +246,11 @@ App() do
                     child.style.display = nelems >= i ? "block" : "none";
                 }
 
+
                 h2_node.innerText = 'Styles(\n\"grid-row\" => \"' + row + '\",\n \"grid-column\" => \"' + col + '\"\n)';
             }
         }
+
 
         grid.addEventListener('mousedown', (e) => {
             if (!hover) {
@@ -250,23 +267,26 @@ App() do
             handle_click(current);
         });
 
+
         grid.addEventListener('mousemove', (e) => {
             if (!is_dragging) return;
             const current = get_element(e);
             handle_click(current);
         });
 
+
         document.addEventListener('mouseup', () => {
             is_dragging = false;
         });
 
+
     """
     grids = DOM.div(background_grid, selected_grid, hover_js; style=Styles("position" => :relative, "height" => size))
+
 
     return Grid(style_display, grids; columns="1fr 2fr", width="100%")
 end
 ```
-
 
 ## Grid areas
 
@@ -274,6 +294,7 @@ We can now easily create complex layouts like this:
 
 ```@example 1
 App() do
+
 
     sidebar = DemoCard(
         "SIDEBAR",
@@ -283,6 +304,7 @@ App() do
         )
     )
 
+
     header = DemoCard(
         "HEADER",
         style = Styles(
@@ -291,6 +313,7 @@ App() do
         )
     )
 
+
     main = DemoCard(
         "MAIN",
         style = Styles(
@@ -298,6 +321,7 @@ App() do
             "grid-row" =>  "2",
         )
     )
+
 
     grid = Grid(
         sidebar, header, main,
@@ -313,20 +337,24 @@ With `areas`, in css `grid-template-areas` this can be made even simpler:
 ```@example 1
 App() do
 
+
     sidebar = DemoCard(
         "SIDEBAR",
         style = Styles("grid-area" =>  "sidebar")
     )
+
 
     header = DemoCard(
         "HEADER",
         style = Styles("grid-area" =>  "header")
     )
 
+
     main = DemoCard(
         "MAIN",
         style = Styles("grid-area" =>  "main")
     )
+
 
     grid = Grid(
         sidebar, header, main,
@@ -340,12 +368,11 @@ App() do
     return DOM.div(grid; style=Styles("height" => "600px", "margin" => "20px", "position" => :relative))
 end
 ```
-The syntax is quite similar to julias matrix syntax, just wrapping all rows into `'...row...'`!
+
+The syntax is quite similar to Julia's matrix syntax, just wrapping all rows into `'...row...'`!
 To span multiple rows or columns, the name can be repeated multiple times.
 
-
 ## Alignment
-
 
 ```@example 1
 App() do
@@ -357,10 +384,10 @@ App() do
 end
 ```
 
-
 ```@example 1
 App() do session
     justification = JSServe.Dropdown(["space-evenly", "center", "end", "space-between", "space-around", "space-evenly"], style=Styles("width" => "200px"))
+
 
     grid = Grid(
         DemoCard(), DemoCard(),
@@ -401,7 +428,6 @@ App() do session
 end
 ```
 
-
 ```@example 1
 App() do session
     content = JSServe.Dropdown(["space-evenly", "center", "end", "space-between", "space-around"])
@@ -417,8 +443,10 @@ App() do session
         style=grid_style
     )
 
+
     grid_col() = DOM.div(style=Styles("border" => "2px dashed white", "width"=>"100px"))
     grid_row() = DOM.div(style=Styles("border" => "2px dashed white", "height"=>"100px"))
+
 
     shadow_cols = Grid(
         grid_col(), grid_col(),
@@ -431,11 +459,13 @@ App() do session
         style=grid_style
     )
 
+
     onjs(session, content.option_index, js""" (idx) => {
         const grids = [$(grid), $(shadow_cols)]
         const val = $(content.options[])[idx-1]
         grids.forEach(x=> x.style["justify-content"] = val)
     }""")
+
 
     onjs(session, items.option_index, js""" (idx) => {
         const grids = [$(grid), $(shadow_cols)]
@@ -443,17 +473,20 @@ App() do session
         grids.forEach(x=> x.style["justify-items"] = val)
     }""")
 
+
     onjs(session, align_content.option_index, js""" (idx) => {
         const grids = [$(grid), $(shadow_rows)]
         const val = $(align_content.options[])[idx-1]
         grids.forEach(x=> x.style["align-content"] = val)
     }""")
 
+
     onjs(session, align_items.option_index, js""" (idx) => {
         const grids = [$(grid), $(shadow_rows)]
         const val = $(align_items.options[])[idx-1]
         grids.forEach(x=> x.style["align-items"] = val)
     }""")
+
 
     grid_area = DOM.div(grid, shadow_cols, shadow_rows; style=Styles(
         "height" => "400px", "width" => "400px",
@@ -462,6 +495,7 @@ App() do session
         "position" => :relative,
         "background-color" => "#F88379",
         "grid-column" => "1 / 3", "grid-row" => "4"))
+
 
     text(t) = DOM.div(t; style=Styles("font-size" => "1.3rem", "font-weight" => "bold"))
     final_grid = Grid(
@@ -473,6 +507,7 @@ App() do session
         align_items = "center",
         justify_items="begin", justify_content="center",
         width="400px")
+
 
     return DOM.div(final_grid, style=Styles("padding" => "20px"))
 end

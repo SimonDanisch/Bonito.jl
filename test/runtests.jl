@@ -22,7 +22,7 @@ include("ElectronTests.jl")
 
 function wait_on_test_observable()
     global test_observable
-    test_channel = Channel{Dict{String, Any}}(1)
+    test_channel = Channel{Dict{String,Any}}(1)
     f = on(test_observable) do value
         put!(test_channel, value)
     end
@@ -49,20 +49,38 @@ function test_value(app, statement)
     else
         statement()
     end
-    fetch(val_t) # fetch the value!
+    return fetch(val_t) # fetch the value!
 end
 
-edisplay = JSServe.use_electron_display(devtools=true)
-
+edisplay = JSServe.use_electron_display(; devtools=true)
 
 @testset "JSServe" begin
-    @testset "threading" begin; include("threading.jl"); end
-    @testset "server" begin; include("server.jl"); end
-    @testset "subsessions" begin; include("subsessions.jl"); end
-    @testset "connection-serving" begin; include("connection-serving.jl"); end
-    @testset "serialization" begin; include("serialization.jl"); end
-    @testset "widgets" begin; include("widgets.jl"); end
+    @testset "styling" begin
+        include("styling.jl")
+    end
+    @testset "threading" begin
+        include("threading.jl")
+    end
+    @testset "server" begin
+        include("server.jl")
+    end
+    @testset "subsessions" begin
+        include("subsessions.jl")
+    end
+    @testset "connection-serving" begin
+        include("connection-serving.jl")
+    end
+    @testset "serialization" begin
+        include("serialization.jl")
+    end
+    @testset "widgets" begin
+        include("widgets.jl")
+    end
     # @testset "various" begin; include("various.jl"); end
-    @testset "markdown" begin; include("markdown.jl"); end
-    @testset "basics" begin; include("basics.jl"); end
+    @testset "markdown" begin
+        include("markdown.jl")
+    end
+    @testset "basics" begin
+        include("basics.jl")
+    end
 end

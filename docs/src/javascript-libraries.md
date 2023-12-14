@@ -1,4 +1,6 @@
-# Tutorial
+# Javascript
+
+## Wrapping Javascript Libraries
 
 ```@setup 1
 using JSServe
@@ -6,8 +8,8 @@ JSServe.Page()
 ```
 
 ```@example 1
-leafletjs = JSServe.ES6Module("https://esm.sh/v111/leaflet@1.9.3/es2022/leaflet.js")
-leafletcss = JSServe.Asset("https://unpkg.com/leaflet@1.9.3/dist/leaflet.css")
+leafletjs = JSServe.ES6Module("https://esm.sh/v133/leaflet@1.9.4/es2022/leaflet.mjs")
+leafletcss = JSServe.Asset("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css")
 struct LeafletMap
     position::NTuple{2,Float64}
     zoom::Int

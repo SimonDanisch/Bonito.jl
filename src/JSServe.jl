@@ -62,7 +62,7 @@ include("util.jl")
 include("widgets.jl")
 include("display.jl")
 include("export.jl")
-include("dashboard.jl")
+include("components.jl")
 include("tailwind-dashboard.jl")
 
 include("interactive.jl")
@@ -77,7 +77,8 @@ export NoServer, AssetFolder, HTTPAssetServer, DocumenterAssets
 export NoConnection, IJuliaConnection, PlutoConnection, WebSocketConnection
 export export_static, Routes, interactive_server
 export Card, Grid, FileInput, Dropdown, Styles, Col, Row
-export Labeled, StylableSlider
+export Labeled, StylableSlider, Centered
+export interactive_server
 
 function has_html_display()
     for display in Base.Multimedia.displays

@@ -294,7 +294,30 @@ function Base.setindex!(slider::AbstractSlider, value)
     return idx
 end
 
+
+const CHECKBOX_EXAMPLE = """
+App() do
+    style = Styles(
+        CSS(":hover", "background-color" => "silver"),
+        CSS(":focus", "box-shadow" => "rgba(0, 0, 0, 0.5) 0px 0px 5px"),
+    )
+    checkbox = Checkbox(true; style=style)
+    on(checkbox.value) do value::Bool
+        @info value
+    end
+    return checkbox
+end
+"""
+
+"""
+    Checkbox(default_value; style=Styles(), dom_attributes...)
+
+A simple Checkbox, which can be styled via the `style::Styles` attribute.
+"""
+
 function jsrender(session::Session, tb::Checkbox)
+    style = Styles(Styles("min-width" => "auto", "transform" => "scale(1.5)"), BUTTON_STYLE)
+    css = Styles(get(tb.attributes, :style, Styles()), style)
     return jsrender(
         session,
         DOM.input(;
@@ -302,9 +325,11 @@ function jsrender(session::Session, tb::Checkbox)
             checked=tb.value,
             onchange=js"""event=> $(tb.value).notify(event.srcElement.checked);""",
             tb.attributes...,
+            style=css
         ),
     )
 end
+
 # TODO, clean this up
 const noUiSlider = ES6Module(dependency_path("nouislider.min.js"))
 const noUiSliderCSS = Asset(dependency_path("noUISlider.css"))
