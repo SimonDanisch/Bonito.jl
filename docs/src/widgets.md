@@ -143,8 +143,10 @@ App() do session::Session
 end
 ```
 
-
 ## Tailwinddashboard
+
+[`Styles`](@ref) is preferred to style components, but JSServe also includes some [Tailwind](https://tailwindcss.com/) based components.
+They're from before `Styles` and will likely get removed in the future.
 
 
 ```@example 1

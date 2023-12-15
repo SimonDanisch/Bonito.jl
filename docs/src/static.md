@@ -1,7 +1,13 @@
 # Static Sites
 
 There are several ways to generate static sites with JSServe.
-The simplest one is to use the Revise based `interactive_server`:
+The main one is:
+
+```@docs
+export_static
+```
+
+The simplest one, which also allows an interactive Revise based workflow is enabled by `interactive_server`:
 
 ```@docs
 interactive_server

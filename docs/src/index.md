@@ -39,7 +39,7 @@ App(() -> DOM.div(...))
 App(DOM.div(...))
 ```
 
-The app will be displayed by e.g. the VSCode plotpane, Jupyter/Pluto or any other framework that overloads the Julia display system for HTML display.
+The app will be displayed by e.g. the VSCode plot pane, Jupyter/Pluto or any other framework that overloads the Julia display system for HTML display.
 In the REPL or an environment without an HTML ready display, a browser should open to display it (enabled explicitly via `JSServe.browser_display()`), but one can also serve the App very easily:
 
 ```julia
