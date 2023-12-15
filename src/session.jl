@@ -123,7 +123,7 @@ function Base.close(session::Session)
         if session !== root
             #  Close session on js side as well
             # If not ready, we already lost connection to JS frontend, so no need to close things on the JS side
-            isready(root) && evaljs(root, js"""JSServe.free_session($(session.id))""")
+            isready(root) && evaljs(root, js"""Bonito.free_session($(session.id))""")
         end
         close(session.connection)
         close(session.asset_server)
@@ -262,7 +262,7 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
             comm.notify({error: e.toString()});
         } finally {
             // manually free!!
-            JSServe.free_object(comm.id);
+            Bonito.free_object(comm.id);
         }
     }
     """
@@ -345,18 +345,18 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
             head = Hyperscript.m("head", Hyperscript.m("meta"; charset="UTF-8"),
                                  Hyperscript.m("title", session.title), session_style)
             body = Hyperscript.m("body", body_dom)
-            dom = Hyperscript.m("html", head, body; class="jsserve-fragment")
+            dom = Hyperscript.m("html", head, body; class="bonito-fragment")
         else
             # Emit a "fragment"
             head = DOM.div(session_style)
             body = DOM.div(dom)
             dom = DOM.div(
-                head, body; id=session.id, class="jsserve-fragment", dataJscallId=dom_id
+                head, body; id=session.id, class="bonito-fragment", dataJscallId=dom_id
             )
         end
     end
-    # first render JSServeLib
-    JSServe_import = DOM.script(src=url(session, JSServeLib), type="module")
+    # first render BonitoLib
+    Bonito_import = DOM.script(src=url(session, BonitoLib), type="module")
     init_server = setup_asset_server(session.asset_server)
     if !isnothing(init_server)
         pushfirst!(children(body), jsrender(session, init_server))
@@ -373,12 +373,12 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         msgs = fused_messages!(session)
         type = issubsession ? "sub" : "root"
         if isempty(msgs[:payload])
-            init_session = js"""JSServe.lock_loading(() => JSServe.init_session($(session.id), null, $(type)))"""
+            init_session = js"""Bonito.lock_loading(() => Bonito.init_session($(session.id), null, $(type)))"""
         else
             binary = BinaryAsset(session, msgs)
             init_session = js"""
-                JSServe.lock_loading(() => {
-                    return $(binary).then(msgs=> JSServe.init_session($(session.id), msgs, $(type)));
+                Bonito.lock_loading(() => {
+                    return $(binary).then(msgs=> Bonito.init_session($(session.id), msgs, $(type)));
                 })
             """
         end
@@ -386,7 +386,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     end
 
     if !issubsession
-        pushfirst!(children(head), JSServe_import)
+        pushfirst!(children(head), Bonito_import)
     end
     session.status = RENDERED
     return dom

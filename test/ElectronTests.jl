@@ -1,10 +1,10 @@
-using Electron, JSServe
-using JSServe.HTTP: Request
-import JSServe.HTTPServer: start, isrunning
-using JSServe: Session, @js_str, JSCode
-import JSServe: evaljs, evaljs_value
-using JSServe.Hyperscript: Node, HTMLSVG
-using JSServe.DOM
+using Electron, Bonito
+using Bonito.HTTP: Request
+import Bonito.HTTPServer: start, isrunning
+using Bonito: Session, @js_str, JSCode
+import Bonito: evaljs, evaljs_value
+using Bonito.Hyperscript: Node, HTMLSVG
+using Bonito.DOM
 using Base: RefValue
 using Test
 
@@ -27,7 +27,7 @@ mutable struct TestSession
     url::URI
     initialized::Bool
     error_in_handler::Any
-    server::JSServe.Server
+    server::Bonito.Server
     window::Electron.Window
     session::Session
     dom::Node{HTMLSVG}
@@ -37,13 +37,13 @@ mutable struct TestSession
         return new(url, false, nothing)
     end
 
-    function TestSession(url::URI, server::JSServe.Server, window::Electron.Window, session::Session)
+    function TestSession(url::URI, server::Bonito.Server, window::Electron.Window, session::Session)
         testsession = new(url, true, nothing, server, window, session)
         return testsession
     end
 end
 
-JSServe.session(testsession::TestSession) = testsession.session
+Bonito.session(testsession::TestSession) = testsession.session
 
 function Base.show(io::IO, testsession::TestSession)
     print(io, "TestSession")
@@ -51,11 +51,11 @@ end
 
 function check_and_close_display()
     # For some reason, when running code in Atom, it happens very easily,
-    # That JSServe display server gets started!
-    # Maybe better to PR an option in JSServe to prohibit starting it in the first place
-    if !isnothing(JSServe.GLOBAL_SERVER[]) && isrunning(JSServe.GLOBAL_SERVER[])
-        @warn "closing JSServe display server, which interfers with testing!"
-        close(JSServe.GLOBAL_SERVER[])
+    # That Bonito display server gets started!
+    # Maybe better to PR an option in Bonito to prohibit starting it in the first place
+    if !isnothing(Bonito.GLOBAL_SERVER[]) && isrunning(Bonito.GLOBAL_SERVER[])
+        @warn "closing Bonito display server, which interfers with testing!"
+        close(Bonito.GLOBAL_SERVER[])
     end
 end
 
@@ -73,7 +73,7 @@ function TestSession(handler; url="0.0.0.0", port=8081, timeout=300)
             testsession.error_in_handler = (e, Base.catch_backtrace())
         end
     end
-    testsession.server = JSServe.Server(app, url, port)
+    testsession.server = Bonito.Server(app, url, port)
     try
         start(testsession; timeout=timeout)
         return testsession
@@ -166,7 +166,7 @@ function reload!(testsession::TestSession; timeout=300)
     # Make 100% sure we're serving something, since otherwise, well block forever
     @assert isrunning(testsession.server)
     # Extra long time out for compilation!
-    response = JSServe.HTTP.get(string(testsession.url), readtimeout=500)
+    response = Bonito.HTTP.get(string(testsession.url), readtimeout=500)
     @assert response.status == 200
     testsession.initialized = false
     testsession.error_in_handler = nothing
@@ -227,7 +227,7 @@ evaljs(testsession, js"document.getElementById('the-id')")
 ```
 """
 function evaljs(testsession::TestSession, js::JSCode)
-    JSServe.evaljs_value(testsession.session, js)
+    Bonito.evaljs_value(testsession.session, js)
 end
 
 """

@@ -137,7 +137,7 @@ function MyComponent(; style=Styles())
     return DOM.div(style=Styles(style, "color" => "red"))
 end
 ```
-All JSServe components are stylable this way.
+All Bonito components are stylable this way.
 
 !!! info
     Why not `Hyperscript.Style`? While the scoped styling via `Hyperscript.Style` is great, it makes it harder to create stylable components, since it doesn't allow the deduplication of CSS objects across the session.
@@ -273,7 +273,7 @@ function Session(connection=default_connection();
                 deregister_callbacks=Observables.ObserverFunction[],
                 session_objects=Dict{String, Any}(),
                 imports=OrderedSet{Asset}(),
-                title="JSServe App",
+                title="Bonito App",
                 compression_enabled=default_compression())
 
     return Session(
@@ -318,7 +318,7 @@ mutable struct App
     title::String
     threaded::Bool
     function App(handler::Function;
-            title::AbstractString="JSServe App", threaded=false)
+            title::AbstractString="Bonito App", threaded=false)
         session = Base.RefValue{Union{Session, Nothing}}(nothing)
         if hasmethod(handler, Tuple{Session, HTTP.Request})
             app = new(handler, session, title, threaded)
@@ -340,7 +340,7 @@ mutable struct App
         finalizer(close, app)
         return app
     end
-    function App(dom_object; title="JSServe App", threaded=false)
+    function App(dom_object; title="Bonito App", threaded=false)
         session = Base.RefValue{Union{Session,Nothing}}(nothing)
         app = new((s, r) -> dom_object, session, title, threaded)
         finalizer(close, app)

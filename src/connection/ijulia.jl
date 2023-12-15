@@ -1,4 +1,4 @@
-const PLUGIN_NAME = :JSServe
+const PLUGIN_NAME = :Bonito
 const IJULIA_PKG_ID = Base.PkgId(Base.UUID("7073ff75-c697-5162-941a-fcdaad2a7d2a"), "IJulia")
 const IJULIA_REF = Ref{Module}()
 
@@ -69,7 +69,7 @@ function setup_connection(session::Session, ::Nothing)
             comm.on_msg = function (msg)
                 data_b64 = msg.content["data"]
                 bytes = $(Base64).base64decode(data_b64)
-                $(JSServe).process_message(session, bytes)
+                $(Bonito).process_message(session, bytes)
             end
             comm.on_close = (args...) -> close(session)
         end
@@ -81,7 +81,7 @@ function setup_connection(session::Session, ::Nothing)
         if (!window.Jupyter) {
             throw new Error("Jupyter not loaded");
         }
-        const plugin_name = $(JSServe.PLUGIN_NAME);
+        const plugin_name = $(Bonito.PLUGIN_NAME);
         const comm_manager = Jupyter.notebook.kernel.comm_manager;
         comm_manager.unregister_target(plugin_name);
         comm_manager.register_target(plugin_name, () => {});
@@ -94,11 +94,11 @@ function setup_connection(session::Session, ::Nothing)
             undefined, // buffers
         );
         comm.on_msg((msg) => {
-            JSServe.decode_base64_message(msg.content.data.data, $(session.compression_enabled)).then(JSServe.process_message)
+            Bonito.decode_base64_message(msg.content.data.data, $(session.compression_enabled)).then(Bonito.process_message)
         });
 
-        JSServe.on_connection_open((binary) => {
-            JSServe.base64encode(binary).then(x=> comm.send(x))
+        Bonito.on_connection_open((binary) => {
+            Bonito.base64encode(binary).then(x=> comm.send(x))
         }, $(session.compression_enabled));
     })()
     """

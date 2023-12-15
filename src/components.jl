@@ -170,7 +170,7 @@ end
 
 const STYLABLE_SLIDER_EXAMPLE = """
 App() do
-    JSServe.StylableSlider(
+    Bonito.StylableSlider(
         1:10;
         value=5,
         slider_height=20,
@@ -216,7 +216,7 @@ Creates a Stylable Slider, where the basic attributes are easily custimizable vi
 while the more advanced details can be styled via the `style`, `track_style`, `thumb_style` and `track_active_style` arguments with the whole might of CSS.
 This does not use `<input type="range">` but is a custom implementation using `<div>`s javascript,
 since it is not easily possible to style the native slider in a cross-browser way.
-For using pure HTML sliders, use `JSServe.Slider`.
+For using pure HTML sliders, use `Bonito.Slider`.
 
 # Example
 

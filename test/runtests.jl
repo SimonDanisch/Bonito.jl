@@ -1,23 +1,23 @@
-using JSServe
-# ENV["JULIA_DEBUG"] = JSServe
+using Bonito
+# ENV["JULIA_DEBUG"] = Bonito
 @show Threads.nthreads()
 
 using Deno_jll
 using Hyperscript, Markdown, Test, RelocatableFolders
 using Observables
-using JSServe: Session, evaljs, linkjs, div
-using JSServe: onjs, JSString, Asset, jsrender
-using JSServe: @js_str, uuid, SerializationContext, serialize_binary
-using JSServe.DOM
-using JSServe.HTTP
+using Bonito: Session, evaljs, linkjs, div
+using Bonito: onjs, JSString, Asset, jsrender
+using Bonito: @js_str, uuid, SerializationContext, serialize_binary
+using Bonito.DOM
+using Bonito.HTTP
 using Electron
 using URIs
 using Random
 using Hyperscript: children
-using JSServe.MsgPack
-using JSServe.CodecZlib
+using Bonito.MsgPack
+using Bonito.CodecZlib
 using Test
-using JSServe: jsrender
+using Bonito: jsrender
 include("ElectronTests.jl")
 
 function wait_on_test_observable()
@@ -44,17 +44,17 @@ function test_value(app, statement)
     # which would make use wait forever
     val_t = @async wait_on_test_observable()
     # eval our js expression that is supposed to write something to test_observable
-    if statement isa JSServe.JSCode
-        JSServe.evaljs(app.session, statement)
+    if statement isa Bonito.JSCode
+        Bonito.evaljs(app.session, statement)
     else
         statement()
     end
     return fetch(val_t) # fetch the value!
 end
 
-edisplay = JSServe.use_electron_display(; devtools=true)
+edisplay = Bonito.use_electron_display(; devtools=true)
 
-@testset "JSServe" begin
+@testset "Bonito" begin
     @testset "styling" begin
         include("styling.jl")
     end

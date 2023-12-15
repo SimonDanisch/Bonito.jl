@@ -89,7 +89,7 @@ function attribute_render(session::Session, parent, attribute::String, obs::Obse
     rendered = map(session, obs) do value
         attribute_render(session, parent, attribute, value)
     end
-    onjs(session, rendered, js"value=> JSServe.update_node_attribute($(parent), $attribute, value)")
+    onjs(session, rendered, js"value=> Bonito.update_node_attribute($(parent), $attribute, value)")
     return rendered[]
 end
 

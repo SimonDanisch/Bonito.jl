@@ -65,7 +65,7 @@ function fetch_binary(url) {
     });
 }
 
-const JSServe = {
+const Bonito = {
     Protocol,
     base64decode,
     base64encode,
@@ -100,7 +100,7 @@ const JSServe = {
 };
 
 // @ts-ignore
-window.JSServe = JSServe;
+window.Bonito = Bonito;
 
 
 export {

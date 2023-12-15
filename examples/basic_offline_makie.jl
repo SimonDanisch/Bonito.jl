@@ -1,5 +1,5 @@
-using JSServe, WGLMakie, Makie, Colors, FileIO
-using JSServe.DOM
+using Bonito, WGLMakie, Makie, Colors, FileIO
+using Bonito.DOM
 
 function styled_slider(slider, value)
     rows(slider, DOM.span(value, class="p-1"), class="w-64 p-2 items-center")
@@ -13,8 +13,8 @@ css_color(c) = "background-color: #$(hex(c))"
 cat = decompose(Point3f, FileIO.load(Makie.assetpath("cat.obj")))
 # Create a little interactive app
 app = App() do session
-    markersize = JSServe.Slider(range(10, stop=100, length=100))
-    hue_slider = JSServe.Slider(1:120)
+    markersize = Bonito.Slider(range(10, stop=100, length=100))
+    hue_slider = Bonito.Slider(1:120)
     color = map(hue_slider) do hue
         HSV(hue, 0.5, 0.5)
     end
@@ -23,9 +23,9 @@ app = App() do session
     color_swatch = DOM.div(class="h-6 w-6 p-1 rounded dropshadow", style=map(css_color, color))
     h_slider = styled_slider(hue_slider, color_swatch)
     sliders = rows(m_slider, h_slider)
-    dom = DOM.div(JSServe.Styling, JSServe.TailwindCSS, columns(sliders, plot))
-    return JSServe.record_states(session, dom)
+    dom = DOM.div(Bonito.Styling, Bonito.TailwindCSS, columns(sliders, plot))
+    return Bonito.record_states(session, dom)
 end;
 
 # mkdir("simple")
-JSServe.export_static("simple.html", app)
+Bonito.export_static("simple.html", app)

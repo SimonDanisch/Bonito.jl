@@ -1,4 +1,4 @@
-using JSServe: URI
+using Bonito: URI
 
 mutable struct BrowserDisplay <: Base.Multimedia.AbstractDisplay
     server::Union{Nothing, Server}
@@ -19,7 +19,7 @@ end
 
 """
     browser_display()
-Forces JSServe.App to be displayed in a browser window that gets opened.
+Forces Bonito.App to be displayed in a browser window that gets opened.
 """
 function browser_display()
     displays = Base.Multimedia.displays
@@ -63,13 +63,13 @@ function openurl(url::String)
     @warn("Can't find a way to open a browser, open $(url) manually!")
 end
 
-using ..JSServe: wait_for_ready, wait_for
-using ..JSServe
+using ..Bonito: wait_for_ready, wait_for
+using ..Bonito
 
 function Base.display(display::BrowserDisplay, app::App)
     s = server(display)
     if isnothing(display.handler)
-        display.handler = JSServe.DisplayHandler(s, app)
+        display.handler = Bonito.DisplayHandler(s, app)
     end
     handler = display.handler
     needs_load = update_app!(handler, app)

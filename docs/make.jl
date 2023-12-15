@@ -1,10 +1,10 @@
-using Deno_jll, JSServe
+using Deno_jll, Bonito
 using Documenter
 
 ci = get(ENV, "CI", "false") == "true"
 makedocs(
-    modules=[JSServe],
-    sitename="JSServe",
+    modules=[Bonito],
+    sitename="Bonito",
     clean=false,
     format=Documenter.HTML(prettyurls=false, size_threshold=300000),
     authors="Simon Danisch and other contributors",
@@ -30,5 +30,5 @@ makedocs(
 )
 
 if ci
-    deploydocs(repo="github.com/SimonDanisch/JSServe.jl.git"; push_preview=true)
+    deploydocs(repo="github.com/SimonDanisch/Bonito.jl.git"; push_preview=true)
 end

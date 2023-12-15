@@ -1,14 +1,14 @@
 # Interactions
 
-Animations in JSServe are done via Observables.jl, much like it's the case for Makie.jl, so the same docs apply:
+Animations in Bonito are done via Observables.jl, much like it's the case for Makie.jl, so the same docs apply:
 
 * [observables](https://docs.makie.org/stable/documentation/nodes/index.html)
 * [animation](https://docs.makie.org/stable/documentation/animation/index.html)
 
-But lets quickly get started with a JSServe specific example:
+But lets quickly get started with a Bonito specific example:
 
 ```@setup 1
-using JSServe
+using Bonito
 Page()
 ```
 
@@ -19,7 +19,7 @@ App() do session
         return x ^ 2
     end
     # Record states is an experimental feature to record all states generated in the Julia session and allow the slider to stay interactive in the statically hosted docs!
-    return JSServe.record_states(session, DOM.div(s, value))
+    return Bonito.record_states(session, DOM.div(s, value))
 end
 ```
 
@@ -43,14 +43,14 @@ App() do session
             return x^2
         end
     end
-    return JSServe.record_states(session, DOM.div(s, value))
+    return Bonito.record_states(session, DOM.div(s, value))
 end
 ```
 
 In other words, the whole app can just be one big observable:
 
 ```@example 1
-import JSServe.TailwindDashboard as D
+import Bonito.TailwindDashboard as D
 App() do session
     s = D.Slider("Slider: ", 1:3)
     checkbox = D.Checkbox("Chose:", true)
@@ -58,7 +58,7 @@ App() do session
     app = map(checkbox.widget.value, s.widget.value, menu.widget.value) do checkboxval, sliderval, menuval
         DOM.div(checkboxval, sliderval, menuval)
     end
-    return JSServe.record_states(session, D.FlexRow(
+    return Bonito.record_states(session, D.FlexRow(
         D.Card(D.FlexCol(checkbox, s, menu)),
         D.Card(app)
     ))
@@ -68,7 +68,7 @@ end
 Likes this one create interactive examples like this:
 
 ```@example 1
-import JSServe.TailwindDashboard as D
+import Bonito.TailwindDashboard as D
 
 function create_svg(sl_nsamples, sl_sample_step, sl_phase, sl_radii, color)
     width, height = 900, 300
@@ -76,7 +76,7 @@ function create_svg(sl_nsamples, sl_sample_step, sl_phase, sl_radii, color)
     cys = sin.(cxs_unscaled) .* height/3 .+ height/2
     cxs = cxs_unscaled .* width/4pi
     rr = sl_radii
-    # DOM.div/svg/etc is just a convenience in JSServe for using Hyperscript, but circle isn't wrapped like that yet
+    # DOM.div/svg/etc is just a convenience in Bonito for using Hyperscript, but circle isn't wrapped like that yet
     geom = [SVG.circle(cx=cxs[i], cy=cys[i], r=rr, fill=color(i)) for i in 1:sl_nsamples[]]
     return SVG.svg(SVG.g(geom...);
         width=width, height=height
@@ -133,12 +133,12 @@ app = App() do session
             }
             $(svg).replaceChildren(svg_node);
         }
-        JSServe.onany(observables, update_svg)
+        Bonito.onany(observables, update_svg)
         update_svg(observables.map(x=> x.value))
         """)
     return DOM.div(D.FlexRow(D.FlexCol(nsamples, sample_step, phase, radii), svg))
 end
 ```
 
-This works, because the Javascript side of JSServe, will still update the observables in Javascript (which are mirrored from Julia), and therefore keep working without a running Julia process.
-You can use `js_observable.on(value=> ....)` and `JSServe.onany(array_of_js_observables, values=> ...)` to create interactions, pretty similar to how you would work with Observables in Julia.
+This works, because the Javascript side of Bonito, will still update the observables in Javascript (which are mirrored from Julia), and therefore keep working without a running Julia process.
+You can use `js_observable.on(value=> ....)` and `Bonito.onany(array_of_js_observables, values=> ...)` to create interactions, pretty similar to how you would work with Observables in Julia.

@@ -1,9 +1,9 @@
 # Components
 
-Components in JSServe are meant to be re-usable, easily shareable types and functions to create complex JSServe Apps.
+Components in Bonito are meant to be re-usable, easily shareable types and functions to create complex Bonito Apps.
 We invite everyone to share their Components by turning them into a Julia library.
 
-There are two ways of defining components in JSServe:
+There are two ways of defining components in Bonito:
 
 1. Write a function which returns `DOM` objects
 2. Overload `jsrender` for a type
@@ -11,14 +11,14 @@ There are two ways of defining components in JSServe:
 The first is a very lightweight form of defining reusable components, which should be preferred if possible.
 
 But, for e.g. widgets the second form is unavoidable, since you will want to return a type that the user can register interactions with.
-Also, the second form is great for integrating existing types into JSServe like plot objects.
+Also, the second form is great for integrating existing types into Bonito like plot objects.
 How to do the latter for Plotly is described in [Plotting](@ref).
 
-Let's start with the simple function based components that reuses existing JSServe components:
+Let's start with the simple function based components that reuses existing Bonito components:
 
 ```@setup 1
-using JSServe
-JSServe.Page()
+using Bonito
+Bonito.Page()
 ```
 
 ```@example 1
@@ -46,8 +46,8 @@ App(()-> CurrentMonth())
 Now, we could define the same kind of rendering via overloading `jsrender`, if a date is spliced into a DOM:
 
 ```@example 1
-function JSServe.jsrender(session::Session, date::DateTime)
-    return JSServe.jsrender(session, CurrentMonth(date))
+function Bonito.jsrender(session::Session, date::DateTime)
+    return Bonito.jsrender(session, CurrentMonth(date))
 end
 App() do
     DOM.div(now())

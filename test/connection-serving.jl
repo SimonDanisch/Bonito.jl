@@ -39,7 +39,7 @@ rm(path; force=true)
         display(edisplay, app)
         s = app.session[]
         p = parent(s)
-        success = JSServe.wait_for(timeout=5) do
+        success = Bonito.wait_for(timeout=5) do
             result = run(edisplay.window, "$(query_testid("result")).innerText")
             return result == "passed"
         end
@@ -47,7 +47,7 @@ rm(path; force=true)
         GC.gc()
     end
     session = app.session[]
-    @test session.connection isa JSServe.SubConnection
-    @test parent(session).connection isa JSServe.WebSocketConnection
+    @test session.connection isa Bonito.SubConnection
+    @test parent(session).connection isa Bonito.WebSocketConnection
     @test isready(parent(session))
 end

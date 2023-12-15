@@ -7,18 +7,18 @@ end
 Base.similar(asset::NoServer) = asset # no copy needed
 
 function import_in_js(io::IO, session::Session, ns::NoServer, asset::Asset)
-    import_key = "JSSERVE_IMPORTS['$(unique_key(asset))']"
+    import_key = "BONITO_IMPORTS['$(unique_key(asset))']"
     if asset.es6module
         imports = "import($(import_key))"
     else
-        imports = "JSServe.fetch_binary($(import_key))"
+        imports = "Bonito.fetch_binary($(import_key))"
     end
     # first time we import this asset, we need to add it to the imports!
     str = if !(asset in session.imports)
         push!(session.imports, asset)
         "(() => {
-            if (!window.JSSERVE_IMPORTS) {
-                window.JSSERVE_IMPORTS = {};
+            if (!window.BONITO_IMPORTS) {
+                window.BONITO_IMPORTS = {};
             }
             $(import_key) = `$(url(ns, asset))`;
             return $(imports);
@@ -68,7 +68,7 @@ function desired_location(assetfolder, asset)
     if !occursin(folder, path)
         file = basename(path)
         sub = subdir(asset)
-        return normpath(joinpath(folder, "jsserve", sub, file))
+        return normpath(joinpath(folder, "bonito", sub, file))
     end
     return path
 end
@@ -77,7 +77,7 @@ function desired_location(assetfolder, asset::BinaryAsset)
     dir = folder(assetfolder)
     file = unique_file_key(asset)
     sub = subdir(asset)
-    return normpath(joinpath(dir, "jsserve", sub, file))
+    return normpath(joinpath(dir, "bonito", sub, file))
 end
 
 function write_to_assetfolder(assetfolder, asset)
@@ -158,7 +158,7 @@ function import_in_js(io::IO, session::Session, assetfolder::DocumenterAssets, a
     end
     path = url(assetfolder, asset)
     # We write all javascript files into the same folder, so imports inside
-    # JSSCode, which get evaled from JSServe.js, should use "./js-dep.js"
+    # JSSCode, which get evaled from Bonito.js, should use "./js-dep.js"
     # since the url is relative to the module that imports
     # TODO, is this always called from import? and if not, does it still work?
     print(io, "import('$("./" * basename(path))')")

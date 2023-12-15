@@ -240,7 +240,7 @@ function Base.close(application::Server)
             # Somehow wait(task) deadlocks when there is still an open page?
             # Really weird, especially since I can't make an MWE ... (Windows, Julia 1.8.2, HTTP@v1.5.5)
             # TODO, do we hold on to resources in the stream handler??
-            JSServe.wait_for(() -> istaskdone(task))
+            Bonito.wait_for(() -> istaskdone(task))
             @assert !Base.istaskdone(task)
         catch e
             @debug "Server task failed with an (expected) exception on close" exception=e

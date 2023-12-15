@@ -225,7 +225,7 @@ function jsrender(session::Session, dropdown::Dropdown)
     dom = map(options -> map(option2div, options), session, dropdown.options)[]
 
     select = DOM.select(dom; style=dropdown.style, dropdown.attributes...)
-    JSServe.onload(session, select, onchange)
+    Bonito.onload(session, select, onchange)
     return jsrender(session, select)
 end
 
@@ -504,13 +504,13 @@ function Base.show(io::IO, m::MIME"text/html", widget::WidgetsBase.AbstractWidge
 end
 
 
-struct FileInput <: JSServe.WidgetsBase.AbstractWidget{String}
+struct FileInput <: Bonito.WidgetsBase.AbstractWidget{String}
     value::Observable{Vector{String}}
 end
 
 FileInput() = FileInput(Observable([""]))
 
-function JSServe.jsrender(session::Session, fi::FileInput)
+function Bonito.jsrender(session::Session, fi::FileInput)
     onchange = js"""event => {
         if (event.target.files) {
             const files = [];

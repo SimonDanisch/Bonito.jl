@@ -1,15 +1,15 @@
-# Extending JSServe
+# Extending Bonito
 
 ## Connection
 
 ```@setup 1
-using JSServe
-JSServe.Page()
+using Bonito
+Bonito.Page()
 ```
 
 ```Julia
 
-struct MyConnection <: JSServe.FrontendConnection
+struct MyConnection <: Bonito.FrontendConnection
     ...
 end
 
@@ -30,10 +30,10 @@ function setup_connection(session::Session{MyConnection})
     // Javascript needed to connect to
     const conn = create_connection(...) // implemented by your framework
     conn.on_msg((msg) => {
-        JSServe.process_message(msg)
+        Bonito.process_message(msg)
     });
     // register sending message
-    JSServe.on_connection_open((binary) => {
+    Bonito.on_connection_open((binary) => {
         comm.send(binary)
     }, $(session.compression_enabled));
     """

@@ -101,7 +101,7 @@ function print_js_code(io::IO, jsss::AbstractVector{JSCode}, context::JSSourceCo
 end
 
 function import_in_js(io::IO, session::Session, asset_server, asset::BinaryAsset)
-    print(io, "JSServe.fetch_binary('$(url(session, asset))')")
+    print(io, "Bonito.fetch_binary('$(url(session, asset))')")
 end
 
 function import_in_js(io::IO, session::Session, asset_server, asset::Asset)
@@ -109,7 +109,7 @@ function import_in_js(io::IO, session::Session, asset_server, asset::Asset)
     if asset.es6module
         print(io, "import('$(ref)')")
     else
-        print(io, "JSServe.fetch_binary($(ref))")
+        print(io, "Bonito.fetch_binary($(ref))")
     end
 end
 
@@ -156,8 +156,8 @@ function inline_code(session::Session, asset_server, js::JSCode)
         binary = BinaryAsset(session, interpolated_objects)
         src = """
             // JSCode from $(js.file)
-            JSServe.fetch_binary('$(url(session, binary))').then(bin_messages=>{
-                const objects = JSServe.decode_binary(bin_messages, $(session.compression_enabled));
+            Bonito.fetch_binary('$(url(session, binary))').then(bin_messages=>{
+                const objects = Bonito.decode_binary(bin_messages, $(session.compression_enabled));
                 const __lookup_interpolated = (id) => objects[id]
                 $code
             })

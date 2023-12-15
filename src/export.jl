@@ -94,7 +94,7 @@ Records the states of all widgets in the dom.
 Any widget that implements the following interface will be found in the DOM and can be recorded:
 
 ```julia
-# Implementing interface for JSServe.Slider!
+# Implementing interface for Bonito.Slider!
 is_widget(::Slider) = true
 value_range(slider::Slider) = 1:length(slider.values[])
 to_watch(slider::Slider) = slider.index # the observable that will trigger JS state change
@@ -145,15 +145,15 @@ function record_states(session::Session, dom::Hyperscript.Node)
     $(asset).then(binary => {
         const statemap = $(statemap)
         console.log(statemap)
-        const observables = JSServe.decode_binary(binary, $(session.compression_enabled));
-        JSServe.onany(observables, (states) => {
+        const observables = Bonito.decode_binary(binary, $(session.compression_enabled));
+        Bonito.onany(observables, (states) => {
             console.log(states)
             // messages to send for this state of that observable
             const messages = statemap[states]
             // not all states trigger events
             // so some states won't have any messages recorded
             if (messages){
-                messages.forEach(JSServe.process_message)
+                messages.forEach(Bonito.process_message)
             }
         })
     })

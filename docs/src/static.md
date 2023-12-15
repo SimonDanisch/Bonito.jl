@@ -1,6 +1,6 @@
 # Static Sites
 
-There are several ways to generate static sites with JSServe.
+There are several ways to generate static sites with Bonito.
 The main one is:
 
 ```@docs
@@ -16,5 +16,5 @@ interactive_server
 When exporting interactions defined within Julia not using Javascript, one can use, to cache all interactions:
 
 ```@docs
-JSServe.record_states
+Bonito.record_states
 ```

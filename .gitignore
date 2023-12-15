@@ -5,7 +5,7 @@
 /Manifest.toml
 /dev/
 /js_dependencies/session_temp_data/
-/examples/JSServe_demo/exported/*
+/examples/Bonito_demo/exported/*
 yarn.lock
 package.json
 node_modules
