@@ -59,7 +59,7 @@ setup_connection(session::Session{DebugConnection}) = nothing
     @test length(open_session.children) == 1
     c_session = first(open_session.children)[2]
     # ID of div correctly set to child session
-    @test occursin("<div id=\"$(c_session.id)\"", html)
+    @test occursin("id=\"$(c_session.id)\"", html)
 
     @testset "assets" begin
         @test length(c_session.session_objects) == 2

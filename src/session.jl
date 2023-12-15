@@ -335,23 +335,26 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     # If we have a head & body, we want to append our initialization
     # code and dom nodes to the right places, so we need to extract those
     head, body, dom = find_head_body(dom)
+    session_style = render_stylesheets!(root_session(session), session.stylesheets)
 
     # if nothing is found, we just use one div and append to that
     if isnothing(head) && isnothing(body)
         if html_document
             # emit a whole html document
             body_dom = DOM.div(dom, id=session.id, dataJscallId=dom_id)
-            head = Hyperscript.m("head", Hyperscript.m("meta", charset="UTF-8"), Hyperscript.m("title", session.title))
+            head = Hyperscript.m("head", Hyperscript.m("meta"; charset="UTF-8"),
+                                 Hyperscript.m("title", session.title), session_style)
             body = Hyperscript.m("body", body_dom)
-            dom = Hyperscript.m("html", head, body)
+            dom = Hyperscript.m("html", head, body; class="jsserve-fragment")
         else
             # Emit a "fragment"
-            head = DOM.div()
-            body = dom
-            dom = DOM.div(head, dom, id=session.id, dataJscallId=dom_id)
+            head = DOM.div(session_style)
+            body = DOM.div(dom)
+            dom = DOM.div(
+                head, body; id=session.id, class="jsserve-fragment", dataJscallId=dom_id
+            )
         end
     end
-
     # first render JSServeLib
     JSServe_import = DOM.script(src=url(session, JSServeLib), type="module")
     init_server = setup_asset_server(session.asset_server)

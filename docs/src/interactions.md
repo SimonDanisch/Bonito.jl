@@ -1,9 +1,9 @@
-# Animating things
+# Interactions
 
 Animations in JSServe are done via Observables.jl, much like it's the case for Makie.jl, so the same docs apply:
 
-https://docs.makie.org/stable/documentation/nodes/index.html
-https://docs.makie.org/stable/documentation/animation/index.html
+* [observables](https://docs.makie.org/stable/documentation/nodes/index.html)
+* [animation](https://docs.makie.org/stable/documentation/animation/index.html)
 
 But lets quickly get started with a JSServe specific example:
 
@@ -18,13 +18,14 @@ App() do session
     value = map(s.value) do x
         return x ^ 2
     end
+    # Record states is an experimental feature to record all states generated in the Julia session and allow the slider to stay interactive in the statically hosted docs!
     return JSServe.record_states(session, DOM.div(s, value))
 end
 ```
 
 The `s.value` is an `Observable` which can be `mapp'ed` to take on new values, and one can insert observables as an input to `DOM.tag` or as any attribute.
-The value of the `observable` will be renedered via `jssrender(session, observable[])`, and then updated whenever the value changes.
-So anything that supports being inserted into the `DOM` can be inside an observable, and the fallback is to use the display system (so plots etc work as well).
+The value of the `observable` will be rendered via `jssrender(session, observable[])`, and then updated whenever the value changes.
+So anything that supports being inserted into the `DOM` can be inside an observable, and the fallback is to use the display system (so plots etc. work as well).
 This way, one can also return `DOM` elements as the result of an observable:
 
 ```@example 1
@@ -64,7 +65,6 @@ App() do session
 end
 ```
 
-
 Likes this one create interactive examples like this:
 
 ```@example 1
@@ -95,7 +95,7 @@ app = App() do session
 end
 ```
 
-As you notice, when exporting this example to the docs which get statically hosted, all interactions requiring Julia ceise to exist.
+As you notice, when exporting this example to the docs which get statically hosted, all interactions requiring Julia cease to exist.
 One way to create interactive examples that stay active is to move the parts that need Julia to Javascript:
 
 ```@example 1

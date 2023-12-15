@@ -2,6 +2,7 @@
 
 ## Public Functions
 
+
 ```@autodocs
 Modules = [JSServe]
 Order   = [:module, :constant, :type, :function, :macro]

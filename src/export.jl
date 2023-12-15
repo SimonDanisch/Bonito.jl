@@ -87,6 +87,24 @@ function while_disconnected(f, session::Session)
     f()
 end
 
+"""
+    record_states(session::Session, dom::Hyperscript.Node)
+
+Records the states of all widgets in the dom.
+Any widget that implements the following interface will be found in the DOM and can be recorded:
+
+```julia
+# Implementing interface for JSServe.Slider!
+is_widget(::Slider) = true
+value_range(slider::Slider) = 1:length(slider.values[])
+to_watch(slider::Slider) = slider.index # the observable that will trigger JS state change
+```
+
+!!! warn
+    This is experimental and might change in the future!
+    It can also create really large HTML files, since it needs to record all combinations of widget states.
+    It's also not well optimized yet and may create a lot of duplicated messages.
+"""
 function record_states(session::Session, dom::Hyperscript.Node)
     widgets = extract_widgets(dom)
     rendered = jsrender(session, dom)
@@ -167,6 +185,13 @@ function export_standalone(app::App, folder::String;
     error("export_standalone is deprecated, please use export_static")
 end
 
+"""
+    export_static(html_file::Union{IO, String}, app::App)
+    export_static(folder::String, routes::Routes)
+
+Exports the app defined by `app` with all its assets a single HTML file.
+Or exports all routes defined by `routes` to `folder`.
+"""
 function export_static(html_file::String, app::App;
         asset_server=NoServer(),
         connection=NoConnection(),
@@ -196,13 +221,4 @@ function export_static(folder::String, routes::Routes; connection=NoConnection()
         asset_server.current_dir = dir
         export_static(html_file, app; session=Session(connection; asset_server=asset_server))
     end
-end
-
-
-
-function export_static(routes)
-    dir = joinpath(@__DIR__, "docs")
-    # rm(dir; recursive=true, force=true); mkdir(dir)
-    folder = AssetFolder(dir)
-    JSServe.export_static(dir, routes; asset_server=folder)
 end
