@@ -67,7 +67,7 @@ function websocket_send(binary_data) {
 }
 function send_pings() {
     console.debug("pong");
-    JSServe.send_pingpong();
+    Bonito.send_pingpong();
     setTimeout(send_pings, 5000);
 }
 function setup_connection(config) {
@@ -91,13 +91,13 @@ function setup_connection(config) {
                     if (binary.length === 1 && binary[0] === 0) {
                         return resolve(null);
                     }
-                    JSServe.OBJECT_FREEING_LOCK.lock(()=>{
-                        JSServe.process_message(JSServe.decode_binary(binary, config.compression_enabled));
+                    Bonito.OBJECT_FREEING_LOCK.lock(()=>{
+                        Bonito.process_message(Bonito.decode_binary(binary, config.compression_enabled));
                     });
                     return resolve(null);
                 });
             };
-            JSServe.on_connection_open(websocket_send, config.compression_enabled);
+            Bonito.on_connection_open(websocket_send, config.compression_enabled);
             send_pings();
         };
         websocket.onclose = function(evt) {
@@ -105,7 +105,7 @@ function setup_connection(config) {
             while(session_websocket.length > 0){
                 session_websocket.pop();
             }
-            JSServe.on_connection_close();
+            Bonito.on_connection_close();
             console.log("Wesocket close code: " + evt.code);
             console.log(evt);
         };
