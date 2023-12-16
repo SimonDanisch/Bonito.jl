@@ -3,7 +3,7 @@
 ## Basics
 
 ```@setup 1
-using JSServe
+using Bonito
 Page()
 ```
 

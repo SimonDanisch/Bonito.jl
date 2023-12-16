@@ -1,5 +1,5 @@
-using JSServe: Observable, Retain, CacheKey, decode_extension_and_addbits
-using JSServe, MsgPack, Test
+using Bonito: Observable, Retain, CacheKey, decode_extension_and_addbits
+using Bonito, MsgPack, Test
 
 @testset "MsgPack" begin
     data = [
@@ -9,7 +9,7 @@ using JSServe, MsgPack, Test
         [rand(12), Retain(Observable([2,3,4])), CacheKey("kdjaksjd")]
     ]
 
-    unpacked = JSServe.decode_extension_and_addbits(MsgPack.unpack(MsgPack.pack(data)))
+    unpacked = Bonito.decode_extension_and_addbits(MsgPack.unpack(MsgPack.pack(data)))
     @test data[1].val == unpacked[1].val
     @test data[2][:a] == unpacked[2]["a"]
     @test data[2]["b"] == unpacked[2]["b"]

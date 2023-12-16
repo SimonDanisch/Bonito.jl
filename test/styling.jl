@@ -27,7 +27,7 @@ end
         return DOM.div(days...)
     end
     s = Session()
-    JSServe.session_dom(s, app)
+    Bonito.session_dom(s, app)
     all_css = Set([css for (n, set) in s.stylesheets for css in set])
     @test length(all_css) == 1
     css = CSS(

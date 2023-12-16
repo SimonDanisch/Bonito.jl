@@ -1,7 +1,7 @@
 using CSV, Shapefile
-using JSServe, WGLMakie, Markdown
+using Bonito, WGLMakie, Markdown
 using Downloads: download
-import JSServe.TailwindDashboard as D
+import Bonito.TailwindDashboard as D
 using GeoInterfaceMakie
 GeoInterfaceMakie.@enable Shapefile.Polygon
 
@@ -78,7 +78,7 @@ app = App() do session
     to_plot = (
         (1, "Temperatur", temp_data, :heat),
         (2, "Regen", prec_data, :blues))
-    s = JSServe.Slider(1:length(temp_data))
+    s = Bonito.Slider(1:length(temp_data))
 
     for (i, title, data, cmap) in to_plot
         colorrange = data_extrema(data)
@@ -100,17 +100,17 @@ app = App() do session
 
     [Quelle: Deutscher Wetterdienst](https://opendata.dwd.de/climate_environment/CDC/regional_averages_DE/annual/)
 
-    [Quellcode für Visualisierung](https://github.com/SimonDanisch/JSServe.jl/blob/master/examples/german_clima.jl)
+    [Quellcode für Visualisierung](https://github.com/SimonDanisch/Bonito.jl/blob/master/examples/german_clima.jl)
     """
 
-    dom = DOM.div(JSServe.MarkdownCSS, JSServe.TailwindCSS, JSServe.Styling, markdown)
+    dom = DOM.div(Bonito.MarkdownCSS, Bonito.TailwindCSS, Bonito.Styling, markdown)
     # return dom
-    return JSServe.record_states(session, dom)
+    return Bonito.record_states(session, dom)
 end;
 
 # Either export standalone
 mkpath("./dev/WGLDemos/")
-JSServe.export_static("./dev/WGLDemos/german_heat.html", app)
+Bonito.export_static("./dev/WGLDemos/german_heat.html", app)
 
 # Or serve as a website!
-# app = JSServe.Server(app, "0.0.0.0", 80)
+# app = Bonito.Server(app, "0.0.0.0", 80)

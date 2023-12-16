@@ -1,4 +1,4 @@
-module JSServe
+module Bonito
 
 import Sockets
 using Sockets: send

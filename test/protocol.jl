@@ -1,8 +1,8 @@
-using JSServe, Observables, Markdown, Colors
-using JSServe: Asset
+using Bonito, Observables, Markdown, Colors
+using Bonito: Asset
 style_obs = Observable((color = :red,))
 
-slider = JSServe.Slider(1:10, class="slider m-4")
+slider = Bonito.Slider(1:10, class="slider m-4")
 
 
 example_dom = DOM.div(
@@ -21,7 +21,7 @@ example_dom = DOM.div(
 
 session = Session()
 
-JSServe.jsrender(session, example_dom)
+Bonito.jsrender(session, example_dom)
 
 obs_dom = Observable(example_dom)
 obs_arrays = Observable(

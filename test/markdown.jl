@@ -1,20 +1,20 @@
-# using JSServe, Markdown
+# using Bonito, Markdown
 
 function test_handler(session, req)
     global test_observable
     test_observable = Observable(Dict{String, Any}())
     test_session = session
 
-    global s1 = JSServe.Slider(1:100)
-    global s2 = JSServe.Slider(1:100)
-    b = JSServe.Button("hi"; dataTestId="hi_button")
+    global s1 = Bonito.Slider(1:100)
+    global s2 = Bonito.Slider(1:100)
+    b = Bonito.Button("hi"; dataTestId="hi_button")
 
     clicks = Observable(0)
     on(b) do click
         clicks[] = clicks[] + 1
     end
     clicks_div = DOM.div(clicks, dataTestId="button_clicks")
-    t = JSServe.TextField("Write!")
+    t = Bonito.TextField("Write!")
 
     linkjs(session, s1.index, s2.index)
 
@@ -33,7 +33,7 @@ function test_handler(session, req)
     textresult = DOM.div(t.value; dataTestId="text_result")
     sliderresult = DOM.div(s1.value; dataTestId="slider_result")
 
-    number_input = JSServe.NumberInput(66.0)
+    number_input = Bonito.NumberInput(66.0)
     number_result = DOM.div(number_input.value, dataTestId="number_result")
     linked_value = DOM.div(s2.value, dataTestId="linked_value")
 
@@ -149,14 +149,14 @@ function test_current_session(app)
 end
 
 global dom = nothing
-inline_display = JSServe.App() do session, req
+inline_display = Bonito.App() do session, req
     global dom = test_handler(session, req)
     return dom
 end;
-JSServe.CURRENT_SESSION[] = nothing
+Bonito.CURRENT_SESSION[] = nothing
 display(edisplay, inline_display);
 app = TestSession(URI("http://localhost:8555/show"),
-    JSServe.GLOBAL_SERVER[], edisplay.window, inline_display.session[])
+    Bonito.GLOBAL_SERVER[], edisplay.window, inline_display.session[])
 app.dom = dom;
 app.initialized = false
 wait(app)
@@ -181,7 +181,7 @@ end
 
         [Github-flavored Markdown info page](http://github.github.com/github-flavored-markdown/)
 
-        [![Build Status](https://travis-ci.com/SimonDanisch/JSServe.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/JSServe.jl)
+        [![Build Status](https://travis-ci.com/SimonDanisch/Bonito.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/Bonito.jl)
 
         Lalala
         ======
@@ -239,7 +239,7 @@ end
 
         [^1]: This is the first footnote.
         """
-        return DOM.div(JSServe.MarkdownCSS, dom)
+        return DOM.div(Bonito.MarkdownCSS, dom)
     end
 
     testsession(test_handler, port=8555) do app

@@ -1,5 +1,5 @@
 using Markdown
-using JSServe, Observables
+using Bonito, Observables
 using WGLMakie
 
 app = App() do
@@ -46,7 +46,7 @@ app = App() do
 
     [Github-flavored Markdown info page](http://github.github.com/github-flavored-markdown/)
 
-    [![Build Status](https://travis-ci.com/SimonDanisch/JSServe.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/JSServe.jl)
+    [![Build Status](https://travis-ci.com/SimonDanisch/Bonito.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/Bonito.jl)
 
     Thoughtful example
     ======
@@ -72,12 +72,12 @@ app = App() do
     ```
 
     ---
-    # JSServe
+    # Bonito
 
-    [![Build Status](https://travis-ci.com/SimonDanisch/JSServe.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/JSServe.jl)
-    [![Build Status](https://ci.appveyor.com/api/projects/status/github/SimonDanisch/JSServe.jl?svg=true)](https://ci.appveyor.com/project/SimonDanisch/JSServe-jl)
-    [![Codecov](https://codecov.io/gh/SimonDanisch/JSServe.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/SimonDanisch/JSServe.jl)
-    [![Build Status](https://travis-ci.com/SimonDanisch/JSServe.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/JSServe.jl)
+    [![Build Status](https://travis-ci.com/SimonDanisch/Bonito.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/Bonito.jl)
+    [![Build Status](https://ci.appveyor.com/api/projects/status/github/SimonDanisch/Bonito.jl?svg=true)](https://ci.appveyor.com/project/SimonDanisch/Bonito-jl)
+    [![Codecov](https://codecov.io/gh/SimonDanisch/Bonito.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/SimonDanisch/Bonito.jl)
+    [![Build Status](https://travis-ci.com/SimonDanisch/Bonito.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/Bonito.jl)
 
 
     | Tables        | Are           | Cool  |
@@ -107,5 +107,5 @@ app = App() do
 
     ---
     """
-    return JSServe.DOM.div(JSServe.MarkdownCSS, JSServe.Styling, dom)
+    return Bonito.DOM.div(Bonito.MarkdownCSS, Bonito.Styling, dom)
 end

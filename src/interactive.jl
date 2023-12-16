@@ -2,7 +2,7 @@ function update_route!(server, (route, app))
     old = route!(server, route => app)
     if old isa App && !isnothing(old.session[]) && isready(old.session[])
         try
-            JSServe.evaljs(old.session[], js"window.location.reload()")
+            Bonito.evaljs(old.session[], js"window.location.reload()")
         catch e
             @warn "Failed to reload route $(route)" exception = e
         end
@@ -15,13 +15,13 @@ const REVISE_SERVER = Base.RefValue{Union{Nothing, Server}}(nothing)
 """
     interactive_server(f, paths, modules=[]; url="127.0.0.1", port=8081, all=true)
 
-Revise base server that will serve a static side based on JSServe and will update on any code change!
+Revise base server that will serve a static side based on Bonito and will update on any code change!
 
 Usage:
 
 ```julia
 using Revise, Website
-using Website.JSServe
+using Website.Bonito
 
 # Start the interactive server and develop your website!
 routes, task, server = interactive_server(Website.asset_paths()) do
@@ -35,12 +35,12 @@ end
 
 # Once everything looks goo, export the static site
 dir = joinpath(@__DIR__, "docs")
-# only delete the jsserve generated files
-rm(joinpath(dir, "jsserve"); recursive=true, force=true)
-JSServe.export_static(dir, routes)
+# only delete the bonito generated files
+rm(joinpath(dir, "bonito"); recursive=true, force=true)
+Bonito.export_static(dir, routes)
 ```
-For the complete code, visit the Makie website repository which is using JSServe:
-[MakieOrg/Website](https://github.com/MakieOrg/Website/blob/sd/jsserve/make.jl)
+For the complete code, visit the Makie website repository which is using Bonito:
+[MakieOrg/Website](https://github.com/MakieOrg/Website/blob/sd/bonito/make.jl)
 """
 function interactive_server(f, paths, modules=[]; url="127.0.0.1", port=8081, all=true)
     if isnothing(REVISE_SERVER[])
@@ -75,7 +75,7 @@ function interactive_server(f, paths, modules=[]; url="127.0.0.1", port=8081, al
         end
 
         returned_routes = update_routes()
-        Revise.add_callback(update_routes, paths, modules; all=true, key="jsserver-revise")
+        Revise.add_callback(update_routes, paths, modules; all=true, key="bonito-revise")
 
         REVISE_LOOP[][] = false # stop any old loop
         run = Base.RefValue(true) # get us a new loop variable

@@ -3560,10 +3560,10 @@ register_ext(102, (uint_8_array)=>{
     const [interpolated_objects, source, julia_file] = unpack(uint_8_array);
     const lookup_interpolated = (id)=>interpolated_objects[id];
     try {
-        const eval_func = new Function("__lookup_interpolated", "JSServe", source);
+        const eval_func = new Function("__lookup_interpolated", "Bonito", source);
         return ()=>{
             try {
-                return eval_func(lookup_interpolated, window.JSServe);
+                return eval_func(lookup_interpolated, window.Bonito);
             } catch (err) {
                 console.log(`error in closure from: ${julia_file}`);
                 console.log(`Source:`);
@@ -4054,7 +4054,7 @@ function fetch_binary(url) {
         return response.arrayBuffer();
     });
 }
-const JSServe = {
+const Bonito = {
     Protocol: mod2,
     base64decode: base64decode1,
     base64encode: base64encode1,
@@ -4084,6 +4084,6 @@ const JSServe = {
     free_object: free_object1,
     send_to_julia: send_to_julia1
 };
-window.JSServe = JSServe;
+window.Bonito = Bonito;
 export { mod2 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, mod as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, mod1 as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany, OBJECT_FREEING_LOCK1 as OBJECT_FREEING_LOCK, can_send_to_julia1 as can_send_to_julia, free_object1 as free_object, send_to_julia1 as send_to_julia };
 

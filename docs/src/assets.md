@@ -34,7 +34,7 @@ THREE = CDNSource("three"; version="0.137.5")
 
 
 ```@setup 1
-using JSServe
+using Bonito
 Page()
 ```
 
@@ -47,7 +47,7 @@ const THREE = ES6Module("https://cdn.esm.sh/v66/three@0.136/es2021/three.js")
 app = App() do session, request
     width = 500; height = 500
     dom = DOM.div(width = width, height = height)
-    JSServe.onload(session, dom, js"""
+    Bonito.onload(session, dom, js"""
         function (container){
             $(THREE).then(THREE=> {
                 var renderer = new THREE.WebGLRenderer({antialias: true});

@@ -1,11 +1,11 @@
 # Layouting
 
-The main layouting primitive JSServe offers is `Grid`, `Column` and `Row`.
-They are all based on css `display: grid` and JSServe offers a small convenience wrapper around it.
+The main layouting primitive Bonito offers is `Grid`, `Column` and `Row`.
+They are all based on css `display: grid` and Bonito offers a small convenience wrapper around it.
 
 We recommend reading through the great introduction to Styles grids by Josh Comeau: [interactive guide to grid](https://www.joshwcomeau.com/css/interactive-guide-to-grid), for a better understanding of how grids work. It's recommended to read this before following this tutorial, since the examples are styled much nicer and explain everything in much greater detail.
 
-To easier apply the tutorial to JSServe, we ported all the examples of the tutorial, while only describing them with the bare minimum. To get the full picture, please refer to the linked, original tutorial!
+To easier apply the tutorial to Bonito, we ported all the examples of the tutorial, while only describing them with the bare minimum. To get the full picture, please refer to the linked, original tutorial!
 
 Let's start with the docstring for `Grid`:
 
@@ -24,7 +24,7 @@ Col
 ```
 
 ```@setup 1
-using JSServe
+using Bonito
 Page()
 ```
 
@@ -39,12 +39,12 @@ DemoCard(content=DOM.div(); style=Styles(), attributes...) = Card(content; backg
 
 
 App() do sess
-    s = JSServe.Slider(1:5)
+    s = Bonito.Slider(1:5)
     cards = map(s.value) do n
         cards = [DemoCard(height="50px", width="300px") for i in 1:n]
         return Grid(cards;)
     end
-    return JSServe.record_states(sess, Grid(s, cards))
+    return Bonito.record_states(sess, Grid(s, cards))
 end
 ```
 
@@ -52,12 +52,12 @@ If we specify a height, while not specifying a height for the elements, the spac
 
 ```@example 1
 App() do sess
-    s = JSServe.Slider(1:5)
+    s = Bonito.Slider(1:5)
     cards = map(s.value) do n
         cards = [DemoCard(width="300px") for i in 1:n]
         Grid(cards; height="300px")
     end
-    return JSServe.record_states(sess, Grid(s, cards))
+    return Bonito.record_states(sess, Grid(s, cards))
 end
 ```
 
@@ -77,7 +77,7 @@ To see what that means, the below example shows how the percent based unit will 
 
 ```@example 1
 App() do sess
-    container_width = JSServe.Slider(5:0.1:100)
+    container_width = Bonito.Slider(5:0.1:100)
     container_width[] = 100
     imstyle = Styles(
         "display" => :block, "position" => :relative, "width" => "100px",
@@ -386,7 +386,7 @@ end
 
 ```@example 1
 App() do session
-    justification = JSServe.Dropdown(["space-evenly", "center", "end", "space-between", "space-around", "space-evenly"], style=Styles("width" => "200px"))
+    justification = Bonito.Dropdown(["space-evenly", "center", "end", "space-between", "space-around", "space-evenly"], style=Styles("width" => "200px"))
 
 
     grid = Grid(
@@ -405,8 +405,8 @@ end
 
 ```@example 1
 App() do session
-    content = JSServe.Dropdown(["space-evenly", "center", "end", "space-between", "space-around"])
-    items = JSServe.Dropdown(["stretch", "start", "center", "end"])
+    content = Bonito.Dropdown(["space-evenly", "center", "end", "space-between", "space-around"])
+    items = Bonito.Dropdown(["stretch", "start", "center", "end"])
     grid = Grid(
         DemoCard(), DemoCard(),
         DemoCard(), DemoCard(),
@@ -430,10 +430,10 @@ end
 
 ```@example 1
 App() do session
-    content = JSServe.Dropdown(["space-evenly", "center", "end", "space-between", "space-around"])
-    items = JSServe.Dropdown(["stretch", "start", "center", "end"])
-    align_content = JSServe.Dropdown(["space-evenly", "center", "end", "space-between", "space-around"])
-    align_items = JSServe.Dropdown(["stretch", "start", "center", "end"])
+    content = Bonito.Dropdown(["space-evenly", "center", "end", "space-between", "space-around"])
+    items = Bonito.Dropdown(["stretch", "start", "center", "end"])
+    align_content = Bonito.Dropdown(["space-evenly", "center", "end", "space-between", "space-around"])
+    align_items = Bonito.Dropdown(["stretch", "start", "center", "end"])
     grid_style = Styles("position" => :absolute, "top" => 0, "left" => 0)
     grid = Grid(
         centered("One"), centered("Two"),

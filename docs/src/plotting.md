@@ -4,7 +4,7 @@ All plotting frameworks overloading the Julia display system should work out of 
 The following example shows how to integrate popular libraries like Makie, Plotly and Gadfly.
 
 ```@example 1
-using JSServe
+using Bonito
 using WGLMakie
 import WGLMakie as W
 import Gadfly as G
@@ -28,15 +28,15 @@ function makie_plot()
 end
 
 # As far as I can tell, PlotlyLight doesn't handle require inside documenter correctly
-# So we just use JSServe to do it correctly via `Asset`:
-const Plotly = JSServe.Asset(PL.cdn_url[])
-function JSServe.jsrender(session::Session, plot::PL.Plot)
+# So we just use Bonito to do it correctly via `Asset`:
+const Plotly = Bonito.Asset(PL.cdn_url[])
+function Bonito.jsrender(session::Session, plot::PL.Plot)
     # Pretty much copied from the PlotlyLight source to create the JS + div for creating the plot:
     div = DOM.div(style="width: 300px;height: 300px;")
     src = js"""
         Plotly.newPlot($(div), $(plot.data), $(plot.layout), $(plot.config))
     """
-    return JSServe.jsrender(session, DOM.div(Plotly, div, src))
+    return Bonito.jsrender(session, DOM.div(Plotly, div, src))
 end
 
 App() do
