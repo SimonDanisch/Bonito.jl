@@ -128,7 +128,9 @@ end
 Places objects in a row, based on `Grid`.
 """
 function Row(args...; grid_attributes...)
-    return Grid(args...; rows="1fr", columns="repeat($(length(args)), 1fr)", attributes...)
+    return Grid(
+        args...; rows="1fr", columns="repeat($(length(args)), 1fr)", grid_attributes...
+    )
 end
 
 """
@@ -136,8 +138,8 @@ end
 
 Places objects in a column, based on `Grid`.
 """
-function Col(args...; attributes...)
-    return Grid(args...; columns="1fr", attributes...)
+function Col(args...; grid_attributes...)
+    return Grid(args...; columns="1fr", grid_attributes...)
 end
 
 """
