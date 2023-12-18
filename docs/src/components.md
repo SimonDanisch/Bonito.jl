@@ -36,7 +36,7 @@ function CurrentMonth(date=now(); style=Styles(), div_attributes...)
         end
     end
     grid = Grid(days...; columns="repeat(7, 1fr)")
-    return DOM.div(DOM.h2(month), grid; style=Styles("width" => "400px", "margin" => "5px"))
+    return DOM.div(DOM.h2(month), grid; style=Styles("width" => "400px", "margin" => "6px"))
 end
 
 
