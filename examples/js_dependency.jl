@@ -1,6 +1,6 @@
-using JSServe
-using JSServe: Dependency, onload, @js_str, Session
-using JSServe.DOM
+using Bonito
+using Bonito: Dependency, onload, @js_str, Session
+using Bonito.DOM
 
 using Deno_jll # If you create your own javascript module, you need to include deno!
 

@@ -123,13 +123,13 @@ register_ext(JSCODE_TAG, (uint_8_array) => {
     try {
         const eval_func = new Function(
             "__lookup_interpolated",
-            "JSServe",
+            "Bonito",
             source
         );
         // return a closure, that when called runs the code!
         return () => {
             try {
-                return eval_func(lookup_interpolated, window.JSServe);
+                return eval_func(lookup_interpolated, window.Bonito);
             } catch (err) {
                 console.log(`error in closure from: ${julia_file}`);
                 console.log(`Source:`);

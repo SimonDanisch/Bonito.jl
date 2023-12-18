@@ -84,11 +84,12 @@ attribute_render(session::Session, parent, attribute::String, x) = string(x)
 attribute_render(session::Session, parent, attribute::String, x::Nothing) = x
 attribute_render(session::Session, parent, attribute::String, x::Bool) = x
 
+
 function attribute_render(session::Session, parent, attribute::String, obs::Observable)
     rendered = map(session, obs) do value
         attribute_render(session, parent, attribute, value)
     end
-    onjs(session, rendered, js"value=> JSServe.update_node_attribute($(parent), $attribute, value)")
+    onjs(session, rendered, js"value=> Bonito.update_node_attribute($(parent), $attribute, value)")
     return rendered[]
 end
 
@@ -165,17 +166,18 @@ function render_node(session::Session, node::Node)
     isempty(node_children) && isempty(node_attrs) && return node
 
     new_attributes = Dict{String,Any}()
-    children_changed = false
-    attributes_changed = false
     newchildren = []
     for elem in node_children
         new_elem = jsrender(session, elem)
-        children_changed = children_changed || new_elem !== elem
         !isnothing(new_elem) && push!(newchildren, new_elem)
     end
+    new_attributes["data-jscall-id"] = uuid(session, node)
+    new_node = Node(Hyperscript.context(node),
+                    Hyperscript.tag(node),
+                    newchildren,
+                    new_attributes)
     for (k, v) in node_attrs
-        rendered = attribute_render(session, node, k, v)
-        attributes_changed = attributes_changed || rendered !== v
+        rendered = attribute_render(session, new_node, k, v)
         # We code nothing to mean omitting the attribute!
         if is_boolean_attribute(k)
             if rendered isa Bool
@@ -190,16 +192,7 @@ function render_node(session::Session, node::Node)
             new_attributes[k] = rendered
         end
     end
-    # Don't copy node if nothing has changed!
-    if attributes_changed || children_changed
-        return Node(
-            Hyperscript.context(node),
-            Hyperscript.tag(node),
-            newchildren,
-            new_attributes)
-    else
-        return node
-    end
+    return new_node
 end
 
 # jsrender(session, x) will be called anywhere...

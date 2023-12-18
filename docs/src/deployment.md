@@ -1,7 +1,11 @@
 # Deployment
 
+Apps can be deployed in a wide variety of scenarios.
+
+Lets start with a very simple example app and show how to deploy that App:
+
 ```@example 1
-using JSServe
+using Bonito
 example_app = App(DOM.div("hello world"), title="hello world")
 ```
 
@@ -12,7 +16,7 @@ example_app = App(DOM.div("hello world"), title="hello world")
 # But 0.0.0.0:80 is pretty standard for most server setups
 port = 80
 url = "0.0.0.0"
-server = JSServe.Server(example_app, url, port)
+server = Bonito.Server(example_app, url, port)
 ```
 
 Now, you should see the webpage at `http://0.0.0.0:80`.
@@ -22,17 +26,17 @@ Now, you should see the webpage at `http://0.0.0.0:80`.
 If the server is behind a proxy, you can set the proxy like this:
 
 ```@example 1
-server = JSServe.Server(example_app, "0.0.0.0", 8080; proxy_url="https://my-domain.de/my-app");
+server = Bonito.Server(example_app, "0.0.0.0", 8080; proxy_url="https://my-domain.de/my-app");
 # or set it later
-# this can be handy for interactive use cases where one isn't sure which port is open, and let JSServe find a free port (which will then be different from the one created with, but is stored in `server.port`)
+# this can be handy for interactive use cases where one isn't sure which port is open, and let Bonito find a free port (which will then be different from the one created with, but is stored in `server.port`)
 server.proxy_url = ".../$(server.port)"
 ```
 
-JSServe tries to do this for known environments like JuliaHub via `get_server()`.
+Bonito tries to do this for known environments like JuliaHub via `get_server()`.
 This will find the most common proxy setup and return a started server:
 
 ```@example 1
-server = JSServe.get_server()
+server = Bonito.get_server()
 # add a route to the server for root to point to our example app
 route!(server, "/" => example_app)
 ```
@@ -55,11 +59,13 @@ url_to_visit = online_url(server, "/my/nested/page")
 ```
 
 ### nginx
-If you need to re-route JSServe (e.g. to host in parallel to PlutoSliderServer, you want a reverse-proxy like `nginx`. We did some testing with nginx and the following configuration worked for us:
+
+If you need to re-route Bonito e.g. to host in parallel to PlutoSliderServer, you want a reverse-proxy like `nginx`. We did some testing with nginx and the following configuration worked for us:
+
 ```nginx
 server {
     listen 8080;
-    location /jsserve/ {
+    location /bonito/ {
         proxy_pass http://localhost:8081/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -68,35 +74,36 @@ server {
     }
 }
 ```
-and the JSServer with:
+
+and the Bonito with:
 ```julia
-    server = Server("127.0.0.1", 8081;proxy_url="https://www.abc.org/jsserve/")
-    route!(server,"/"=>app) # with app an JSServe app
+    server = Server("127.0.0.1", 8081;proxy_url="https://www.abc.org/bonito/")
+    route!(server,"/"=>app) # with app an Bonito app
     # close(server) # useful for debugging ;)
 ```
-This would re-route `www.abc.org:8080/jsserve/` to your local JSServe-Server.
+This would re-route `www.abc.org:8080/bonito/` to your local Bonito-Server.
 
 If you get errors in your browser console relating to "GET", "MIME-TYPE"
 
 1. First make sure that the URL of the assets is "correct", that is, there is no `//` somewhere in the domain, and in principle the client tries to find the correct target (`Server(...,verbose=1)` might help to see if requests arrive).
-2. if the app shows up fine, but you get these errors (typically with wss:// in the front, indicating some websocket issue), double check that all the slashes `/` in your configuration are set correct. That is all these 4 paths should have `/`'s at the end: `location /subfolder/`, `proxy_pass =.../`  `Server(...,proxy_url=".../")` and `route!(...,'/'=>app)`
-3. If it still doesnt work, you might need to look into websocket forwarding - or you might have an intermediate reverse-proxy that blocks the websocket.
+2. if the app shows up fine, but you get these errors (typically with `wss://` in the front, indicating some WebSocket issue), double check that all the slashes `/` in your configuration are set correct. That is all these 4 paths should have `/`'s at the end: `location /subfolder/`, `proxy_pass =.../`  `Server(...,proxy_url=".../")` and `route!(...,'/'=>app)`
+3. If it still doesn't work, you might need to look into WebSocket forwarding - or you might have an intermediate reverse-proxy that blocks the WebSocket.
 
 ### Heroku
 
-Deploying to Heroku with JSServe works pretty similar to this [blogpost](https://towardsdatascience.com/deploying-julia-projects-on-heroku-com-eb8da5248134).
+Deploying to Heroku with Bonito works pretty similar to this [blogpost](https://towardsdatascience.com/deploying-julia-projects-on-heroku-com-eb8da5248134).
 
 ```
 mkdir my-app
 cd my-app
-julia --project=. -e 'using Pkg; Pkg.add("JSServe")' # and any other dependency
+julia --project=. -e 'using Pkg; Pkg.add("Bonito")' # and any other dependency
 ```
 
 then create 2 files:
 
 `app.jl`:
 ```julia
-using JSServe
+using Bonito
 # The app you want to serve
 #  Note: you can also add more pages with `route!(server, ...)` as explained aboce
 my_app = App(DOM.div("hello world"))
@@ -107,8 +114,9 @@ port = parse(Int, ENV["PORT"])
 # https://devcenter.heroku.com/articles/github-integration-review-apps#injected-environment-variables
 my_app_name = get(ENV, "HEROKU_APP_NAME", "example-app")
 url = "https://$(my_app_name).herokuapp.com/"
-wait(JSServe.Server(my_app, "0.0.0.0", port, proxy_url=url))
+wait(Bonito.Server(my_app, "0.0.0.0", port, proxy_url=url))
 ```
+
 `Procfile`:
 ```
 web: julia --project=. app.jl
@@ -127,11 +135,12 @@ $ heroku git:remote -a example-app
 Which, after showing you the install logs, should print out the url to visit in the end.
 You can see the full example here:
 
-https://github.com/SimonDanisch/JSServe-heroku
+https://github.com/SimonDanisch/Bonito-heroku
 
 ## Terminal
-If no HTML display is found in the Julia display stack, JSServe calls `JSServe.enable_browser_display()` in the `__init__` function.
-This adds a display, that opens a browser window to display the app
+
+If no HTML display is found in the Julia display stack, Bonito calls `Bonito.enable_browser_display()` in the `__init__` function.
+This adds a display, that opens a browser window to display the app.
 The loading of the `BrowserDisplay` happen in any kind of environment without html display, so this should also work in any kind of terminal or when evaluating a script.
 
 ```julia
@@ -141,8 +150,12 @@ The loading of the `BrowserDisplay` happen in any kind of environment without ht
 
 ## VScode
 
-VScode with enabled `Plot Pane` will display any `JSServe.App` in the HTML plotpane:
+VScode with enabled `Plot Pane` will display any `Bonito.App` in the HTML plotpane:
 ![](vscode.png)
+
+If VSCode is used in a remote setting, VSCode may automatically forward the port so the plot pane can work out of the box.
+If this doesn't happen for some reason (it has been reported to not always work), you can manually forward it via the command menu (ctr+shift+p) and `forward a port`, or just select the PORTS tab in the terminal view.
+
 
 ## Notebooks
 
@@ -160,20 +173,20 @@ Most common notebook systems should work out of the box.
 ## Electron
 
 ```julia
-using Electron, JSServe
+using Electron, Bonito
 # Needs to be called after loading Electron
-JSServe.use_electron_display()
+Bonito.use_electron_display()
 # display(...) can be skipped in e.g. VSCode with disabled plotpane
 display(example_app)
 ```
 ![](electron.png)
 
 !!! note
-    By default, `JSServe` will create the Electron window without showing the Developer
+    By default, `Bonito` will create the Electron window without showing the Developer
     Tools panel. You can control this behavior at
     window creation using the `devtools` keyword arg:
     ```
-    display = JSServe.use_electron_display(devtools = true)
+    display = Bonito.use_electron_display(devtools = true)
     ```
     Alternatively, you can toggle the Developer Tools at any later time using:
     ```
@@ -182,22 +195,34 @@ display(example_app)
 
 ## Documenter
 
-JSServe works in Documenter without additional setup.
-But, one always needs to include a block like this before any other code block displaying JSServe Apps:
+Bonito works in Documenter without additional setup.
+But, one always needs to include a block like this before any other code block displaying Bonito Apps:
 
 ```julia
-using JSServe
+using Bonito
 Page()
 ```
-This is needed, since JSServe structures the dependencies and state per Page, which needs to be unique per documentation page.
-One can use the JSServe documentation source to see an example.
+This is needed, since Bonito structures the dependencies and state per Page, which needs to be unique per documentation page.
+One can use the Bonito documentation source to see an example.
 
 ## Static export
 
+Bonito works also to create static sites, by using `Routes` and `export_static`.
+```julia
+routes = Routes(
+    "/" => App(index_func, title="Makie"),
+    "/team" => App(team_func, title="Team"),
+    "/contact" => App(contact_func, title="Contact"),
+    "/support" => App(support_func, title="Support")
+)
+Bonito.export_static("html/folder", routes)
+```
+
+Please visit [Static Sites](@ref) for more details.
 
 ## Anything else
 
-JSServe overloads the `display`/`show` stack for the mime `"text/html"` so any other Software which is able to display html in Julia should work with JSServe.
+Bonito overloads the `display`/`show` stack for the mime `"text/html"` so any other Software which is able to display html in Julia should work with Bonito.
 If a use case is not supported, please open an issue.
 One can also always directly call:
 ```julia

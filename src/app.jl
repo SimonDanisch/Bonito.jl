@@ -1,5 +1,5 @@
 """
-    App(callback_or_dom; title="JSServe App")
+    App(callback_or_dom; title="Bonito App")
     App((session, request) -> DOM.div(...))
     App((session::Session) -> DOM.div(...))
     App((request::HTTP.Request) -> DOM.div(...))
@@ -8,7 +8,7 @@
 
 Usage:
 ```julia
-using JSServe
+using Bonito
 app = App() do
     return DOM.div(DOM.h1("hello world"), js\"\"\"console.log('hello world')\"\"\")
 end

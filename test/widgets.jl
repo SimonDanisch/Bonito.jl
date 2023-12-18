@@ -1,8 +1,8 @@
 function handler(session, request)
     global test_observable
     test_observable = Observable(Dict{String, Any}())
-    checkbox1 = JSServe.Checkbox(true)
-    checkbox2 = JSServe.Checkbox(false)
+    checkbox1 = Bonito.Checkbox(true)
+    checkbox2 = Bonito.Checkbox(false)
 
     on(checkbox1) do value
         test_observable[] = Dict{String, Any}("checkbox1" => value)
@@ -39,8 +39,8 @@ end
 function dropdown_handler(session, request)
     global test_observable
     test_observable = Observable(Dict{String, Any}())
-    global dropdown1 = JSServe.Dropdown(["a", "b", "c"])
-    dropdown2 = JSServe.Dropdown(["a2", "b2", "c2"]; index=2)
+    global dropdown1 = Bonito.Dropdown(["a", "b", "c"])
+    dropdown2 = Bonito.Dropdown(["a2", "b2", "c2"]; index=2)
 
     on(dropdown1.value) do value
         test_observable[] = Dict{String,Any}("dropdown1" => value)

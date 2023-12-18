@@ -99,9 +99,9 @@ The extension is defined to be the bit after the last dot, excluding any query
 string.
 # Examples
 ```julia-repl
-julia> JSServe.getextension("foo.bar.js")
+julia> Bonito.getextension("foo.bar.js")
 "js"
-julia> JSServe.getextension("https://my-cdn.net/foo.bar.css?version=1")
+julia> Bonito.getextension("https://my-cdn.net/foo.bar.css?version=1")
 "css"
 ```
 Taken from WebIO.jl
@@ -187,7 +187,7 @@ function local_path(asset::Asset)
 end
 
 function get_deps_path(name)
-    folder = abspath(first(Base.DEPOT_PATH), "JSServe")
+    folder = abspath(first(Base.DEPOT_PATH), "Bonito")
     isdir(folder) || mkpath(folder)
     return joinpath(folder, name)
 end
@@ -205,7 +205,7 @@ function bundle_path(asset::Asset)
     return joinpath(bundle_dir, string(asset.name, ".bundled.", asset.media_type))
 end
 
-last_modified(path::Path) = last_modified(JSServe.getroot(path))
+last_modified(path::Path) = last_modified(Bonito.getroot(path))
 function last_modified(path::String)
     Dates.unix2datetime(Base.Filesystem.mtime(path))
 end
@@ -234,8 +234,8 @@ function bundle!(asset::Asset)
         # In theory it could be a warning, but this way we make CI fail, so that
         # PRs that forget to bundle JS dependencies will fail!
         error("Asset $(asset) needs bundling.
-            If you've edited the asset, please load `Deno_jll` (e.g. `using Deno_jll, JSServe`),
-            which is an optional dependency needed for Developing JSServe Assets.
+            If you've edited the asset, please load `Deno_jll` (e.g. `using Deno_jll, Bonito`),
+            which is an optional dependency needed for Developing Bonito Assets.
             After that, assets should be bundled on precompile and whenever they're used after editing the asset.
             If you're just using a package, please open an issue with the Package maintainers,
             they must have forgotten bundling.")

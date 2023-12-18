@@ -1,23 +1,25 @@
-# Tutorial
+# Javascript
+
+## Wrapping Javascript Libraries
 
 ```@setup 1
-using JSServe
-JSServe.Page()
+using Bonito
+Bonito.Page()
 ```
 
 ```@example 1
-leafletjs = JSServe.ES6Module("https://esm.sh/v111/leaflet@1.9.3/es2022/leaflet.js")
-leafletcss = JSServe.Asset("https://unpkg.com/leaflet@1.9.3/dist/leaflet.css")
+leafletjs = Bonito.ES6Module("https://esm.sh/v133/leaflet@1.9.4/es2022/leaflet.mjs")
+leafletcss = Bonito.Asset("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css")
 struct LeafletMap
     position::NTuple{2,Float64}
     zoom::Int
 end
 
-function JSServe.jsrender(session::Session, map::LeafletMap)
+function Bonito.jsrender(session::Session, map::LeafletMap)
 
     map_div = DOM.div(id="map"; style="height: 500px;")
 
-    return JSServe.jsrender(session, DOM.div(
+    return Bonito.jsrender(session, DOM.div(
         leafletcss,
         leafletjs,
         map_div,

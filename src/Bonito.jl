@@ -1,4 +1,4 @@
-module JSServe
+module Bonito
 
 import Sockets
 using Sockets: send
@@ -62,11 +62,13 @@ include("util.jl")
 include("widgets.jl")
 include("display.jl")
 include("export.jl")
+include("components.jl")
 include("tailwind-dashboard.jl")
+
 include("interactive.jl")
 
 # Core functionality
-export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset
+export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset, CSS
 export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor
 export browser_display, configure_server!, Server, html, route!, online_url, use_electron_display
 export Observable, on, onany, bind_global
@@ -74,7 +76,9 @@ export linkjs, evaljs, evaljs_value, onjs
 export NoServer, AssetFolder, HTTPAssetServer, DocumenterAssets
 export NoConnection, IJuliaConnection, PlutoConnection, WebSocketConnection
 export export_static, Routes, interactive_server
-
+export Card, Grid, FileInput, Dropdown, Styles, Col, Row
+export Labeled, StylableSlider, Centered
+export interactive_server
 
 function has_html_display()
     for display in Base.Multimedia.displays
