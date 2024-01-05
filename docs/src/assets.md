@@ -23,7 +23,7 @@ $(some_file).then(raw_bytes => {
 DOM.img(src=some_file)
 
 # This will also resolve to a valid URL and load jsmodule as an es6 module
-DOM.sript(src=jsmodule, type="module")
+DOM.script(src=jsmodule, type="module")
 
 # Assets also work with online sources.
 # Usage is exactly the same as when using local files
