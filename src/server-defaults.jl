@@ -19,14 +19,16 @@ function jupyter_running_servers()
     jupyter = IJulia().JUPYTER
     # Man, whats up with jupyter??
     # They switched between versions from stdout to stderr, and also don't produce valid json as output -.-
-    json = replace(sprint(io -> run(pipeline(`$jupyter lab list --json`; stderr=io))), "[JupyterServerListApp] " => "")
+    run_cmd(std, err) = run(pipeline(`$jupyter lab list --json`; stderr=err, stdout=std))
+    json = sprint(io -> run_cmd(io, IOBuffer()))
     if isempty(json)
-        json = read(`$jupyter lab list --json`, String)
+        json = sprint(io -> run_cmd(IOBuffer(), io))
         if isempty(json)
             # give up -.-
             return nothing
         end
     end
+    json = replace(json, "[JupyterServerListApp] " => "")
     json = replace(json, r"[\r\n]+" => "\n")
     configs = IJulia().JSON.parse.(split(json, "\n"; keepempty=false))
     return configs

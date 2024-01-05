@@ -12,7 +12,6 @@ function real_unsafe_write(io::IOBuffer, data::Array{T}) where T
     Base.ensureroom(io, nbytes)
     ptr = (io.append ? io.size + 1 : io.ptr)
     written = Int(min(nbytes, Int(length(io.data))::Int - ptr + 1))
-    towrite = written
     GC.@preserve data begin
         Base.unsafe_copyto!(pointer(io.data, ptr), Ptr{UInt8}(pointer(data)), nbytes)
     end
