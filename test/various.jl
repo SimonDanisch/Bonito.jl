@@ -2,9 +2,9 @@
 
     xx = "hey"; some_js = js"var"; x = [1f0, 2f0]
 
-    js_str = js"console.log($xx); $x; $((2, 4)); $(some_js) hello = 1;"
+    js_str = js"console.log($xx); $x; $((2, 4)); $(some_js) hello = 1; console.log(`${hello}`);"
 
-    expect = "console.log('hey'); Bonito.deserialize_js({\"__javascript_type__\":\"TypedVector\",\"payload\":[1.0,2.0]}); Bonito.deserialize_js([2,4]); var hello = 1;"
+    expect = "console.log('hey'); Bonito.deserialize_js({\"__javascript_type__\":\"TypedVector\",\"payload\":[1.0,2.0]}); Bonito.deserialize_js([2,4]); var hello = 1; console.log(`\${hello}`)"
     @test string(js_str) == expect
 
     asset = Bonito.Asset("file.dun_exist"; check_isfile=false)

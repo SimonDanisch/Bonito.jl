@@ -3,7 +3,12 @@ function iterate_interpolations(source::String, result=Union{Expr,JSString,Symbo
     isempty(source) && return result
     while true
         c = source[i]
-        if c == '$'
+
+        # Attempt to parse + interpolate all "$..." expressions, except for "${ ... }"
+        # which is a template literal placeholder in Javascript.
+        #
+        # "{ ... }" is a deprecated syntax in Julia, so this is fine.
+        if c == '$' && i != lindex && source[i + 1] != '{'
             # add elements before $
             if !isempty(lastidx:(i - 1))
                 push!(result, text_func(source[lastidx:(i-1)]))
