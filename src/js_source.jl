@@ -56,8 +56,6 @@ function Base.show(io::IO, jsc::JSCode)
     print_js_code(io, jsc, JSSourceContext())
 end
 
-
-
 function print_js_code(io::IO, @nospecialize(object), context::JSSourceContext)
     id = get!(() -> string(hash(object)), context.objects, object)
     print(io, "__lookup_interpolated('$(id)')")
@@ -107,6 +105,14 @@ end
 function import_in_js(io::IO, session::Session, asset_server, asset::Asset)
     ref = url(session, asset)
     if asset.es6module
+        # Use absolute paths for es6modules, since they're not relative
+        # To the HTML file they're used in, but instead to the Bonito.js file
+        # TODO, teach Bonito about where the JS files are located,
+        # to make them relativ
+        # Should only be relevant for AssetFolder
+        if startswith(ref, ".")
+            ref = ref[2:end]
+        end
         print(io, "import('$(ref)')")
     else
         print(io, "Bonito.fetch_binary($(ref))")
@@ -151,7 +157,6 @@ function inline_code(session::Session, asset_server, js::JSCode)
         src = code
     else
         # reverse lookup and serialize elements
-
         interpolated_objects = Dict(v => k for (k, v) in context.objects)
         binary = BinaryAsset(session, interpolated_objects)
         src = """
