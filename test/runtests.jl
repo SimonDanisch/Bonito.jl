@@ -1,6 +1,5 @@
 using Bonito
 # ENV["JULIA_DEBUG"] = Bonito
-@show Threads.nthreads()
 
 using Deno_jll
 using Hyperscript, Markdown, Test, RelocatableFolders
@@ -55,6 +54,9 @@ end
 edisplay = Bonito.use_electron_display(; devtools=true)
 
 @testset "Bonito" begin
+    @testset "components" begin
+        include("components.jl")
+    end
     @testset "styling" begin
         include("styling.jl")
     end

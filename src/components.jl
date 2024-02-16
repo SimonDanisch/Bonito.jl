@@ -229,7 +229,8 @@ $(STYLABLE_SLIDER_EXAMPLE)
 """
 function StylableSlider(
     range::AbstractVector{T};
-    index=1,
+    index::Union{Nothing, Integer}=nothing,
+    value=nothing,
     slider_height=15,
     thumb_width=slider_height,
     thumb_height=slider_height,
@@ -291,8 +292,19 @@ function StylableSlider(
         "left" => "$(-half_thumb_width)px",
         "background-color" => thumb_color,
     )
+    if !isnothing(value) && !isnothing(index)
+        error("Values for value=$(value) and index=$(index) given, please only set one.")
+    end
+    if !isnothing(value) && isnothing(index)
+        index = findfirst(isequal(value), range)
+        index === nothing && error("value=$(value) not in range=$(range)")
+    end
+    if isnothing(value) && isnothing(index)
+        index = 1
+    end
+
     values = Observable{Vector{T}}(range; ignore_equal_values=true)
-    index_obs = Observable(index; ignore_equal_values=true)
+    index_obs = Observable{Int}(index; ignore_equal_values=true)
     value_obs = map(getindex, values, index_obs; ignore_equal_values=true)
     slider = StylableSlider(
         values,
@@ -330,7 +342,7 @@ function jsrender(session::Session, slider::StylableSlider)
         const track = $(track);
         let isDragging = false;
         const nsteps_obs = $(map(length, slider.values))
-        let last_index = $(slider.index).value;
+        let last_index = -1;
         function set_thumb_index(index) {
             if (index === last_index) {
                 return
@@ -380,9 +392,11 @@ function jsrender(session::Session, slider::StylableSlider)
                 set_thumb(e);
             }
         }, { signal: controller.signal });
+        set_thumb_index($(slider.index).value)
     }
     """
     onload(session, container, jscode)
+
     return jsrender(session, container)
 end
 
