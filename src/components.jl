@@ -291,9 +291,9 @@ function StylableSlider(
         "left" => "$(-half_thumb_width)px",
         "background-color" => thumb_color,
     )
-    values = Observable{Vector{T}}(range)
-    index_obs = Observable(index)
-    value_obs = map(getindex, values, index_obs)
+    values = Observable{Vector{T}}(range; ignore_equal_values=true)
+    index_obs = Observable(index; ignore_equal_values=true)
+    value_obs = map(getindex, values, index_obs; ignore_equal_values=true)
     slider = StylableSlider(
         values,
         value_obs,
@@ -330,12 +330,16 @@ function jsrender(session::Session, slider::StylableSlider)
         const track = $(track);
         let isDragging = false;
         const nsteps_obs = $(map(length, slider.values))
-
+        let last_index = $(slider.index).value;
         function set_thumb_index(index) {
+            if (index === last_index) {
+                return
+            }
+            last_index = index;
             const thumb_width = thumb.offsetWidth / 2;
             const nsteps = nsteps_obs.value;
-            const step_width = track.offsetWidth / nsteps;
-            const new_left = index * step_width;
+            const step_width = track.offsetWidth / (nsteps-1);
+            const new_left = (index - 1) * step_width;
             thumb.style.left = (new_left - thumb_width) + 'px';  // Update the left position of the thumb
             track_active.style.width = new_left + 'px';  // Update the active track
         }
@@ -344,7 +348,7 @@ function jsrender(session::Session, slider::StylableSlider)
             const nsteps = nsteps_obs.value;
             const thumb_width = thumb.offsetWidth / 2;
             const width = track.offsetWidth;
-            const step_width = width / nsteps;
+            const step_width = width / (nsteps - 1);
             let new_left = e.clientX - container.getBoundingClientRect().left;
             new_left = Math.max(new_left, 0);
             new_left = Math.min(new_left, width);
@@ -352,7 +356,10 @@ function jsrender(session::Session, slider::StylableSlider)
             thumb.style.left = (new_left - thumb_width) + 'px';  // Update the left position of the thumb
             track_active.style.width = new_left + 'px';  // Update the active track
             const index = Math.round((new_left / width) * (nsteps - 1));
-            $(slider.index).notify(index);
+            last_index = index;
+            if (index !== $(slider.index).value) {
+                $(slider.index).notify(index + 1);
+            }
         }
         const controller = new AbortController();
         document.addEventListener('mousedown', function (e) {
