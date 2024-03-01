@@ -441,6 +441,7 @@ function CodeEditor(
     height=500,
     initial_source="",
     theme="chrome",
+    style=Styles(),
     editor_options...,
 )
     defaults = Dict(
@@ -457,15 +458,11 @@ function CodeEditor(
     user_opts = Dict{String,Any}(string(k) => v for (k, v) in editor_options)
     options = Dict{String,Any}(merge(user_opts, defaults))
     onchange = Observable(initial_source)
-    style = """
-        position: "absolute";
-        top: 0;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        width: $(width)px;
-        height: $(height)px;
-    """
+    style = Styles(style,
+        "position" => "relative",
+        "width" => "$(width)px",
+        "height" => "$(height)px",
+    )
     element = DOM.div(""; style=style)
     return CodeEditor(theme, language, options, onchange, element)
 end
@@ -477,25 +474,26 @@ function jsrender(session::Session, editor::CodeEditor)
         session,
         editor.element,
         js"""
-    function (element){
-        const editor = ace.edit(element, {
-            mode: $(language)
-        });
-        editor.setTheme($theme);
-        editor.resize();
-        // use setOptions method to set several options at once
-        editor.setOptions($(editor.options));
+            function (element){
+                const editor = ace.edit(element, {
+                    mode: $(language)
+                });
+                editor.setTheme($theme);
+                editor.resize();
+                editor.getSession().setUseWrapMode(true)
+                // use setOptions method to set several options at once
+                editor.setOptions($(editor.options));
 
-        editor.session.on('change', function(delta) {
-            $(editor.onchange).notify(editor.getValue());
-        });
-        editor.session.setValue($(editor.onchange).value);
-    }
-""",
+                editor.session.on('change', function(delta) {
+                    $(editor.onchange).notify(editor.getValue());
+                });
+                editor.session.setValue($(editor.onchange).value);
+            }
+        """,
     )
 
     ace = DOM.script(; src="https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js")
-    return DOM.div(ace, editor.element)
+    return jsrender(session, DOM.div(ace, editor.element))
 end
 
 # Ok, this is bad piracy, but I donno how else to make the display nice for now!

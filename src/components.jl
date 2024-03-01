@@ -163,6 +163,7 @@ end
 struct StylableSlider{T} <: AbstractSlider{T}
     values::Observable{Vector{T}}
     value::Observable{T}
+    index::Observable{Int}
     style::Styles
     track_style::Styles
     thumb_style::Styles
@@ -228,7 +229,8 @@ $(STYLABLE_SLIDER_EXAMPLE)
 """
 function StylableSlider(
     range::AbstractVector{T};
-    value=first(range),
+    index::Union{Nothing, Integer}=nothing,
+    value=nothing,
     slider_height=15,
     thumb_width=slider_height,
     thumb_height=slider_height,
@@ -290,27 +292,30 @@ function StylableSlider(
         "left" => "$(-half_thumb_width)px",
         "background-color" => thumb_color,
     )
+    if !isnothing(value) && !isnothing(index)
+        error("Values for value=$(value) and index=$(index) given, please only set one.")
+    end
+    if !isnothing(value) && isnothing(index)
+        index = findfirst(isequal(value), range)
+        index === nothing && error("value=$(value) not in range=$(range)")
+    end
+    if isnothing(value) && isnothing(index)
+        index = 1
+    end
 
+    values = Observable{Vector{T}}(range; ignore_equal_values=true)
+    index_obs = Observable{Int}(index; ignore_equal_values=true)
+    value_obs = map(getindex, values, index_obs; ignore_equal_values=true)
     slider = StylableSlider(
-        Observable{Vector{T}}(range),
-        Observable(value),
+        values,
+        value_obs,
+        index_obs,
         style,
         track_style,
         thumb_style,
         track_active_style,
     )
-    slider[] = value
     return slider
-end
-
-"""
-    Label(value; style=Styles(), attributes...)
-
-A Label is a simple text element, with a bold font and a font size of 1rem.
-"""
-function Label(value; style=Styles(), attributes...)
-    styled = Styles(style, "font-size" => "1rem", "font-weight" => 600)
-    return DOM.span(value; style=styled)
 end
 
 function jsrender(session::Session, slider::StylableSlider)
@@ -336,12 +341,26 @@ function jsrender(session::Session, slider::StylableSlider)
         const track_active = $(track_active);
         const track = $(track);
         let isDragging = false;
+        const nsteps_obs = $(map(length, slider.values))
+        let last_index = -1;
+        function set_thumb_index(index) {
+            if (index === last_index) {
+                return
+            }
+            last_index = index;
+            const thumb_width = thumb.offsetWidth / 2;
+            const nsteps = nsteps_obs.value;
+            const step_width = track.offsetWidth / (nsteps-1);
+            const new_left = (index - 1) * step_width;
+            thumb.style.left = (new_left - thumb_width) + 'px';  // Update the left position of the thumb
+            track_active.style.width = new_left + 'px';  // Update the active track
+        }
+        $(slider.index).on(idx=> set_thumb_index(idx));
         function set_thumb(e) {
-            const values = $(slider.values).value;
-            const nsteps = values.length;
+            const nsteps = nsteps_obs.value;
             const thumb_width = thumb.offsetWidth / 2;
             const width = track.offsetWidth;
-            const step_width = width / nsteps;
+            const step_width = width / (nsteps - 1);
             let new_left = e.clientX - container.getBoundingClientRect().left;
             new_left = Math.max(new_left, 0);
             new_left = Math.min(new_left, width);
@@ -349,7 +368,10 @@ function jsrender(session::Session, slider::StylableSlider)
             thumb.style.left = (new_left - thumb_width) + 'px';  // Update the left position of the thumb
             track_active.style.width = new_left + 'px';  // Update the active track
             const index = Math.round((new_left / width) * (nsteps - 1));
-            $(slider.value).notify(values[index]);
+            last_index = index;
+            if (index !== $(slider.index).value) {
+                $(slider.index).notify(index + 1);
+            }
         }
         const controller = new AbortController();
         document.addEventListener('mousedown', function (e) {
@@ -370,27 +392,25 @@ function jsrender(session::Session, slider::StylableSlider)
                 set_thumb(e);
             }
         }, { signal: controller.signal });
+        set_thumb_index($(slider.index).value)
     }
     """
     onload(session, container, jscode)
+
     return jsrender(session, container)
 end
 
-function Base.setindex!(slider::StylableSlider, value)
-    # should be only numbers right now, which should also be sorted
-    # This may change once we allow `Slider(array)` in WidgetsBase
-    values = slider.values
-    idx = findfirst(x -> x >= value, values[])
 
-    if isnothing(idx)
-        @warn(
-            "Value $(value) out of range for the values of slider (highest value: $(last(values[]))). Setting to highest value!"
-        )
-        idx = length(values[])
-    end
-    slider.value[] = values[][idx]
-    return idx
+"""
+    Label(value; style=Styles(), attributes...)
+
+A Label is a simple text element, with a bold font and a font size of 1rem.
+"""
+function Label(value; style=Styles(), attributes...)
+    styled = Styles(style, "font-size" => "1rem", "font-weight" => 600)
+    return DOM.span(value; style=styled)
 end
+
 
 const LABELED_EXAMPLE = """
 App() do
@@ -422,5 +442,21 @@ function Labeled(object, label; label_style=Styles(), attributes...)
         align_items="center",
         justify_items="stretch",
         attributes...,
+    )
+end
+
+
+
+function LabelGrid(widget_pairs; label_style=Styles(), grid_kw...)
+    elements = []
+    for (name, widget) in widget_pairs
+        push!(elements, Bonito.Label(name; style=label_style), widget)
+    end
+    return Grid(
+        elements...;
+        columns="min-content 1fr",
+        justify_content="begin",
+        align_items="center",
+        grid_kw...,
     )
 end
