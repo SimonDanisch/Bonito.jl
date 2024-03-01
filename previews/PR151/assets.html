@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Assets · JSServe</title><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="index.html">JSServe</a></span></div><form class="docs-search" action="search.html"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li><a class="tocitem" href="plotting.html">Plotting</a></li><li><a class="tocitem" href="widgets.html">Widgets</a></li><li><a class="tocitem" href="deployment.html">Deployment</a></li><li class="is-active"><a class="tocitem" href="assets.html">Assets</a></li><li><a class="tocitem" href="extending.html">Extending</a></li><li><a class="tocitem" href="api.html">Api</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href="assets.html">Assets</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="assets.html">Assets</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/SimonDanisch/JSServe.jl/blob/master/docs/src/assets.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Assets"><a class="docs-heading-anchor" href="#Assets">Assets</a><a id="Assets-1"></a><a class="docs-heading-anchor-permalink" href="#Assets" title="Permalink"></a></h1><pre><code class="language-julia hljs">some_file = Asset(&quot;path/to/local/file&quot;)
+# ES6Module creates an Asset with the flags set appropriately to
+# treat it as a module
+jsmodule = ES6Module(&quot;path/to/local/es6module.js&quot;)::Asset
+
+# These assets can be interpolated into DOM elements and js strings:
+js&quot;&quot;&quot;
+// this will result in importing jsmodule
+// Doing this in many places will only import jsmodule once
+$(jsmodule).then(jsmodule=&gt; {
+    // Do something with the module :)
+})
+// This will give you the raw bytes as a Uint8Array
+$(some_file).then(raw_bytes =&gt; {
+    // do something with bytes
+})
+&quot;&quot;&quot;
+
+# This will resolve to a valid URL depending on the used asset server
+DOM.img(src=some_file)
+
+# This will also resolve to a valid URL and load jsmodule as an es6 module
+DOM.sript(src=jsmodule, type=&quot;module&quot;)
+
+# Assets also work with online sources, which is great for online dependencies!
+# Usage is exactly the same as when using local files
+THREE = ES6Module(&quot;https://unpkg.com/three@0.136.0/build/three.js&quot;)
+# Also offer an easy way to use packages from a CDN (currently esm.sh):
+THREE = CDNSource(&quot;three&quot;; version=&quot;0.137.5&quot;)</code></pre><pre><code class="language-julia hljs"># Javascript &amp; CSS dependencies can be declared locally and
+# freely interpolated in the DOM / js string, and will make sure it loads
+# Note, that they will be a `Promise` though, so to use them you need to call `module.then(module=&gt; ...)`.
+const THREE = ES6Module(&quot;https://cdn.esm.sh/v66/three@0.136/es2021/three.js&quot;)
+
+app = App() do session, request
+    width = 500; height = 500
+    dom = DOM.div(width = width, height = height)
+    JSServe.onload(session, dom, js&quot;&quot;&quot;
+        function (container){
+            $(THREE).then(THREE=&gt; {
+                var renderer = new THREE.WebGLRenderer({antialias: true});
+                renderer.setSize($width, $height);
+                renderer.setClearColor(&quot;#ffffff&quot;);
+                container.appendChild(renderer.domElement);
+                var scene = new THREE.Scene();
+                var camera = new THREE.PerspectiveCamera(75, $width / $height, 0.1, 1000);
+                camera.position.z = 4;
+                var ambientLight = new THREE.AmbientLight(0xcccccc, 0.4);
+                scene.add(ambientLight);
+                var pointLight = new THREE.PointLight(0xffffff, 0.8);
+                camera.add(pointLight);
+                scene.add(camera);
+                var geometry = new THREE.SphereGeometry(1.0, 32, 32);
+                var material = new THREE.MeshPhongMaterial({color: 0xffff00});
+                var sphere = new THREE.Mesh(geometry, material);
+                scene.add(sphere);
+                renderer.render(scene, camera);
+            })
+        }
+    &quot;&quot;&quot;)
+    return dom
+end</code></pre><div data-jscall-id="12">
+  <div data-jscall-id="3">
+    <script data-jscall-id="4" src="JSServe.bundled.js" type="module"></script>
+    <script data-jscall-id="6" type="module">    JSServe.fetch_binary('6560963819615649060.bin').then(msgs=> JSServe.init_session('15ea2570-081a-4641-a70b-56d22b5c2640', msgs, 'root'));
+</script>
+    <script data-jscall-id="5" type="module">    JSServe.on_connection_open((w)=> null, false)
+</script>
+    <div id="15ea2570-081a-4641-a70b-56d22b5c2640" data-jscall-id="JSServer-application-dom">
+      <span data-jscall-id="1"></span>
+    </div>
+  </div>
+  <div data-jscall-id="9">
+    <script data-jscall-id="11" type="module">    JSServe.fetch_binary('4034175837209077690.bin').then(msgs=> JSServe.init_session('9a191c16-2ed0-413e-bb52-95e5a443fcc7', msgs, 'sub'));
+</script>
+    <div id="9a191c16-2ed0-413e-bb52-95e5a443fcc7" data-jscall-id="JSServer-application-dom">
+      <div height="500" data-jscall-id="7" width="500"></div>
+    </div>
+  </div>
+</div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="deployment.html">« Deployment</a><a class="docs-footer-nextpage" href="extending.html">Extending »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Thursday 9 February 2023 16:21">Thursday 9 February 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

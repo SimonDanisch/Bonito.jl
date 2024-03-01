@@ -1,0 +1,10 @@
+{
+    "extends": "eslint:recommended",
+    "rules": {
+        "no-unsafe-finally": "off",
+        "no-native-reassign": "off",
+        "complexity": ["off", 11],
+        "comma-dangle": "error",
+        "require-yield": "error"
+    }
+}
