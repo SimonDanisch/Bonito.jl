@@ -110,7 +110,7 @@ Now, what happens if we add more then 2 items to a Grid with 2 columns?
 
 ```@example 1
 # Little helper to create a Card with centered content
-centered(c; style=Styles(), kw...) = DemoCard(Centered(DOM.h4(c; style=Styles("color" => :white))); style=style)
+centered(c; style=Styles(), kw...) = DemoCard(Centered(DOM.h4(c; style=Styles("color" => :white))); style=style, kw...)
 
 
 App() do
@@ -162,12 +162,9 @@ child = DOM.div(style=style) # assign child from slot 1-2
 To illustrate how this works, here is an interactive app where you can select the slots in the grid, and see the corresponding grid/column assignments:
 
 ```@example 1
-
-
 function centered2d(i, j;)
-    return centered("($i, $j)"; dataCol="$i,$j", style=Styles("user-select" => :none))
+    return Card(Centered("($i, $j)"; dataCol="$i,$j", style=Styles("user-select" => :none)))
 end
-
 
 App() do
     cards = [centered2d(i, j) for i in 1:4 for j in 1:4]
@@ -198,7 +195,7 @@ App() do
         style=grid_style, height=size, width=size)
 
 
-    style_display = centered("Styles(...)"; width="100%")
+    style_display = centered("Styles(...)")
 
 
     hover_js = js"""

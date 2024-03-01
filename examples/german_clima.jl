@@ -2,8 +2,8 @@ using CSV, Shapefile
 using Bonito, WGLMakie, Markdown
 using Downloads: download
 import Bonito.TailwindDashboard as D
-using GeoInterfaceMakie
-GeoInterfaceMakie.@enable Shapefile.Polygon
+# using GeoInterfaceMakie
+# GeoInterfaceMakie.@enable Shapefile.Polygon
 
 read_data(path) = open(path) do io
     # skip first line since it contains an invalid comment
