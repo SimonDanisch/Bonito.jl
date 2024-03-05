@@ -254,7 +254,6 @@ mutable struct Session{Connection <: FrontendConnection}
         end
         bind(inbox, task)
         schedule(task)
-        errormonitor(task)
         return session
     end
 end
