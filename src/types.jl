@@ -188,6 +188,7 @@ mutable struct Session{Connection <: FrontendConnection}
     deletion_lock::Base.ReentrantLock
     current_app::RefValue{Any}
     stylesheets::Dict{HTMLElement, Set{CSS}}
+    inbox::Channel{Vector{UInt8}}
 
     function Session(
             parent::Union{Session, Nothing},
@@ -209,7 +210,9 @@ mutable struct Session{Connection <: FrontendConnection}
             imports::OrderedSet{Asset},
             title::String,
             compression_enabled::Bool,
+            n_inbox= 1024
         ) where {Connection}
+        inbox = Channel{Vector{UInt8}}(n_inbox)
         session = new{Connection}(
             UNINITIALIZED,
             time(),
@@ -235,8 +238,23 @@ mutable struct Session{Connection <: FrontendConnection}
             compression_enabled,
             Base.ReentrantLock(),
             RefValue{Any}(nothing),
-            Dict{HTMLElement,Set{CSS}}()
+            Dict{HTMLElement,Set{CSS}}(),
+            inbox,
         )
+        task = Task() do
+            for message in inbox
+                try
+                    process_message(session, message)
+                catch e
+                    @warn "error while processing received msg" exception = (
+                        e, Base.catch_backtrace()
+                    )
+                end
+            end
+        end
+        bind(inbox, task)
+        schedule(task)
+        errormonitor(task)
         return session
     end
 end
