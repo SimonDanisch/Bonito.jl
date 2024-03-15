@@ -52,14 +52,10 @@ function jupyterlab_proxy_url(port)
     end
 end
 
-function on_julia_hub()
-    return haskey(ENV, "JH_APP_URL")
-end
-
 function find_proxy_in_environment()
     if !isempty(SERVER_CONFIGURATION.proxy_url[])
         return port-> SERVER_CONFIGURATION.proxy_url[]
-    elseif on_julia_hub()
+    elseif haskey(ENV, "JH_APP_URL")
         # JuliaHub & VSCode
         return port-> ENV["JH_APP_URL"] * "proxy/$(port)"
     elseif haskey(ENV, "JULIA_WEBIO_BASEURL")
