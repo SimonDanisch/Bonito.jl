@@ -70,6 +70,11 @@ function find_proxy_in_environment()
         # It definitely isn't there without Jupyterlab
         # jupyterlab
         return jupyterlab_proxy_url
+    elseif haskey(ENV, "VSCODE_PROXY_URI")
+        # If VSCode is proxying ports, default to using that, so that we can
+        # work even in environments where we're using `code-server`, and we
+        # may not have any port available other than https.
+        return port -> replace(ENV["VSCODE_PROXY_URI"], "{{port}}" => port)
     else
         # TODO, when to use ip address?
         # Sockets.getipaddr()
