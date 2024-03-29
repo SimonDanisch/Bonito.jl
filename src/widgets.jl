@@ -219,6 +219,14 @@ function jsrender(session::Session, dropdown::Dropdown)
         }
         element.addEventListener("change", onchange);
         element.selectedIndex = $(dropdown.option_index[] - 1)
+        function set_option_index(index) {
+            if (element.selectedIndex === index - 1) {
+                return
+            }
+            element.selectedIndex = index - 1;
+        }
+        $(dropdown.option_index).on(idx => set_option_index(idx));
+
     }
     """
     option2div(x) = DOM.option(dropdown.option_to_string(x))
