@@ -320,7 +320,7 @@ function render_dependencies(session::Session)
         # only render the assets that aren't already in root session
         setdiff(session.imports, root_session(session).imports)
     end
-    assets_rendered = render_asset.((session,), assets)
+    assets_rendered = render_asset.(Ref(session), Ref(session.asset_server), assets)
     if any(x-> mediatype(x) == :js && !x.es6module, assets)
         # if a js non es6module is included, we may need to hack require... because JS! :(
         return DOM.div(require_off, assets_rendered..., require_on)
