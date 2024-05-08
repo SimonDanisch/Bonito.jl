@@ -225,19 +225,14 @@ function jsrender(session::Session, dropdown::Dropdown)
             }
             element.selectedIndex = index - 1;
         }
-        $(dropdown.option_index).on(idx => set_option_index(idx));
+        $(dropdown.option_index).on(set_option_index);
         function set_options(opts) {
-        console.log(element.options);
             element.selectedIndex = 0;
-            while (element.options.length) {
-              element.remove(0);
-            }
-            for (var i = 0; i < opts.length; i++) {
-                var opt = new Option(opts[i], i);
-                element.options.add(opt);
-            }
+            // https://stackoverflow.com/questions/3364493/how-do-i-clear-all-options-in-a-dropdown-box
+            element.options.length = 0;
+            opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
         }
-        $(dropdown.options).on(opts => set_options(opts));
+        $(dropdown.options).on(set_options);
     }
     """
     option2div(x) = DOM.option(dropdown.option_to_string(x))
