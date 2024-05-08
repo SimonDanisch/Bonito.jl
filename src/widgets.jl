@@ -210,6 +210,7 @@ function Dropdown(options; index=1, option_to_string=string, style=Styles(), att
 end
 
 function jsrender(session::Session, dropdown::Dropdown)
+    string_options = map(x-> map(dropdown.option_to_string, x), session, dropdown.options)
     onchange = js"""
     function onload(element) {
         function onchange(e) {
@@ -219,10 +220,24 @@ function jsrender(session::Session, dropdown::Dropdown)
         }
         element.addEventListener("change", onchange);
         element.selectedIndex = $(dropdown.option_index[] - 1)
+        function set_option_index(index) {
+            if (element.selectedIndex === index - 1) {
+                return
+            }
+            element.selectedIndex = index - 1;
+        }
+        $(dropdown.option_index).on(set_option_index);
+        function set_options(opts) {
+            element.selectedIndex = 0;
+            // https://stackoverflow.com/questions/3364493/how-do-i-clear-all-options-in-a-dropdown-box
+            element.options.length = 0;
+            opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
+        }
+        $(string_options).on(set_options);
     }
     """
-    option2div(x) = DOM.option(dropdown.option_to_string(x))
-    dom = map(options -> map(option2div, options), session, dropdown.options)[]
+    option2div(x) = DOM.option(x)
+    dom = map(options -> map(option2div, options), session, string_options)[]
 
     select = DOM.select(dom; style=dropdown.style, dropdown.attributes...)
     Bonito.onload(session, select, onchange)
