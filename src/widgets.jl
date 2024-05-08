@@ -210,6 +210,7 @@ function Dropdown(options; index=1, option_to_string=string, style=Styles(), att
 end
 
 function jsrender(session::Session, dropdown::Dropdown)
+    string_options = map(x-> map(dropdown.option_to_string, x), session, dropdown.options)
     onchange = js"""
     function onload(element) {
         function onchange(e) {
@@ -232,11 +233,11 @@ function jsrender(session::Session, dropdown::Dropdown)
             element.options.length = 0;
             opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
         }
-        $(dropdown.options).on(set_options);
+        $(string_options).on(set_options);
     }
     """
-    option2div(x) = DOM.option(dropdown.option_to_string(x))
-    dom = map(options -> map(option2div, options), session, dropdown.options)[]
+    option2div(x) = DOM.option(x)
+    dom = map(options -> map(option2div, options), session, string_options)[]
 
     select = DOM.select(dom; style=dropdown.style, dropdown.attributes...)
     Bonito.onload(session, select, onchange)
