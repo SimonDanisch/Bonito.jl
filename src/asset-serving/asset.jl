@@ -37,7 +37,7 @@ function url(::Nothing, asset::Asset)
     return asset.online_path
 end
 
-function render_asset(session::Session, asset::Asset)
+function render_asset(session::Session, asset_server, asset::Asset)
     @assert mediatype(asset) in (:css, :js, :mjs) "Found: $(mediatype(asset)))"
     ref = url(session, asset)
     if mediatype(asset) == :js
@@ -62,7 +62,6 @@ function jsrender(session::Session, asset::Asset)
     else
         error("Unrecognized asset media type: $(mediatype(asset))")
     end
-    return element
 end
 
 """
