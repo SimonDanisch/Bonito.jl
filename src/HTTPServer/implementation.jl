@@ -195,14 +195,14 @@ function Server(
         proxy_url = "",
         routes = Routes(),
         websocket_routes = Routes(),
-	listener_kw...
+        listener_kw...
     )
     server = Server(
         url, port, proxy_url,
         Ref{Task}(), Ref{TCPServer}(),
         routes,
         websocket_routes,
-	haskey(listener_kw, :sslconfig) ? "https://" : "http://"
+        haskey(listener_kw, :sslconfig) ? "https://" : "http://"
     )
 
     try
@@ -218,7 +218,7 @@ function Server(
         app::Union{Function, App},
         url::String, port::Int;
         verbose=-1, proxy_url="",
-	listener_kw...
+        listener_kw...
     )
     server = Server(url, port; verbose=verbose, proxy_url=proxy_url, listener_kw...)
     route!(server, "/" => app)
