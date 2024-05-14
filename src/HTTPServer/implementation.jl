@@ -282,9 +282,8 @@ function start(server::Server; verbose=-1, listener_kw...)
     server.server_connection[] = ioserver
     # pass tcp connection to listen, so that we can close the server
 
-    listener = HTTP.Servers.Listener(ioserver; listener_kw...)
     server.server_task[] = @async begin
-        http_server = HTTP.listen!(listener; verbose=verbose) do stream::Stream
+        http_server = HTTP.listen!(server=ioserver; verbose=verbose, listener_kw...) do stream::Stream
             Base.invokelatest(stream_handler, server, stream)
         end
         try
