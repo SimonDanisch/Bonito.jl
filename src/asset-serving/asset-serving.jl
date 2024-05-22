@@ -9,7 +9,7 @@ include("http.jl")
 
 Path to serve downloaded dependencies
 """
-dependency_path(paths...) = joinpath(@__DIR__, "..", "..", "js_dependencies", paths...)
+dependency_path(paths...) = @path joinpath(@__DIR__, "..", "..", "js_dependencies", paths...)
 
 const BonitoLib = ES6Module(dependency_path("Bonito.js"))
 const Websocket = ES6Module(dependency_path("Websocket.js"))
