@@ -373,11 +373,49 @@ function jsrender(session::Session, slider::StylableSlider)
                 $(slider.index).notify(index + 1);
             }
         }
+        function throttle_function(func, delay) {
+            // Previously called time of the function
+            let prev = 0;
+            // ID of queued future update
+            let future_id = undefined;
+            function inner_throttle(...args) {
+                // Current called time of the function
+                const now = new Date().getTime();
+
+                // If we had a queued run, clear it now, we're
+                // either going to execute now, or queue a new run.
+                if (future_id !== undefined) {
+                    clearTimeout(future_id);
+                    future_id = undefined;
+                }
+
+                // If difference is greater than delay call
+                // the function again.
+                if (now - prev > delay) {
+                    prev = now;
+                    // "..." is the spread operator here
+                    // returning the function with the
+                    // array of arguments
+                    return func(...args);
+                } else {
+                    // Otherwise, we want to queue this function call
+                    // to occur at some later later time, so that it
+                    // does not get lost; we'll schedule it so that it
+                    // fires just a bit after our choke ends.
+                    future_id = setTimeout(
+                        () => inner_throttle(...args),
+                        now - prev + 1
+                    );
+                }
+            }
+            return inner_throttle;
+        }
+        const set_thumb_throttled = throttle_function(set_thumb, 100);
         const controller = new AbortController();
         document.addEventListener('mousedown', function (e) {
             if(e.target === thumb || e.target === track_active || e.target === track || e.targar === container){
                 isDragging = true;
-                set_thumb(e);
+                set_thumb_throttled(e);
                 e.preventDefault();  // Prevent default behavior
             }
         }, { signal: controller.signal});
@@ -389,7 +427,7 @@ function jsrender(session::Session, slider::StylableSlider)
         }, { signal: controller.signal });
         document.addEventListener('mousemove', function (e) {
             if (isDragging) {
-                set_thumb(e);
+                set_thumb_throttled(e);
             }
         }, { signal: controller.signal });
         set_thumb_index($(slider.index).value)
