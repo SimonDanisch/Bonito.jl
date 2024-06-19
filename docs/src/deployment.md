@@ -58,6 +58,29 @@ route!(server, "/my/nested/page" => App(DOM.div("nested")))
 url_to_visit = online_url(server, "/my/nested/page")
 ```
 
+### Secure HTTPS connections with SSL
+
+If the boss insists your fancy webpage use the `https://` protocol, ask them
+for the SSL certificate and key files, and then launch your Bonito App like
+this:
+
+```
+using MbedTLS
+
+sslconfig = MbedTLS.SSLConfig(<path-to-SSL-certificate-file>, <path-to-SSL-key-file>)
+Bonito.Server(main, url, port, sslconfig=sslconfig)
+```
+
+### Logging requests
+
+You want to see who accesses all of your hard work?  No problem!
+
+```
+using HTTP
+access_log = HTTP.logfmt"[$time_iso8601] $remote_addr $request_uri"
+Bonito.Server(main, url, port, access_log=access_log)
+```
+
 ### nginx
 
 If you need to re-route Bonito e.g. to host in parallel to PlutoSliderServer, you want a reverse-proxy like `nginx`. We did some testing with nginx and the following configuration worked for us:

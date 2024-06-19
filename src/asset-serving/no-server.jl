@@ -6,27 +6,32 @@ struct NoServer <: AbstractAssetServer
 end
 Base.similar(asset::NoServer) = asset # no copy needed
 
+function render_asset(session::Session, ::NoServer, asset::Asset)
+    @assert mediatype(asset) in (:css, :js, :mjs) "Found: $(mediatype(asset)))"
+    ref = url(session, asset)
+    if mediatype(asset) == :js
+        if asset.es6module
+            return DOM.script("""
+                // make sure BONITO_IMPORTS is initialized
+                window.BONITO_IMPORTS = window.BONITO_IMPORTS || {};
+                BONITO_IMPORTS['$(unique_key(asset))'] =  import('$(ref)');
+                """
+            )
+        else
+            return DOM.script(; src=ref)
+        end
+    elseif mediatype(asset) == :css
+        return DOM.link(; href=ref, rel="stylesheet", type="text/css")
+    end
+end
+
 function import_in_js(io::IO, session::Session, ns::NoServer, asset::Asset)
-    import_key = "BONITO_IMPORTS['$(unique_key(asset))']"
     if asset.es6module
-        imports = "import($(import_key))"
-    else
-        imports = "Bonito.fetch_binary($(import_key))"
-    end
-    # first time we import this asset, we need to add it to the imports!
-    str = if !(asset in session.imports)
         push!(session.imports, asset)
-        "(() => {
-            if (!window.BONITO_IMPORTS) {
-                window.BONITO_IMPORTS = {};
-            }
-            $(import_key) = `$(url(ns, asset))`;
-            return $(imports);
-        })()"
+        print(io, "BONITO_IMPORTS['$(unique_key(asset))']")
     else
-        str = imports
+        error("Can only import es6 modules with NoServer right now.")
     end
-    print(io, str)
 end
 
 # This is better for e.g. exporting static sides
