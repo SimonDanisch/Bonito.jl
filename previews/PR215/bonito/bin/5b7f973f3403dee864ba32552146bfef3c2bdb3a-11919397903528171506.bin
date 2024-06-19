@@ -1,0 +1,3 @@
+’Ç,j“Ù$fdb4ff9b-85ce-4819-a6fc-a9b7e0401f9a€£sub‚§payload’È3k’ÇJj“Ù$fdb4ff9b-85ce-4819-a6fc-a9b7e0401f9a¤1500Çe’¤1500¯write something£subƒ£obsÇh¤1500§payloadÇÂf“€Ùkreturn value=> Bonito.update_node_attribute(document.querySelector('[data-jscall-id="2"]'), 'value', value)ÙQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92¨msg_type¡1Èmk’ÇJj“Ù$fdb4ff9b-85ce-4819-a6fc-a9b7e0401f9a¤1499Çe’¤1499¯write something£sub‚§payloadÈf“³1718086020514020431Çh¤1499Ù­((node) => {
+    node['onchange'] = event => __lookup_interpolated('1718086020514020431').notify(event.srcElement.value);
+})(document.querySelector('[data-jscall-id="2"]'));Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:109¨msg_type¡2¨msg_type¡9

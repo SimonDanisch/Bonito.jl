@@ -1,0 +1,63 @@
+’Ç,j“Ù$8c75ea94-05b4-4136-ab93-8b38e500e24a€£sub‚§payload’Èk’Ç;j“Ù$8c75ea94-05b4-4136-ab93-8b38e500e24a¤1526×e’¤1526¡1£subƒ£obsÇh¤1526§payloadÇ¡f“€ÙVreturn (val)=> {
+    document.querySelector('[data-jscall-id="21"]').innerText = val
+}ÙE/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/observables.jl:86¨msg_type¡1Èk’ÇJj“Ù$8c75ea94-05b4-4136-ab93-8b38e500e24a‚¤1523Çe’¤1523¤1525Çe’¤1525
+£sub‚§payloadÈf“‚´13435833694841913918Çh¤1523´11766150676023974930Çh¤1525Ú
+((container)=> {
+    const thumb = document.querySelector('[data-jscall-id="19"]');
+    const track_active = document.querySelector('[data-jscall-id="18"]');
+    const track = document.querySelector('[data-jscall-id="17"]');
+    let isDragging = false;
+    const nsteps_obs = __lookup_interpolated('11766150676023974930')
+    let last_index = -1;
+    function set_thumb_index(index) {
+        if (index === last_index) {
+            return
+        }
+        last_index = index;
+        const thumb_width = thumb.offsetWidth / 2;
+        const nsteps = nsteps_obs.value;
+        const step_width = track.offsetWidth / (nsteps-1);
+        const new_left = (index - 1) * step_width;
+        thumb.style.left = (new_left - thumb_width) + 'px';  // Update the left position of the thumb
+        track_active.style.width = new_left + 'px';  // Update the active track
+    }
+    __lookup_interpolated('13435833694841913918').on(idx=> set_thumb_index(idx));
+    function set_thumb(e) {
+        const nsteps = nsteps_obs.value;
+        const thumb_width = thumb.offsetWidth / 2;
+        const width = track.offsetWidth;
+        const step_width = width / (nsteps - 1);
+        let new_left = e.clientX - container.getBoundingClientRect().left;
+        new_left = Math.max(new_left, 0);
+        new_left = Math.min(new_left, width);
+        new_left = Math.round(new_left / step_width) * step_width;
+        thumb.style.left = (new_left - thumb_width) + 'px';  // Update the left position of the thumb
+        track_active.style.width = new_left + 'px';  // Update the active track
+        const index = Math.round((new_left / width) * (nsteps - 1));
+        last_index = index;
+        if (index !== __lookup_interpolated('13435833694841913918').value) {
+            __lookup_interpolated('13435833694841913918').notify(index + 1);
+        }
+    }
+    const controller = new AbortController();
+    document.addEventListener('mousedown', function (e) {
+        if(e.target === thumb || e.target === track_active || e.target === track || e.targar === container){
+            isDragging = true;
+            set_thumb(e);
+            e.preventDefault();  // Prevent default behavior
+        }
+    }, { signal: controller.signal});
+    document.addEventListener('mouseup', function () {
+        if (!document.body.contains(container)) {
+            controller.abort();
+        }
+        isDragging = false;
+    }, { signal: controller.signal });
+    document.addEventListener('mousemove', function (e) {
+        if (isDragging) {
+            set_thumb(e);
+        }
+    }, { signal: controller.signal });
+    set_thumb_index(__lookup_interpolated('13435833694841913918').value)
+}
+)(document.querySelector('[data-jscall-id="16"]'));Ù;/home/runner/work/Bonito.jl/Bonito.jl/src/components.jl:338¨msg_type¡2¨msg_type¡9
