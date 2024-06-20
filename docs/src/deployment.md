@@ -167,7 +167,7 @@ This adds a display, that opens a browser window to display the app.
 The loading of the `BrowserDisplay` happen in any kind of environment without html display, so this should also work in any kind of terminal or when evaluating a script.
 
 ```julia
-> using JSSever
+> using Bonito
 > example_app # just let the display system display it in a browser window
 ```
 
