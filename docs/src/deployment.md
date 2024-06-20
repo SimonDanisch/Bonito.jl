@@ -60,7 +60,7 @@ url_to_visit = online_url(server, "/my/nested/page")
 
 ### Secure HTTPS connections with SSL
 
-If you boss insists your fancy webpage use the `https://` protocol, ask them
+If the boss insists your fancy webpage use the `https://` protocol, ask them
 for the SSL certificate and key files, and then launch your Bonito App like
 this:
 
@@ -69,6 +69,16 @@ using MbedTLS
 
 sslconfig = MbedTLS.SSLConfig(<path-to-SSL-certificate-file>, <path-to-SSL-key-file>)
 Bonito.Server(main, url, port, sslconfig=sslconfig)
+```
+
+### Logging requests
+
+You want to see who accesses all of your hard work?  No problem!
+
+```
+using HTTP
+access_log = HTTP.logfmt"[$time_iso8601] $remote_addr $request_uri"
+Bonito.Server(main, url, port, access_log=access_log)
 ```
 
 ### nginx
@@ -157,7 +167,7 @@ This adds a display, that opens a browser window to display the app.
 The loading of the `BrowserDisplay` happen in any kind of environment without html display, so this should also work in any kind of terminal or when evaluating a script.
 
 ```julia
-> using JSSever
+> using Bonito
 > example_app # just let the display system display it in a browser window
 ```
 
