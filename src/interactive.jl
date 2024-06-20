@@ -33,8 +33,8 @@ routes, task, server = interactive_server(Website.asset_paths()) do
     )
 end
 
-# Once everything looks goo, export the static site
-dir = joinpath(@__DIR__, "docs")
+# Once everything looks good, export the static site
+dir = @path joinpath(@__DIR__, "docs")
 # only delete the bonito generated files
 rm(joinpath(dir, "bonito"); recursive=true, force=true)
 Bonito.export_static(dir, routes)
