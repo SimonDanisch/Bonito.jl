@@ -65,6 +65,45 @@ function fetch_binary(url) {
     });
 }
 
+// from: https://www.geeksforgeeks.org/javascript-throttling/
+function throttle_function(func, delay) {
+    // Previously called time of the function
+    let prev = 0;
+    // ID of queued future update
+    let future_id = undefined;
+    function inner_throttle(...args) {
+        // Current called time of the function
+        const now = new Date().getTime();
+
+        // If we had a queued run, clear it now, we're
+        // either going to execute now, or queue a new run.
+        if (future_id !== undefined) {
+            clearTimeout(future_id);
+            future_id = undefined;
+        }
+
+        // If difference is greater than delay call
+        // the function again.
+        if (now - prev > delay) {
+            prev = now;
+            // "..." is the spread operator here
+            // returning the function with the
+            // array of arguments
+            return func(...args);
+        } else {
+            // Otherwise, we want to queue this function call
+            // to occur at some later later time, so that it
+            // does not get lost; we'll schedule it so that it
+            // fires just a bit after our choke ends.
+            future_id = setTimeout(
+                () => inner_throttle(...args),
+                now - prev + 1
+            );
+        }
+    }
+    return inner_throttle;
+}
+
 const Bonito = {
     Protocol,
     base64decode,
@@ -97,6 +136,7 @@ const Bonito = {
     onany,
     free_object,
     send_to_julia,
+    throttle_function,
 };
 
 // @ts-ignore
@@ -132,4 +172,5 @@ export {
     can_send_to_julia,
     free_object,
     send_to_julia,
+    throttle_function,
 };
