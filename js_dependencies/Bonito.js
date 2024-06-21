@@ -97,7 +97,7 @@ function throttle_function(func, delay) {
             // fires just a bit after our choke ends.
             future_id = setTimeout(
                 () => inner_throttle(...args),
-                now - prev + 1
+                delay - (now - prev) + 1
             );
         }
     }

@@ -4067,7 +4067,7 @@ function throttle_function(func, delay) {
             prev = now;
             return func(...args);
         } else {
-            future_id = setTimeout(()=>inner_throttle(...args), now - prev + 1);
+            future_id = setTimeout(()=>inner_throttle(...args), delay - (now - prev) + 1);
         }
     }
     return inner_throttle;
