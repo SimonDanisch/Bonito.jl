@@ -105,15 +105,8 @@ function run_connection_loop(server::Server, session::Session, connection::WebSo
         end
     finally
         # This always needs to happen, which is why we need a try catch!
-        if CLEANUP_TIME[] == 0.0
-            @debug("Closing: $(session.id)")
-            # might as well close it immediately
-            close(session)
-            delete_websocket_route!(server, "/$(session.id)")
-        else
-            @debug("Soft closing: $(session.id)")
-            soft_close(session)
-        end
+        @debug("Soft closing: $(session.id)")
+        soft_close(session)
     end
 end
 
@@ -138,7 +131,7 @@ end
 
 const SERVER_CLEANUP_TASKS = Dict{Server, Task}()
 
-const CLEANUP_TIME = Ref(0.0)
+const CLEANUP_TIME = Ref(20.0/60/60)   # hours
 
 """
     set_cleanup_time!(time_in_hrs::Real)
@@ -161,17 +154,10 @@ function cleanup_server(server::Server)
                 session = handler.session
                 if isnothing(session)
                     push!(remove, handler)
-                elseif session.status == SOFT_CLOSED
+                elseif session.status == SOFT_CLOSED || !isopen(session)
                     age = time() - session.closing_time
                     age_hours = age / 60 / 60
                     if age_hours > CLEANUP_TIME[]
-                        push!(remove, handler)
-                    end
-                elseif !isopen(session)
-                    # if the session is not SOFT_CLOSED, closing time means creation time
-                    creation_time = session.closing_time
-                    # close unopend sessions after 20 seconds
-                    if time() - creation_time > 20
                         push!(remove, handler)
                     end
                 end

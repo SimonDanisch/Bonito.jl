@@ -7,6 +7,7 @@
         end
         display(edisplay, app)
         app_id = app.session[].id
+        Bonito.wait_for(() -> !isempty(app.session[].children), timeout=60)
         obs_id = first(app.session[].children)[2].id
         session = app.session[]
         @test length(session.children) == 1

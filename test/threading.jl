@@ -86,7 +86,7 @@ end
         close(win)
     end
     empty!(created_windows)
-    success = Bonito.wait_for(() -> isempty(server.websocket_routes.table), timeout=10)
+    success = Bonito.wait_for(() -> isempty(server.websocket_routes.table), timeout=60)
     @test success == :success
     close(server)
 end
