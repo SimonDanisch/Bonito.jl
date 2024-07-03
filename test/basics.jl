@@ -123,6 +123,28 @@ end
     @test test_dangling_app()
 end
 
+@testset "observable update" begin
+    obs1 = Observable(1)
+    obs2 = Observable(2)
+    obs3 = Observable(3)
+    obs4 = Observable{Any}(4)
+
+    app = App() do session
+        evaljs(session, js"""
+        $obs1.notify(0, true);
+        $obs2.notify($obs1.value);
+        $obs3.notify(12);
+        $obs4.notify(null);
+        """)
+    end
+
+    display(app)
+
+    @test obs1[] == 1
+    @test obs2[] == 0
+    @test obs3[] == 12
+    @test obs4[] === nothing
+end
 
 # @testset "" begin
 #     obs2 = Observable("hey")
