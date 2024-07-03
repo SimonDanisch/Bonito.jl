@@ -129,21 +129,22 @@ end
     obs3 = Observable(3)
     obs4 = Observable{Any}(4)
 
-    app = App() do session
-        evaljs(session, js"""
+    function observable_update_app(s, r)
+        evaljs(s, js"""
         $obs1.notify(0, true);
         $obs2.notify($obs1.value);
         $obs3.notify(12);
         $obs4.notify(null);
         """)
+        return DOM.div()
     end
 
-    display(app)
-
-    @test obs1[] == 1
-    @test obs2[] == 0
-    @test obs3[] == 12
-    @test obs4[] === nothing
+    testsession(observable_update_app; port=8555) do app
+        @test obs1[] == 1
+        @test obs2[] == 0
+        @test obs3[] == 12
+        @test obs4[] === nothing
+    end
 end
 
 # @testset "" begin
