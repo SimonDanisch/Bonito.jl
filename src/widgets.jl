@@ -467,15 +467,20 @@ function CodeEditor(
         "enableMultiselect" => true,
         "showLineNumbers" => false,
         "fontSize" => 16,
+        "vScrollBarAlwaysVisible" => false,
+        "hScrollBarAlwaysVisible" => false,
         "wrap" => 80,
         "mergeUndoDeltas" => "always",
+        "showGutter" => false,
+        "highlightActiveLine" => false,
+        "displayIndentGuides" => false,
+        "showPrintMargin" => false,
     )
     user_opts = Dict{String,Any}(string(k) => v for (k, v) in editor_options)
     options = Dict{String,Any}(merge(user_opts, defaults))
     onchange = Observable(initial_source)
     style = Styles(style,
         "position" => "relative",
-        "width" => "$(width)px",
         "height" => "$(height)px",
     )
     element = DOM.div(""; style=style)
@@ -494,7 +499,6 @@ function jsrender(session::Session, editor::CodeEditor)
                     mode: $(language)
                 });
                 editor.setTheme($theme);
-                editor.resize();
                 editor.getSession().setUseWrapMode(true)
                 // use setOptions method to set several options at once
                 editor.setOptions($(editor.options));
@@ -503,6 +507,13 @@ function jsrender(session::Session, editor::CodeEditor)
                     $(editor.onchange).notify(editor.getValue());
                 });
                 editor.session.setValue($(editor.onchange).value);
+                 function resizeEditor() {
+                    const height = editor.getSession().getScreenLength() *
+                        (editor.renderer.lineHeight + editor.renderer.scrollBar.getWidth());
+                    editor.container.style.height = `${height}px`;
+                }
+                // Resize the editor initially
+                resizeEditor();
             }
         """,
     )

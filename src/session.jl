@@ -342,8 +342,11 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         if html_document
             # emit a whole html document
             body_dom = DOM.div(dom, id=session.id, dataJscallId=dom_id)
-            head = Hyperscript.m("head", Hyperscript.m("meta"; charset="UTF-8"),
-                                 Hyperscript.m("title", session.title), session_style)
+            head = Hyperscript.m("head",
+                Hyperscript.m("meta"; charset="UTF-8"),
+                Hyperscript.m("title", session.title),
+                session_style
+            )
             body = Hyperscript.m("body", body_dom)
             dom = Hyperscript.m("html", head, body; class="bonito-fragment")
         else
