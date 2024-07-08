@@ -4052,6 +4052,24 @@ function fetch_binary(url) {
         return response.arrayBuffer();
     });
 }
+function throttle_function(func, delay) {
+    let prev = 0;
+    let future_id = undefined;
+    function inner_throttle(...args) {
+        const now = new Date().getTime();
+        if (future_id !== undefined) {
+            clearTimeout(future_id);
+            future_id = undefined;
+        }
+        if (now - prev > delay) {
+            prev = now;
+            return func(...args);
+        } else {
+            future_id = setTimeout(()=>inner_throttle(...args), delay - (now - prev) + 1);
+        }
+    }
+    return inner_throttle;
+}
 const Bonito = {
     Protocol: mod2,
     base64decode: base64decode1,
@@ -4080,8 +4098,9 @@ const Bonito = {
     can_send_to_julia: can_send_to_julia1,
     onany,
     free_object: free_object1,
-    send_to_julia: send_to_julia1
+    send_to_julia: send_to_julia1,
+    throttle_function
 };
 window.Bonito = Bonito;
-export { mod2 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, mod as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, mod1 as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany, OBJECT_FREEING_LOCK1 as OBJECT_FREEING_LOCK, can_send_to_julia1 as can_send_to_julia, free_object1 as free_object, send_to_julia1 as send_to_julia };
+export { mod2 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, mod as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, mod1 as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany, OBJECT_FREEING_LOCK1 as OBJECT_FREEING_LOCK, can_send_to_julia1 as can_send_to_julia, free_object1 as free_object, send_to_julia1 as send_to_julia, throttle_function as throttle_function };
 
