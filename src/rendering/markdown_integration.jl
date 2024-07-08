@@ -40,12 +40,13 @@ end
 function md_html(session::Session, md::Markdown.List)
     maybe_attr = md.ordered > 1 ? Any[:start => string(md.ordered)] : []
     tag = Markdown.isordered(md) ? "ol" : "ul"
+    style = Styles("list-style-type" => "disc", "list-style" => "inside")
     return [DOM.m(
         tag, maybe_attr...,
         map(md.items) do item
             DOM.m("li", md_html(session, item)...)
         end...
-        ; style="list-style-type: disc; list-style: inside;")]
+        ; style=style)]
 end
 
 function md_html(session::Session, md::Markdown.HorizontalRule)
@@ -100,8 +101,8 @@ function htmlinline(session::Session, br::Markdown.LineBreak)
     return [DOM.m("br")]
 end
 
-htmlinline(session::Session, x) = [jsrender(session, x)]
-md_html(session::Session, x) = [jsrender(session, x)]
+htmlinline(session::Session, x) = [x]
+md_html(session::Session, x) = [x]
 
 function render_result(result)
     if Tables.istable(result)
@@ -116,14 +117,14 @@ end
 Replaces all expressions inside `markdown` savely, by only supporting
 getindex/getfield expression that will index into `context`
 """
-function replace_expressions(session::Session, markdown; eval_julia_code=false)
+function replace_expressions(session::Session, markdown, replacements; eval_julia_code=false)
     if markdown isa Union{Expr, Symbol}
         return markdown
     end
     if hasproperty(markdown, :content)
-        markdown.content .= replace_expressions.((session,), markdown.content; eval_julia_code=eval_julia_code)
+        markdown.content .= replace_expressions.((session,), markdown.content, (replacements,); eval_julia_code=eval_julia_code)
     elseif hasproperty(markdown, :text)
-        markdown.text .= replace_expressions.((session,), markdown.text; eval_julia_code=eval_julia_code)
+        markdown.text .= replace_expressions.((session,), markdown.text, (replacements,); eval_julia_code=eval_julia_code)
     end
     return markdown
 end
@@ -144,7 +145,10 @@ function parseall(str)
     end
 end
 
-function replace_expressions(session::Session, markdown::Markdown.Code; eval_julia_code=false)
+function replace_expressions(session::Session, markdown::Markdown.Code, replacements; eval_julia_code=false)
+    if haskey(replacements, Markdown.Code)
+        return replacements[Markdown.Code](session, markdown)
+    end
     if markdown.language == "julia" && eval_julia_code isa Module
         hide = occursin("# hide", markdown.code)
         no_eval = occursin("# no-eval", markdown.code)
@@ -169,7 +173,7 @@ getindex/getfield expression that will index into `context`.
 You can eval Julia code blocks by setting `eval_julia_code` to a Module, into which
 the code gets evaluated!
 """
-function string_to_markdown(session::Session, source::String; eval_julia_code=false)
+function string_to_markdown(session::Session, source::String, replacements=Dict{Any, Function}(); eval_julia_code=false)
     markdown = Markdown.parse(source)
-    return replace_expressions(session, markdown; eval_julia_code=eval_julia_code)
+    return replace_expressions(session, markdown, replacements; eval_julia_code=eval_julia_code)
 end
