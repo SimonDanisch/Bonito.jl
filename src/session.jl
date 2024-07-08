@@ -343,6 +343,10 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
             # emit a whole html document
             body_dom = DOM.div(dom, id=session.id, dataJscallId=dom_id)
             head = Hyperscript.m("head",
+                Hyperscript.m(
+                    "meta";
+                    name="viewport", content="width=device-width, initial-scale=1.0"
+                ),
                 Hyperscript.m("meta"; charset="UTF-8"),
                 Hyperscript.m("title", session.title),
                 session_style
