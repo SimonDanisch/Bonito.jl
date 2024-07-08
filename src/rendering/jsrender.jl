@@ -12,22 +12,21 @@ jsrender(::Nothing) = DOM.span()
 jsrender(@nospecialize(x)) = x
 
 function render_mime(session::Session, m::MIME"text/html", @nospecialize(value))
-    html = Base.invokelatest(repr, m, value; context=session.current_rendering_io[])
+    html = Base.invokelatest(repr, m, value; context=session.io_context[])
     return HTML{String}(html)
 end
 
 function render_mime(session::Session, m::Union{MIME"image/png", MIME"image/jpeg", MIME"image/svg+xml"}, @nospecialize(value))
     io = IOBuffer()
-    render_io = let context = session.current_rendering_io[]
-        context === nothing ? io : IOContext(io, context)
-    end
+    ctx = session.io_context[]
+    render_io = isnothing(ctx) ? io : IOContext(io, ctx)
     show(render_io, m, value)
     bindeps = BinaryAsset(take!(io), mime_string(m))
     return DOM.img(src=url(session, bindeps))
 end
 
 function render_mime(::Session, m::MIME"text/plain", @nospecialize(value))
-    return DOM.p(Base.invokelatest(repr, m, value; context=session.current_rendering_io[]))
+    return DOM.p(Base.invokelatest(repr, m, value; context=session.io_context[]))
 end
 
 function jsrender(session::Session, @nospecialize(value))

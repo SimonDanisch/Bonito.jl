@@ -129,7 +129,7 @@ function Base.close(session::Session)
         close(session.asset_server)
         Observables.clear(session.on_close)
         session.current_app[] = nothing
-        session.current_rendering_io[] = nothing
+        session.io_context[] = nothing
     end
     return
 end
