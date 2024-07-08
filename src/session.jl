@@ -123,7 +123,7 @@ function Base.close(session::Session)
         if session !== root
             #  Close session on js side as well
             # If not ready, we already lost connection to JS frontend, so no need to close things on the JS side
-            isready(root) && evaljs(root, js"""JSServe.free_session($(session.id))""")
+            isready(root) && evaljs(root, js"""Bonito.free_session($(session.id))""")
         end
         close(session.connection)
         close(session.asset_server)
@@ -263,7 +263,7 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
             comm.notify({error: e.toString()});
         } finally {
             // manually free!!
-            JSServe.free_object(comm.id);
+            Bonito.free_object(comm.id);
         }
     }
     """
@@ -321,7 +321,7 @@ function render_dependencies(session::Session)
         # only render the assets that aren't already in root session
         setdiff(session.imports, root_session(session).imports)
     end
-    assets_rendered = render_asset.((session,), assets)
+    assets_rendered = render_asset.(Ref(session), Ref(session.asset_server), assets)
     if any(x-> mediatype(x) == :js && !x.es6module, assets)
         # if a js non es6module is included, we may need to hack require... because JS! :(
         return DOM.div(require_off, assets_rendered..., require_on)
@@ -336,25 +336,28 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     # If we have a head & body, we want to append our initialization
     # code and dom nodes to the right places, so we need to extract those
     head, body, dom = find_head_body(dom)
+    session_style = render_stylesheets!(root_session(session), session.stylesheets)
 
     # if nothing is found, we just use one div and append to that
     if isnothing(head) && isnothing(body)
         if html_document
             # emit a whole html document
             body_dom = DOM.div(dom, id=session.id, dataJscallId=dom_id)
-            head = Hyperscript.m("head", Hyperscript.m("meta", charset="UTF-8"), Hyperscript.m("title", session.title))
+            head = Hyperscript.m("head", Hyperscript.m("meta"; charset="UTF-8"),
+                                 Hyperscript.m("title", session.title), session_style)
             body = Hyperscript.m("body", body_dom)
-            dom = Hyperscript.m("html", head, body)
+            dom = Hyperscript.m("html", head, body; class="bonito-fragment")
         else
             # Emit a "fragment"
-            head = DOM.div()
-            body = dom
-            dom = DOM.div(head, dom, id=session.id, dataJscallId=dom_id)
+            head = DOM.div(session_style)
+            body = DOM.div(dom)
+            dom = DOM.div(
+                head, body; id=session.id, class="bonito-fragment", dataJscallId=dom_id
+            )
         end
     end
-
-    # first render JSServeLib
-    JSServe_import = DOM.script(src=url(session, JSServeLib), type="module")
+    # first render BonitoLib
+    Bonito_import = DOM.script(src=url(session, BonitoLib), type="module")
     init_server = setup_asset_server(session.asset_server)
     if !isnothing(init_server)
         pushfirst!(children(body), jsrender(session, init_server))
@@ -371,12 +374,12 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         msgs = fused_messages!(session)
         type = issubsession ? "sub" : "root"
         if isempty(msgs[:payload])
-            init_session = js"""JSServe.lock_loading(() => JSServe.init_session($(session.id), null, $(type)))"""
+            init_session = js"""Bonito.lock_loading(() => Bonito.init_session($(session.id), null, $(type)))"""
         else
             binary = BinaryAsset(session, msgs)
             init_session = js"""
-                JSServe.lock_loading(() => {
-                    return $(binary).then(msgs=> JSServe.init_session($(session.id), msgs, $(type)));
+                Bonito.lock_loading(() => {
+                    return $(binary).then(msgs=> Bonito.init_session($(session.id), msgs, $(type)));
                 })
             """
         end
@@ -384,7 +387,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     end
 
     if !issubsession
-        pushfirst!(children(head), JSServe_import)
+        pushfirst!(children(head), Bonito_import)
     end
     session.status = RENDERED
     return dom

@@ -19,14 +19,16 @@ function jupyter_running_servers()
     jupyter = IJulia().JUPYTER
     # Man, whats up with jupyter??
     # They switched between versions from stdout to stderr, and also don't produce valid json as output -.-
-    json = replace(sprint(io -> run(pipeline(`$jupyter lab list --json`; stderr=io))), "[JupyterServerListApp] " => "")
+    run_cmd(std, err) = run(pipeline(`$jupyter lab list --json`; stderr=err, stdout=std))
+    json = sprint(io -> run_cmd(io, IOBuffer()))
     if isempty(json)
-        json = read(`$jupyter lab list --json`, String)
+        json = sprint(io -> run_cmd(IOBuffer(), io))
         if isempty(json)
             # give up -.-
             return nothing
         end
     end
+    json = replace(json, "[JupyterServerListApp] " => "")
     json = replace(json, r"[\r\n]+" => "\n")
     configs = IJulia().JSON.parse.(split(json, "\n"; keepempty=false))
     return configs
@@ -50,14 +52,10 @@ function jupyterlab_proxy_url(port)
     end
 end
 
-function on_julia_hub()
-    return haskey(ENV, "JH_APP_URL")
-end
-
 function find_proxy_in_environment()
     if !isempty(SERVER_CONFIGURATION.proxy_url[])
         return port-> SERVER_CONFIGURATION.proxy_url[]
-    elseif on_julia_hub()
+    elseif haskey(ENV, "JH_APP_URL")
         # JuliaHub & VSCode
         return port-> ENV["JH_APP_URL"] * "proxy/$(port)"
     elseif haskey(ENV, "JULIA_WEBIO_BASEURL")
@@ -72,6 +70,11 @@ function find_proxy_in_environment()
         # It definitely isn't there without Jupyterlab
         # jupyterlab
         return jupyterlab_proxy_url
+    elseif haskey(ENV, "VSCODE_PROXY_URI")
+        # If VSCode is proxying ports, default to using that, so that we can
+        # work even in environments where we're using `code-server`, and we
+        # may not have any port available other than https.
+        return port -> replace(ENV["VSCODE_PROXY_URI"], "{{port}}" => port)
     else
         # TODO, when to use ip address?
         # Sockets.getipaddr()

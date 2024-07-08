@@ -1,6 +1,6 @@
-using JSServe, Observables
-using JSServe: @js_str, onjs, Button, TextField, Slider, linkjs, Session, App
-using JSServe.DOM
+using Bonito, Observables
+using Bonito: @js_str, onjs, Button, TextField, Slider, linkjs, Session, App
+using Bonito.DOM
 using Hyperscript
 
 app = App() do session::Session
@@ -22,9 +22,9 @@ if isdefined(Main, :server)
     close(server)
 end
 
-server = JSServe.Server(app, "127.0.0.1", 8081)
+server = Bonito.Server(app, "127.0.0.1", 8081)
 # Important Note: You might want to set the keyword argument `proxy_url` above in case
-# you have a reverse proxy (like nginx or caddy) in front of the JSServe instance.
-JSServe.HTTPServer.start(server)
-# JSServe.HTTPServer.route!(server, "/" => app) # Overwrite app after changing it
+# you have a reverse proxy (like nginx or caddy) in front of the Bonito instance.
+Bonito.HTTPServer.start(server)
+# Bonito.HTTPServer.route!(server, "/" => app) # Overwrite app after changing it
 wait(server)

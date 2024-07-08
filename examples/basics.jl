@@ -1,6 +1,6 @@
 using Markdown
 md"""
-# What is JSServe?
+# What is Bonito?
 
 * a connection between Julia & Javascript
 * a reactive DOM
@@ -9,10 +9,10 @@ md"""
 * Similar to React.js in some ways
 """
 
-using JSServe, Observables
-using JSServe: @js_str, Session, App, onjs, onload, Button
-using JSServe: TextField, Slider, linkjs
-JSServe.browser_display()
+using Bonito, Observables
+using Bonito: @js_str, Session, App, onjs, onload, Button
+using Bonito: TextField, Slider, linkjs
+Bonito.browser_display()
 
 app = App(DOM.h1("Hello World"))
 display(app)
@@ -73,14 +73,14 @@ md"""
 # Including assets & Widgets
 """
 
-MUI = JSServe.Asset("https://cdn.muicss.com/mui-0.10.1/css/mui.min.css")
-sliderstyle = JSServe.Asset(joinpath(@__DIR__, "sliderstyle.css"))
-image = JSServe.Asset(joinpath(@__DIR__, "assets", "julia.png"))
-s = JSServe.get_server();
+MUI = Bonito.Asset("https://cdn.muicss.com/mui-0.10.1/css/mui.min.css")
+sliderstyle = Bonito.Asset(joinpath(@__DIR__, "sliderstyle.css"))
+image = Bonito.Asset(joinpath(@__DIR__, "assets", "julia.png"))
+s = Bonito.get_server();
 
 app = App() do
-    button = JSServe.Button("hi", class="mui-btn mui-btn--primary")
-    slider = JSServe.Slider(1:10, class="slider")
+    button = Bonito.Button("hi", class="mui-btn mui-btn--primary")
+    slider = Bonito.Slider(1:10, class="slider")
 
     on(button) do click
         @show click
@@ -114,29 +114,29 @@ app = App() do
 end
 display(app)
 
-JSServe.route!(JSServe.get_server(), "/example1" => app)
+Bonito.route!(Bonito.get_server(), "/example1" => app)
 
 app = App() do session::Session
-    slider = JSServe.Slider(1:10, class="slider m-4")
+    slider = Bonito.Slider(1:10, class="slider m-4")
     squared = map(slider) do slidervalue
         return slidervalue^2
     end
     class = "p-2 rounded border-2 border-gray-600 m-4"
     v1 = DOM.div(slider.value, class=class)
     v2 = DOM.div(squared, class=class)
-    dom = DOM.div(JSServe.TailwindCSS, "Hello", slider, sliderstyle, v1, v2)
+    dom = DOM.div(Bonito.TailwindCSS, "Hello", slider, sliderstyle, v1, v2)
     # statemap for static serving
     # return dom
-    return JSServe.record_states(session, dom)
+    return Bonito.record_states(session, dom)
 end;
 
 export_path = joinpath(@__DIR__, "demo")
 mkdir(export_path)
-routes = JSServe.Routes()
+routes = Bonito.Routes()
 routes["/"] = app
-JSServe.export_static(export_path, routes)
+Bonito.export_static(export_path, routes)
 
-# Or just `JSServe.export_static("index.html", app)` to export the app to a single file!
+# Or just `Bonito.export_static("index.html", app)` to export the app to a single file!
 
 # Then one can use liveserver to host the static export:
 using LiveServer

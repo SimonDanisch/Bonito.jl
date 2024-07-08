@@ -1,6 +1,6 @@
-using WGLMakie, JSServe
+using WGLMakie, Bonito
 using Colors, ImageTransformations, Markdown
-using JSServe: styled_slider
+using Bonito: styled_slider
 
 folder = joinpath(@__DIR__, "simulation")
 
@@ -12,17 +12,17 @@ volume_frames = map(readdir(folder)) do file
     end
 end
 
-struct Flip <: JSServe.WidgetsBase.AbstractWidget{Bool}
+struct Flip <: Bonito.WidgetsBase.AbstractWidget{Bool}
     label::String
     value::Observable{Bool}
 end
 Flip(label) = Flip(label, Observable(false))
 # Implement interface for Flip to work with offline mode
-JSServe.is_widget(::Flip) = true
-JSServe.value_range(flip::Flip) = (true, false)
-JSServe.update_value!(flip::Flip, value) = (flip.value[] = value)
+Bonito.is_widget(::Flip) = true
+Bonito.value_range(flip::Flip) = (true, false)
+Bonito.update_value!(flip::Flip, value) = (flip.value[] = value)
 
-function JSServe.jsrender(flip::Flip)
+function Bonito.jsrender(flip::Flip)
     return DOM.input(
         type = "button",
         value = flip.label,
@@ -36,8 +36,8 @@ function JSServe.jsrender(flip::Flip)
 end
 
 function handler(s, r)
-    sl = JSServe.Slider(1:64)
-    absorption = JSServe.Slider(range(1f0, stop=10f0, step=0.1))
+    sl = Bonito.Slider(1:64)
+    absorption = Bonito.Slider(range(1f0, stop=10f0, step=0.1))
     flip_colormap = Flip("flip colormap")
     absorption.value[] = 5
     v = map(sl) do idx
@@ -64,7 +64,7 @@ function handler(s, r)
 
     Simulation created with [Oceananigans.jl](https://github.com/CliMA/Oceananigans.jl/) which is part of the [CliMA](https://github.com/CliMA) project.
 
-    [source code](https://github.com/SimonDanisch/JSServe.jl/blob/master/examples/oceananigans.jl)
+    [source code](https://github.com/SimonDanisch/Bonito.jl/blob/master/examples/oceananigans.jl)
 
     ---
 
@@ -76,14 +76,14 @@ function handler(s, r)
     $(scene)
 
     """
-    dom = DOM.div(JSServe.MarkdownCSS, JSServe.Styling, JSServe.TailwindCSS, markdown)
+    dom = DOM.div(Bonito.MarkdownCSS, Bonito.Styling, Bonito.TailwindCSS, markdown)
     # return dom
-    return JSServe.record_state_map(s, dom).dom
+    return Bonito.record_state_map(s, dom).dom
 end
 
 # Either serve
-# app = JSServe.Server(handler, "0.0.0.0", 8083)
+# app = Bonito.Server(handler, "0.0.0.0", 8083)
 
 export_path = "dev/WGLDemos/oceananigans/"
 # or export to e.g. github IO
-JSServe.export_standalone(handler, export_path, clear_folder=true)
+Bonito.export_standalone(handler, export_path, clear_folder=true)

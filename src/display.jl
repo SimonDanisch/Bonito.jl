@@ -9,7 +9,7 @@ const CURRENT_SESSION = Ref{Union{Nothing,Session}}(nothing)
         server_config...
     )
 
-A Page can be used for resetting the JSServe state in a multi page display outputs, like it's the case for Pluto/IJulia/Documenter.
+A Page can be used for resetting the Bonito state in a multi page display outputs, like it's the case for Pluto/IJulia/Documenter.
 For Documenter, the page needs to be set to `exportable=true, offline=true`, but doesn't need to, since Page defaults to the most common parameters for known Packages.
 Exportable has the effect of inlining all data & js dependencies, so that everything can be loaded in a single HTML object.
 `offline=true` will make the Page not even try to connect to a running Julia
@@ -88,7 +88,7 @@ end
 
 function print_as_page(io::IO, dom::Node)
     println(io, "<!doctype html>")
-    # use Hyperscript directly to avoid the additional JSServe attributes
+    # use Hyperscript directly to avoid the additional Bonito attributes
     show(io, MIME"text/html"(), Hyperscript.Pretty(dom))
     return
 end
@@ -104,11 +104,11 @@ function page_html(io::IO, session::Session, app_node::Union{Node, App})
     return
 end
 
-function Base.show(io::IOContext, ::MIME"application/vnd.JSServe.application+html", dom::App)
+function Base.show(io::IOContext, ::MIME"application/vnd.Bonito.application+html", dom::App)
     show(io.io, MIME"text/html"(), dom)
 end
 
-function Base.show(io::IO, m::MIME"application/vnd.JSServe.application+html", app::App)
+function Base.show(io::IO, m::MIME"application/vnd.Bonito.application+html", app::App)
     show(IOContext(io), m, app)
 end
 
@@ -125,7 +125,7 @@ function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
         fetch_app = App() do s
             dom_node = DOM.div()
             request = js"""
-                JSServe.send_to_julia({
+                Bonito.send_to_julia({
                     msg_type: "13",
                     session: $(sub.id),
                     replace: $(uuid(sub, dom_node)),

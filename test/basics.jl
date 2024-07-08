@@ -1,31 +1,31 @@
 @testset "basic session rendering" begin
     session = Session()
     obs1 = Observable(1)
-    TestLib = JSServe.JSServeLib
+    TestLib = Bonito.BonitoLib
     dom = App(DOM.div(test=obs1, onload=js"$(TestLib).lol()"))
-    sdom = JSServe.session_dom(session, dom; init=false) # Init false to not inline messages
-    msg = JSServe.fused_messages!(session)
-    data = JSServe.serialize_cached(session, msg)
-    decoded = JSServe.deserialize(msg[:payload][1]) |> JSServe.decode_extension_and_addbits
+    sdom = Bonito.session_dom(session, dom; init=false) # Init false to not inline messages
+    msg = Bonito.fused_messages!(session)
+    data = Bonito.serialize_cached(session, msg)
+    decoded = Bonito.deserialize(msg[:payload][1]) |> Bonito.decode_extension_and_addbits
     mapped = obs1.listeners[1][2].result # we map(render, obs1) when rendering attributes, so only that will be in the session
     @test haskey(session.session_objects, mapped.id)
     # Obs registered correctly
-    @test mapped.listeners[1][2] isa JSServe.JSUpdateObservable
+    @test mapped.listeners[1][2] isa Bonito.JSUpdateObservable
     session_cache = decoded[1]
-    @test session_cache isa JSServe.SessionCache
+    @test session_cache isa Bonito.SessionCache
     @test haskey(session_cache.objects, mapped.id)
     @test haskey(session.session_objects, mapped.id)
 
     # Will deregisters correctly on session close
     @test length(session.deregister_callbacks) == 1
     @test session.deregister_callbacks[1].observable === obs1
-    @test occursin("JSServe.update_node_attribute", string(decoded[2]["payload"]))
+    @test occursin("Bonito.update_node_attribute", string(decoded[2]["payload"]))
     close(session)
     @test isempty(obs1.listeners)
     @test isempty(mapped.listeners)
 end
 
-struct DebugConnection <: JSServe.FrontendConnection
+struct DebugConnection <: Bonito.FrontendConnection
     io::IOBuffer
 end
 
@@ -37,29 +37,29 @@ setup_connection(session::Session{DebugConnection}) = nothing
 
 @testset "Session & Subsession rendering & cleanup" begin
     connection = DebugConnection()
-    open_session = JSServe.Session(connection; asset_server=JSServe.NoServer())
+    open_session = Bonito.Session(connection; asset_server=Bonito.NoServer())
     put!(open_session.connection_ready, true)
     @test isopen(open_session)
-    JSServe.CURRENT_SESSION[] = open_session
+    Bonito.CURRENT_SESSION[] = open_session
 
-    rslider = JSServe.RangeSlider(1:100; value=[10, 80])
+    rslider = Bonito.RangeSlider(1:100; value=[10, 80])
 
     for obs_field in (:range, :value, :connect, :orientation, :tooltips, :ticks)
         obs = getfield(rslider, obs_field)
         @test isempty(obs.listeners)
     end
 
-    sliderapp = JSServe.App(rslider);
+    sliderapp = Bonito.App(rslider);
     html = sprint() do io
-        sub = JSServe.show(io, MIME"text/html"(), sliderapp)
-        msg = JSServe.fused_messages!(sub)
-        JSServe.serialize_binary(sub, msg)
+        sub = Bonito.show(io, MIME"text/html"(), sliderapp)
+        msg = Bonito.fused_messages!(sub)
+        Bonito.serialize_binary(sub, msg)
     end
 
     @test length(open_session.children) == 1
     c_session = first(open_session.children)[2]
     # ID of div correctly set to child session
-    @test occursin("<div id=\"$(c_session.id)\"", html)
+    @test occursin("id=\"$(c_session.id)\"", html)
 
     @testset "assets" begin
         @test length(c_session.session_objects) == 2
@@ -70,7 +70,7 @@ setup_connection(session::Session{DebugConnection}) = nothing
         @test length(obs.listeners) == 1
         if obs_field == :value
             @test haskey(open_session.session_objects, obs.id)
-            @test obs.listeners[1][2] isa JSServe.JSUpdateObservable
+            @test obs.listeners[1][2] isa Bonito.JSUpdateObservable
         end
     end
 
@@ -88,9 +88,9 @@ setup_connection(session::Session{DebugConnection}) = nothing
 
     @testset "dependency second include" begin
         html2 = sprint() do io
-            sub = JSServe.show(io, MIME"text/html"(), sliderapp)
-            msg = JSServe.fused_messages!(sub)
-            JSServe.serialize_binary(sub, msg)
+            sub = Bonito.show(io, MIME"text/html"(), sliderapp)
+            msg = Bonito.fused_messages!(sub)
+            Bonito.serialize_binary(sub, msg)
         end
         # Test that dependencies only get loaded one time!
         @test !occursin("-nouislider.min.js", html2)
@@ -105,12 +105,12 @@ end
 function test_dangling_app()
     parent = Session()
     sub = Session(parent)
-    init_dom = JSServe.session_dom(parent, App(nothing))
+    init_dom = Bonito.session_dom(parent, App(nothing))
     app = App() do s
         obs = Observable(1)
         return evaljs(s, js"$(obs)")
     end
-    sub_dom = JSServe.session_dom(sub, app)
+    sub_dom = Bonito.session_dom(sub, app)
     GC.gc(true)
     # If finalizer get triggered closing the session, there will be
     pso = parent.session_objects
@@ -123,6 +123,29 @@ end
     @test test_dangling_app()
 end
 
+@testset "observable update" begin
+    obs1 = Observable(1)
+    obs2 = Observable(2)
+    obs3 = Observable(3)
+    obs4 = Observable{Any}(4)
+
+    function observable_update_app(s, r)
+        evaljs(s, js"""
+        $obs1.notify(0, true);
+        $obs2.notify($obs1.value);
+        $obs3.notify(12);
+        $obs4.notify(null);
+        """)
+        return DOM.div()
+    end
+
+    testsession(observable_update_app; port=8555) do app
+        @test obs1[] == 1
+        @test obs2[] == 0
+        @test obs3[] == 12
+        @test obs4[] === nothing
+    end
+end
 
 # @testset "" begin
 #     obs2 = Observable("hey")
@@ -135,8 +158,8 @@ end
 #     @test sub.session_objects[obs2.id] == nothing
 #     @test haskey(session.session_objects, obs2.id)
 #     @test haskey(session.observables, obs2.id)
-#     JSServe.evaljs_value(session, js"""(()=>{
-#         return JSServe.Sessions.GLOBAL_OBJECT_CACHE[$(obs2.id)][1]
+#     Bonito.evaljs_value(session, js"""(()=>{
+#         return Bonito.Sessions.GLOBAL_OBJECT_CACHE[$(obs2.id)][1]
 #     })()""")
 
 #     obs[] = App(()-> DOM.div("hoehoe", js"console.log('please delete old session?')"));
@@ -144,16 +167,16 @@ end
 #     @test !haskey(session.session_objects, obs2.id)
 #     @test !haskey(session.observables, obs2.id)
 
-#     @test JSServe.evaljs_value(session, js"""(()=>{
-#         const a = $(obs2.id) in JSServe.Sessions.GLOBAL_OBJECT_CACHE
-#         const b = $(sub.id) in JSServe.Sessions.SESSIONS
+#     @test Bonito.evaljs_value(session, js"""(()=>{
+#         const a = $(obs2.id) in Bonito.Sessions.GLOBAL_OBJECT_CACHE
+#         const b = $(sub.id) in Bonito.Sessions.SESSIONS
 #         return !a && !b
 #     })()""")
 
 #     session.observables
 
-#     JSServe.evaljs_value(session, js"""(()=>{
-#         return JSServe.Sessions.GLOBAL_OBJECT_CACHE.length
+#     Bonito.evaljs_value(session, js"""(()=>{
+#         return Bonito.Sessions.GLOBAL_OBJECT_CACHE.length
 #     })()""")
 
 #     color = Observable("color: red;")
@@ -163,7 +186,7 @@ end
 #     end;
 
 #     parent = Session()
-#     JSServe.session_dom(parent, app)
+#     Bonito.session_dom(parent, app)
 
 #     @test haskey(parent.observables, color.id)
 #     @test haskey(parent.observables, text.listeners[1][2].html.id)
@@ -174,13 +197,13 @@ end
 #     app2 = App() do
 #         DOM.div(js"$new_obs"; style=color)
 #     end;
-#     dom = JSServe.session_dom(session, app2)
+#     dom = Bonito.session_dom(session, app2)
 
-#     msg = JSServe.fused_messages!(session)
-#     ser_msg = JSServe.serialize_cached(session, msg)
+#     msg = Bonito.fused_messages!(session)
+#     ser_msg = Bonito.serialize_cached(session, msg)
 
-#     @test JSServe.root_session(session) == parent
-#     @test JSServe.root_session(session) !== session
+#     @test Bonito.root_session(session) == parent
+#     @test Bonito.root_session(session) !== session
 
 #     # Session shouldn't own, color
 #     @test !haskey(session.session_objects, color.id)

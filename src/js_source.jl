@@ -3,7 +3,12 @@ function iterate_interpolations(source::String, result=Union{Expr,JSString,Symbo
     isempty(source) && return result
     while true
         c = source[i]
-        if c == '$'
+
+        # Attempt to parse + interpolate all "$..." expressions, except for "${ ... }"
+        # which is a template literal placeholder in Javascript.
+        #
+        # "{ ... }" is a deprecated syntax in Julia, so this is fine.
+        if c == '$' && i != lindex && source[i + 1] != '{'
             # add elements before $
             if !isempty(lastidx:(i - 1))
                 push!(result, text_func(source[lastidx:(i-1)]))
@@ -56,8 +61,6 @@ function Base.show(io::IO, jsc::JSCode)
     print_js_code(io, jsc, JSSourceContext())
 end
 
-
-
 function print_js_code(io::IO, @nospecialize(object), context::JSSourceContext)
     id = get!(() -> string(hash(object)), context.objects, object)
     print(io, "__lookup_interpolated('$(id)')")
@@ -101,15 +104,23 @@ function print_js_code(io::IO, jsss::AbstractVector{JSCode}, context::JSSourceCo
 end
 
 function import_in_js(io::IO, session::Session, asset_server, asset::BinaryAsset)
-    print(io, "JSServe.fetch_binary('$(url(session, asset))')")
+    print(io, "Bonito.fetch_binary('$(url(session, asset))')")
 end
 
 function import_in_js(io::IO, session::Session, asset_server, asset::Asset)
     ref = url(session, asset)
     if asset.es6module
+        # Use absolute paths for es6modules, since they're not relative
+        # To the HTML file they're used in, but instead to the Bonito.js file
+        # TODO, teach Bonito about where the JS files are located,
+        # to make them relativ
+        # Should only be relevant for AssetFolder
+        if startswith(ref, ".")
+            ref = ref[2:end]
+        end
         print(io, "import('$(ref)')")
     else
-        print(io, "JSServe.fetch_binary($(ref))")
+        print(io, "Bonito.fetch_binary($(ref))")
     end
 end
 
@@ -151,13 +162,12 @@ function inline_code(session::Session, asset_server, js::JSCode)
         src = code
     else
         # reverse lookup and serialize elements
-
         interpolated_objects = Dict(v => k for (k, v) in context.objects)
         binary = BinaryAsset(session, interpolated_objects)
         src = """
             // JSCode from $(js.file)
-            JSServe.fetch_binary('$(url(session, binary))').then(bin_messages=>{
-                const objects = JSServe.decode_binary(bin_messages, $(session.compression_enabled));
+            Bonito.fetch_binary('$(url(session, binary))').then(bin_messages=>{
+                const objects = Bonito.decode_binary(bin_messages, $(session.compression_enabled));
                 const __lookup_interpolated = (id) => objects[id]
                 $code
             })

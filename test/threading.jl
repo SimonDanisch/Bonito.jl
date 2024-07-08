@@ -54,10 +54,10 @@ end
 
 @testset "stresstest threading" begin
     app = App(threaded=true) do session
-        dropdown1 = JSServe.Dropdown(["a", "b", "c"])
-        dropdown2 = JSServe.Dropdown(["a2", "b2", "c2"]; index=2)
+        dropdown1 = Bonito.Dropdown(["a", "b", "c"])
+        dropdown2 = Bonito.Dropdown(["a2", "b2", "c2"]; index=2)
         img = Asset(joinpath(@__DIR__, "..", "docs", "src", "jupyterlab.png"))
-        return DOM.div(dropdown1, dropdown2, img, js"""$(JSServe.JSServeLib).then(console.log)""")
+        return DOM.div(dropdown1, dropdown2, img, js"""$(Bonito.BonitoLib).then(console.log)""")
     end
     server = Server(app, "0.0.0.0", 8888)
 
@@ -86,7 +86,7 @@ end
         close(win)
     end
     empty!(created_windows)
-    success = JSServe.wait_for(() -> isempty(server.websocket_routes.table), timeout=10)
+    success = Bonito.wait_for(() -> isempty(server.websocket_routes.table), timeout=10)
     @test success == :success
     close(server)
 end

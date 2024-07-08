@@ -15,6 +15,7 @@ mutable struct Server
     server_connection::Ref{TCPServer}
     routes::Routes
     websocket_routes::Routes
+    protocol
 end
 
 Routes(pairs::Pair...) = Routes(Pair{Any, Any}[pairs...], Base.ReentrantLock())
@@ -126,11 +127,11 @@ end
 
 The local url to reach the server, on the server
 """
-function local_url(server::Server, url; protocol="http://")
+function local_url(server::Server, url)
     # TODO, tell me again, why electron only accepts localhost in the url?
     # And is there a clean way to "normalize" an url like that, so that no one complains?
     base_url = replace(server.url, r"(127.0.0.1)|(0.0.0.0)" => "localhost")
-    return string(protocol, base_url, ":", server.port, url)
+    return string(server.protocol, base_url, ":", server.port, url)
 end
 
 """
@@ -139,10 +140,10 @@ end
 The url to connect to the server from the internet.
 Needs to have `server.proxy_url` set to the IP or dns route of the server
 """
-function online_url(server::Server, url; protocol="http://")
+function online_url(server::Server, url)
     base_url = server.proxy_url
     if isempty(base_url)
-        return local_url(server, url; protocol=protocol)
+        return local_url(server, url)
     else
         return base_url * url
     end
@@ -193,17 +194,19 @@ function Server(
         verbose = -1,
         proxy_url = "",
         routes = Routes(),
-        websocket_routes = Routes()
+        websocket_routes = Routes(),
+        listener_kw...
     )
     server = Server(
         url, port, proxy_url,
         Ref{Task}(), Ref{TCPServer}(),
         routes,
-        websocket_routes
+        websocket_routes,
+        haskey(listener_kw, :sslconfig) ? "https://" : "http://"
     )
 
     try
-        start(server; verbose=verbose)
+        start(server; verbose=verbose, listener_kw...)
     catch e
         close(server)
         rethrow(e)
@@ -214,9 +217,10 @@ end
 function Server(
         app::Union{Function, App},
         url::String, port::Int;
-        verbose=-1, proxy_url=""
+        verbose=-1, proxy_url="",
+        listener_kw...
     )
-    server = Server(url, port; verbose=verbose, proxy_url=proxy_url)
+    server = Server(url, port; verbose=verbose, proxy_url=proxy_url, listener_kw...)
     route!(server, "/" => app)
     return server
 end
@@ -240,7 +244,7 @@ function Base.close(application::Server)
             # Somehow wait(task) deadlocks when there is still an open page?
             # Really weird, especially since I can't make an MWE ... (Windows, Julia 1.8.2, HTTP@v1.5.5)
             # TODO, do we hold on to resources in the stream handler??
-            JSServe.wait_for(() -> istaskdone(task))
+            Bonito.wait_for(() -> istaskdone(task))
             @assert !Base.istaskdone(task)
         catch e
             @debug "Server task failed with an (expected) exception on close" exception=e
@@ -278,9 +282,8 @@ function start(server::Server; verbose=-1, listener_kw...)
     server.server_connection[] = ioserver
     # pass tcp connection to listen, so that we can close the server
 
-    listener = HTTP.Servers.Listener(ioserver; listener_kw...)
     server.server_task[] = @async begin
-        http_server = HTTP.listen!(listener; verbose=verbose) do stream::Stream
+        http_server = HTTP.listen!(server=ioserver; verbose=verbose, listener_kw...) do stream::Stream
             Base.invokelatest(stream_handler, server, stream)
         end
         try
