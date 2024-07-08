@@ -25,7 +25,7 @@ function render_mime(session::Session, m::Union{MIME"image/png", MIME"image/jpeg
     return DOM.img(src=url(session, bindeps))
 end
 
-function render_mime(::Session, m::MIME"text/plain", @nospecialize(value))
+function render_mime(session::Session, m::MIME"text/plain", @nospecialize(value))
     return DOM.p(Base.invokelatest(repr, m, value; context=session.io_context[]))
 end
 
