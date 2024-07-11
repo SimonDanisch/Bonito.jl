@@ -463,7 +463,7 @@ function CodeEditor(
         "useSoftTabs" => true,
         "enableMultiselect" => true,
         "showLineNumbers" => false,
-        "fontSize" => 16,
+        "fontSize" => "1rem",
         "vScrollBarAlwaysVisible" => false,
         "hScrollBarAlwaysVisible" => false,
         "wrap" => 80,
