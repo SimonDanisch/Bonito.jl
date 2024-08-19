@@ -4,22 +4,22 @@ using HTTP.WebSockets
 mutable struct WebSocketConnection <: FrontendConnection
     server::Server
     session::Union{Nothing,Session}
-    handler::Union{Nothing,WebSocketHandler}
+    handler::WebSocketHandler
 end
 
 WebSocketConnection(proxy_callback::Function) = WebSocketConnection(get_server(proxy_callback))
 WebSocketConnection() = WebSocketConnection(get_server())
-WebSocketConnection(server::Server) = WebSocketConnection(server, nothing, nothing)
+WebSocketConnection(server::Server) = WebSocketConnection(server, nothing, WebSocketHandler())
 
 Base.isopen(ws::WebSocketConnection) = isopen(ws.handler)
 Base.write(ws::WebSocketConnection, binary) = write(ws.handler, binary)
 Base.close(ws::WebSocketConnection) = close(ws.handler)
 
-function run_connection_loop(server::Server, session::Session, connection::WebSocketConnection)
+function run_connection_loop(server::Server, session::Session, connection::WebSocketConnection, websocket::WebSocket)
     # the channel is used so that we can do async processing of messages
     # While still keeping the order of messages
     try
-        run_connection_loop(session, connection.handler)
+        run_connection_loop(session, connection, websocket)
     finally
         # This always needs to happen, which is why we need a try catch!
         if CLEANUP_TIME[] == 0.0
@@ -48,8 +48,7 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
         error("Websocket connection skipped setup")
     end
     @assert session_id == session.id
-    connection.handler = WebSocketHandler(websocket)
-    run_connection_loop(application, session, connection)
+    run_connection_loop(application, session, connection, websocket)
 end
 
 
@@ -125,7 +124,7 @@ function setup_connection(session::Session, connection::WebSocketConnection)
     add_cleanup_task!(server)
     HTTPServer.websocket_route!(server, "/$(session.id)" => connection)
     external_url = online_url(server, "")
-    return setup_connection_js(external_url, session)
+    return setup_websocket_connection_js(external_url, session)
 end
 
 function setup_connection(session::Session{WebSocketConnection})

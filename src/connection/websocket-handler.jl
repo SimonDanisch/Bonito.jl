@@ -3,11 +3,12 @@ using HTTP.WebSockets: receive, isclosed
 using HTTP.WebSockets
 
 struct WebSocketHandler
-    socket::WebSocket
+    socket::Union{Nothing,WebSocket}
     lock::ReentrantLock
 end
 
 WebSocketHandler(socket) = WebSocketHandler(socket, ReentrantLock())
+WebSocketHandler() = WebSocketHandler(nothing, ReentrantLock())
 
 function safe_read(websocket)
     try
@@ -84,9 +85,9 @@ end
 """
     runs the main connection loop for the websocket
 """
-function run_connection_loop(session::Session, handler::WebSocketHandler)
+function run_connection_loop(session::Session, handler::WebSocketHandler, websocket::WebSocket)
     @debug("opening ws connection for session: $(session.id)")
-    websocket = handler.socket
+    handler.socket = websocket
     while !isclosed(websocket)
         bytes = safe_read(websocket)
         # nothing means the browser closed the connection so we're done
