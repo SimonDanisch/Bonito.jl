@@ -90,7 +90,7 @@ mutable struct MyWebSocketConnection <: Bonito.FrontendConnection
     # TODO: your implementation here
     blabla
     ...
-    handler::Union{Nothing,WebSocketHandler}
+    handler::WebSocketHandler
 end
 
 Base.isopen(ws::MyWebSocketConnection) = isopen(ws.handler)
@@ -112,10 +112,9 @@ function my_web_framework_websocket_handler(my_web_framework_request)
     session = # TODO: retrieve the session based upon the session ID in the URL in `my_web_framework_request`
     websocket = # TODO: set up the websocket or retrive it from `my_web_framework_request`
     connection = session.connection
-    connection.handler = WebSocketHandler(websocket)
 
     try
-        run_connection_loop(session, connection.handler)
+        run_connection_loop(session, connection.handler, websocket)
     finally
         # TODO: Option 1: Immediately end the session with `close(session)`
         # You will also need to clean up the route/saved session
