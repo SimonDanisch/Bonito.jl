@@ -43,6 +43,7 @@ function fused_messages!(session::Session)
 end
 
 function init_session(session::Session)
+    session.ready_time = time()
     put!(session.connection_ready, true)
     # open the connection for e.g. subconnection, which just have an open flag
     open!(session.connection)

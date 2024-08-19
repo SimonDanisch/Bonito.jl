@@ -171,6 +171,7 @@ mutable struct Session{Connection <: FrontendConnection}
     on_document_load::Vector{JSCode}
     connection_ready::Channel{Bool}
     on_connection_ready::Function
+    ready_time::Float64
     # Should be checkd on connection_ready to see if an error occured
     init_error::RefValue{Union{Nothing,JSException}}
     js_comm::Observable{Union{Nothing, Dict{String, Any}}}
@@ -223,6 +224,7 @@ mutable struct Session{Connection <: FrontendConnection}
             on_document_load,
             connection_ready,
             on_connection_ready,
+            time(),
             init_error,
             js_comm,
             on_close,

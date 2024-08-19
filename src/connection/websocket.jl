@@ -168,10 +168,8 @@ function cleanup_server(server::Server)
                         push!(remove, handler)
                     end
                 elseif !isopen(session)
-                    # if the session is not SOFT_CLOSED, closing time means creation time
-                    creation_time = session.closing_time
-                    # close unopend sessions after 20 seconds
-                    if time() - creation_time > 20
+                    # close unopened sessions after 20 seconds
+                    if isready(session) && (time() - session.ready_time > 20)
                         push!(remove, handler)
                     end
                 end
