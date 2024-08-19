@@ -2,7 +2,7 @@ using HTTP.WebSockets: WebSocket, WebSocketError
 using HTTP.WebSockets: receive, isclosed
 using HTTP.WebSockets
 
-struct WebSocketHandler
+mutable struct WebSocketHandler
     socket::Union{Nothing,WebSocket}
     lock::ReentrantLock
 end
