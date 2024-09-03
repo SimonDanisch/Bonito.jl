@@ -2,6 +2,7 @@ function show_session(io::IO, session::Session{T}) where T
     println(io, "Session{$T}:")
     println(io, "  id: $(session.id)")
     println(io, "  parent: $(typeof(session.parent))")
+    println(io, "  status: $(session.status)")
     if !isempty(session.children)
         println(io, "children: $(length(session.children))")
     end
@@ -456,5 +457,6 @@ function update_session_dom!(parent::Session, node_uuid::String, app_or_dom; rep
     )
     message = SerializedMessage(sub, session_update)
     send(root_session(parent), message)
+    mark_displayed!(sub)
     return sub
 end

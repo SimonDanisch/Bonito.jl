@@ -59,7 +59,7 @@ function serve_app(app, context)
         page_html(io, session, html_dom)
     end
     response = html(html_str)
-    session.status = DISPLAYED
+    mark_displayed!(session)
     return response
 end
 

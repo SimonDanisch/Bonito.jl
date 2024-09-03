@@ -59,7 +59,7 @@ end
 get_io_context(io::IO) = nothing
 get_io_context(io::IOContext) = io
 
-function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
+function Base.show(io::IO, ::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
     ctx = get_io_context(io)
     session =  nothing
     if !isnothing(CURRENT_SESSION[])
@@ -106,7 +106,6 @@ end
 Embeds the html_body in a standalone html document!
 """
 function page_html(io::IO, session::Session, app_node::Union{Node, App})
-
     dom = session_dom(session, app_node; html_document=true)
     print_as_page(io, dom)
     return
@@ -143,5 +142,7 @@ function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
         end
         dom = session_dom(session, fetch_app)
         show(io, Hyperscript.Pretty(dom))
+        mark_displayed!(session)
+        mark_displayed!(sub)
     end
 end
