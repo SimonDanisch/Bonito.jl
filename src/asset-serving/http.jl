@@ -2,7 +2,9 @@ using .HTTPServer: has_route, get_route, route!
 
 mutable struct HTTPAssetServer <: AbstractAssetServer
     # Reference count the files/binary assets, so we can clean them up for child sessions
-    registered_files::Dict{String,Tuple{Set{UInt},Union{String, BinaryAsset}}}
+    registered_files::Dict{
+        String,Tuple{Set{UInt},Union{Path, String, BinaryAsset}}
+    }
     server::Server
     lock::ReentrantLock
 end
@@ -63,7 +65,9 @@ function Base.close(server::ChildAssetServer)
     end
 end
 
-serving_target(asset::Asset) = normpath(abspath(expanduser(local_path(asset))))
+serving_target(path::Path) = path
+serving_target(path::AbstractString) = normpath(abspath(expanduser(path)))
+serving_target(asset::Asset) = serving_target(local_path(asset))
 serving_target(asset::AbstractAsset) = asset
 
 function refs_and_url(server, asset::AbstractAsset)
