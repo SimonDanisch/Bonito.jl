@@ -136,7 +136,10 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
     # with the dom we're rendering right now
     dom = DOM.div(init_dom, sub_dom)
     html_str = sprint(io -> print_as_page(io, dom))
-    sub.status = DISPLAYED
-    parent.status = DISPLAYED
+    # The closing time is calculated from here
+    # If after 20s after rendering and sending the HTML to the browser
+    # no connection is established, it will be assumed that the browser never connected
+    mark_displayed!(parent)
+    mark_displayed!(sub)
     return html(html_str)
 end

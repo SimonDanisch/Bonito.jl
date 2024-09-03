@@ -68,7 +68,9 @@ serving_target(asset::AbstractAsset) = asset
 
 function refs_and_url(server, asset::AbstractAsset)
     key = "/assets/" * unique_file_key(asset)
-    refs, target = get!(()-> (Set{UInt}(), serving_target(asset)), server.registered_files, key)
+    refs, target = get!(server.registered_files, key) do
+        return (Set{UInt}(), serving_target(asset))
+    end
     return refs, HTTPServer.online_url(server.server, key)
 end
 
@@ -126,5 +128,5 @@ function (server::HTTPAssetServer)(context)
     return HTTP.Response(404)
 end
 
-setup_asset_server(server::ChildAssetServer) = nothing
-setup_asset_server(server::HTTPAssetServer) = nothing
+setup_asset_server(::ChildAssetServer) = nothing
+setup_asset_server(::HTTPAssetServer) = nothing

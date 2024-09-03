@@ -153,6 +153,8 @@ function set_cleanup_time!(time_in_hrs::Real)
     CLEANUP_TIME[] = time_in_hrs
 end
 
+const SESSION_OPEN_WAIT_TIME = Ref(30)
+
 function cleanup_server(server::Server)
     remove = Set{WebSocketConnection}()
     lock(server.websocket_routes.lock) do
@@ -167,11 +169,13 @@ function cleanup_server(server::Server)
                     if age_hours > CLEANUP_TIME[]
                         push!(remove, handler)
                     end
-                elseif !isopen(session)
-                    # if the session is not SOFT_CLOSED, closing time means creation time
-                    creation_time = session.closing_time
-                    # close unopend sessions after 20 seconds
-                    if time() - creation_time > 20
+                elseif !isopen(session) && session.status == DISPLAYED
+                    # if the session is not SOFT_CLOSED,
+                    # closing time means time at which rendering was done and the html was send to the browser
+                    rendered_time_point = session.closing_time
+                    # If the browser didn't connect back to the displayed session after 30s
+                    # we assume displaying didn't work for whatever reason and close it.
+                    if time() - rendered_time_point > SESSION_OPEN_WAIT_TIME[]
                         push!(remove, handler)
                     end
                 end
