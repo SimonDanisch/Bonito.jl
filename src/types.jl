@@ -190,6 +190,7 @@ mutable struct Session{Connection <: FrontendConnection}
     io_context::RefValue{Union{Nothing, IOContext}}
     stylesheets::Dict{HTMLElement, Set{CSS}}
     inbox::Channel{Vector{UInt8}}
+    threadid::Int
 
     function Session(
             parent::Union{Session, Nothing},
@@ -242,6 +243,7 @@ mutable struct Session{Connection <: FrontendConnection}
             RefValue{Union{Nothing,IOContext}}(nothing),
             Dict{HTMLElement,Set{CSS}}(),
             inbox,
+            Threads.threadid()
         )
         task = Task() do
             for message in inbox

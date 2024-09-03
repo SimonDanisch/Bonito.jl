@@ -19,6 +19,9 @@ Handles the incoming websocket messages from the frontend.
 Messages are expected to be gzip compressed and packed via MsgPack.
 """
 function process_message(session::Session, bytes::AbstractVector{UInt8})
+    if session.threadid != Threads.threadid()
+        error("process_message should only be called from the same thread as the session")
+    end
     if isempty(bytes)
         @warn "empty message received from frontend"
         return
