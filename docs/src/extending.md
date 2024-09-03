@@ -77,3 +77,54 @@ Bonito.register_connection!(MyConnection) do
     end
 end
 ```
+
+## Managing your own WebSocket server
+
+You should also extend `Bonito.FrontendConnection` in case you would like to make a WebSocket-based connection, but manage the server yourself, e.g. by registering a websocket route using a web framework. In this case, you can reuse some of Bonito's websocket handling code as long as your websocket is internally using `HTTP.WebSockets.WebSocket` objects.
+
+You can do this using the `WebSocketHandler` type and forwarding your connection type's `isopen`, `write`, and `close` methods to it. You can then use the `setup_websocket_connection_js` to return the correct Javascript snippet in your `setup_connection` method and run the main I/O loop by calling `run_connection_loop` from your websocket handler. You will need to take care of saving the session in your `setup_connection` method and routing to the session in your handler, as well as cleaning up websocket sessions. You may need to use locks to accomplish some of these steps in a thread-safe manner.
+
+
+```Julia
+mutable struct MyWebSocketConnection <: Bonito.FrontendConnection
+    # TODO: your implementation here
+    blabla
+    ...
+    handler::WebSocketHandler
+end
+
+Base.isopen(ws::MyWebSocketConnection) = isopen(ws.handler)
+Base.write(ws::MyWebSocketConnection, binary) = write(ws.handler, binary)
+Base.close(ws::MyWebSocketConnection) = close(ws.handler)
+
+function setup_connection(session::Session{MyWebSocketConnection})
+    return setup_connection(session, session.connection)
+
+    # TODO: Register the `session.id` as a route, and save it so it can be retrived in the handler
+    # You could alternatively register a single route and multiplex using a dictionary
+    # TODO: Start a cleanup task to remove routes/saved sessions when they are no longer open
+
+    external_url = # TODO: Get the external URL, which session IDs will be appended to
+    return setup_websocket_connection_js(external_url, session)
+end
+
+function my_web_framework_websocket_handler(my_web_framework_request)
+    session = # TODO: retrieve the session based upon the session ID in the URL in `my_web_framework_request`
+    websocket = # TODO: set up the websocket or retrive it from `my_web_framework_request`
+    connection = session.connection
+
+    try
+        run_connection_loop(session, connection.handler, websocket)
+    finally
+        # TODO: Option 1: Immediately end the session with `close(session)`
+        # You will also need to clean up the route/saved session
+        
+        # TODO: Option 2: Use `soft_close(session)`
+        # This may allow for a temporary disconnected client to reconnect
+        # You may have to prevent your webframework from trying to close the websocket
+        # You will need to clean up the soft closed session and its route/saved session after some timeout in the cleanup task
+    end
+end
+```
+
+You can get further details to guide your implementation by looking at Bonito's own implementation in `Bonito/src/connections/websocket.jl`.
