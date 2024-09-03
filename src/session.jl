@@ -143,6 +143,7 @@ function Base.close(session::Session)
         Observables.clear(session.on_close)
         session.current_app[] = nothing
         session.io_context[] = nothing
+        close(session.inbox)
     end
     return
 end
