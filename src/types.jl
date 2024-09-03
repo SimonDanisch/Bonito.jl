@@ -187,6 +187,7 @@ mutable struct Session{Connection <: FrontendConnection}
     compression_enabled::Bool
     deletion_lock::Base.ReentrantLock
     current_app::RefValue{Any}
+    io_context::RefValue{Union{Nothing, IOContext}}
     stylesheets::Dict{HTMLElement, Set{CSS}}
 
     function Session(
@@ -235,8 +236,10 @@ mutable struct Session{Connection <: FrontendConnection}
             compression_enabled,
             Base.ReentrantLock(),
             RefValue{Any}(nothing),
+            RefValue{Union{Nothing,IOContext}}(nothing),
             Dict{HTMLElement,Set{CSS}}()
         )
+        finalizer(close, session)
         return session
     end
 end
@@ -246,6 +249,9 @@ struct BinaryAsset <: AbstractAsset
     mime::String
 end
 BinaryAsset(session::Session, @nospecialize(data)) = BinaryAsset(SerializedMessage(session, data).bytes, "application/octet-stream")
+function Base.show(io::IO, asset::BinaryAsset)
+    print(io, "BinaryAsset($(asset.mime)) with $(length(asset.data)) bytes")
+end
 
 """
 Creates a Julia exception from data passed to us by the frondend!

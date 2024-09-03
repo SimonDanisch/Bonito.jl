@@ -1,5 +1,4 @@
-
-const shared_global = 2;
+var shared_global = 2;
 
 export function get_global(){
   return shared_global;

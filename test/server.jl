@@ -22,8 +22,7 @@
     success = Bonito.wait_for(() -> isempty(server.websocket_routes.table), timeout=10)
     @test success == :success
     close(server)
-    Bonito.set_cleanup_time!(0.0) # 1 second
-
+    Bonito.set_cleanup_time!(0.0)
 end
 
 using RelocatableFolders

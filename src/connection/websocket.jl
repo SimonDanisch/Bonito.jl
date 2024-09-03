@@ -1,108 +1,25 @@
-using HTTP.WebSockets: WebSocket, WebSocketError
 using .HTTPServer: Server
-using HTTP.WebSockets: receive, isclosed
 using HTTP.WebSockets
 
 mutable struct WebSocketConnection <: FrontendConnection
     server::Server
-    socket::Union{Nothing,WebSocket}
-    lock::ReentrantLock
     session::Union{Nothing,Session}
+    handler::WebSocketHandler
 end
 
 WebSocketConnection(proxy_callback::Function) = WebSocketConnection(get_server(proxy_callback))
 WebSocketConnection() = WebSocketConnection(get_server())
-WebSocketConnection(server::Server) = WebSocketConnection(server, nothing, ReentrantLock(), nothing)
+WebSocketConnection(server::Server) = WebSocketConnection(server, nothing, WebSocketHandler())
 
-function save_read(websocket)
-    try
-        # readavailable is what HTTP overloaded for websockets
-        return receive(websocket)
-    catch e
-        if WebSockets.isok(e)
-            # it's ok :shrug:
-        elseif e isa Union{Base.IOError, EOFError}
-            @info("WS connection closed because of IO error")
-            return nothing
-        else
-            rethrow(e)
-        end
-    end
-end
+Base.isopen(ws::WebSocketConnection) = isopen(ws.handler)
+Base.write(ws::WebSocketConnection, binary) = write(ws.handler, binary)
+Base.close(ws::WebSocketConnection) = close(ws.handler)
 
-function save_write(websocket, binary)
-    try
-        # send is what HTTP overloaded for writing to a websocket
-        send(websocket, binary)
-        return true
-    catch e
-        if WebSockets.isok(e) || e isa Union{Base.IOError,EOFError}
-            @warn "sending message to a closed websocket" maxlog = 1
-            # it's ok :shrug:
-            return nothing
-        else
-            rethrow(e)
-        end
-    end
-end
-
-function Base.isopen(ws::WebSocketConnection)
-    isnothing(ws.socket) && return false
-    # isclosed(ws.socket) returns readclosed && writeclosed
-    # but we consider it closed if either is closed?
-    if ws.socket.readclosed || ws.socket.writeclosed
-        return false
-    end
-    # So, it turns out, ws connection where the tab gets closed
-    # stay open indefinitely, but aren't writable anymore
-    # TODO, figure out how to check for that
-    return true
-end
-
-function Base.write(ws::WebSocketConnection, binary)
-    if isnothing(ws.socket)
-        error("socket closed or not opened yet")
-    end
-    lock(ws.lock) do
-        written = save_write(ws.socket, binary)
-        if written != true
-            @debug "couldnt write, closing ws"
-            close(ws)
-        end
-    end
-end
-
-function Base.close(ws::WebSocketConnection)
-    isnothing(ws.socket) && return
-    try
-        socket = ws.socket
-        ws.socket = nothing
-        isclosed(socket) || close(socket)
-    catch e
-        if !WebSockets.isok(e)
-            @warn "error while closing websocket" exception=(e, Base.catch_backtrace())
-        end
-    end
-end
-
-
-function run_connection_loop(server::Server, session::Session, connection::WebSocketConnection)
+function run_connection_loop(server::Server, session::Session, connection::WebSocketConnection, websocket::WebSocket)
     # the channel is used so that we can do async processing of messages
     # While still keeping the order of messages
     try
-        @debug("opening ws connection for session: $(session.id)")
-        websocket = connection.socket
-        while !isclosed(websocket)
-            bytes = save_read(websocket)
-            # nothing means the browser closed the connection so we're done
-            isnothing(bytes) && break
-            try
-                process_message(session, bytes)
-            catch e
-                # Only print any internal error to not close the connection
-                @warn "error while processing received msg" exception = (e, Base.catch_backtrace())
-            end
-        end
+        run_connection_loop(session, connection.handler, websocket)
     finally
         # This always needs to happen, which is why we need a try catch!
         if CLEANUP_TIME[] == 0.0
@@ -131,8 +48,7 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
         error("Websocket connection skipped setup")
     end
     @assert session_id == session.id
-    connection.socket = websocket
-    run_connection_loop(application, session, connection)
+    run_connection_loop(application, session, connection, websocket)
 end
 
 
@@ -153,33 +69,37 @@ function set_cleanup_time!(time_in_hrs::Real)
     CLEANUP_TIME[] = time_in_hrs
 end
 
+const SESSION_OPEN_WAIT_TIME = Ref(30)
+
 function cleanup_server(server::Server)
     remove = Set{WebSocketConnection}()
     lock(server.websocket_routes.lock) do
-        for (route, handler) in server.websocket_routes.table
-            if handler isa WebSocketConnection
-                session = handler.session
+        for (route, connection) in server.websocket_routes.table
+            if connection isa WebSocketConnection
+                session = connection.session
                 if isnothing(session)
-                    push!(remove, handler)
+                    push!(remove, connection)
                 elseif session.status == SOFT_CLOSED
                     age = time() - session.closing_time
                     age_hours = age / 60 / 60
                     if age_hours > CLEANUP_TIME[]
-                        push!(remove, handler)
+                        push!(remove, connection)
                     end
-                elseif !isopen(session)
-                    # if the session is not SOFT_CLOSED, closing time means creation time
-                    creation_time = session.closing_time
-                    # close unopend sessions after 20 seconds
-                    if time() - creation_time > 20
-                        push!(remove, handler)
+                elseif !isopen(session) && session.status == DISPLAYED
+                    # if the session is not SOFT_CLOSED,
+                    # closing time means time at which rendering was done and the html was send to the browser
+                    rendered_time_point = session.closing_time
+                    # If the browser didn't connect back to the displayed session after 30s
+                    # we assume displaying didn't work for whatever reason and close it.
+                    if time() - rendered_time_point > SESSION_OPEN_WAIT_TIME[]
+                        push!(remove, connection)
                     end
                 end
             end
         end
-        for handler in remove
-            if !isnothing(handler.session)
-                session = handler.session
+        for connection in remove
+            if !isnothing(connection.session)
+                session = connection.session
                 delete_websocket_route!(server, "/$(session.id)")
                 close(session)
             end
@@ -207,12 +127,8 @@ function setup_connection(session::Session, connection::WebSocketConnection)
     server = connection.server
     add_cleanup_task!(server)
     HTTPServer.websocket_route!(server, "/$(session.id)" => connection)
-    proxy_url = online_url(server, "")
-    return js"""
-        $(Websocket).then(WS => {
-            WS.setup_connection({proxy_url: $(proxy_url), session_id: $(session.id), compression_enabled: $(session.compression_enabled)})
-        })
-    """
+    external_url = online_url(server, "")
+    return setup_websocket_connection_js(external_url, session)
 end
 
 function setup_connection(session::Session{WebSocketConnection})

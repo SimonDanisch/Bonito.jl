@@ -121,5 +121,6 @@ function update_subsession_dom!(sub::Session, selector, app::App)
     )
     message = SerializedMessage(sub, session_update)
     send(root_session(sub), message)
+    mark_displayed!(sub)
     return sub
 end

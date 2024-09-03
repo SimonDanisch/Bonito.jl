@@ -51,6 +51,10 @@ function test_value(app, statement)
     return fetch(val_t) # fetch the value!
 end
 
+function OfflineSession()
+    return Session(NoConnection(); asset_server=NoServer())
+end
+
 edisplay = Bonito.use_electron_display(; devtools=true)
 
 @testset "Bonito" begin

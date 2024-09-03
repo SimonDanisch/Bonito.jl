@@ -46,9 +46,9 @@ end
     close(edisplay.window)
     server = edisplay.browserdisplay.server
     # It may take a while for close(edisplay.window) to remove the websocket route (by closing the socket)
-    success = Bonito.wait_for(() -> isempty(server.websocket_routes.table); timeout=5)
+    success = Bonito.wait_for(() -> isempty(server.websocket_routes.table); timeout=6)
     for (r, handler) in server.websocket_routes.table
-        @show handler.session handler.session.status
+        @show handler.session
     end
     @test success == :success
     # browser display route & asset server

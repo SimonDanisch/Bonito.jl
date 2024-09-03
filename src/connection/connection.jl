@@ -40,6 +40,7 @@ FrontendConnection
 open!(connection) = nothing
 
 include("sub-connection.jl")
+include("websocket-handler.jl")
 include("websocket.jl")
 include("ijulia.jl")
 include("pluto.jl")

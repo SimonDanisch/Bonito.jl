@@ -16,9 +16,7 @@ class Observable {
      * @param {boolean} dont_notify_julia
      */
     notify(value, dont_notify_julia) {
-        if (value) {
-            this.value = value;
-        }
+        this.value = value;
         this.#callbacks.forEach((callback) => {
             try {
                 const deregister = callback(value);

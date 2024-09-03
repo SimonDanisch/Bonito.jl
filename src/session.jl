@@ -2,6 +2,7 @@ function show_session(io::IO, session::Session{T}) where T
     println(io, "Session{$T}:")
     println(io, "  id: $(session.id)")
     println(io, "  parent: $(typeof(session.parent))")
+    println(io, "  status: $(session.status)")
     if !isempty(session.children)
         println(io, "children: $(length(session.children))")
     end
@@ -129,6 +130,7 @@ function Base.close(session::Session)
         close(session.asset_server)
         Observables.clear(session.on_close)
         session.current_app[] = nothing
+        session.io_context[] = nothing
     end
     return
 end
@@ -148,11 +150,28 @@ function Sockets.send(session::Session, message::Dict{Symbol, Any})
     send(session, serialized)
 end
 
+const COLLECT_MESSAGES = Threads.Atomic{Bool}(false)
+const COLLECTED_MESSAGES = SerializedMessage[]
+
+function collect_messages(f)
+    empty!(COLLECTED_MESSAGES)
+    COLLECT_MESSAGES[] = true
+    f()
+    len = length(COLLECTED_MESSAGES)
+    total = sum(map(x-> sizeof(x.bytes), COLLECTED_MESSAGES))
+    msg = "Send $(len) messages with a total size of $(Base.format_bytes(total))"
+    msgs = map(x-> decode_extension_and_addbits(deserialize(x)), COLLECTED_MESSAGES)
+    return msgs, msg
+end
+
 function Sockets.send(session::Session, message::SerializedMessage)
     if isready(session)
         # if connection is open, we should never queue up messages
         @assert isempty(session.message_queue)
         write(session.connection, message.bytes)
+        if COLLECT_MESSAGES[]
+            push!(COLLECTED_MESSAGES, message)
+        end
     else
         push!(session.message_queue, message)
     end
@@ -329,6 +348,12 @@ function render_dependencies(session::Session)
     end
 end
 
+function mark_displayed!(session::Session)
+    session.status = DISPLAYED
+    session.closing_time = time()
+    return
+end
+
 function session_dom(session::Session, dom::Node; init=true, html_document=false, dom_id=isroot(session) ? "root" : "subsession-application-dom")
     # the dom we can render may be anything between a
     # dom fragment or a full page with head & body etc.
@@ -342,8 +367,15 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         if html_document
             # emit a whole html document
             body_dom = DOM.div(dom, id=session.id, dataJscallId=dom_id)
-            head = Hyperscript.m("head", Hyperscript.m("meta"; charset="UTF-8"),
-                                 Hyperscript.m("title", session.title), session_style)
+            head = Hyperscript.m("head",
+                Hyperscript.m(
+                    "meta";
+                    name="viewport", content="width=device-width, initial-scale=1.0"
+                ),
+                Hyperscript.m("meta"; charset="UTF-8"),
+                Hyperscript.m("title", session.title),
+                session_style
+            )
             body = Hyperscript.m("body", body_dom)
             dom = Hyperscript.m("html", head, body; class="bonito-fragment")
         else
@@ -425,5 +457,6 @@ function update_session_dom!(parent::Session, node_uuid::String, app_or_dom; rep
     )
     message = SerializedMessage(sub, session_update)
     send(root_session(parent), message)
+    mark_displayed!(sub)
     return sub
 end

@@ -23,7 +23,7 @@ Forces Bonito.App to be displayed in a browser window that gets opened.
 """
 function browser_display()
     displays = Base.Multimedia.displays
-    if last(displays) isa BrowserDisplay
+    if !isempty(displays) && last(displays) isa BrowserDisplay
         return
     end
     # if browserdisplay is anywhere not at the last position
