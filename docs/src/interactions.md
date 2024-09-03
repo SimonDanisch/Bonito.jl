@@ -38,7 +38,7 @@ App() do session
         if x == 1
             return DOM.h1("hello from slider: $(x)")
         elseif x == 2
-            return DOM.img(src="https://docs.makie.org/stable/assets/makie_logo_transparent.svg", width="200px")
+            return DOM.img(src="https://docs.makie.org/stable/logo.svg", width="200px")
         else
             return x^2
         end

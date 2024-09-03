@@ -83,7 +83,7 @@ App() do sess
         "display" => :block, "position" => :relative, "width" => "100px",
         "max-width" => :none # needs to be set so it's not overwritten by others
     )
-    img = DOM.img(; src="https://docs.makie.org/stable/assets/makie_logo_transparent.svg", style=imstyle)
+    img = DOM.img(; src="https://docs.makie.org/stable/logo.svg", style=imstyle)
     style = Styles("position" => :relative, "display" => :flex, "justify-content" => :center, "align-items" => :center)
 
 

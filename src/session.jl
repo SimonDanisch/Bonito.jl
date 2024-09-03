@@ -19,8 +19,20 @@ end
 Base.show(io::IO, ::MIME"text/plain", session::Session) = show_session(io, session)
 Base.show(io::IO, session::Session) = show_session(io, session)
 
-function wait_for_ready(session::Session; timeout=10)
-    wait_for(()-> isready(session); timeout=timeout)
+function wait_for_ready(session::Session; timeout=100)
+    if isready(session)
+        return :success
+    end
+    session.status == CLOSED && return nothing
+    if session.status !== DISPLAYED
+        error("Session got not displayed yet, so waiting for it to become ready is futile. Status: $(session.status)")
+    end
+    return wait_for(timeout=timeout) do
+        if !isnothing(session.init_error[])
+            throw(session.init_error[])
+        end
+        return isready(session)
+    end
 end
 
 function get_messages!(session::Session, messages=[])
@@ -457,6 +469,7 @@ function update_session_dom!(parent::Session, node_uuid::String, app_or_dom; rep
     )
     message = SerializedMessage(sub, session_update)
     send(root_session(parent), message)
+    mark_displayed!(parent)
     mark_displayed!(sub)
     return sub
 end
