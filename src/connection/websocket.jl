@@ -19,7 +19,7 @@ function run_connection_loop(server::Server, session::Session, connection::WebSo
     # the channel is used so that we can do async processing of messages
     # While still keeping the order of messages
     try
-        run_connection_loop(session, connection, websocket)
+        run_connection_loop(session, connection.handler, websocket)
     finally
         # This always needs to happen, which is why we need a try catch!
         if CLEANUP_TIME[] == 0.0
