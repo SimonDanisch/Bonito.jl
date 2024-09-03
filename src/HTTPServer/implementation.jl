@@ -107,7 +107,9 @@ function delegate(routes::Routes, application, request::Request, args...)
         # What a classic this response!
         return response_404("Didn't find route for $(request.target)")
     catch e
-        return response_500(CapturedException(e, Base.catch_backtrace()))
+        err = CapturedException(e, Base.catch_backtrace())
+        Base.showerror(stderr, err)
+        return response_500(err)
     end
 end
 

@@ -373,6 +373,7 @@ function jsrender(session::Session, slider::StylableSlider)
                 $(slider.index).notify(index + 1);
             }
         }
+        const set_thumb_throttled = Bonito.throttle_function(set_thumb, 100);
         const controller = new AbortController();
         document.addEventListener('mousedown', function (e) {
             if(e.target === thumb || e.target === track_active || e.target === track || e.targar === container){

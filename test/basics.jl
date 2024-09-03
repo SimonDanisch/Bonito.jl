@@ -1,5 +1,7 @@
 @testset "basic session rendering" begin
-    session = Session()
+    # Use no connection, since otherwise the session will be added to
+    # The global running HTTP server
+    session = OfflineSession()
     obs1 = Observable(1)
     TestLib = Bonito.BonitoLib
     dom = App(DOM.div(test=obs1, onload=js"$(TestLib).lol()"))
@@ -103,7 +105,7 @@ setup_connection(session::Session{DebugConnection}) = nothing
 end
 
 function test_dangling_app()
-    parent = Session()
+    parent = OfflineSession()
     sub = Session(parent)
     init_dom = Bonito.session_dom(parent, App(nothing))
     app = App() do s
@@ -123,6 +125,29 @@ end
     @test test_dangling_app()
 end
 
+@testset "observable update" begin
+    obs1 = Observable(1)
+    obs2 = Observable(2)
+    obs3 = Observable(3)
+    obs4 = Observable{Any}(4)
+
+    function observable_update_app(s, r)
+        evaljs(s, js"""
+        $obs1.notify(0, true);
+        $obs2.notify($obs1.value);
+        $obs3.notify(12);
+        $obs4.notify(null);
+        """)
+        return DOM.div()
+    end
+
+    testsession(observable_update_app; port=8555) do app
+        @test obs1[] == 1
+        @test obs2[] == 0
+        @test obs3[] == 12
+        @test obs4[] === nothing
+    end
+end
 
 # @testset "" begin
 #     obs2 = Observable("hey")

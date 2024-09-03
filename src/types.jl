@@ -187,6 +187,7 @@ mutable struct Session{Connection <: FrontendConnection}
     compression_enabled::Bool
     deletion_lock::Base.ReentrantLock
     current_app::RefValue{Any}
+    io_context::RefValue{Union{Nothing, IOContext}}
     stylesheets::Dict{HTMLElement, Set{CSS}}
     inbox::Channel{Vector{UInt8}}
 
@@ -210,7 +211,7 @@ mutable struct Session{Connection <: FrontendConnection}
             imports::OrderedSet{Asset},
             title::String,
             compression_enabled::Bool,
-            n_inbox= 1024
+            n_inbox = Inf
         ) where {Connection}
         inbox = Channel{Vector{UInt8}}(n_inbox)
         session = new{Connection}(
@@ -238,6 +239,7 @@ mutable struct Session{Connection <: FrontendConnection}
             compression_enabled,
             Base.ReentrantLock(),
             RefValue{Any}(nothing),
+            RefValue{Union{Nothing,IOContext}}(nothing),
             Dict{HTMLElement,Set{CSS}}(),
             inbox,
         )
@@ -254,6 +256,7 @@ mutable struct Session{Connection <: FrontendConnection}
         end
         bind(inbox, task)
         schedule(task)
+        finalizer(close, session)
         return session
     end
 end
@@ -263,6 +266,9 @@ struct BinaryAsset <: AbstractAsset
     mime::String
 end
 BinaryAsset(session::Session, @nospecialize(data)) = BinaryAsset(SerializedMessage(session, data).bytes, "application/octet-stream")
+function Base.show(io::IO, asset::BinaryAsset)
+    print(io, "BinaryAsset($(asset.mime)) with $(length(asset.data)) bytes")
+end
 
 """
 Creates a Julia exception from data passed to us by the frondend!

@@ -422,8 +422,6 @@ function jsrender(session::Session, table::Table)
     )
 end
 
-const ACE = ES6Module("https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js")
-
 struct CodeEditor
     theme::String
     language::String
@@ -452,7 +450,6 @@ Defaults for `editor_options`:
 """
 function CodeEditor(
     language::String;
-    width=500,
     height=500,
     initial_source="",
     theme="chrome",
@@ -467,15 +464,20 @@ function CodeEditor(
         "enableMultiselect" => true,
         "showLineNumbers" => false,
         "fontSize" => 16,
+        "vScrollBarAlwaysVisible" => false,
+        "hScrollBarAlwaysVisible" => false,
         "wrap" => 80,
         "mergeUndoDeltas" => "always",
+        "showGutter" => false,
+        "highlightActiveLine" => false,
+        "displayIndentGuides" => false,
+        "showPrintMargin" => false,
     )
     user_opts = Dict{String,Any}(string(k) => v for (k, v) in editor_options)
     options = Dict{String,Any}(merge(user_opts, defaults))
     onchange = Observable(initial_source)
     style = Styles(style,
         "position" => "relative",
-        "width" => "$(width)px",
         "height" => "$(height)px",
     )
     element = DOM.div(""; style=style)
@@ -485,29 +487,40 @@ end
 function jsrender(session::Session, editor::CodeEditor)
     theme = "ace/theme/$(editor.theme)"
     language = "ace/mode/$(editor.language)"
+    ace = DOM.script(; src="https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js")
+
     onload(
         session,
         editor.element,
         js"""
             function (element){
-                const editor = ace.edit(element, {
-                    mode: $(language)
-                });
-                editor.setTheme($theme);
-                editor.resize();
-                editor.getSession().setUseWrapMode(true)
-                // use setOptions method to set several options at once
-                editor.setOptions($(editor.options));
+                // sadly I cant find a way to use ace as an ES6 module, which means
+                // we need to use more primitive methods, to make sure ace is loaded
+                const ace_script = $(ace)
+                ace_script.onload = function () {
+                    const editor = ace.edit(element, {
+                        mode: $(language)
+                    });
+                    editor.setTheme($theme);
+                    editor.getSession().setUseWrapMode(true)
+                    // use setOptions method to set several options at once
+                    editor.setOptions($(editor.options));
 
-                editor.session.on('change', function(delta) {
-                    $(editor.onchange).notify(editor.getValue());
-                });
-                editor.session.setValue($(editor.onchange).value);
+                    editor.session.on('change', function(delta) {
+                        $(editor.onchange).notify(editor.getValue());
+                    });
+                    editor.session.setValue($(editor.onchange).value);
+                    function resizeEditor() {
+                        const height = editor.getSession().getScreenLength() *
+                            (editor.renderer.lineHeight + editor.renderer.scrollBar.getWidth());
+                        editor.container.style.height = `${height}px`;
+                    }
+                    // Resize the editor initially
+                    resizeEditor();
+                }
             }
         """,
     )
-
-    ace = DOM.script(; src="https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js")
     return jsrender(session, DOM.div(ace, editor.element))
 end
 

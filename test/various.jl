@@ -106,7 +106,7 @@ end
     app = App() do
         DOM.div(onclick=jss)
     end
-    s = Bonito.Session()
+    s = OfflineSession()
     dom = sess
     Bonito.serialize_binary(s, div)
     @test JSTest in values(s.session_objects)
