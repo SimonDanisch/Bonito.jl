@@ -143,3 +143,8 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
     mark_displayed!(sub)
     return html(html_str)
 end
+
+function wait_for_ready(app::App; timeout=100)
+    wait_for(()-> !isnothing(app.session[]); timeout=timeout)
+    wait_for_ready(app.session[]; timeout=timeout)
+end
