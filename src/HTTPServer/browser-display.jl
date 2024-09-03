@@ -50,17 +50,18 @@ end
 
 function openurl(url::String)
     if Sys.isapple()
-        tryrun(`open $url`) && return
+        tryrun(`open $url`) && return true
     elseif Sys.iswindows()
-        tryrun(`powershell.exe start $url`) && return
+        tryrun(`powershell.exe start $url`) && return true
     elseif Sys.isunix()
-        tryrun(`xdg-open $url`) && return
-        tryrun(`gnome-open $url`) && return
+        tryrun(`xdg-open $url`) && return true
+        tryrun(`gnome-open $url`) && return true
     end
-    tryrun(`python -mwebbrowser $(url)`) && return
+    tryrun(`python -mwebbrowser $(url)`) && return true
     # our last hope
-    tryrun(`python3 -mwebbrowser $(url)`) && return
+    tryrun(`python3 -mwebbrowser $(url)`) && return true
     @warn("Can't find a way to open a browser, open $(url) manually!")
+    return false
 end
 
 using ..Bonito: wait_for_ready, wait_for
@@ -74,15 +75,19 @@ function Base.display(display::BrowserDisplay, app::App)
     handler = display.handler
     needs_load = update_app!(handler, app)
     # Wait for app to be initialized and fully rendered
-    wait() = wait_for(() -> !isnothing(app.session[]) && isready(app.session[]))
     if needs_load
         if display.open_browser
-            openurl(online_url(handler.server, handler.route))
-            wait() # if not open_browser, we need to let the caller wait!
+            success = openurl(online_url(handler.server, handler.route))
+            if success
+                handler.session.status = Bonito.DISPLAYED
+                # if open_browser, we need to let the caller wait!
+                wait_for_ready(handler.session)
+                wait_for_ready(app)
+            end
         end
         return true
     else
-        wait()
+        wait_for_ready(app)
         return false
     end
 end
@@ -127,7 +132,7 @@ function Base.display(display::ElectronDisplay, app::App)
     if needs_load
         Electron().load(display.window, URI(url))
     end
-    wait_for(() -> !isnothing(app.session[]) && isready(app.session[]))
+    wait_for_ready(app)
     return display
 end
 
