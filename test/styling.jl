@@ -26,7 +26,9 @@ end
         end
         return DOM.div(days...)
     end
-    s = Session()
+    # Use no connection, since otherwise the session will be added to
+    # The global running HTTP server
+    s = OfflineSession()
     Bonito.session_dom(s, app)
     all_css = Set([css for (n, set) in s.stylesheets for css in set])
     @test length(all_css) == 1

@@ -59,8 +59,9 @@ end
 get_io_context(io::IO) = nothing
 get_io_context(io::IOContext) = io
 
-function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
+function Base.show(io::IO, ::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
     ctx = get_io_context(io)
+    session =  nothing
     if !isnothing(CURRENT_SESSION[])
         # We render in a subsession
         parent = CURRENT_SESSION[]
@@ -79,6 +80,7 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
             # first time rendering in a subsession, we combine init of parent session
             # with the dom we're rendering right now
             dom = DOM.div(init_dom, sub_dom)
+            session.status = DISPLAYED
         else
             sub = session
             sub.io_context[] = ctx
@@ -86,6 +88,8 @@ function Base.show(io::IO, m::Union{MIME"text/html", MIME"application/prs.juno.p
         end
     end
     show(io, Hyperscript.Pretty(dom))
+    mark_displayed!(sub)
+    isnothing(session) || mark_displayed!(session)
     return sub
 end
 
@@ -138,5 +142,7 @@ function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
         end
         dom = session_dom(session, fetch_app)
         show(io, Hyperscript.Pretty(dom))
+        mark_displayed!(session)
+        mark_displayed!(sub)
     end
 end

@@ -67,6 +67,7 @@ end
 function jsrender(session::Session, obs::Observable)
     root_node = DOM.span()
     old_sub, html = render_subsession(session, obs[]; init=true)
+    mark_displayed!(old_sub)
     on(session, obs) do data
         new_sub = update_session_dom!(session, uuid(session, root_node), data; replace=false)
         if new_sub !== old_sub

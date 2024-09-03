@@ -239,6 +239,7 @@ mutable struct Session{Connection <: FrontendConnection}
             RefValue{Union{Nothing,IOContext}}(nothing),
             Dict{HTMLElement,Set{CSS}}()
         )
+        finalizer(close, session)
         return session
     end
 end
@@ -248,6 +249,9 @@ struct BinaryAsset <: AbstractAsset
     mime::String
 end
 BinaryAsset(session::Session, @nospecialize(data)) = BinaryAsset(SerializedMessage(session, data).bytes, "application/octet-stream")
+function Base.show(io::IO, asset::BinaryAsset)
+    print(io, "BinaryAsset($(asset.mime)) with $(length(asset.data)) bytes")
+end
 
 """
 Creates a Julia exception from data passed to us by the frondend!
