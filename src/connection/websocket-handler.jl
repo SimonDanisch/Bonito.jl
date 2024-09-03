@@ -88,7 +88,7 @@ end
 function run_connection_loop(session::Session, handler::WebSocketHandler, websocket::WebSocket)
     @debug("opening ws connection for session: $(session.id)")
     handler.socket = websocket
-    while isopen(websocket)
+    while isopen(handler)
         bytes = safe_read(websocket)
         # nothing means the browser closed the connection so we're done
         isnothing(bytes) && break
