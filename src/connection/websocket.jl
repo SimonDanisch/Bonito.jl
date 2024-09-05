@@ -57,7 +57,9 @@ const SERVER_CLEANUP_TASKS = Dict{Server, Task}()
 """
     abstract type CleanupPolicy end
 
-You can create a custom cleanup policy by subclassing this type. Implementing the `should_cleanup` and `allow_soft_close` methods is required. You can also implement `set_cleanup_time!`if it makes sense for your policy.
+You can create a custom cleanup policy by subclassing this type. Implementing
+the `should_cleanup` and `allow_soft_close` methods is required. You can also
+implement `set_cleanup_time!`if it makes sense for your policy.
 
     function should_cleanup(policy::MyCleanupPolicy, session::Session)
 
@@ -69,6 +71,19 @@ This is quite low level, and you implementaiton should probably start by copying
 """
 abstract type CleanupPolicy end
 
+"""
+    mutable struct DefaultCleanupPolicy <: CleanupPolicy
+        session_open_wait_time=30
+        cleanup_time=0.0
+    end
+
+This is the default cleanup policy. It closes sessions after
+`session_open_wait_time` seconds (default 30) if the browser didn't connect
+back to the displayed session. It also closes sessions after `cleanup_time`
+hours (default 0) if the session closes cleanly, indicating that the
+browser may reconnect if a tab is later restored. It returns true for
+allow_soft_close(...) when `cleanup_time` is non-zero.
+"""
 mutable struct DefaultCleanupPolicy <: CleanupPolicy
     session_open_wait_time::Real
     cleanup_time::Real
