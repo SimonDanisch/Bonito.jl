@@ -20,14 +20,7 @@ Base.show(io::IO, ::MIME"text/plain", session::Session) = show_session(io, sessi
 Base.show(io::IO, session::Session) = show_session(io, session)
 
 function wait_for_ready(session::Session; timeout=100)
-    if isready(session)
-        return :success
-    end
-    session.status == CLOSED && return nothing
     return wait_for(timeout=timeout) do
-        if !isnothing(session.init_error[])
-            throw(session.init_error[])
-        end
         return isready(session)
     end
 end
@@ -190,6 +183,9 @@ end
 Base.isopen(session::Session) = isopen(session.connection)
 
 function Base.isready(session::Session)
+    if !isnothing(session.init_error[])
+        throw(session.init_error[])
+    end
     return isready(session.connection_ready) && isopen(session)
 end
 

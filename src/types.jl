@@ -258,7 +258,6 @@ mutable struct Session{Connection <: FrontendConnection}
         end
         bind(inbox, task)
         schedule(task)
-        finalizer(close, session)
         return session
     end
 end
