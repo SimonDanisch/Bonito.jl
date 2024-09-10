@@ -24,6 +24,7 @@ function wait_for_ready(session::Session; timeout=100)
         return :success
     end
     session.status == CLOSED && return nothing
+    session.status == OPEN && return :success
     if session.status !== DISPLAYED
         error("Session got not displayed yet, so waiting for it to become ready is futile. Status: $(session.status)")
     end

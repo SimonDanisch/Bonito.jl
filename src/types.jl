@@ -239,7 +239,6 @@ mutable struct Session{Connection <: FrontendConnection}
             RefValue{Union{Nothing,IOContext}}(nothing),
             Dict{HTMLElement,Set{CSS}}()
         )
-        finalizer(close, session)
         return session
     end
 end
