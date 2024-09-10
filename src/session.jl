@@ -20,17 +20,7 @@ Base.show(io::IO, ::MIME"text/plain", session::Session) = show_session(io, sessi
 Base.show(io::IO, session::Session) = show_session(io, session)
 
 function wait_for_ready(session::Session; timeout=100)
-    if isready(session)
-        return :success
-    end
-    session.status == CLOSED && return nothing
-    if session.status !== DISPLAYED
-        error("Session got not displayed yet, so waiting for it to become ready is futile. Status: $(session.status)")
-    end
     return wait_for(timeout=timeout) do
-        if !isnothing(session.init_error[])
-            throw(session.init_error[])
-        end
         return isready(session)
     end
 end
@@ -143,6 +133,7 @@ function Base.close(session::Session)
         Observables.clear(session.on_close)
         session.current_app[] = nothing
         session.io_context[] = nothing
+        close(session.inbox)
     end
     return
 end
@@ -192,6 +183,9 @@ end
 Base.isopen(session::Session) = isopen(session.connection)
 
 function Base.isready(session::Session)
+    if !isnothing(session.init_error[])
+        throw(session.init_error[])
+    end
     return isready(session.connection_ready) && isopen(session)
 end
 
