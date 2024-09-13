@@ -51,3 +51,51 @@ rm(path; force=true)
     @test parent(session).connection isa Bonito.WebSocketConnection
     @test isready(parent(session))
 end
+
+@testset "websocket cleanup policy test" begin
+    policy = Bonito.DefaultCleanupPolicy(30, 2.0)
+
+    # New session shouldn't be cleaned up
+    session = Session(WebSocketConnection())
+    @test !Bonito.should_cleanup(policy, session)
+
+    # Displayed session that hasn't connected shouldn't be cleaned up immediately
+    session.status = Bonito.DISPLAYED
+    session.closing_time = time()
+    @test !Bonito.should_cleanup(policy, session)
+
+    # Displayed session that hasn't connected should be cleaned up after wait time
+    session.closing_time = time() - 31
+    @test Bonito.should_cleanup(policy, session)
+
+    # Soft closed session shouldn't be cleaned up immediately
+    session.status = Bonito.SOFT_CLOSED
+    session.closing_time = time()
+    @test !Bonito.should_cleanup(policy, session)
+
+    # Soft closed session should be cleaned up after cleanup time
+    session.closing_time = time() - 3 * 60 * 60  # 3 hours
+    @test Bonito.should_cleanup(policy, session)
+
+    # allow_soft_close should return true when cleanup_time > 0
+    @test Bonito.allow_soft_close(policy)
+
+    # allow_soft_close should return false when cleanup_time = 0
+    zero_policy = Bonito.DefaultCleanupPolicy(30, 0.0)
+    @test !Bonito.allow_soft_close(zero_policy)
+
+    struct TrivialCleanupPolicy <: Bonito.CleanupPolicy end
+
+    Bonito.should_cleanup(::TrivialCleanupPolicy, ::Session) = true
+    Bonito.allow_soft_close(::TrivialCleanupPolicy) = false
+
+    original_cleanup_policy = Bonito.CLEANUP_POLICY[]
+    try
+        Bonito.set_cleanup_policy!(TrivialCleanupPolicy())
+
+        session = Session(WebSocketConnection())
+        @test Bonito.should_cleanup(Bonito.CLEANUP_POLICY[], session)
+    finally
+        Bonito.set_cleanup_policy!(original_cleanup_policy)
+    end
+end
