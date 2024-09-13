@@ -117,7 +117,7 @@ function set_cleanup_policy!(policy::CleanupPolicy)
     CLEANUP_POLICY[] = policy
 end
 
-const CLEANUP_POLICY = Ref(DefaultCleanupPolicy())
+const CLEANUP_POLICY = Ref{CleanupPolicy}(DefaultCleanupPolicy())
 
 function should_cleanup(policy::DefaultCleanupPolicy, session::Session)
     if isnothing(session)
