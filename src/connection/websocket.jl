@@ -120,9 +120,7 @@ end
 const CLEANUP_POLICY = Ref{CleanupPolicy}(DefaultCleanupPolicy())
 
 function should_cleanup(policy::DefaultCleanupPolicy, session::Session)
-    if isnothing(session)
-        return true
-    elseif session.status == SOFT_CLOSED
+    if session.status == SOFT_CLOSED
         age = time() - session.closing_time
         age_hours = age / 60 / 60
         if age_hours > policy.cleanup_time
@@ -151,7 +149,7 @@ function cleanup_server(server::Server)
         for (route, connection) in server.websocket_routes.table
             if connection isa WebSocketConnection
                 session = connection.session
-                if should_cleanup(CLEANUP_POLICY[], session)
+                if isnothing(session) || should_cleanup(CLEANUP_POLICY[], session)
                     push!(remove, connection)
                 end
             end
