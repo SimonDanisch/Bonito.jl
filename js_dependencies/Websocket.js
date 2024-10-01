@@ -180,8 +180,8 @@ const session_websocket = {};
 // }
 export function setup_connection({ proxy_url, session_id, compression_enabled }) {
     const url = websocket_url(session_id, proxy_url);
-    const ws_low = new Websocket(url + "/low_latency", compression_enabled);
-    const large_data = new Websocket(url + "/large_data", compression_enabled);
+    const ws_low = new Websocket(url + "?low_latency", compression_enabled);
+    const large_data = new Websocket(url + "?large_data", compression_enabled);
     session_websocket.low_latency = ws_low;
     session_websocket.large_data = large_data;
     ws_low.on_open(()=> {
