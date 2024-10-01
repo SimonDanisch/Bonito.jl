@@ -22,14 +22,14 @@ function run_connection_loop(server::Server, session::Session, connection::WebSo
         run_connection_loop(session, connection.handler, websocket)
     finally
         # This always needs to happen, which is why we need a try catch!
-        if CLEANUP_TIME[] == 0.0
+        if allow_soft_close(CLEANUP_POLICY[])
+            @debug("Soft closing: $(session.id)")
+            soft_close(session)
+        else
             @debug("Closing: $(session.id)")
             # might as well close it immediately
             close(session)
             delete_websocket_route!(server, "/$(session.id)")
-        else
-            @debug("Soft closing: $(session.id)")
-            soft_close(session)
         end
     end
 end
@@ -54,7 +54,42 @@ end
 
 const SERVER_CLEANUP_TASKS = Dict{Server, Task}()
 
-const CLEANUP_TIME = Ref(0.0)
+"""
+    abstract type CleanupPolicy end
+
+You can create a custom cleanup policy by subclassing this type. Implementing
+the `should_cleanup` and `allow_soft_close` methods is required. You can also
+implement `set_cleanup_time!`if it makes sense for your policy.
+
+    function should_cleanup(policy::MyCleanupPolicy, session::Session)
+
+    function allow_soft_close(policy::MyCleanupPolicy)
+
+    function set_cleanup_time!(policy::MyCleanupPolicy, time_in_hrs::Real)
+
+This is quite low level, and you implementaiton should probably start by copying `DefaultCleanupPolicy`.
+"""
+abstract type CleanupPolicy end
+
+"""
+    mutable struct DefaultCleanupPolicy <: CleanupPolicy
+        session_open_wait_time=30
+        cleanup_time=0.0
+    end
+
+This is the default cleanup policy. It closes sessions after
+`session_open_wait_time` seconds (default 30) if the browser didn't connect
+back to the displayed session. It also closes sessions after `cleanup_time`
+hours (default 0) if the session closes cleanly, indicating that the
+browser may reconnect if a tab is later restored. It returns true for
+allow_soft_close(...) when `cleanup_time` is non-zero.
+"""
+mutable struct DefaultCleanupPolicy <: CleanupPolicy
+    session_open_wait_time::Real
+    cleanup_time::Real
+end
+
+DefaultCleanupPolicy() = DefaultCleanupPolicy(30, 0.0)
 
 """
     set_cleanup_time!(time_in_hrs::Real)
@@ -66,10 +101,47 @@ and will display the same App again from first display.
 State that isn't stored in Observables inside that app is lost.
 """
 function set_cleanup_time!(time_in_hrs::Real)
-    CLEANUP_TIME[] = time_in_hrs
+    set_cleanup_time!(CLEANUP_POLICY[], time_in_hrs)
 end
 
-const SESSION_OPEN_WAIT_TIME = Ref(30)
+function set_cleanup_time!(policy::DefaultCleanupPolicy, time_in_hrs::Real)
+    policy.cleanup_time = time_in_hrs
+end
+
+"""
+    set_cleanup_policy!(policy::CleanupPolicy)
+
+You can set a custom cleanup policy by calling this function.
+"""
+function set_cleanup_policy!(policy::CleanupPolicy)
+    CLEANUP_POLICY[] = policy
+end
+
+const CLEANUP_POLICY = Ref{CleanupPolicy}(DefaultCleanupPolicy())
+
+function should_cleanup(policy::DefaultCleanupPolicy, session::Session)
+    if session.status == SOFT_CLOSED
+        age = time() - session.closing_time
+        age_hours = age / 60 / 60
+        if age_hours > policy.cleanup_time
+            return true
+        end
+    elseif !isopen(session) && session.status == DISPLAYED
+        # if the session is not SOFT_CLOSED,
+        # closing time means time at which rendering was done and the html was send to the browser
+        rendered_time_point = session.closing_time
+        # If the browser didn't connect back to the displayed session after 30s
+        # we assume displaying didn't work for whatever reason and close it.
+        if time() - rendered_time_point > policy.session_open_wait_time
+            return true
+        end
+    end
+    return false
+end
+
+function allow_soft_close(policy::DefaultCleanupPolicy)
+    return policy.cleanup_time > 0.0
+end
 
 function cleanup_server(server::Server)
     remove = Set{WebSocketConnection}()
@@ -77,23 +149,8 @@ function cleanup_server(server::Server)
         for (route, connection) in server.websocket_routes.table
             if connection isa WebSocketConnection
                 session = connection.session
-                if isnothing(session)
+                if isnothing(session) || should_cleanup(CLEANUP_POLICY[], session)
                     push!(remove, connection)
-                elseif session.status == SOFT_CLOSED
-                    age = time() - session.closing_time
-                    age_hours = age / 60 / 60
-                    if age_hours > CLEANUP_TIME[]
-                        push!(remove, connection)
-                    end
-                elseif !isopen(session) && session.status == DISPLAYED
-                    # if the session is not SOFT_CLOSED,
-                    # closing time means time at which rendering was done and the html was send to the browser
-                    rendered_time_point = session.closing_time
-                    # If the browser didn't connect back to the displayed session after 30s
-                    # we assume displaying didn't work for whatever reason and close it.
-                    if time() - rendered_time_point > SESSION_OPEN_WAIT_TIME[]
-                        push!(remove, connection)
-                    end
                 end
             end
         end

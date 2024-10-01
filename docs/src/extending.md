@@ -125,6 +125,46 @@ function my_web_framework_websocket_handler(my_web_framework_request)
         # You will need to clean up the soft closed session and its route/saved session after some timeout in the cleanup task
     end
 end
+
+# Here is the cleanup task. You might choose to arrange for exactly one of these to be started at some appropriate time.
+# You may like to handle errors so that it always remains running.
+@async while true
+    sleep(1)
+    # Iterate through the sessions and routes that have been set up in `setup_connection`
+    for (session, route) in my_route_data_structure
+        # Apply some cleanup policy to closed or soft closed sessions
+        if should_cleanup(session)
+            # mark route for removeal
+        end
+    end
+    # remove marked routes
+end
 ```
+
+You can get further details to guide your implementation by looking at Bonito's own implementation in `Bonito/src/connections/websocket.jl`.
+
+Please read the next section for information about how to make use of Bonito's websocket cleanup policy in your cleanup task.
+
+## Customising the websocket cleanup policy
+
+You can create a custom cleanup policy by subclassing `CleanupPolicy`. For example, you may like to choose to evict sessions based upon the resources they are using, or whether users are authenticated or not or some other criteria.
+
+Implementing the `should_cleanup` and `allow_soft_close` methods is required.
+
+```julia
+struct MyCleanupPolicy <: Bonito.CleanupPolicy end
+
+function Bonito.should_cleanup(policy::MyCleanupPolicy, session::Session)
+    ...
+end
+
+function Bonito.allow_soft_close(policy::MyCleanupPolicy)
+    ...
+end
+
+Bonito.set_cleanup_policy!(MyCleanupPolicy())
+```
+
+You can also make use of cleanup policies including `DefaultCleanupPolicy()` if you manage your own websocket server as outlined in the previous section.
 
 You can get further details to guide your implementation by looking at Bonito's own implementation in `Bonito/src/connections/websocket.jl`.
