@@ -122,7 +122,7 @@ end
 function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
     # If we clean up sessions immediately and disallow reconnect
     # We might as well display the app directly!
-    if CLEANUP_TIME[] == 0.0
+    if !allow_soft_close()
         show(io, MIME"text/html"(), app)
     else
         session = Session(title=app.title)

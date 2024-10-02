@@ -15,8 +15,9 @@ function WebSocketConnection(server::Server)
 end
 
 Base.isopen(ws::WebSocketConnection) = isopen(ws.low_latency)
+
 function Base.write(ws::WebSocketConnection, binary)
-    if sizeof(binary) > 10^6
+    if sizeof(binary) > 1000
         write(ws.large_data, binary)
     else
         write(ws.low_latency, binary)
@@ -169,7 +170,7 @@ function should_cleanup(policy::DefaultCleanupPolicy, session::Session)
     return false
 end
 
-function allow_soft_close(policy::DefaultCleanupPolicy)
+function allow_soft_close(policy::DefaultCleanupPolicy=CLEANUP_POLICY[])
     return policy.cleanup_time > 0.0
 end
 
