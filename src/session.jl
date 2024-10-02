@@ -141,9 +141,23 @@ end
 """
     send(session::Session; attributes...)
 
-Send values to the frontend via JSON for now
+Send values to the frontend via MsgPack for now
 """
 Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
+
+function send_large(session::Session, message)
+    serialized = SerializedMessage(session, message)
+    if isready(session)
+        write_large(session.connection, serialized.bytes)
+        if COLLECT_MESSAGES[]
+            push!(COLLECTED_MESSAGES, serialized)
+        end
+    else
+        push!(session.message_queue, serialized)
+    end
+end
+
+
 
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
     serialized = SerializedMessage(session, message)

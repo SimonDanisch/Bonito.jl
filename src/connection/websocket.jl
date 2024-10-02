@@ -20,6 +20,10 @@ function Base.write(ws::WebSocketConnection, binary)
     write(ws.low_latency, binary)
 end
 
+function write_large(ws::WebSocketConnection, binary)
+    write(ws.large_data, binary)
+end
+
 function Base.close(ws::WebSocketConnection)
     close(ws.low_latency)
     close(ws.large_data)

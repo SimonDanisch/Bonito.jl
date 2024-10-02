@@ -59,7 +59,6 @@ class Websocket {
                             )
                         );
                     });
-
                     return resolve(null);
                 });
             };
