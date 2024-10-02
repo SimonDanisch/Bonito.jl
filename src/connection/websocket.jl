@@ -52,7 +52,7 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
 end
 
 
-const SERVER_CLEANUP_TASKS = Dict{Server, Task}()
+const SERVER_CLEANUP_TASKS = Dict{Server, Tuple{Task, Base.RefValue{Bool}}}()
 
 """
     abstract type CleanupPolicy end
@@ -166,7 +166,8 @@ end
 
 function add_cleanup_task!(server::Server)
     get!(SERVER_CLEANUP_TASKS, server) do
-        @async while true
+        close_ref = Base.RefValue(true)
+        task = @async while close_ref[]
             try
                 sleep(1)
                 cleanup_server(server)
@@ -176,6 +177,7 @@ function add_cleanup_task!(server::Server)
                 end
             end
         end
+        return (task, close_ref)
     end
 end
 
