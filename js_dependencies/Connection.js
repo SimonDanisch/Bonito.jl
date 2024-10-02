@@ -15,6 +15,10 @@ const PingPong = "11";
 const UpdateSession = "12";
 const GetSessionDOM = "13"
 
+function clean_stack(stack) {
+    return stack.replaceAll(/(data:\w+\/\w+;base64,)[a-zA-Z0-9\+\/=]+:/g, "$1<<BASE64>>:");
+}
+
 const CONNECTION = {
     send_message: undefined,
     queue: [],
@@ -59,7 +63,7 @@ export function send_error(message, exception) {
         msg_type: JavascriptError,
         message: message,
         exception: String(exception),
-        stacktrace: exception === null ? "" : exception.stack,
+        stacktrace: exception === null ? "" : clean_stack(exception.stack),
     });
 }
 
@@ -80,7 +84,7 @@ export function send_done_loading(session, exception) {
         session,
         message: "",
         exception: exception === null ? "nothing" : String(exception),
-        stacktrace: exception === null ? "" : exception.stack,
+        stacktrace: exception === null ? "" : clean_stack(exception.stack),
     });
 }
 
