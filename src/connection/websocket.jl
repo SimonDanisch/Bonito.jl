@@ -17,45 +17,25 @@ end
 Base.isopen(ws::WebSocketConnection) = isopen(ws.low_latency)
 
 function Base.write(ws::WebSocketConnection, binary)
-    if sizeof(binary) > 1000
-        write(ws.large_data, binary)
-    else
-        write(ws.low_latency, binary)
-    end
+    write(ws.low_latency, binary)
 end
 
 function Base.close(ws::WebSocketConnection)
     close(ws.low_latency)
     close(ws.large_data)
+    if !isnothing(ws.session)
+        session = ws.session
+        delete_websocket_route!(ws.server, "/$(session.id)?low_latency")
+        delete_websocket_route!(ws.server, "/$(session.id)?large_data")
+    end
     return
 end
-
-function run_connection_loop(server::Server, session::Session, connection::WebSocketConnection, websocket::WebSocket)
-    # the channel is used so that we can do async processing of messages
-    # While still keeping the order of messages
-    try
-        run_connection_loop(session, connection.low_latency, websocket)
-    finally
-        # This always needs to happen, which is why we need a try catch!
-        if allow_soft_close(CLEANUP_POLICY[])
-            @debug("Soft closing: $(session.id)")
-            soft_close(session)
-        else
-            @debug("Closing: $(session.id)")
-            # might as well close it immediately
-            close(session)
-            delete_websocket_route!(server, "/$(session.id)")
-        end
-    end
-end
-
 
 """
     handles a new websocket connection to a session
 """
 function (connection::WebSocketConnection)(context, websocket::WebSocket)
     request = context.request
-    server = context.application
     uri = URIs.URI(request.target)
     session_id = URIs.splitpath(uri.path)[1]
     @debug("WS session id: $(session_id)")
@@ -77,7 +57,6 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
             @debug("Closing: $(session.id)")
             # might as well close it immediately
             close(session)
-            delete_websocket_route!(server, "/$(session.id)")
         end
     end
 end
@@ -188,8 +167,6 @@ function cleanup_server(server::Server)
         for connection in remove
             if !isnothing(connection.session)
                 session = connection.session
-                delete_websocket_route!(server, "/$(session.id)?low_latency")
-                delete_websocket_route!(server, "/$(session.id)?large_data")
                 close(session)
             end
         end

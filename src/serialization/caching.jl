@@ -1,10 +1,11 @@
 struct SerializationContext
     message_cache::Dict{String, Any}
+    large_data::Dict{String, Any}
     session::Session
 end
 
 function SerializationContext(session::Session)
-    return SerializationContext(Dict{String, Any}(), session)
+    return SerializationContext(Dict{String,Any}(), Dict{String,Any}(), session)
 end
 
 object_identity(retain::Retain) = object_identity(retain.value)
@@ -59,7 +60,7 @@ function serialize_cached(context::SerializationContext, node::Node{Hyperscript.
     return SerializedNode(context.session, node)
 end
 
-serialize_cached(context::SerializationContext, @nospecialize(obj)) = obj
+serialize_cached(::SerializationContext, @nospecialize(obj)) = obj
 serialize_cached(::SerializationContext, native::MSGPACK_NATIVE_TYPES) = native
 serialize_cached(::SerializationContext, native::AbstractArray{<:Number}) = native
 
