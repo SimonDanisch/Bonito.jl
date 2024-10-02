@@ -188,7 +188,8 @@ function cleanup_server(server::Server)
         for connection in remove
             if !isnothing(connection.session)
                 session = connection.session
-                delete_websocket_route!(server, "/$(session.id)")
+                delete_websocket_route!(server, "/$(session.id)?low_latency")
+                delete_websocket_route!(server, "/$(session.id)?large_data")
                 close(session)
             end
         end
