@@ -15,6 +15,15 @@ const PingPong = "11";
 const UpdateSession = "12";
 const GetSessionDOM = "13"
 
+/**
+ * @typedef {Object} Connection
+ * @property {(message: Uint8Array) => void} [send_message]
+ * @property {Array<any>} queue
+ * @property {string} status
+ * @property {boolean} [compression_enabled]
+ */
+
+/** @type {Connection} */
 const CONNECTION = {
     send_message: undefined,
     queue: [],

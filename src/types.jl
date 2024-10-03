@@ -266,7 +266,11 @@ struct BinaryAsset <: AbstractAsset
     data::Vector{UInt8}
     mime::String
 end
-BinaryAsset(session::Session, @nospecialize(data)) = BinaryAsset(SerializedMessage(session, data).bytes, "application/octet-stream")
+
+function BinaryAsset(session::Session, @nospecialize(data))
+    BinaryAsset(serialize_binary(session, data), "application/octet-stream")
+end
+
 function Base.show(io::IO, asset::BinaryAsset)
     print(io, "BinaryAsset($(asset.mime)) with $(length(asset.data)) bytes")
 end

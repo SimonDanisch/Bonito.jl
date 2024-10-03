@@ -21,6 +21,7 @@ function Base.write(ws::WebSocketConnection, binary)
 end
 
 function write_large(ws::WebSocketConnection, binary)
+    println("Writing $(Base.format_bytes(sizeof(binary)))")
     write(ws.large_data, binary)
 end
 

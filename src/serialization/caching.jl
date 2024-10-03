@@ -41,6 +41,10 @@ function serialize_cached(context::SerializationContext, obs::Observable)
     end
 end
 
+function serialize_cached(context::SerializationContext, lu::LargeUpdate)
+    serialize_cached(context, lu.data)
+end
+
 function serialize_cached(context::SerializationContext, js::JSCode)
     jscontext = JSSourceContext(context.session)
     # Print code while collecting all interpolated objects in an IdDict

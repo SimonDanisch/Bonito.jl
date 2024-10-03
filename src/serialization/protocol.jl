@@ -23,7 +23,7 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         @warn "empty message received from frontend"
         return
     end
-    data = deserialize_binary(bytes)
+    data = deserialize_binary(bytes, session.compression_enabled)
     typ = data["msg_type"]
     if typ == UpdateObservable
         obs = get(session.session_objects, data["id"], nothing)

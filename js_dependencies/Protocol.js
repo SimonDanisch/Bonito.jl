@@ -275,7 +275,7 @@ export function unpack_binary(binary, compression_enabled) {
  */
 export function encode_binary(data, compression_enabled) {
     if (compression_enabled) {
-        return pack(Pako.deflate(pack(data)));
+        return Pako.deflate(pack(data));
     } else {
         return pack(data);
     }

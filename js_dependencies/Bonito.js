@@ -61,6 +61,7 @@ function fetch_binary(url) {
         if (!response.ok) {
             throw new Error("HTTP error, status = " + response.status);
         }
+        console.log(response)
         return response.arrayBuffer();
     });
 }
