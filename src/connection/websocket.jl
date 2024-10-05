@@ -139,7 +139,7 @@ function should_cleanup(policy::DefaultCleanupPolicy, session::Session)
     return false
 end
 
-function allow_soft_close(policy::DefaultCleanupPolicy)
+function allow_soft_close(policy::DefaultCleanupPolicy=CLEANUP_POLICY[])
     return policy.cleanup_time > 0.0
 end
 
