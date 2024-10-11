@@ -1,108 +1,141 @@
+abstract type RunnerLike end
+
+struct NoRunner <: RunnerLike end
+
+struct ModuleRunner <: RunnerLike
+    mod::Module
+    current_session::Ref{Union{Session,Nothing}}
+end
+
+function Base.eval(md::ModuleRunner, expr)
+    return md.mod.eval(md.mod, expr)
+end
+
+struct EvalMarkdown
+    markdown::String
+    runner::RunnerLike
+    replacements::Dict{Any,Function}
+end
+
+function EvalMarkdown(
+        markdown::String; runner=NoRunner(), replacements=Dict{Any,Function}()
+    )
+    return EvalMarkdown(markdown, runner, replacements)
+end
+
+function jsrender(session::Session, em::EvalMarkdown)
+    runner = em.runner
+    if hasproperty(runner, :current_session)
+        runner.current_session[] = session
+    end
+    md = string_to_markdown(em.markdown, em.replacements; eval_julia_code=runner)
+    return jsrender(session, md)
+end
 
 function jsrender(session::Session, md::Markdown.MD)
-    md_div = DOM.div(md_html(session, md.content)...; class="markdown-body")
+    md_div = DOM.div(md_html(md.content)...; class="markdown-body")
     return jsrender(session, md_div)
 end
 
-function md_html(session::Session, content::Vector)
-    return md_html.((session,), content)
+function md_html(content::Vector)
+    return map(md_html, content)
 end
 
-function md_html(session::Session, header::Markdown.Header{l}) where l
+function md_html(header::Markdown.Header{l}) where l
     title = header.text
     id = length(title) == 1 && title[1] isa String ? title[1] : ""
-    return [DOM.m("h$l", htmlinline(session, header.text)...; id=id)]
+    return [DOM.m("h$l", htmlinline(header.text)...; id=id)]
 end
 
-function md_html(session::Session, code::Markdown.Code)
+function md_html(code::Markdown.Code)
     maybe_lang = !isempty(code.language) ? Any[:class=>"language-$(code.language)"] : []
     return [DOM.m("pre", DOM.m("code", code.code; maybe_lang...))]
 end
 
-function md_html(session::Session, md::Markdown.Paragraph)
-    return [DOM.p(htmlinline(session, md.content)...)]
+function md_html(md::Markdown.Paragraph)
+    return [DOM.p(htmlinline(md.content)...)]
 end
 
-function md_html(session::Session, md::Markdown.BlockQuote)
-    return [DOM.m("blockquote", md_html(session, md.content)...)]
+function md_html(md::Markdown.BlockQuote)
+    return [DOM.m("blockquote", md_html(md.content)...)]
 end
 
-function md_html(session::Session, f::Markdown.Footnote)
-    return [DOM.div(DOM.p(f.id; class="footnote-title"), md_html(session, f.text)...;
+function md_html(f::Markdown.Footnote)
+    return [DOM.div(DOM.p(f.id; class="footnote-title"), md_html(f.text)...;
                           class="footnote", id="footnote-$(f.id)")]
 end
 
-function md_html(session::Session, md::Markdown.Admonition)
+function md_html(md::Markdown.Admonition)
     title = DOM.p(md.title; class="admonition-title")
     return [DOM.div(title; class="admonition $(md.category)")]
 end
 
-function md_html(session::Session, md::Markdown.List)
+function md_html(md::Markdown.List)
     maybe_attr = md.ordered > 1 ? Any[:start => string(md.ordered)] : []
     tag = Markdown.isordered(md) ? "ol" : "ul"
     style = Styles("list-style-type" => "disc", "list-style" => "inside")
     return [DOM.m(
         tag, maybe_attr...,
         map(md.items) do item
-            DOM.m("li", md_html(session, item)...)
+            DOM.m("li", md_html(item)...)
         end...
         ; style=style)]
 end
 
-function md_html(session::Session, md::Markdown.HorizontalRule)
+function md_html(md::Markdown.HorizontalRule)
     return [DOM.m_unesc("hr")]
 end
 
-function md_html(session::Session, md::Markdown.Table)
+function md_html(md::Markdown.Table)
     content = map(enumerate(md.rows)) do (i, row)
         tr_content = map(enumerate(md.rows[i])) do (j, c)
             alignment = md.align[j]
             alignment = alignment === :l ? "left" : alignment === :r ? "right" : "center"
-            return DOM.m(i == 1 ? "th" : "td", htmlinline(session, c)...; align=alignment)
+            return DOM.m(i == 1 ? "th" : "td", htmlinline(c)...; align=alignment)
         end
         return DOM.m("tr", tr_content...)
     end
     return [DOM.m("table", content...)]
 end
 
-function htmlinline(session::Session, content::Vector)
-    return [htmlinline.((session,), content)...]
+function htmlinline(content::Vector)
+    return [htmlinline.(content)...]
 end
 
-function htmlinline(session::Session, code::Markdown.Code)
+function htmlinline(code::Markdown.Code)
     return [DOM.m("code", code.code)]
 end
 
-function htmlinline(session::Session, md::Union{Symbol, AbstractString})
+function htmlinline(md::Union{Symbol, AbstractString})
     return [md]
 end
 
-function htmlinline(session::Session, md::Markdown.Bold)
-    return [DOM.m("strong", htmlinline(session, md.text)...)]
+function htmlinline(md::Markdown.Bold)
+    return [DOM.m("strong", htmlinline(md.text)...)]
 end
 
-function htmlinline(session::Session, md::Markdown.Italic)
-    return [DOM.m("em", htmlinline(session, md.text)...)]
+function htmlinline(md::Markdown.Italic)
+    return [DOM.m("em", htmlinline(md.text)...)]
 end
 
-function htmlinline(session::Session, md::Markdown.Image)
+function htmlinline(md::Markdown.Image)
     return [DOM.m("img"; src=md.url, alt=md.alt)]
 end
 
-function htmlinline(session::Session, f::Markdown.Footnote)
+function htmlinline(f::Markdown.Footnote)
     return [DOM.m("a", string("[", f.id, "]"); href="#footnote-$(f.id)", class="footnote")]
 end
 
-function htmlinline(session::Session, link::Markdown.Link)
-    return [DOM.m("a", href = link.url, htmlinline(session, link.text)...)]
+function htmlinline(link::Markdown.Link)
+    return [DOM.m("a", href = link.url, htmlinline(link.text)...)]
 end
 
-function htmlinline(session::Session, br::Markdown.LineBreak)
+function htmlinline(br::Markdown.LineBreak)
     return [DOM.m("br")]
 end
 
-htmlinline(session::Session, x) = [x]
-md_html(session::Session, x) = [x]
+htmlinline(x) = [x]
+md_html(x) = [x]
 
 function render_result(result)
     if Tables.istable(result)
@@ -117,14 +150,14 @@ end
 Replaces all expressions inside `markdown` savely, by only supporting
 getindex/getfield expression that will index into `context`
 """
-function replace_expressions(session::Session, markdown, replacements; eval_julia_code=false)
+function replace_expressions(markdown, replacements::Dict, runner::RunnerLike)
     if markdown isa Union{Expr, Symbol}
         return markdown
     end
     if hasproperty(markdown, :content)
-        markdown.content .= replace_expressions.((session,), markdown.content, (replacements,); eval_julia_code=eval_julia_code)
+        markdown.content .= replace_expressions.(markdown.content, (replacements,), (runner,))
     elseif hasproperty(markdown, :text)
-        markdown.text .= replace_expressions.((session,), markdown.text, (replacements,); eval_julia_code=eval_julia_code)
+        markdown.text .= replace_expressions.(markdown.text, (replacements,), (runner,))
     end
     return markdown
 end
@@ -145,18 +178,22 @@ function parseall(str)
     end
 end
 
-function replace_expressions(session::Session, markdown::Markdown.Code, replacements; eval_julia_code=false)
+
+
+function replace_expressions(
+        markdown::Markdown.Code, replacements::Dict, runner::RunnerLike
+    )
     if haskey(replacements, Markdown.Code)
-        return replacements[Markdown.Code](session, markdown)
+        return replacements[Markdown.Code](markdown)
     end
-    if markdown.language == "julia" && eval_julia_code isa Module
+    if markdown.language == "julia" && !(runner isa NoRunner)
         hide = occursin("# hide", markdown.code)
         no_eval = occursin("# no-eval", markdown.code)
         md_expr = hide ? "" : markdown
         expr = parseall(markdown.code)
-        evaled = no_eval ? nothing : eval_julia_code.eval(expr)
+        evaled = no_eval ? nothing : Base.eval(runner, expr)
         if !isnothing(evaled)
-            return Markdown.MD([md_expr, jsrender(session, evaled)])
+            return Markdown.MD([md_expr, evaled])
         else
             return md_expr
         end
@@ -166,14 +203,23 @@ function replace_expressions(session::Session, markdown::Markdown.Code, replacem
 end
 
 """
-    string_to_markdown(session::Session, source::String; eval_julia_code=false)
+    string_to_markdown(source::String; eval_julia_code=false)
 
 Replaces all interpolation expressions inside `markdown` savely, by only supporting
 getindex/getfield expression that will index into `context`.
 You can eval Julia code blocks by setting `eval_julia_code` to a Module, into which
 the code gets evaluated!
 """
-function string_to_markdown(session::Session, source::String, replacements=Dict{Any, Function}(); eval_julia_code=false)
+function string_to_markdown(source::String, replacements=Dict{Any, Function}(); eval_julia_code=NoRunner())
+    if eval_julia_code == false
+        runner = NoRunner()
+    elseif eval_julia_code isa Module
+        runner = ModuleRunner(eval_julia_code)
+    elseif eval_julia_code isa RunnerLike
+        runner = eval_julia_code
+    else
+        error("Unsupported type for `eval_julia_code`: $(eval_julia_code). Supported are `false`, a Module to eval in, or a `Bonito.RunnerLike`.")
+    end
     markdown = Markdown.parse(source)
-    return replace_expressions(session, markdown, replacements; eval_julia_code=eval_julia_code)
+    return replace_expressions(markdown, replacements, runner)
 end

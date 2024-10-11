@@ -53,12 +53,15 @@ end
 
 function jsrender(session::Session, asset::Asset)
     if mediatype(asset) in (:jpeg, :jpg, :png)
-        return DOM.img(src=url(session, asset))
+        return jsrender(session, DOM.img(src=url(session, asset)))
     elseif mediatype(asset) in (:css, :js)
         # We include css/js assets with the above `render_asset` in session_dom
         # So that we only include any depency one time
         push!(session.imports, asset)
         return nothing
+    elseif mediatype(asset) == :html
+        html = read(asset.local_path, String)
+        return HTML{String}(html)
     else
         error("Unrecognized asset media type: $(mediatype(asset))")
     end
