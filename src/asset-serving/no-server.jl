@@ -119,7 +119,6 @@ function url(assetfolder::AbstractAssetFolder, asset::Asset)
     if !isempty(asset.online_path)
         return asset.online_path
     end
-    println("writing $(asset)")
     path = write_to_assetfolder(assetfolder, asset)
     html_dir = to_unix_path(current_dir(assetfolder))
     root_dir = to_unix_path(folder(assetfolder))
