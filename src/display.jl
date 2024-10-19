@@ -23,7 +23,7 @@ function Page(;
         exportable::Union{Bool,Nothing}=nothing,
         connection::Union{Nothing, FrontendConnection}=nothing,
         current_page_dir = abspath(pwd()), # For documenter server
-        server_config...)
+    server_config...)
     old_session = CURRENT_SESSION[]
     if !isempty(server_config)
         configure_server!(; server_config...)
@@ -125,7 +125,7 @@ end
 function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
     # If we clean up sessions immediately and disallow reconnect
     # We might as well display the app directly!
-    if CLEANUP_TIME[] == 0.0
+    if !allow_soft_close()
         show(io, MIME"text/html"(), app)
     else
         session = Session(title=app.title)
