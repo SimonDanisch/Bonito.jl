@@ -9,8 +9,7 @@ using Dates: Dates
 
 function html(app; kwargs...)
     io = IOBuffer()
-    #show(io, MIME{Symbol("text/html")}(), app; kwargs...)
-    show(io, MIME"text/html"(), app; kwargs...)
+    show_html(io, app; kwargs...)
     take!(io)
 end
 
