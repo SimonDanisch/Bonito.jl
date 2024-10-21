@@ -6,6 +6,7 @@ struct ModuleRunner <: RunnerLike
     mod::Module
     current_session::Ref{Union{Session,Nothing}}
 end
+ModuleRunner(mod::Module) = ModuleRunner(mod, Ref{Union{Session,Nothing}}(nothing))
 
 function Base.eval(md::ModuleRunner, expr)
     return md.mod.eval(md.mod, expr)
