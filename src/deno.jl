@@ -27,7 +27,7 @@ function deno_bundle(path_to_js::AbstractString, output_file::String)
     isnothing(Deno_jll) && return false
     exe = raw"C:\Users\sdani\Downloads\esbuild.exe"
     run(
-        `$exe $(path_to_js) --bundle --format=esm --platform=browser --external:none --target=esnext --outfile=$(output_file)`,
+        `$exe $(path_to_js) --bundle --format=esm --minify --sourcemap --platform=browser --target=es2017 --external:none --outfile=$(output_file)`,
     )
     return true
 end
