@@ -25,15 +25,9 @@ function deno_bundle(path_to_js::AbstractString, output_file::String)
     # We treat Deno as a development dependency,
     # so if deno isn't loaded, don't bundle!
     isnothing(Deno_jll) && return false
-    exe = Deno_jll.deno()
-    stdout = IOBuffer()
-    err = IOBuffer()
-    try
-        run(pipeline(`$exe bundle $(path_to_js)`; stdout=stdout, stderr=err))
-    catch e
-        write(stderr, seekstart(err))
-        return false
-    end
-    write(output_file, seekstart(stdout))
+    exe = raw"C:\Users\sdani\Downloads\esbuild.exe"
+    run(
+        `$exe $(path_to_js) --bundle --format=esm --platform=browser --external:none --target=esnext --outfile=$(output_file)`,
+    )
     return true
 end

@@ -411,11 +411,11 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         msgs = fused_messages!(session)
         type = issubsession ? "sub" : "root"
         if isempty(msgs[:payload])
-            init_session = js"""Bonito.lock_loading(() => Bonito.init_session($(session.id), null, $(type)))"""
+            init_session = js"""$(BonitoLib).then((Bonito) => Bonito.init_session($(session.id), null, $(type)))"""
         else
             binary = BinaryAsset(session, msgs)
             init_session = js"""
-                Bonito.lock_loading(() => {
+                $(BonitoLib).then((Bonito) => {
                     return $(binary).then(msgs=> Bonito.init_session($(session.id), msgs, $(type)));
                 })
             """
