@@ -29,7 +29,7 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         obs = get(session.session_objects, data["id"], nothing)
         if isnothing(obs)
             # this is usually non fatal and may happen when old exported HTML gets reconnected
-            @debug "Observable $(data["id"]) not found"
+            @_debug "Observable $(data["id"]) not found"
         else
             # Observable can be wrapped inside Retain
             _obs = obs isa Retain ? obs.value : obs
@@ -57,7 +57,7 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
                 # This can happen for IJulia output after kernel restart,
                 # since the loaded html will try to init + connect back
                 # TODO, there should be a better way to prevent them from reconnecting
-                @debug("Sub session with id $(data["session"]) not found")
+                @_debug("Sub session with id $(data["session"]) not found")
             end
         end
     elseif typ == CloseSession
@@ -71,7 +71,7 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
                 empty!(sub)
             end
         else
-            @debug("Close request not succesful, can't find sub session with id $(data["session"])")
+            @_debug("Close request not succesful, can't find sub session with id $(data["session"])")
         end
     elseif typ == PingPong
         # Ping back that pong!!

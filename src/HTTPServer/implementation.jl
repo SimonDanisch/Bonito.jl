@@ -102,7 +102,7 @@ function delegate(routes::Routes, application, request::Request, args...)
                 return apply_handler(f, context, args...)
             end
         end
-        @debug("Didn't find route for $(request.target)")
+        @_debug("Didn't find route for $(request.target)")
         # If no route is found we have a classic case of 404!
         # What a classic this response!
         return response_404("Didn't find route for $(request.target)")
@@ -249,7 +249,7 @@ function Base.close(application::Server)
             Bonito.wait_for(() -> istaskdone(task))
             @assert !Base.istaskdone(task)
         catch e
-            @debug "Server task failed with an (expected) exception on close" exception=e
+            @_debug "Server task failed with an (expected) exception on close" exception=e
         end
     end
     @assert !isrunning(application)

@@ -23,10 +23,10 @@ function run_connection_loop(server::Server, session::Session, connection::WebSo
     finally
         # This always needs to happen, which is why we need a try catch!
         if allow_soft_close(CLEANUP_POLICY[])
-            @debug("Soft closing: $(session.id)")
+            @_debug("Soft closing: $(session.id)")
             soft_close(session)
         else
-            @debug("Closing: $(session.id)")
+            @_debug("Closing: $(session.id)")
             # might as well close it immediately
             close(session)
             delete_websocket_route!(server, "/$(session.id)")
@@ -42,7 +42,7 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
     request = context.request; application = context.application
     uri = URIs.URI(request.target).path
     session_id = URIs.splitpath(uri)[1]
-    @debug("WS session id: $(session_id)")
+    @_debug("WS session id: $(session_id)")
     session = connection.session
     if isnothing(session)
         error("Websocket connection skipped setup")

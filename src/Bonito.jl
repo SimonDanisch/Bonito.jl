@@ -31,6 +31,14 @@ function get_server end
 function wait_for end
 function wait_for_ready end
 
+const ENABLE_DEBUG = Ref{Bool}(false)
+
+# CoreLogging 1.1.0 seems to be _really_ slow when using @debug
+macro _debug(args...)
+    Core.println(Core.stderr, args...)
+end
+
+
 include("deno.jl")
 include("types.jl")
 include("HTTPServer/HTTPServer.jl")

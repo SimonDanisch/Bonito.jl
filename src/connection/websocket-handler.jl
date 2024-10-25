@@ -62,7 +62,7 @@ function Base.write(ws::WebSocketHandler, binary)
     lock(ws.lock) do
         written = safe_write(ws.socket, binary)
         if written != true
-            @debug "couldnt write, closing ws"
+            @_debug "couldnt write, closing ws"
             close(ws)
         end
     end
@@ -86,7 +86,7 @@ end
     runs the main connection loop for the websocket
 """
 function run_connection_loop(session::Session, handler::WebSocketHandler, websocket::WebSocket)
-    @debug("opening ws connection for session: $(session.id)")
+    @_debug("opening ws connection for session: $(session.id)")
     handler.socket = websocket
     while isopen(handler)
         bytes = safe_read(websocket)

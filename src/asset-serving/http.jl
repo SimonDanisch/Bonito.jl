@@ -47,7 +47,7 @@ Base.similar(s::HTTPAssetServer) = ChildAssetServer(s)
 Base.similar(s::ChildAssetServer) = ChildAssetServer(s.parent)
 
 function Base.close(server::HTTPAssetServer)
-    @debug "Closing HTTPAssetServer"
+    @_debug "Closing HTTPAssetServer"
     HTTPServer.delete_route!(server.server, HTTP_ASSET_ROUTE_KEY)
     empty!(server.registered_files)
 end
