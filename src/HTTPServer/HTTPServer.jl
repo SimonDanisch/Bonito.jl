@@ -5,7 +5,7 @@ using HTTP: Response, Request
 using HTTP.Streams: Stream
 import Sockets: send, TCPServer
 using Sockets
-using ..Bonito: App, update_app!, get_server
+using ..Bonito: App, update_app!, get_server, @_debug
 
 include("helper.jl")
 include("implementation.jl")
