@@ -65,7 +65,7 @@ end
 
 for tag in DEPRECATED_TAGS
     @eval function $(tag)(args...; kw...)
-        @warn($("tag $(tag) is deprecated by the SVG standard. It's highly recommend to avoid it."))
+        println(stderr, "tag $(tag) is deprecated by the SVG standard. It's highly recommend to avoid it.")
         return m($(string(tag)), args...; juliasvgnode=true, kw...)
     end
 end

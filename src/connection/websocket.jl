@@ -173,7 +173,7 @@ function add_cleanup_task!(server::Server)
                 cleanup_server(server)
             catch e
                 if !(e isa EOFError)
-                    @warn "error while cleaning up server" exception=(e, Base.catch_backtrace())
+                    Base.showerror(stderr, CapturedException(e, Base.catch_backtrace()))
                 end
             end
         end

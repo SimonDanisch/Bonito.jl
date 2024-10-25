@@ -20,7 +20,7 @@ Messages are expected to be gzip compressed and packed via MsgPack.
 """
 function process_message(session::Session, bytes::AbstractVector{UInt8})
     if isempty(bytes)
-        @warn "empty message received from frontend"
+        println(stderr, "empty message received from frontend")
         return
     end
     data = deserialize_binary(bytes)
@@ -38,7 +38,7 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
     elseif typ == JavascriptError
         show(stderr, JSException(session, data))
     elseif typ == JavascriptWarning
-        @warn "Error in Javascript: $(data["message"])\n)"
+        println(stderr,"Error in Javascript: $(data["message"])\n)")
     elseif typ == JSDoneLoading
         if data["exception"] != "nothing"
             exception = JSException(session, data)
@@ -51,7 +51,7 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
                 @async try
                     sub.on_connection_ready(sub)
                 catch e
-                    @warn "error while processing on_connection_ready" exception = (e, Base.catch_backtrace())
+                    Base.showerror(stderr, CapturedException(e, Base.catch_backtrace()))
                 end
             else
                 # This can happen for IJulia output after kernel restart,
@@ -83,7 +83,7 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
             if !isnothing(sub)
                 app = sub.current_app[]
                 if isnothing(app)
-                    @warn "requesting dom for uninitialized app"
+                    println(stderr, "requesting dom for uninitialized app")
                 else
                     free(sub)
                     session.children[sub.id] = sub
@@ -93,13 +93,13 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
                     update_subsession_dom!(sub, data["replace"], app)
                 end
             else
-                @warn "cant update session is nothing"
+                println(stderr, "cant update session is nothing")
             end
         catch e
-            @warn "error while processing update App message" exception = (e, Base.catch_backtrace())
+            Base.showerror(stderr, CapturedException(e, Base.catch_backtrace()))
         end
     else
-        @error "Unrecognized message: $(typ) with type: $(typeof(typ))"
+        println(stderr, "Unrecognized message: $(typ) with type: $(typeof(typ))")
     end
 end
 

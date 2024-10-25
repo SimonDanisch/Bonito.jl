@@ -134,7 +134,7 @@ function delete_cached!(root::Session, key::String)
     lock(root.deletion_lock) do
         if !haskey(root.session_objects, key)
             # This should uncover any fault in our caching logic!
-            @warn("Deleting key that doesn't belong to any cached object")
+            println(stderr, "Deleting key that doesn't belong to any cached object")
             return
         end
         # We never free Retain, since that's the whole point of it

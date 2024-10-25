@@ -33,7 +33,7 @@ function safe_write(websocket, binary)
         return true
     catch e
         if WebSockets.isok(e) || e isa Union{Base.IOError,EOFError}
-            @warn "sending message to a closed websocket" maxlog = 1
+            Base.showerror(stderr, CapturedException(e, Base.catch_backtrace()))
             # it's ok :shrug:
             return nothing
         else

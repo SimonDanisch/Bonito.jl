@@ -277,7 +277,7 @@ function start(server::Server; verbose=-1, listener_kw...)
 
     newport, ioserver = try_listen(server.url, server.port)
     if server.port != newport
-        @warn "Port in use, using different port. New port: $(newport)"
+        println(stderr, "Port in use, using different port. New port: $(newport)")
         server.port = newport
     end
 

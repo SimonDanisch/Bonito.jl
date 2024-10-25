@@ -35,7 +35,11 @@ const ENABLE_DEBUG = Ref{Bool}(false)
 
 # CoreLogging 1.1.0 seems to be _really_ slow when using @debug
 macro _debug(args...)
-    Core.println(Core.stderr, args...)
+    return quote
+        if ENABLE_DEBUG[]
+            Core.println(Core.stderr, $(args...))
+        end
+    end
 end
 
 
