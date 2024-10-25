@@ -250,9 +250,7 @@ mutable struct Session{Connection <: FrontendConnection}
                 try
                     process_message(session, message)
                 catch e
-                    @warn "error while processing received msg" exception = (
-                        e, Base.catch_backtrace()
-                    )
+                    Base.showerror(stderr, CapturedException(e, Base.catch_backtrace()))
                 end
             end
         end
