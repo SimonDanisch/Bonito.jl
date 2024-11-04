@@ -1,11 +1,10 @@
 struct SerializationContext
     message_cache::Dict{String, Any}
-    large_data::Dict{String, Any}
     session::Session
 end
 
 function SerializationContext(session::Session)
-    return SerializationContext(Dict{String,Any}(), Dict{String,Any}(), session)
+    return SerializationContext(Dict{String,Any}(), session)
 end
 
 object_identity(retain::Retain) = object_identity(retain.value)
@@ -39,10 +38,6 @@ function serialize_cached(context::SerializationContext, obs::Observable)
         register_observable!(context.session, obs)
         return SerializedObservable(obs.id, serialize_cached(context, obs[]))
     end
-end
-
-function serialize_cached(context::SerializationContext, lu::LargeUpdate)
-    serialize_cached(context, lu.data)
 end
 
 function serialize_cached(context::SerializationContext, js::JSCode)

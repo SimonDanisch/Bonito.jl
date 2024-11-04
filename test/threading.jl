@@ -6,7 +6,7 @@ end
 
 function is_fully_loaded(window)
     return electron_evaljs(window, js"""(()=> {
-        if (window.js_websocket_isopen && window.js_websocket_isopen()){
+        if (Bonito && Bonito.can_send_to_julia && Bonito.can_send_to_julia()){
             const elem = document.querySelectorAll('select')
             if (elem && elem.length == 2) {
                 return true
@@ -66,6 +66,7 @@ end
     created_windows = Window[]
     for i in 1:nwindows
         win = Window(Application())
+        Electron.toggle_devtools(win)
         put!(all_windows, win)
         push!(created_windows, win)
     end

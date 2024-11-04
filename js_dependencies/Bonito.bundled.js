@@ -3408,11 +3408,14 @@ const CONNECTION = {
     status: "closed",
     compression_enabled: false
 };
-function on_connection_open(send_message_callback, compression_enabled) {
+function on_connection_open(send_message_callback, compression_enabled, enable_pings = true) {
     CONNECTION.send_message = send_message_callback;
     CONNECTION.status = "open";
     CONNECTION.compression_enabled = compression_enabled;
     CONNECTION.queue.forEach((message)=>send_to_julia(message));
+    if (enable_pings) {
+        send_pings();
+    }
 }
 function on_connection_close() {
     CONNECTION.status = "closed";
@@ -3506,6 +3509,13 @@ function send_pingpong() {
     send_to_julia({
         msg_type: PingPong
     });
+}
+function send_pings() {
+    if (!can_send_to_julia()) {
+        return;
+    }
+    send_pingpong();
+    setTimeout(send_pings, 5000);
 }
 function encode_binary(data, compression_enabled) {
     if (compression_enabled) {
@@ -4053,7 +4063,6 @@ function fetch_binary(url) {
         if (!response.ok) {
             throw new Error("HTTP error, status = " + response.status);
         }
-        console.log(response);
         return response.arrayBuffer();
     });
 }

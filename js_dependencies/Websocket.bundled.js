@@ -43,7 +43,6 @@ class Websocket {
                     return resolve(null);
                 });
             };
-            send_pings();
         };
         ws.onclose = function(evt) {
             console.log("closed websocket connection");
@@ -57,9 +56,6 @@ class Websocket {
             console.log(event);
             console.log(this_ws.tries);
             if (this_ws.tries <= 10) {
-                while(session_websocket.length > 0){
-                    session_websocket.pop();
-                }
                 this_ws.tries = this_ws.tries + 1;
                 console.log("Retrying to connect the " + this_ws.tries + " time!");
                 setTimeout(()=>this_ws.tryconnect(), 1000);
@@ -109,11 +105,6 @@ class Websocket {
         }
     }
 }
-function send_pings() {
-    console.debug("pong");
-    Bonito.send_pingpong();
-    setTimeout(send_pings, 5000);
-}
 function websocket_url(session_id, proxy_url) {
     let http_url = window.location.protocol + "//" + window.location.host;
     if (proxy_url) {
@@ -125,24 +116,12 @@ function websocket_url(session_id, proxy_url) {
     }
     return ws_url + session_id;
 }
-const session_websocket = {};
 function setup_connection({ proxy_url , session_id , compression_enabled  }) {
     const url = websocket_url(session_id, proxy_url);
-    const ws_low = new Websocket(url + "?low_latency", compression_enabled);
-    const large_data = new Websocket(url + "?large_data", compression_enabled);
-    session_websocket.low_latency = ws_low;
-    session_websocket.large_data = large_data;
-    ws_low.on_open(()=>{
-        Bonito.on_connection_open(send_websocket, compression_enabled);
+    const ws = new Websocket(url, compression_enabled);
+    ws.on_open(()=>{
+        Bonito.on_connection_open((binary)=>ws.send(binary), compression_enabled);
     });
-}
-function send_websocket(binary) {
-    const ws = session_websocket.low_latency;
-    if (!ws) {
-        return undefined;
-    } else {
-        return ws.send(binary);
-    }
 }
 export { setup_connection as setup_connection };
 

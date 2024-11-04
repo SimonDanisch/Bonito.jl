@@ -75,7 +75,7 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         end
     elseif typ == PingPong
         # Ping back that pong!!
-        send(session, msg_type=PingPong)
+        isready(session) && send(session, msg_type=PingPong)
     elseif typ == GetSessionDOM
         # this may block the connection!
         @async try

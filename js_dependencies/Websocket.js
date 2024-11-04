@@ -62,8 +62,6 @@ class Websocket {
                     return resolve(null);
                 });
             };
-
-            send_pings();
         };
 
         ws.onclose = function (evt) {
@@ -79,9 +77,6 @@ class Websocket {
             console.log(event);
             console.log(this_ws.tries);
             if (this_ws.tries <= 10) {
-                while (session_websocket.length > 0) {
-                    session_websocket.pop();
-                }
                 this_ws.tries = this_ws.tries + 1;
                 console.log(
                     "Retrying to connect the " + this_ws.tries + " time!"
@@ -145,12 +140,6 @@ class Websocket {
 }
 
 
-function send_pings() {
-    console.debug("pong")
-    Bonito.send_pingpong()
-    setTimeout(send_pings, 5000)
-}
-
 /**
  * @param {string} session_id
  * @param {string} proxy_url
@@ -169,30 +158,13 @@ function websocket_url(session_id, proxy_url) {
     return ws_url + session_id;
 }
 
-const session_websocket = {};
-
-// function setup_connection({ proxy_url, session_id, compression_enabled }) {
-//     const low_latency_url = websocket_url(session_id, proxy_url) + "/low_latency"
-//     const large_data = websocket_url(session_id, proxy_url) + "/large_data";
-//     session_websocket.low_latency = new Websocket(low_latency_url, compression_enabled);
-//     session_websocket.large_data = new Websocket(large_data, compression_enabled);
-// }
 export function setup_connection({ proxy_url, session_id, compression_enabled }) {
     const url = websocket_url(session_id, proxy_url);
-    const ws_low = new Websocket(url + "?low_latency", compression_enabled);
-    const large_data = new Websocket(url + "?large_data", compression_enabled);
-    session_websocket.low_latency = ws_low;
-    session_websocket.large_data = large_data;
-    ws_low.on_open(()=> {
-        Bonito.on_connection_open(send_websocket, compression_enabled);
-    })
-}
-
-function send_websocket(binary) {
-    const ws = session_websocket.low_latency;
-    if (!ws) {
-        return undefined;
-    } else {
-        return ws.send(binary);
-    }
+    const ws = new Websocket(url, compression_enabled);
+    ws.on_open(() => {
+        Bonito.on_connection_open(
+            (binary) => ws.send(binary),
+            compression_enabled
+        );
+    });
 }
