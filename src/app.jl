@@ -89,7 +89,7 @@ end
 
 function HTTPSession(server::HTTPServer.Server)
     asset_server = HTTPAssetServer(server)
-    connection = WebSocketConnection(server)
+    connection = DualWebsocket(server)
     return Session(connection; asset_server=asset_server)
 end
 

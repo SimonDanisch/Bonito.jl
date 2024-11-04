@@ -59,6 +59,11 @@ function serialize_cached(context::SerializationContext, node::Node{Hyperscript.
     return SerializedNode(context.session, node)
 end
 
+function serialize_cached(context::SerializationContext, lu::LargeUpdate)
+    return serialize_cached(context, lu.data)
+end
+
+
 serialize_cached(::SerializationContext, @nospecialize(obj)) = obj
 serialize_cached(::SerializationContext, native::MSGPACK_NATIVE_TYPES) = native
 serialize_cached(::SerializationContext, native::AbstractArray{<:Number}) = native

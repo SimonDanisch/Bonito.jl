@@ -57,7 +57,6 @@ function OfflineSession()
 end
 
 edisplay = Bonito.use_electron_display(; devtools=true)
-
 @testset "Bonito" begin
     @testset "components" begin
         include("components.jl")

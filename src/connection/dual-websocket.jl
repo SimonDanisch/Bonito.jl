@@ -72,7 +72,12 @@ function setup_connection(session::Session, connection::DualWebsocket)
     HTTPServer.websocket_route!(server, "/$(session.id)?low_latency" => connection)
     HTTPServer.websocket_route!(server, "/$(session.id)?large_data" => connection)
     external_url = online_url(server, "")
-    return setup_websocket_connection_js(external_url, session)
+    js_ll = setup_websocket_connection_js(external_url, session; query="?low_latency")
+    js_ld = setup_websocket_connection_js(external_url, session; query="?large_data", main_connection=false)
+    return js"{
+        $(js_ll)
+        $(js_ld)
+    }"
 end
 
 function setup_connection(session::Session{DualWebsocket})

@@ -116,12 +116,15 @@ function websocket_url(session_id, proxy_url) {
     }
     return ws_url + session_id;
 }
-function setup_connection({ proxy_url , session_id , compression_enabled  }) {
+function setup_connection({ proxy_url , session_id , compression_enabled , query , main_connection  }) {
     const url = websocket_url(session_id, proxy_url);
-    const ws = new Websocket(url, compression_enabled);
-    ws.on_open(()=>{
-        Bonito.on_connection_open((binary)=>ws.send(binary), compression_enabled);
-    });
+    console.log(`connecting : ${url + query}`);
+    const ws = new Websocket(url + query, compression_enabled);
+    if (main_connection) {
+        ws.on_open(()=>{
+            Bonito.on_connection_open((binary)=>ws.send(binary), compression_enabled);
+        });
+    }
 }
 export { setup_connection as setup_connection };
 
