@@ -20,6 +20,7 @@ Base.show(io::IO, ::MIME"text/plain", session::Session) = show_session(io, sessi
 Base.show(io::IO, session::Session) = show_session(io, session)
 
 function wait_for_ready(session::Session; timeout=100)
+    session.status === CLOSED && return false
     return wait_for(timeout=timeout) do
         return isready(session)
     end
@@ -91,11 +92,14 @@ function free(session::Session)
                 delete_cached!(root, key)
             end
         end
+    else
+        # If this is a root session, we don't do any refcounting anymore
+        # and just delete everything!
+        for key in keys(session.session_objects)
+            force_delete!(session, key)
+        end
     end
-    # We need to remove all JSUpdateObservable from session observables
-    for (k, v) in session.session_objects
-        v isa Observable && remove_js_updates!(session, v)
-    end
+
     # delete_cached! only deletes in the root session so we need to still empty the session_objects:
     empty!(session.session_objects)
     empty!(session.on_document_load)
@@ -124,7 +128,7 @@ function Base.close(session::Session)
         root = root_session(session)
         # If we're a child session, we need to remove all objects tracked in our root session:
         if session !== root
-            #  Close session on js side as well
+            # Close child session on js side as well
             # If not ready, we already lost connection to JS frontend, so no need to close things on the JS side
             isready(root) && evaljs(root, js"""Bonito.free_session($(session.id))""")
         end
@@ -182,6 +186,11 @@ function collect_messages(f)
 end
 
 function Sockets.send(session::Session, message::SerializedMessage)
+    if isclosed(session)
+        # We could also make this non fatal, but since `send` shouldn't be user facing,
+        # We should rather make sure that no internal code sends a message to a closed session.
+        error("Trying to send to a closed session")
+    end
     if isready(session)
         # if connection is open, we should never queue up messages
         @assert isempty(session.message_queue)
@@ -194,9 +203,14 @@ function Sockets.send(session::Session, message::SerializedMessage)
     end
 end
 
+function HTTP.WebSockets.isclosed(session::Session)
+    return session.status === CLOSED
+end
+
 Base.isopen(session::Session) = isopen(session.connection)
 
 function Base.isready(session::Session)
+    isclosed(session) && return false
     if !isnothing(session.init_error[])
         err = session.init_error[]
         session.init_error[] = nothing
@@ -268,6 +282,7 @@ end
 Evaluate a javascript script in `session`.
 """
 function evaljs(session::Session, jss::JSCode)
+    # TODO, should we error for the user, if they call evaljs on a closed session?
     send(session; msg_type=EvalJavascript, payload=jss)
 end
 
@@ -284,10 +299,13 @@ that doesn't have a connection to the browser.
 """
 function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
     root = root_session(session)
-    if error_on_closed && !isready(root)
-        error("Session is not open and would result in this function to indefinitely block.
-        It may unblock, if the browser is still connecting and opening the session later on. If this is expected,
-        you may try setting `error_on_closed=false`")
+    if !isready(root)
+        if error_on_closed
+            error("Session is not open and would result in this function to indefinitely block.
+            It may unblock, if the browser is still connecting and opening the session later on. If this is expected,
+            you may try setting `error_on_closed=false`")
+        end
+        return nothing
     end
     # For each request we need a new observable to have this thread safe
     # And multiple request not waiting on the same observable
@@ -463,6 +481,9 @@ function render_subsession(parent::Session, dom::Node; init=false)
 end
 
 function update_session_dom!(parent::Session, node_uuid::String, app_or_dom; replace=true)
+    if isclosed(parent)
+        error("Updating the session dom for a closed session")
+    end
     sub, html = render_subsession(parent, app_or_dom; init=false)
     # We need to manually do the serialization,
     # Since we send it via the parent, but serialization needs to happen

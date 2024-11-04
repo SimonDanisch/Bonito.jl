@@ -15,19 +15,26 @@ const PingPong = "11";
 const UpdateSession = "12";
 const GetSessionDOM = "13"
 
-/**
- * @typedef {Object} Connection
- * @property {(message: Uint8Array) => void} [send_message]
- * @property {Array<any>} queue
- * @property {string} status
- * @property {boolean} [compression_enabled]
- */
+function clean_stack(stack) {
+    return stack.replaceAll(
+        /(data:\w+\/\w+;base64,)[a-zA-Z0-9\+\/=]+:/g,
+        "$1<<BASE64>>:"
+    );
+}
 
-/** @type {Connection} */
+
+/**
+ * @namespace CONNECTION
+ * @property {Function|undefined} send_message - Function to send a message. Initially undefined.
+ * @property {Array} queue - Array to hold queued messages.
+ * @property {string} status - Connection status, initially set to "closed".
+ * @property {boolean} compression_enabled - Flag indicating if compression is enabled, initially set to false.
+ */
 const CONNECTION = {
     send_message: undefined,
     queue: [],
     status: "closed",
+    compression_enabled: false
 };
 
 export function on_connection_open(send_message_callback, compression_enabled) {
@@ -48,7 +55,7 @@ export function can_send_to_julia() {
 
 export function send_to_julia(message) {
     const { send_message, status, compression_enabled } = CONNECTION;
-    if (send_message && status === "open") {
+    if (send_message !== undefined && status === "open") {
         send_message(encode_binary(message, compression_enabled));
     } else if (status === "closed") {
         CONNECTION.queue.push(message);
@@ -68,7 +75,7 @@ export function send_error(message, exception) {
         msg_type: JavascriptError,
         message: message,
         exception: String(exception),
-        stacktrace: exception === null ? "" : exception.stack,
+        stacktrace: exception === null ? "" : clean_stack(exception.stack),
     });
 }
 
@@ -89,7 +96,7 @@ export function send_done_loading(session, exception) {
         session,
         message: "",
         exception: exception === null ? "nothing" : String(exception),
-        stacktrace: exception === null ? "" : exception.stack,
+        stacktrace: exception === null ? "" : clean_stack(exception.stack),
     });
 }
 

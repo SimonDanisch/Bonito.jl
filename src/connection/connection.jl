@@ -39,6 +39,8 @@ FrontendConnection
 
 open!(connection) = nothing
 
+# fallback for connections not supporting
+# a slow / fast connection
 function write_large(ws, binary)
     write(ws, binary)
 end
@@ -46,6 +48,7 @@ end
 include("sub-connection.jl")
 include("websocket-handler.jl")
 include("websocket.jl")
+include("dual-websocket.jl")
 include("ijulia.jl")
 include("pluto.jl")
 include("no-connection.jl")

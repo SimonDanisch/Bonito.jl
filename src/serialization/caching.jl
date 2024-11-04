@@ -136,23 +136,39 @@ function remove_js_updates!(session::Session, observable::Observable)
 end
 
 function delete_cached!(root::Session, key::String)
-    lock(root.deletion_lock) do
-        if !haskey(root.session_objects, key)
-            # This should uncover any fault in our caching logic!
-            @warn("Deleting key that doesn't belong to any cached object")
-            return
+    if !haskey(root.session_objects, key)
+        # This should uncover any fault in our caching logic!
+        @warn("Deleting key that doesn't belong to any cached object")
+        return
+    end
+    # We only free Retain, when the root session is closing!
+    root.session_objects[key] isa Retain && return
+    # We don't do reference counting, but we check if any child still holds a reference to the object we want to delete
+    has_ref = any(((id, s),)-> child_has_reference(s, key), root.children)
+    if !has_ref
+        # So only delete it if nobody has it anymore!
+        object = pop!(root.session_objects, key)
+        if object isa Observable
+            # unregister all listeners updating the session
+            remove_js_updates!(root, object)
         end
-        # We never free Retain, since that's the whole point of it
-        root.session_objects[key] isa Retain && return
-        # We don't do reference counting, but we check if any child still holds a reference to the object we want to delete
-        has_ref = any(((id, s),)-> child_has_reference(s, key), root.children)
-        if !has_ref
-            # So only delete it if nobody has it anymore!
-            object = pop!(root.session_objects, key)
-            if object isa Observable
-                # unregister all listeners updating the session
-                remove_js_updates!(root, object)
-            end
-        end
+    end
+end
+
+
+function force_delete!(root::Session, key::String)
+    if !haskey(root.session_objects, key)
+        # This should uncover any fault in our caching logic!
+        @warn("Deleting key that doesn't belong to any cached object")
+        return nothing
+    end
+    # We only free Retain, when the root session is closing!
+    object = pop!(root.session_objects, key)
+    if object isa Retain
+        object = object.value
+    end
+    if object isa Observable
+        # unregister all listeners updating the session
+        remove_js_updates!(root, object)
     end
 end

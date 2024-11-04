@@ -4,34 +4,26 @@ using HTTP.WebSockets
 mutable struct WebSocketConnection <: FrontendConnection
     server::Server
     session::Union{Nothing,Session}
-    low_latency::WebSocketHandler
-    large_data::WebSocketHandler
+    handler::WebSocketHandler
 end
 
 WebSocketConnection(proxy_callback::Function) = WebSocketConnection(get_server(proxy_callback))
 WebSocketConnection() = WebSocketConnection(get_server())
 function WebSocketConnection(server::Server)
-    return WebSocketConnection(server, nothing, WebSocketHandler(), WebSocketHandler())
+    return WebSocketConnection(server, nothing, WebSocketHandler())
 end
 
-Base.isopen(ws::WebSocketConnection) = isopen(ws.low_latency)
+Base.isopen(ws::WebSocketConnection) = isopen(ws.handler)
 
 function Base.write(ws::WebSocketConnection, binary)
-    write(ws.low_latency, binary)
-end
-
-function write_large(ws::WebSocketConnection, binary)
-    println("Writing $(Base.format_bytes(sizeof(binary)))")
-    write(ws.large_data, binary)
+    write(ws.handler, binary)
 end
 
 function Base.close(ws::WebSocketConnection)
-    close(ws.low_latency)
-    close(ws.large_data)
+    close(ws.handler)
     if !isnothing(ws.session)
         session = ws.session
-        delete_websocket_route!(ws.server, "/$(session.id)?low_latency")
-        delete_websocket_route!(ws.server, "/$(session.id)?large_data")
+        delete_websocket_route!(ws.server, "/$(session.id)")
     end
     return
 end
@@ -49,10 +41,8 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
         error("Websocket connection skipped setup")
     end
     @assert session_id == session.id
-    @show uri.query
-    handler = uri.query == "low_latency" ? connection.low_latency : connection.large_data
     try
-        run_connection_loop(session, handler, websocket)
+        run_connection_loop(session, connection.handler, websocket)
     finally
         # This always needs to happen, which is why we need a try catch!
         if allow_soft_close(CLEANUP_POLICY[])
@@ -159,10 +149,10 @@ function allow_soft_close(policy::DefaultCleanupPolicy=CLEANUP_POLICY[])
 end
 
 function cleanup_server(server::Server)
-    remove = Set{WebSocketConnection}()
+    remove = Set{FrontendConnection}()
     lock(server.websocket_routes.lock) do
         for (route, connection) in server.websocket_routes.table
-            if connection isa WebSocketConnection
+            if connection isa FrontendConnection
                 session = connection.session
                 if isnothing(session) || should_cleanup(CLEANUP_POLICY[], session)
                     push!(remove, connection)
@@ -199,8 +189,7 @@ function setup_connection(session::Session, connection::WebSocketConnection)
     connection.session = session
     server = connection.server
     add_cleanup_task!(server)
-    HTTPServer.websocket_route!(server, "/$(session.id)?low_latency" => connection)
-    HTTPServer.websocket_route!(server, "/$(session.id)?large_data" => connection)
+    HTTPServer.websocket_route!(server, "/$(session.id)" => connection)
     external_url = online_url(server, "")
     return setup_websocket_connection_js(external_url, session)
 end
