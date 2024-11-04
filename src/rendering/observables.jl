@@ -17,7 +17,9 @@ end
 
 function (x::JSUpdateObservable)(value)
     # Sent an update event
-    send(x.session, payload=value, id=x.id, msg_type=UpdateObservable)
+    if !isclosed(x.session)
+        send(x.session, payload=value, id=x.id, msg_type=UpdateObservable)
+    end
 end
 
 """

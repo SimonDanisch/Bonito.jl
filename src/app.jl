@@ -146,5 +146,6 @@ end
 
 function wait_for_ready(app::App; timeout=100)
     wait_for(()-> !isnothing(app.session[]); timeout=timeout)
+    isclosed(app.session[]) && return nothing
     wait_for(()-> isready(app.session[]); timeout=timeout)
 end
