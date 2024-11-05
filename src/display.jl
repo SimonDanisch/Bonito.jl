@@ -60,12 +60,11 @@ end
 get_io_context(io::IO) = nothing
 get_io_context(io::IOContext) = io
 
-function Base.show(io::IO, ::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
+function show_html(io::IO, app::App; parent=CURRENT_SESSION[])
     ctx = get_io_context(io)
     session =  nothing
-    if !isnothing(CURRENT_SESSION[])
+    if !isnothing(parent)
         # We render in a subsession
-        parent = CURRENT_SESSION[]
         sub = Session(parent; title=app.title)
         sub.io_context[] = ctx
         dom = session_dom(sub, app)
@@ -92,6 +91,10 @@ function Base.show(io::IO, ::Union{MIME"text/html", MIME"application/prs.juno.pl
     mark_displayed!(sub)
     isnothing(session) || mark_displayed!(session)
     return sub
+end
+
+function Base.show(io::IO, ::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
+    show_html(io, app)
 end
 
 function print_as_page(io::IO, dom::Node)
