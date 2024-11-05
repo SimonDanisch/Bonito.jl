@@ -33,7 +33,7 @@ end
 
 function default_type(forced::Base.RefValue, available::Vector{Pair{DataType, Function}})
     if !isnothing(forced[])
-        return forced[]
+        return forced[]()
     else
         for i in length(available):-1:1 # start from last inserted
             type_or_nothing = available[i][2]()# ::Union{FrontendConnection, AbstractAssetServer, Nothing}
@@ -63,11 +63,11 @@ The last asset server registered takes priority, so if you register a new connec
 You will overwrite the connection type for any other package.
 If you want to force usage temporary, try:
 ```julia
-force_asset_server(YourAssetServer()) do
+force_asset_server(YourAssetServer) do
     ...
 end
 # which is the same as:
-force_asset_server!(YourAssetServer())
+force_asset_server!(YourAssetServer)
 ...
 force_asset_server!()
 ```
@@ -77,13 +77,13 @@ function register_asset_server!(condition::Function, ::Type{C}) where C <: Abstr
     return
 end
 
-const FORCED_ASSET_SERVER = Base.RefValue{Union{Nothing, AbstractAssetServer}}(nothing)
+const FORCED_ASSET_SERVER = Base.RefValue{Union{Nothing, Type{<:AbstractAssetServer}}}(nothing)
 
-function force_asset_server!(conn::Union{Nothing, AbstractAssetServer}=nothing)
+function force_asset_server!(conn::Union{Nothing,Type{<:AbstractAssetServer}}=nothing)
     force_type!(conn, FORCED_ASSET_SERVER)
 end
 
-function force_asset_server(f, conn::Union{Nothing, AbstractAssetServer})
+function force_asset_server(f, conn::Union{Nothing,Type{<:AbstractAssetServer}})
     force_type(f, conn, FORCED_ASSET_SERVER)
 end
 
@@ -113,11 +113,11 @@ The last connection registered take priority, so if you register a new connectio
 You will overwrite the connection type for any other package.
 If you want to force usage temporary, try:
 ```julia
-force_connection(YourConnectionType()) do
+force_connection(YourConnectionType) do
     ...
 end
 # which is the same as:
-force_connection!(YourConnectionType())
+force_connection!(YourConnectionType)
 ...
 force_connection!()
 ```
@@ -127,13 +127,13 @@ function register_connection!(condition::Function, ::Type{C}) where C <: Fronten
     return
 end
 
-const FORCED_CONNECTION = Base.RefValue{Union{Nothing, FrontendConnection}}(nothing)
+const FORCED_CONNECTION = Base.RefValue{Union{Nothing, Type{<:FrontendConnection}}}(nothing)
 
-function force_connection!(conn::Union{Nothing, FrontendConnection}=nothing)
+function force_connection!(conn::Union{Nothing,Type{<:FrontendConnection}}=nothing)
     force_type!(conn, FORCED_CONNECTION)
 end
 
-function force_connection(f, conn::Union{Nothing, FrontendConnection})
+function force_connection(f, conn::Union{Nothing,Type{<:FrontendConnection}})
     force_type(f, conn, FORCED_CONNECTION)
 end
 
@@ -213,4 +213,4 @@ end
 const COMPRESSION_ENABLED = RefValue{Bool}(false)
 
 default_compression() = COMPRESSION_ENABLED[]
-default_compression!(enable) = (COMPRESSION_ENABLED[] = enable)
+use_compression!(enable) = (COMPRESSION_ENABLED[] = enable)

@@ -1,7 +1,7 @@
 using .HTTPServer: Server
 using HTTP.WebSockets
 
-mutable struct WebSocketConnection <: FrontendConnection
+mutable struct WebSocketConnection <: AbstractWebsocketConnection
     server::Server
     session::Union{Nothing,Session}
     handler::WebSocketHandler

@@ -37,6 +37,11 @@ Bonito.use_parent_session(::Session{MyConnection}) = false/false
 """
 FrontendConnection
 
+"""
+Websocket based connection type
+"""
+abstract type AbstractWebsocketConnection <: FrontendConnection end
+
 open!(connection) = nothing
 
 # fallback for connections not supporting

@@ -89,7 +89,12 @@ end
 
 function HTTPSession(server::HTTPServer.Server)
     asset_server = HTTPAssetServer(server)
-    connection = DualWebsocket(server)
+    Conn = FORCED_CONNECTION[]
+    if !isnothing(Conn) && Conn <: AbstractWebsocketConnection
+        connection = Conn(server)
+    else
+        connection = WebSocketConnection(server)
+    end
     return Session(connection; asset_server=asset_server)
 end
 
@@ -124,11 +129,17 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
     # And this is already complicated enough!
     # so, if we serve the display handler url, it means to start fresh
     # But if UNINITIALIZED, it's simply the first request to the page!
-    if handler.session.status != UNINITIALIZED
-        @debug("creating new Session for unititialized display handler")
-        handler.session = HTTPSession(handler.server) # new session
-    end
     parent = handler.session
+    not_initialized = parent.status != UNINITIALIZED
+    changed_compression = parent.compression_enabled != default_compression()
+    ForcedCon = FORCED_CONNECTION[]
+    changed_connection = !isnothing(ForcedCon) && !(parent.connection isa ForcedCon)
+    # We need to create a new session if either of these happen
+    if not_initialized || changed_compression || changed_connection
+        @debug("creating new Session for unititialized display handler")
+        parent = HTTPSession(handler.server) # new session
+        handler.session = parent
+    end
     sub = Session(parent)
     init_dom = session_dom(parent, App(nothing); html_document=true)
     sub_dom = session_dom(sub, handler.current_app)
