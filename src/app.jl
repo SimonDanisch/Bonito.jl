@@ -51,9 +51,8 @@ end
 function serve_app(app, context)
     @debug "Serving from thread: $(Threads.threadid())"
     server = context.application
-    asset_server = HTTPAssetServer(server)
-    connection = WebSocketConnection(server)
-    session = Session(connection; asset_server=asset_server, title=app.title)
+    session = HTTPSession(server)
+    session.title = app.title
     html_dom = rendered_dom(session, app, context.request)
     html_str = sprint() do io
         page_html(io, session, html_dom)
@@ -85,6 +84,10 @@ mutable struct DisplayHandler
     server::HTTPServer.Server
     route::String
     current_app::App
+end
+
+function Base.close(handler::DisplayHandler)
+    close(handler.session)
 end
 
 function HTTPSession(server::HTTPServer.Server)
