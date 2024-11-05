@@ -22,6 +22,15 @@ function (x::JSUpdateObservable)(value)
     end
 end
 
+struct LargeUpdate
+    data::Any
+end
+
+function (x::JSUpdateObservable)(value::LargeUpdate)
+    # Sent an update event
+    return send_large(x.session, Dict(:payload=>value.data, :id=>x.id, :msg_type=>UpdateObservable))
+end
+
 """
 Update the value of an observable, without sending changes to the JS frontend.
 This will be used to update updates from the forntend.

@@ -141,14 +141,16 @@ export function done_initializing_session(session_id) {
     console.log(`session ${session_id} fully initialized`);
 }
 
-export function init_session(session_id, binary_messages, session_status) {
+export function init_session(session_id, binary_messages, session_status, compression_enabled) {
     track_deleted_sessions(); // no-op if already tracking
     OBJECT_FREEING_LOCK.task_lock(session_id);
     try {
         SESSIONS[session_id] = [new Set(), session_status]
         console.log(`init session: ${session_id}, ${session_status}`);
         if (binary_messages) {
-            process_message(decode_binary(binary_messages));
+            process_message(
+                decode_binary(binary_messages, compression_enabled)
+            );
         }
         done_initializing_session(session_id);
     } catch (error) {

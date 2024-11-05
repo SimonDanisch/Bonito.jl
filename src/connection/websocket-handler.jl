@@ -19,6 +19,7 @@ function safe_read(websocket)
             # it's ok :shrug:
         elseif e isa Union{Base.IOError, EOFError}
             @info("WS connection closed because of IO error")
+            rethrow(e)
             return nothing
         else
             rethrow(e)
@@ -100,10 +101,17 @@ end
 """
     returns the javascript snippet to setup the connection
 """
-function setup_websocket_connection_js(proxy_url, session::Session)
+function setup_websocket_connection_js(
+    proxy_url, session::Session; query="", main_connection=true)
     return js"""
         $(Websocket).then(WS => {
-            WS.setup_connection({proxy_url: $(proxy_url), session_id: $(session.id), compression_enabled: $(session.compression_enabled)})
+            WS.setup_connection({
+                proxy_url: $(proxy_url),
+                session_id: $(session.id),
+                compression_enabled: $(session.compression_enabled),
+                query: $(query),
+                main_connection: $(main_connection)
+            })
         })
     """
 end

@@ -145,9 +145,23 @@ end
 """
     send(session::Session; attributes...)
 
-Send values to the frontend via JSON for now
+Send values to the frontend via MsgPack for now
 """
 Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
+
+function send_large(session::Session, message)
+    serialized = SerializedMessage(session, message)
+    if isready(session)
+        write_large(session.connection, serialize_binary(session, serialized))
+        if COLLECT_MESSAGES[]
+            push!(COLLECTED_MESSAGES, serialized)
+        end
+    else
+        push!(session.message_queue, serialized)
+    end
+end
+
+
 
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
     serialized = SerializedMessage(session, message)
@@ -180,7 +194,7 @@ function Sockets.send(session::Session, message::SerializedMessage)
     if isready(session)
         # if connection is open, we should never queue up messages
         @assert isempty(session.message_queue)
-        write(session.connection, message.bytes)
+        write(session.connection, serialize_binary(session, message))
         if COLLECT_MESSAGES[]
             push!(COLLECTED_MESSAGES, message)
         end
@@ -198,7 +212,10 @@ Base.isopen(session::Session) = isopen(session.connection)
 function Base.isready(session::Session)
     isclosed(session) && return false
     if !isnothing(session.init_error[])
-        throw(session.init_error[])
+        err = session.init_error[]
+        session.init_error[] = nothing
+        close(session)
+        throw(err)
     end
     return isready(session.connection_ready) && isopen(session)
 end
@@ -429,12 +446,12 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         msgs = fused_messages!(session)
         type = issubsession ? "sub" : "root"
         if isempty(msgs[:payload])
-            init_session = js"""Bonito.lock_loading(() => Bonito.init_session($(session.id), null, $(type)))"""
+            init_session = js"""Bonito.lock_loading(() => Bonito.init_session($(session.id), null, $(type), $(session.compression_enabled)))"""
         else
             binary = BinaryAsset(session, msgs)
             init_session = js"""
                 Bonito.lock_loading(() => {
-                    return $(binary).then(msgs=> Bonito.init_session($(session.id), msgs, $(type)));
+                    return $(binary).then(msgs=> Bonito.init_session($(session.id), msgs, $(type), $(session.compression_enabled)));
                 })
             """
         end
