@@ -191,3 +191,8 @@ function get_server(proxy_callback)
         return server
     end
 end
+
+get_server(session::Session) = get_server(session.asset_server)
+get_server(server::HTTPAssetServer) = server.server
+get_server(server::Bonito.ChildAssetServer) = get_server(server.parent)
+get_server(any) = error("Not an HTTP server for session")

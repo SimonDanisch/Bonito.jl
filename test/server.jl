@@ -38,3 +38,10 @@ using RelocatableFolders
     @test isfile(Bonito.serving_target(asset))
     @test read(Bonito.serving_target(asset)) isa Vector{UInt8}
 end
+
+@testset "get online URL" begin
+    App() do session::Session
+        server = get_server(session)
+        DOM.div(string(Bonito.online_url(server, "")))
+    end
+end
