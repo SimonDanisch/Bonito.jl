@@ -151,7 +151,10 @@ end
 Replaces all expressions inside `markdown` savely, by only supporting
 getindex/getfield expression that will index into `context`
 """
-function replace_expressions(markdown, replacements::Dict, runner::RunnerLike)
+function replace_expressions(markdown::MT, replacements::Dict, runner::RunnerLike) where {MT}
+    if haskey(replacements, MT)
+        return replacements[MT](markdown)
+    end
     if markdown isa Union{Expr, Symbol}
         return markdown
     end
@@ -191,8 +194,12 @@ function replace_expressions(
         hide = occursin("# hide", markdown.code)
         no_eval = occursin("# no-eval", markdown.code)
         md_expr = hide ? "" : markdown
-        expr = parseall(markdown.code)
-        evaled = no_eval ? nothing : Base.eval(runner, expr)
+        if no_eval
+            evaled = nothing
+        else
+            expr = parseall(markdown.code)
+            evaled = Base.eval(runner, expr)
+        end
         if !isnothing(evaled)
             return Markdown.MD([md_expr, evaled])
         else
