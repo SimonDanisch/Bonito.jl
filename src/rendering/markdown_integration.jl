@@ -162,6 +162,11 @@ function replace_expressions(markdown::MT, replacements::Dict, runner::RunnerLik
         markdown.content .= replace_expressions.(markdown.content, (replacements,), (runner,))
     elseif hasproperty(markdown, :text)
         markdown.text .= replace_expressions.(markdown.text, (replacements,), (runner,))
+    elseif hasproperty(markdown, :rows)
+        # Those are some deeply nested rows!
+        map!(markdown.rows, markdown.rows) do row
+            map(r-> replace_expressions.(r, (replacements,), (runner,)), row)
+        end
     end
     return markdown
 end
