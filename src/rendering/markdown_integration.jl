@@ -195,6 +195,7 @@ function replace_expressions(
         no_eval = occursin("# no-eval", markdown.code)
         md_expr = hide ? "" : markdown
         if no_eval
+            markdown.code = replace(markdown.code, "# no-eval" => "")
             evaled = nothing
         else
             expr = parseall(markdown.code)
