@@ -487,8 +487,8 @@ end
 function jsrender(session::Session, editor::CodeEditor)
     theme = "ace/theme/$(editor.theme)"
     language = "ace/mode/$(editor.language)"
-    ace = DOM.script(; src="https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js")
-
+    ace_url = "https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"
+    ace = DOM.script()
     onload(
         session,
         editor.element,
@@ -496,8 +496,7 @@ function jsrender(session::Session, editor::CodeEditor)
             function (element){
                 // sadly I cant find a way to use ace as an ES6 module, which means
                 // we need to use more primitive methods, to make sure ace is loaded
-                const ace_script = $(ace)
-                ace_script.onload = function () {
+                const onload_callback = () =>{
                     const editor = ace.edit(element, {
                         mode: $(language)
                     });
@@ -518,6 +517,11 @@ function jsrender(session::Session, editor::CodeEditor)
                     // Resize the editor initially
                     resizeEditor();
                 }
+                const ace_script = $(ace)
+                // we need to first set the onload callback and set the src afterwards!
+                // I wish we could just make ACE an ES6 module, but haven't found a way yet
+                ace_script.onload = onload_callback;
+                ace_script.src = $(ace_url);
             }
         """,
     )
