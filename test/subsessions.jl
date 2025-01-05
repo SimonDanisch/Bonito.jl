@@ -33,9 +33,12 @@
     @testset "no residuals" begin
         app = App(nothing)
         display(edisplay, app)
-        js_sessions = run(edisplay.window, "Bonito.Sessions.SESSIONS")
+        result = Bonito.wait_for() do
+            js_sessions = run(edisplay.window, "Bonito.Sessions.SESSIONS")
+            Set([app.session[].id, app.session[].parent.id]) == keys(js_sessions)
+        end
+        @test result == :success
         js_objects = run(edisplay.window, "Bonito.Sessions.GLOBAL_OBJECT_CACHE")
-        @test Set([app.session[].id, app.session[].parent.id]) == keys(js_sessions)
         @test keys(js_objects) == Set([global_obs.value.id]) # we used Retain for global_obs, so it should stay as long as root session is open
     end
 end
