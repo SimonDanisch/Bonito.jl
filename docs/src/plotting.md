@@ -29,7 +29,8 @@ end
 
 # As far as I can tell, PlotlyLight doesn't handle require inside documenter correctly
 # So we just use Bonito to do it correctly via `Asset`:
-const Plotly = Bonito.Asset(PL.cdn_url[])
+const Plotly = Bonito.Asset(PL.plotly.url)
+
 function Bonito.jsrender(session::Session, plot::PL.Plot)
     # Pretty much copied from the PlotlyLight source to create the JS + div for creating the plot:
     div = DOM.div(style="width: 300px;height: 300px;")
