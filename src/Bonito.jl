@@ -35,6 +35,7 @@ include("deno.jl")
 include("types.jl")
 include("HTTPServer/HTTPServer.jl")
 include("app.jl")
+include("folder.jl")
 
 function HTTPServer.route!(server::HTTPServer.Server, routes::Routes)
     for (key, app) in routes.routes
