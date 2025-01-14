@@ -30,6 +30,9 @@ function jsrender(session::Session, em::EvalMarkdown)
         runner.current_session[] = session
     end
     md = string_to_markdown(em.markdown, em.replacements; eval_julia_code=runner)
+    if hasproperty(runner, :counter)
+        runner.counter = 0 # reset counter if any present
+    end
     return jsrender(session, md)
 end
 
