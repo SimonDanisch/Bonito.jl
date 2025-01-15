@@ -17,7 +17,18 @@ end
 
 function (x::JSUpdateObservable)(value)
     # Sent an update event
-    send(x.session, payload=value, id=x.id, msg_type=UpdateObservable)
+    if !isclosed(x.session)
+        send(x.session, payload=value, id=x.id, msg_type=UpdateObservable)
+    end
+end
+
+struct LargeUpdate
+    data::Any
+end
+
+function (x::JSUpdateObservable)(value::LargeUpdate)
+    # Sent an update event
+    return send_large(x.session, Dict(:payload=>value.data, :id=>x.id, :msg_type=>UpdateObservable))
 end
 
 """

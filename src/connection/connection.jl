@@ -37,11 +37,23 @@ Bonito.use_parent_session(::Session{MyConnection}) = false/false
 """
 FrontendConnection
 
+"""
+Websocket based connection type
+"""
+abstract type AbstractWebsocketConnection <: FrontendConnection end
+
 open!(connection) = nothing
+
+# fallback for connections not supporting
+# a slow / fast connection
+function write_large(ws, binary)
+    write(ws, binary)
+end
 
 include("sub-connection.jl")
 include("websocket-handler.jl")
 include("websocket.jl")
+include("dual-websocket.jl")
 include("ijulia.jl")
 include("pluto.jl")
 include("no-connection.jl")

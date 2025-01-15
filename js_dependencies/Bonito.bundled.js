@@ -3399,16 +3399,23 @@ const FusedMessage = "9";
 const CloseSession = "10";
 const PingPong = "11";
 const UpdateSession = "12";
+function clean_stack(stack) {
+    return stack.replaceAll(/(data:\w+\/\w+;base64,)[a-zA-Z0-9\+\/=]+:/g, "$1<<BASE64>>:");
+}
 const CONNECTION = {
     send_message: undefined,
     queue: [],
-    status: "closed"
+    status: "closed",
+    compression_enabled: false
 };
-function on_connection_open(send_message_callback, compression_enabled) {
+function on_connection_open(send_message_callback, compression_enabled, enable_pings = true) {
     CONNECTION.send_message = send_message_callback;
     CONNECTION.status = "open";
     CONNECTION.compression_enabled = compression_enabled;
     CONNECTION.queue.forEach((message)=>send_to_julia(message));
+    if (enable_pings) {
+        send_pings();
+    }
 }
 function on_connection_close() {
     CONNECTION.status = "closed";
@@ -3493,7 +3500,7 @@ function send_error(message, exception) {
         msg_type: JavascriptError,
         message: message,
         exception: String(exception),
-        stacktrace: exception === null ? "" : exception.stack
+        stacktrace: exception === null ? "" : clean_stack(exception.stack)
     });
 }
 const SESSIONS = {};
@@ -3503,16 +3510,23 @@ function send_pingpong() {
         msg_type: PingPong
     });
 }
+function send_pings() {
+    if (!can_send_to_julia()) {
+        return;
+    }
+    send_pingpong();
+    setTimeout(send_pings, 5000);
+}
 function encode_binary(data, compression_enabled) {
     if (compression_enabled) {
-        return pack(ml(pack(data)));
+        return ml(pack(data));
     } else {
         return pack(data);
     }
 }
 function send_to_julia(message) {
     const { send_message , status , compression_enabled  } = CONNECTION;
-    if (send_message && status === "open") {
+    if (send_message !== undefined && status === "open") {
         send_message(encode_binary(message, compression_enabled));
     } else if (status === "closed") {
         CONNECTION.queue.push(message);
@@ -3593,7 +3607,7 @@ function send_done_loading(session, exception) {
         session,
         message: "",
         exception: exception === null ? "nothing" : String(exception),
-        stacktrace: exception === null ? "" : exception.stack
+        stacktrace: exception === null ? "" : clean_stack(exception.stack)
     });
 }
 function send_close_session(session, subsession) {
@@ -3822,7 +3836,7 @@ function decode_binary(binary, compression_enabled) {
     const [session_id, message_data] = serialized_message;
     return message_data;
 }
-function init_session(session_id, binary_messages, session_status) {
+function init_session(session_id, binary_messages, session_status, compression_enabled) {
     track_deleted_sessions();
     OBJECT_FREEING_LOCK.task_lock(session_id);
     try {
@@ -3832,7 +3846,7 @@ function init_session(session_id, binary_messages, session_status) {
         ];
         console.log(`init session: ${session_id}, ${session_status}`);
         if (binary_messages) {
-            process_message(decode_binary(binary_messages));
+            process_message(decode_binary(binary_messages, compression_enabled));
         }
         done_initializing_session(session_id);
     } catch (error) {

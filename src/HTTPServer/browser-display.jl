@@ -17,6 +17,18 @@ function server(display::BrowserDisplay)
     return server
 end
 
+function Base.close(display::BrowserDisplay)
+    if !isnothing(display.server)
+        close(display.server)
+    end
+    if !isnothing(display.handler)
+        close(display.handler)
+    end
+    return
+end
+
+
+
 """
     browser_display()
 Forces Bonito.App to be displayed in a browser window that gets opened.
@@ -119,7 +131,8 @@ struct ElectronDisplay{EWindow} <: Base.Multimedia.AbstractDisplay
 end
 
 function ElectronDisplay(; devtools = false)
-    w = Electron().Window()
+    app = Electron().Application(; additional_electron_args=["--disable-logging"])
+    w = Electron().Window(app)
     devtools && Electron().toggle_devtools(w)
     return ElectronDisplay(w, BrowserDisplay(; open_browser=false))
 end
@@ -138,6 +151,13 @@ end
 
 function use_electron_display(; devtools = false)
     disp = ElectronDisplay(; devtools = devtools)
+    filter!(x-> !(x isa ElectronDisplay), Base.Multimedia.displays)
     Base.Multimedia.pushdisplay(disp)
     return disp
+end
+
+function Base.close(display::ElectronDisplay)
+    isopen(display.window) && close(display.window)
+    close(display.browserdisplay)
+    return nothing
 end

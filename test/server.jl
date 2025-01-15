@@ -15,8 +15,13 @@
         load(window, url)
         @test test_dom(window) # re-use from threading.jl
     end
-    @test length(server.websocket_routes.table) == 10
-    success = Bonito.wait_for(()-> length(server.websocket_routes.table) == 1, timeout=10)
+    if app.session[].connection isa Bonito.DualWebsocket
+        @test length(server.websocket_routes.table) == 20
+        success = Bonito.wait_for(()-> length(server.websocket_routes.table) == 2, timeout=10)
+    else
+        @test length(server.websocket_routes.table) == 10
+        success = Bonito.wait_for(()-> length(server.websocket_routes.table) == 1, timeout=10)
+    end
     @test success == :success
     close(window)
     success = Bonito.wait_for(() -> isempty(server.websocket_routes.table), timeout=10)
