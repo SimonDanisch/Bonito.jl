@@ -54,6 +54,11 @@ end
 function jsrender(session::Session, asset::Asset)
     if mediatype(asset) in (:jpeg, :jpg, :png, :svg)
         return jsrender(session, DOM.img(src=url(session, asset)))
+    elseif mediatype(asset) in (:mp4, :webm, :ogg)
+        vid = DOM.video(
+            DOM.source(; src=url(session, asset), type="video/$(mediatype(asset))"), autoplay=true, controls=true
+        )
+        return jsrender(session, vid)
     elseif mediatype(asset) in (:css, :js)
         # We include css/js assets with the above `render_asset` in session_dom
         # So that we only include any depency one time
