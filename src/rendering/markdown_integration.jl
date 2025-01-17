@@ -123,6 +123,10 @@ function htmlinline(md::Markdown.Italic)
 end
 
 function htmlinline(md::Markdown.Image)
+    file, ext = splitext(md.url)
+    if ext in (".mp4", ".webm", ".ogg")
+        return [DOM.m("video", DOM.m("source"; src=md.url, type="video/$(ext[2:end])"), autoplay=true, controls=true)]
+    end
     return [DOM.m("img"; src=md.url, alt=md.alt)]
 end
 

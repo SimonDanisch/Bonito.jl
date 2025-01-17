@@ -52,7 +52,7 @@ function render_asset(session::Session, asset_server, asset::Asset)
 end
 
 function jsrender(session::Session, asset::Asset)
-    if mediatype(asset) in (:jpeg, :jpg, :png, :svg)
+    if mediatype(asset) in (:jpeg, :jpg, :png, :svg, :gif)
         return jsrender(session, DOM.img(src=url(session, asset)))
     elseif mediatype(asset) in (:mp4, :webm, :ogg)
         vid = DOM.video(
