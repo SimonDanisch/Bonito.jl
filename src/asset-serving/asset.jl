@@ -52,7 +52,7 @@ function render_asset(session::Session, asset_server, asset::Asset)
 end
 
 function jsrender(session::Session, asset::Asset)
-    if mediatype(asset) in (:jpeg, :jpg, :png)
+    if mediatype(asset) in (:jpeg, :jpg, :png, :svg)
         return jsrender(session, DOM.img(src=url(session, asset)))
     elseif mediatype(asset) in (:css, :js)
         # We include css/js assets with the above `render_asset` in session_dom
