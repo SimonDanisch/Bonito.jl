@@ -407,6 +407,57 @@ function Table(table; class="", row_renderer=render_row_value)
     return Table(table, class, row_renderer)
 end
 
+struct InteractTable
+    table
+    cell_obs::Vector{Vector{Observable}}
+    colnames::Tuple
+    coltypes::Tuple
+
+    function InteractTable(tbl)
+        # construct cell_obs
+        colnames = Tables.schema(tbl).names
+        coltypes = Tables.schema(tbl).types
+
+        coltable = Tables.columntable(tbl)
+        ncols = length(colnames)
+        nrows = length(getproperty(coltable, colnames[1]))
+
+        # creat nrows×ncols Observable
+        cell_obs = Vector{Vector{Observable}}(undef, ncols)
+        for (j, colname) in enumerate(colnames)
+            colvec = getproperty(coltable, colname)
+            cell_obs[j] = [Observable(colvec[i]) for i in 1:nrows]
+        end
+
+        autowrite!(tbl, cell_obs, colnames, ncols, nrows)
+        return new(tbl, cell_obs, colnames, coltypes)
+    end
+end
+
+"""
+Automatic write-back function for editable tables. It is used to synchronize the output from the frontend to the backend.
+"""
+function autowrite!(tbl, cell_obs, colnames, ncols, nrows)
+    # Now the function can only be used for `tbl isa Dict && tbl[colname] isa Vector`
+    if tbl isa Dict
+        # Names in Tables.schema() are Symbols, but we want to use strings for the Dict keys.
+        for j in 1:ncols
+            colkey = string(colnames[j])
+            if haskey(tbl, colkey)
+                colvec = tbl[colkey]
+                @assert colvec isa AbstractVector "tbl[colname] is not a vector."
+                for i in 1:nrows
+                    obs = cell_obs[j][i]
+                    on(obs) do newval
+                        colvec[i] = newval # tbl[colkey][i] is okay for Dict
+                    end
+                end
+            end
+        end
+    end
+    # else: This is left blank to extend other types (e.g. NamedTuple, DataFrame, CustomTable).
+end
+
 function jsrender(session::Session, table::Table)
     names = string.(Tables.schema(table.table).names)
     header = DOM.thead(DOM.tr(DOM.th.(names)...))
@@ -419,6 +470,48 @@ function jsrender(session::Session, table::Table)
     return DOM.div(
         jsrender(session, Asset(dependency_path("table.css"))),
         DOM.table(header, body; class=table.class),
+    )
+end
+
+function jsrender(session::Session, table::InteractTable)
+    (; cell_obs, colnames, coltypes) = table
+    header = DOM.thead(DOM.tr(DOM.th.(string.(colnames))...))
+    ncols, nrows = length(colnames), length(cell_obs[1])
+
+    # Construct an editable <tbody>
+    tr_nodes = Vector{Hyperscript.Node{Hyperscript.HTMLSVG}}(undef, nrows)
+    for i in 1:nrows
+        td_nodes = Vector{Hyperscript.Node{Hyperscript.HTMLSVG}}(undef, ncols)
+        for j in 1:ncols
+            obs = cell_obs[j][i]
+            coltype = coltypes[j]
+            if coltype <: Number
+                input_type = "number"
+                parse_js = js""" e => {
+                    const val = parseFloat(e.target.value);
+                    if (!isNaN(val)) {
+                        $(obs).notify(val);
+                    }}
+                """
+            else
+                input_type = "text"
+                parse_js = js"e => {$(obs).notify(e.target.value);}"
+            end
+            # <input "text/number">
+            input_el = DOM.input(; type=input_type, value=obs, onchange=parse_js)
+            # Use onjs to listen to cell_obs (backend), synchronizing the frontend input_el.value when it changes.
+            onjs(session, obs, js"v => event.srcElement.value = String(v)")
+
+            td_nodes[j] = DOM.td(input_el)
+        end
+        tr_nodes[i] = DOM.tr(td_nodes...)
+    end
+
+    body = DOM.tbody(tr_nodes...)
+
+    return DOM.div(
+        jsrender(session, Asset(Bonito.dependency_path("table.css"))),
+        DOM.table(header, body),
     )
 end
 
