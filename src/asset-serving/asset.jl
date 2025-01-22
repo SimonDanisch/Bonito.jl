@@ -5,7 +5,7 @@ function get_path(asset::Asset)
     isempty(asset.online_path) ? asset.local_path : asset.online_path
 end
 
-unique_file_key(path::String) = bytes2hex(sha1(abspath(path))) * "-" * basename(path)
+unique_file_key(path::String) = bytes2hex(sha1(abspath(path))) * "-" * Bonito.URIs.escapeuri(basename(path))
 unique_file_key(path) = unique_file_key(string(path))
 function unique_key(asset::Asset)
     if isempty(asset.online_path)
@@ -125,7 +125,7 @@ function Asset(path_or_url::Union{String,Path}; name=nothing, es6module=false, c
         local_path = normalize_path(path_or_url; check_isfile=check_isfile)
     end
     _bundle_dir = isnothing(bundle_dir) ? dirname(local_path) : bundle_dir
-    return Asset(name, es6module, mediatype, real_online_path, local_path, @path _bundle_dir)
+    return Asset(name, es6module, mediatype, real_online_path, local_path, _bundle_dir)
 end
 
 function ES6Module(path)
