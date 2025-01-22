@@ -258,7 +258,7 @@ function Slider(values::AbstractArray{T}; value=first(values), kw...) where {T}
     values_obs = convert(Observable{Vector{T}}, values)
     initial_idx = findfirst((==)(value), values_obs[])
     index = Observable(initial_idx)
-    value_obs = map(getindex, values_obs, index)
+    value_obs = Observable(values_obs[][initial_idx])
     return Slider(values_obs, value_obs, index, Dict{Symbol,Any}(kw))
 end
 
@@ -285,8 +285,12 @@ function jsrender(session::Session, slider::Slider)
             value=index,
             step=1,
             oninput=js"""(event)=> {
-              $(index).notify(parseInt(event.srcElement.value))
-          }""",
+                const idx = event.srcElement.valueAsNumber;
+                console.log(idx, " ", $(index).value)
+                if (idx !== $(index).value) {
+                    $(index).notify(idx)
+                }
+            }""",
             style=styles,
             slider.attributes...,
         ),
@@ -329,6 +333,7 @@ end
 
 A simple Checkbox, which can be styled via the `style::Styles` attribute.
 """
+Checkbox
 
 function jsrender(session::Session, tb::Checkbox)
     style = Styles(Styles("min-width" => "auto", "transform" => "scale(1.5)"), BUTTON_STYLE)
@@ -485,6 +490,7 @@ function CodeEditor(
 end
 
 function jsrender(session::Session, editor::CodeEditor)
+
     theme = "ace/theme/$(editor.theme)"
     language = "ace/mode/$(editor.language)"
     ace_url = "https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"
