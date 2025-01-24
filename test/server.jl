@@ -9,7 +9,7 @@
     end
     server = Server(app, "0.0.0.0", 8898)
 
-    window = Window(Application())
+    window = Bonito.EWindow()
     url = URI(online_url(server, "/"))
     @testset for i in 1:10
         load(window, url)

@@ -130,11 +130,20 @@ struct ElectronDisplay{EWindow} <: Base.Multimedia.AbstractDisplay
     browserdisplay::BrowserDisplay
 end
 
-function ElectronDisplay(; devtools = false)
+function EWindow()
     app = Electron().Application(;
-        additional_electron_args=["--disable-logging", "--no-sandbox"]
+        additional_electron_args=[
+            "--disable-logging",
+            "--no-sandbox",
+            "--user-data-dir=$(mktempdir())",
+            "--disable-features=AccessibilityObjectModel",
+        ],
     )
-    w = Electron().Window(app)
+    return Electron().Window(app)
+end
+
+function ElectronDisplay(; devtools = false)
+    w = EWindow()
     devtools && Electron().toggle_devtools(w)
     return ElectronDisplay(w, BrowserDisplay(; open_browser=false))
 end

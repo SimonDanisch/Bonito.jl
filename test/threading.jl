@@ -65,7 +65,7 @@ end
     all_windows = Channel{Window}(nwindows)
     created_windows = Window[]
     for i in 1:nwindows
-        win = Window(Application())
+        win = Bonito.EWindow()
         Electron.toggle_devtools(win)
         put!(all_windows, win)
         push!(created_windows, win)
