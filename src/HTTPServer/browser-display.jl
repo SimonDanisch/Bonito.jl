@@ -131,7 +131,9 @@ struct ElectronDisplay{EWindow} <: Base.Multimedia.AbstractDisplay
 end
 
 function ElectronDisplay(; devtools = false)
-    app = Electron().Application(; additional_electron_args=["--disable-logging"])
+    app = Electron().Application(;
+        additional_electron_args=["--disable-logging", "--no-sandbox"]
+    )
     w = Electron().Window(app)
     devtools && Electron().toggle_devtools(w)
     return ElectronDisplay(w, BrowserDisplay(; open_browser=false))
