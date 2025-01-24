@@ -407,57 +407,6 @@ function Table(table; class="", row_renderer=render_row_value)
     return Table(table, class, row_renderer)
 end
 
-struct InteractTable
-    table
-    cell_obs::Vector{Vector{Observable}}
-    colnames::Tuple
-    coltypes::Tuple
-
-    function InteractTable(tbl)
-        # construct cell_obs
-        colnames = Tables.schema(tbl).names
-        coltypes = Tables.schema(tbl).types
-
-        coltable = Tables.columntable(tbl)
-        ncols = length(colnames)
-        nrows = length(getproperty(coltable, colnames[1]))
-
-        # creat nrows×ncols Observable
-        cell_obs = Vector{Vector{Observable}}(undef, ncols)
-        for (j, colname) in enumerate(colnames)
-            colvec = getproperty(coltable, colname)
-            cell_obs[j] = [Observable(colvec[i]) for i in 1:nrows]
-        end
-
-        autowrite!(tbl, cell_obs, colnames, ncols, nrows)
-        return new(tbl, cell_obs, colnames, coltypes)
-    end
-end
-
-"""
-Automatic write-back function for editable tables. It is used to synchronize the output from the frontend to the backend.
-"""
-function autowrite!(tbl, cell_obs, colnames, ncols, nrows)
-    # Now the function can only be used for `tbl isa Dict && tbl[colname] isa Vector`
-    if tbl isa Dict
-        # Names in Tables.schema() are Symbols, but we want to use strings for the Dict keys.
-        for j in 1:ncols
-            colkey = string(colnames[j])
-            if haskey(tbl, colkey)
-                colvec = tbl[colkey]
-                @assert colvec isa AbstractVector "tbl[colname] is not a vector."
-                for i in 1:nrows
-                    obs = cell_obs[j][i]
-                    on(obs) do newval
-                        colvec[i] = newval # tbl[colkey][i] is okay for Dict
-                    end
-                end
-            end
-        end
-    end
-    # else: This is left blank to extend other types (e.g. NamedTuple, DataFrame, CustomTable).
-end
-
 function jsrender(session::Session, table::Table)
     names = string.(Tables.schema(table.table).names)
     header = DOM.thead(DOM.tr(DOM.th.(names)...))
@@ -471,6 +420,43 @@ function jsrender(session::Session, table::Table)
         jsrender(session, Asset(dependency_path("table.css"))),
         DOM.table(header, body; class=table.class),
     )
+end
+
+"""
+An interactive table that conform to the Tables.jl Table interface,
+which gets rendered nicely!
+"""
+struct InteractTable
+    table
+    cell_obs::Vector{Vector{Observable}}
+    colnames::Tuple
+    coltypes::Tuple
+end
+
+"""
+Constructor for the interactive table that is editable and comes with automatic writeback. Frontend input can be synchronized to the backend (but not vice versa).
+"""
+function InteractTable(tbl)
+    # construct nrows×ncols cell_obs::Observable
+    schema = Tables.schema(tbl)
+    colnames, coltypes = schema.names, schema.types
+    coltable = Tables.columntable(tbl)
+    ncols = length(colnames)
+    colvec1 = getproperty(coltable, colnames[1])
+    @assert colvec1 isa AbstractVector "The value of the table is not a vector."
+    nrows = length(colvec1)
+
+    cell_obs = [Vector{Observable}(undef, nrows) for _ in 1:ncols]
+    for (j, colvec) in enumerate(values(Tables.columns(coltable)))
+        for (i, val) in enumerate(colvec)
+            cell_obs[j][i] = Observable(val)
+            on(cell_obs[j][i]) do newval
+                colvec[i] = newval
+            end
+        end
+    end
+
+    return InteractTable(tbl, cell_obs, colnames, coltypes)
 end
 
 function jsrender(session::Session, table::InteractTable)
