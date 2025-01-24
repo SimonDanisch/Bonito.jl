@@ -130,7 +130,7 @@ struct ElectronDisplay{EWindow} <: Base.Multimedia.AbstractDisplay
     browserdisplay::BrowserDisplay
 end
 
-function EWindow()
+function EWindow(args...)
     app = Electron().Application(;
         additional_electron_args=[
             "--disable-logging",
@@ -139,7 +139,7 @@ function EWindow()
             "--disable-features=AccessibilityObjectModel",
         ],
     )
-    return Electron().Window(app)
+    return Electron().Window(app, args...)
 end
 
 function ElectronDisplay(; devtools = false)
