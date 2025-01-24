@@ -286,7 +286,6 @@ function jsrender(session::Session, slider::Slider)
             step=1,
             oninput=js"""(event)=> {
                 const idx = event.srcElement.valueAsNumber;
-                console.log(idx, " ", $(index).value)
                 if (idx !== $(index).value) {
                     $(index).notify(idx)
                 }
