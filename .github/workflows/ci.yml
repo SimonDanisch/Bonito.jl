@@ -14,13 +14,27 @@ jobs:
     env:
       JULIA_PKG_SERVER: ""
       JULIA_NUM_THREADS: "4"
+      DISPLAY: ":99"
+      LIBGL_ALWAYS_SOFTWARE: "1"
+      MESA_GL_VERSION_OVERRIDE: "4.5"
+      MESA_GLSL_VERSION_OVERRIDE: "450"
     strategy:
       fail-fast: false
       matrix:
         version:
           - '1.6'
-          - '1' # Leave this line unchanged. '1' will automatically expand to the latest stable 1.x release of Julia.
+          - '1'
     steps:
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y xvfb mesa-utils mesa-vulkan-drivers dbus
+      - name: Start Virtual Display
+        run: |
+          Xvfb :99 -screen 0 1920x1080x24 &
+          eval $(dbus-launch)
+          export DBUS_SESSION_BUS_ADDRESS
+          export DBUS_SESSION_BUS_PID
       - name: Checkout
         uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1

@@ -5,7 +5,11 @@ function get_path(asset::Asset)
     isempty(asset.online_path) ? asset.local_path : asset.online_path
 end
 
-unique_file_key(path::String) = bytes2hex(sha1(abspath(path))) * "-" * basename(path)
+hash_content(x) = bytes2hex(sha1(x))
+
+function unique_file_key(path::String)
+    return hash_content(abspath(path)) * "-" * Bonito.URIs.escapeuri(basename(path))
+end
 unique_file_key(path) = unique_file_key(string(path))
 function unique_key(asset::Asset)
     if isempty(asset.online_path)
@@ -124,6 +128,37 @@ function Base.show(io::IO, asset::Asset)
     print(io, get_path(asset))
 end
 
+function bundle_folder(bundle_dir, local_path, name, media_type)
+    bundle_dir = if !isnothing(bundle_dir) && !isempty(bundle_dir)
+        bundle_dir
+    elseif isempty(local_path)
+        get_deps_path(name)
+    else
+        dirname(local_path)
+    end
+    isdir(bundle_dir) || mkpath(bundle_dir)
+    return joinpath(bundle_dir, string(name, ".bundled.", media_type))
+end
+
+
+function generate_bundle_file(file, bundle_file)
+    if isfile(file) || is_online(file)
+        if needs_bundling(file, bundle_file)
+            bundled, err = deno_bundle(file, bundle_file)
+            if !bundled
+                if isfile(bundle_file)
+                    @warn "Failed to bundle $file: $err"
+                else
+                    error("Failed to bundle $file: $err")
+                end
+            end
+        end
+        return bundle_file
+    else
+        return bundle_file
+    end
+end
+
 function Asset(path_or_url::Union{String,Path}; name=nothing, es6module=false, check_isfile=false, bundle_dir::Union{Nothing,String,Path}=nothing, mediatype=Symbol(getextension(path_or_url)))
     local_path = ""; real_online_path = ""
     if is_online(path_or_url)
@@ -132,9 +167,25 @@ function Asset(path_or_url::Union{String,Path}; name=nothing, es6module=false, c
     else
         local_path = normalize_path(path_or_url; check_isfile=check_isfile)
     end
-    _bundle_dir = isnothing(bundle_dir) ? dirname(local_path) : bundle_dir
-    return Asset(name, es6module, mediatype, real_online_path, local_path, @path _bundle_dir)
+     if es6module
+        path = bundle_folder(bundle_dir, local_path, name, mediatype)
+        # We may need to bundle immediately, since otherwise the dependencies for bunddling may be gone!
+        source = is_online(path_or_url) ? real_online_path : local_path
+        bundle_file = generate_bundle_file(source, path)
+        if !isfile(bundle_file)
+            error("Failed to bundle $source: $path. bundle_dir: $(bundle_dir)")
+        end
+        bundle_data = read(bundle_file) # read the into memory to make it relocatable
+        content_hash = RefValue{String}(hash_content(bundle_data))
+    else
+
+        bundle_file = ""
+        bundle_data = UInt8[]
+        content_hash = RefValue{String}("")
+    end
+    return Asset(name, es6module, mediatype, real_online_path, local_path, bundle_file, bundle_data, content_hash)
 end
+
 
 function ES6Module(path)
     name = String(splitext(basename(path))[1])
@@ -200,16 +251,7 @@ function get_deps_path(name)
 end
 
 function bundle_path(asset::Asset)
-    @assert !isempty(asset.name) "Asset has no name, which may happen if Asset constructor was called wrongly"
-    bundle_dir = if !isempty(asset.bundle_dir)
-        asset.bundle_dir
-    elseif isempty(asset.local_path)
-        get_deps_path(asset.name)
-    else
-        dirname(asset.local_path)
-    end
-    isdir(bundle_dir) || mkpath(bundle_dir)
-    return joinpath(bundle_dir, string(asset.name, ".bundled.", asset.media_type))
+    return asset.bundle_file
 end
 
 last_modified(path::Path) = last_modified(Bonito.getroot(path))
@@ -217,26 +259,41 @@ function last_modified(path::String)
     Dates.unix2datetime(Base.Filesystem.mtime(path))
 end
 
-function needs_bundling(asset::Asset)
-    asset.es6module || return false
-    path = get_path(asset)
-    bundled = bundle_path(asset)
+function needs_bundling(path, bundled)
+    is_online(path) && return !isfile(bundled)
     !isfile(bundled) && return true
     # If bundled happen after last modification of asset
     return last_modified(path) > last_modified(bundled)
 end
 
+function needs_bundling(asset::Asset)
+    asset.es6module || return false
+    path = get_path(asset)
+    bundled = bundle_path(asset)
+    return needs_bundling(path, bundled)
+end
+
+
+
 bundle!(asset::BinaryAsset) = nothing
 
 function bundle!(asset::Asset)
     needs_bundling(asset) || return
-    has_been_bundled = deno_bundle(get_path(asset), bundle_path(asset))
-    if !has_been_bundled && isfile(bundle_path(asset))
+    bundle_file = String(bundle_path(asset))
+    source = String(get_path(asset))
+    has_been_bundled, err = deno_bundle(source, bundle_file)
+    if isfile(bundle_file)
+        data = read(bundle_file)
+        resize!(asset.bundle_data, length(data))
+        copyto!(asset.bundle_data, data)
+        asset.content_hash[] = hash_content(data)
         # when shipping, we don't have the correct time stamps, so we can't accurately say if we need bundling :(
         # So we need to rely on the package authors to bundle before creating a new release!
         return
     end
-    if !has_been_bundled
+    # if bundle_data is stored in the asset, we dont necessarily need to bundle
+    # But it's likely outdated - which is fine for e.g. relocatable packages
+    if !has_been_bundled && isempty(asset.bundle_data)
         # Not bundling if bundling is needed is an error...
         # In theory it could be a warning, but this way we make CI fail, so that
         # PRs that forget to bundle JS dependencies will fail!
@@ -245,7 +302,11 @@ function bundle!(asset::Asset)
             which is an optional dependency needed for Developing Bonito Assets.
             After that, assets should be bundled on precompile and whenever they're used after editing the asset.
             If you're just using a package, please open an issue with the Package maintainers,
-            they must have forgotten bundling.")
+            they must have forgotten bundling.
+            Error: $err")
+    end
+    if !isempty(asset.bundle_data) && !has_been_bundled && isfile(source)
+        @warn "Asset $(asset) being served from memory, but failed to bundle with error: $(err)."
     end
     return
 end
