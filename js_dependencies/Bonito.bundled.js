@@ -4051,6 +4051,7 @@ function update_node_attribute(node, attribute, value) {
     }
 }
 function update_dom_node(dom, html) {
+    console.log("update_dom_node", dom, html);
     if (dom) {
         dom.innerHTML = html;
         return true;
@@ -4059,6 +4060,7 @@ function update_dom_node(dom, html) {
     }
 }
 function fetch_binary(url) {
+    console.log("fetch_binary", url);
     return fetch(url).then((response)=>{
         if (!response.ok) {
             throw new Error("HTTP error, status = " + response.status);

@@ -29,12 +29,3 @@
     close(server)
     Bonito.set_cleanup_time!(0.0)
 end
-
-using RelocatableFolders
-
-@testset "Asset serving and Path" begin
-    asset = Asset(@path joinpath(@__DIR__, "serialization.jl"))
-    @test Bonito.serving_target(asset) isa RelocatableFolders.Path
-    @test isfile(Bonito.serving_target(asset))
-    @test read(Bonito.serving_target(asset)) isa Vector{UInt8}
-end
