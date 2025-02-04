@@ -56,13 +56,21 @@ function render_asset(session::Session, asset_server, asset::Asset)
 end
 
 function jsrender(session::Session, asset::Asset)
-    if mediatype(asset) in (:jpeg, :jpg, :png)
-        return DOM.img(src=url(session, asset))
+    if mediatype(asset) in (:jpeg, :jpg, :png, :svg, :gif)
+        return jsrender(session, DOM.img(src=url(session, asset)))
+    elseif mediatype(asset) in (:mp4, :webm, :ogg)
+        vid = DOM.video(
+            DOM.source(; src=url(session, asset), type="video/$(mediatype(asset))"), autoplay=true, controls=true
+        )
+        return jsrender(session, vid)
     elseif mediatype(asset) in (:css, :js)
         # We include css/js assets with the above `render_asset` in session_dom
         # So that we only include any depency one time
         push!(session.imports, asset)
         return nothing
+    elseif mediatype(asset) == :html
+        html = read(asset.local_path, String)
+        return HTML{String}(html)
     else
         error("Unrecognized asset media type: $(mediatype(asset))")
     end

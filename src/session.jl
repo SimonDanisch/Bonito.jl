@@ -402,7 +402,6 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     # code and dom nodes to the right places, so we need to extract those
     head, body, dom = find_head_body(dom)
     session_style = render_stylesheets!(root_session(session), session.stylesheets)
-
     # if nothing is found, we just use one div and append to that
     if isnothing(head) && isnothing(body)
         if html_document
@@ -427,6 +426,8 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
                 head, body; id=session.id, class="bonito-fragment", dataJscallId=dom_id
             )
         end
+    else
+        push!(children(head), session_style)
     end
     # first render BonitoLib
     Bonito_import = DOM.script(src=url(session, BonitoLib), type="module")
