@@ -134,8 +134,8 @@ end
 
 
 function generate_bundle_file(file, bundle_file)
-    if isfile(file)
-        if !isfile(bundle_file)
+    if isfile(file) || is_online(file)
+        if needs_bundling(file, bundle_file)
             bundled, err = deno_bundle(file, bundle_file)
             if !bundled
                 error("Failed to bundle $file: $err")
@@ -143,7 +143,6 @@ function generate_bundle_file(file, bundle_file)
         end
         return bundle_file
     else
-
         return bundle_file
     end
 end
@@ -159,10 +158,16 @@ function Asset(path_or_url::Union{String,Path}; name=nothing, es6module=false, c
      if es6module
         path = bundle_folder(bundle_dir, local_path, name, mediatype)
         # We may need to bundle immediately, since otherwise the dependencies for bunddling may be gone!
-        bundle_file = generate_bundle_file(local_path, path)
+        source = is_online(path_or_url) ? real_online_path : local_path
+        @show source path
+        bundle_file = generate_bundle_file(source, path)
+        if !isfile(bundle_file)
+            error("Failed to bundle $source: $path. bundle_dir: $(bundle_dir)")
+        end
         bundle_data = read(bundle_file) # read the into memory to make it relocatable
         content_hash = RefValue{String}(hash_content(bundle_data))
     else
+
         bundle_file = ""
         bundle_data = UInt8[]
         content_hash = RefValue{String}("")
@@ -243,14 +248,21 @@ function last_modified(path::String)
     Dates.unix2datetime(Base.Filesystem.mtime(path))
 end
 
-function needs_bundling(asset::Asset)
-    asset.es6module || return false
-    path = get_path(asset)
-    bundled = bundle_path(asset)
+function needs_bundling(path, bundled)
+    is_online(path) && return !isfile(bundled)
     !isfile(bundled) && return true
     # If bundled happen after last modification of asset
     return last_modified(path) > last_modified(bundled)
 end
+
+function needs_bundling(asset::Asset)
+    asset.es6module || return false
+    path = get_path(asset)
+    bundled = bundle_path(asset)
+    return needs_bundling(path, bundled)
+end
+
+
 
 bundle!(asset::BinaryAsset) = nothing
 
