@@ -20,7 +20,7 @@ function deno_bundle(path_to_js::AbstractString, output_file::String)
     iswriteable = filemode(output_file) & Base.S_IWUSR != 0
     # bundles shipped as part of a package end up as read only
     # So we can't overwrite them
-    isfile(output_file) && !iswriteable && return false
+    isfile(output_file) && !iswriteable && return false, "Output file is not writeable"
     Deno_jll = Deno()
     # We treat Deno as a development dependency,
     # so if deno isn't loaded, don't bundle!
