@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Extending · Bonito</title><meta name="title" content="Extending · Bonito"/><meta property="og:title" content="Extending · Bonito"/><meta property="twitter:title" content="Extending · Bonito"/><meta name="description" content="Documentation for Bonito."/><meta property="og:description" content="Documentation for Bonito."/><meta property="twitter:description" content="Documentation for Bonito."/><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="index.html">Bonito</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li><span class="tocitem">Components</span><ul><li><a class="tocitem" href="styling.html">Styling</a></li><li><a class="tocitem" href="components.html">Components</a></li><li><a class="tocitem" href="layouting.html">Layouting</a></li><li><a class="tocitem" href="widgets.html">Widgets</a></li><li><a class="tocitem" href="interactions.html">Interactions</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="plotting.html">Plotting</a></li><li><a class="tocitem" href="javascript-libraries.html">Wrapping JS libraries</a></li><li><a class="tocitem" href="assets.html">Assets</a></li><li class="is-active"><a class="tocitem" href="extending.html">Extending</a><ul class="internal"><li><a class="tocitem" href="#Connection"><span>Connection</span></a></li><li><a class="tocitem" href="#Managing-your-own-WebSocket-server"><span>Managing your own WebSocket server</span></a></li><li><a class="tocitem" href="#Customising-the-websocket-cleanup-policy"><span>Customising the websocket cleanup policy</span></a></li></ul></li></ul></li><li><a class="tocitem" href="deployment.html">Deployment</a></li><li><a class="tocitem" href="static.html">Static Sites</a></li><li><a class="tocitem" href="api.html">Api</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href="extending.html">Extending</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="extending.html">Extending</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/master/docs/src/extending.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Extending-Bonito"><a class="docs-heading-anchor" href="#Extending-Bonito">Extending Bonito</a><a id="Extending-Bonito-1"></a><a class="docs-heading-anchor-permalink" href="#Extending-Bonito" title="Permalink"></a></h1><h2 id="Connection"><a class="docs-heading-anchor" href="#Connection">Connection</a><a id="Connection-1"></a><a class="docs-heading-anchor-permalink" href="#Connection" title="Permalink"></a></h2><p>By default, Bonito uses its own WebSocket server to create the connection between Julia and JavaScript. By extending <code>Bonito.FrontendConnection</code>, you can create a new type of connection, e.g. using WebRTC to connect Julia and JavaScript.</p><p>Your new connection type should support bidirectional messages of binary data. </p><pre><code class="language-Julia hljs">mutable struct MyConnection &lt;: Bonito.FrontendConnection
+    # TODO: your implementation here
+    isopen::Bool
+    socket
+    blabla
+    ...
+end
+
+function MyConnection()
+    # If you need to do something like start an HTTP server, you can do it here, synchronously.
+    
+    
+    return new(
+        true,
+        ...
+    )
+end
+
+function Base.write(connection::MyConnection, binary)
+    # TODO: send the data to JavaScript
+    write(connection.socket, binary)
+end
+
+Base.isopen(connection::MyConnection) = connection.isopen
+Base.close(connection::MyConnection) = (connection.isopen = false)
+open!(connection::MyConnection) = (connection.isopen = true)
+
+function setup_connection(session::Session{MyConnection})
+    # If you need to do something specific for this new session, you can do it here.
+
+    return js&quot;&quot;&quot;
+    // TODO: create a connection
+    create_connection(...).then((conn) =&gt; {
+        
+        // TODO: when your connection receives a message from Julia, relay the message to `Bonito.process_message(msg)`.
+        conn.on_msg((msg) =&gt; {
+            Bonito.process_message(msg)
+        });
+        
+        // TODO: you need to define a JavaScript function that sends a given `binary_data` to Julia. On the Julia side, this should call `Bonito.process_message(connection.parent, binary_data)`.
+        const send_to_julia = (binary_data) =&gt; conn.send(binary)
+        
+        // TODO: does your connection use Pako compression on its incoming and outgoing messages?
+        const compression_enabled = false
+        
+        // Register your new connection
+        Bonito.on_connection_open(send_to_julia, compression_enabled);
+    })
+    &quot;&quot;&quot;
+end</code></pre><p>You can test your new connection like so:</p><pre><code class="language-Julia hljs">Bonito.register_connection!(MyConnection) do
+    # you can make this registration conditional, e.g. only use the new connection type on Thursdays...
+    if i_want_to_use_it
+        return MyConnection()
+    else
+        return nothing
+    end
+end</code></pre><h2 id="Managing-your-own-WebSocket-server"><a class="docs-heading-anchor" href="#Managing-your-own-WebSocket-server">Managing your own WebSocket server</a><a id="Managing-your-own-WebSocket-server-1"></a><a class="docs-heading-anchor-permalink" href="#Managing-your-own-WebSocket-server" title="Permalink"></a></h2><p>You should also extend <code>Bonito.FrontendConnection</code> in case you would like to make a WebSocket-based connection, but manage the server yourself, e.g. by registering a websocket route using a web framework. In this case, you can reuse some of Bonito&#39;s websocket handling code as long as your websocket is internally using <code>HTTP.WebSockets.WebSocket</code> objects.</p><p>You can do this using the <code>WebSocketHandler</code> type and forwarding your connection type&#39;s <code>isopen</code>, <code>write</code>, and <code>close</code> methods to it. You can then use the <code>setup_websocket_connection_js</code> to return the correct Javascript snippet in your <code>setup_connection</code> method and run the main I/O loop by calling <code>run_connection_loop</code> from your websocket handler. You will need to take care of saving the session in your <code>setup_connection</code> method and routing to the session in your handler, as well as cleaning up websocket sessions. You may need to use locks to accomplish some of these steps in a thread-safe manner.</p><pre><code class="language-Julia hljs">mutable struct MyWebSocketConnection &lt;: Bonito.FrontendConnection
+    # TODO: your implementation here
+    blabla
+    ...
+    handler::WebSocketHandler
+end
+
+Base.isopen(ws::MyWebSocketConnection) = isopen(ws.handler)
+Base.write(ws::MyWebSocketConnection, binary) = write(ws.handler, binary)
+Base.close(ws::MyWebSocketConnection) = close(ws.handler)
+
+function setup_connection(session::Session{MyWebSocketConnection})
+    return setup_connection(session, session.connection)
+
+    # TODO: Register the `session.id` as a route, and save it so it can be retrived in the handler
+    # You could alternatively register a single route and multiplex using a dictionary
+    # TODO: Start a cleanup task to remove routes/saved sessions when they are no longer open
+
+    external_url = # TODO: Get the external URL, which session IDs will be appended to
+    return setup_websocket_connection_js(external_url, session)
+end
+
+function my_web_framework_websocket_handler(my_web_framework_request)
+    session = # TODO: retrieve the session based upon the session ID in the URL in `my_web_framework_request`
+    websocket = # TODO: set up the websocket or retrive it from `my_web_framework_request`
+    connection = session.connection
+
+    try
+        run_connection_loop(session, connection.handler, websocket)
+    finally
+        # TODO: Option 1: Immediately end the session with `close(session)`
+        # You will also need to clean up the route/saved session
+        
+        # TODO: Option 2: Use `soft_close(session)`
+        # This may allow for a temporary disconnected client to reconnect
+        # You may have to prevent your webframework from trying to close the websocket
+        # You will need to clean up the soft closed session and its route/saved session after some timeout in the cleanup task
+    end
+end
+
+# Here is the cleanup task. You might choose to arrange for exactly one of these to be started at some appropriate time.
+# You may like to handle errors so that it always remains running.
+@async while true
+    sleep(1)
+    # Iterate through the sessions and routes that have been set up in `setup_connection`
+    for (session, route) in my_route_data_structure
+        # Apply some cleanup policy to closed or soft closed sessions
+        if should_cleanup(session)
+            # mark route for removeal
+        end
+    end
+    # remove marked routes
+end</code></pre><p>You can get further details to guide your implementation by looking at Bonito&#39;s own implementation in <code>Bonito/src/connections/websocket.jl</code>.</p><p>Please read the next section for information about how to make use of Bonito&#39;s websocket cleanup policy in your cleanup task.</p><h2 id="Customising-the-websocket-cleanup-policy"><a class="docs-heading-anchor" href="#Customising-the-websocket-cleanup-policy">Customising the websocket cleanup policy</a><a id="Customising-the-websocket-cleanup-policy-1"></a><a class="docs-heading-anchor-permalink" href="#Customising-the-websocket-cleanup-policy" title="Permalink"></a></h2><p>You can create a custom cleanup policy by subclassing <code>CleanupPolicy</code>. For example, you may like to choose to evict sessions based upon the resources they are using, or whether users are authenticated or not or some other criteria.</p><p>Implementing the <code>should_cleanup</code> and <code>allow_soft_close</code> methods is required.</p><pre><code class="language-julia hljs">struct MyCleanupPolicy &lt;: Bonito.CleanupPolicy end
+
+function Bonito.should_cleanup(policy::MyCleanupPolicy, session::Session)
+    ...
+end
+
+function Bonito.allow_soft_close(policy::MyCleanupPolicy)
+    ...
+end
+
+Bonito.set_cleanup_policy!(MyCleanupPolicy())</code></pre><p>You can also make use of cleanup policies including <code>DefaultCleanupPolicy()</code> if you manage your own websocket server as outlined in the previous section.</p><p>You can get further details to guide your implementation by looking at Bonito&#39;s own implementation in <code>Bonito/src/connections/websocket.jl</code>.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="assets.html">« Assets</a><a class="docs-footer-nextpage" href="deployment.html">Deployment »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Tuesday 29 October 2024 16:36">Tuesday 29 October 2024</span>. Using Julia version 1.11.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

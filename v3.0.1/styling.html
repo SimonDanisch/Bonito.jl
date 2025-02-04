@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Styling · Bonito</title><meta name="title" content="Styling · Bonito"/><meta property="og:title" content="Styling · Bonito"/><meta property="twitter:title" content="Styling · Bonito"/><meta name="description" content="Documentation for Bonito."/><meta property="og:description" content="Documentation for Bonito."/><meta property="twitter:description" content="Documentation for Bonito."/><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="index.html">Bonito</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li><span class="tocitem">Components</span><ul><li class="is-active"><a class="tocitem" href="styling.html">Styling</a><ul class="internal"><li><a class="tocitem" href="#Basics"><span>Basics</span></a></li><li><a class="tocitem" href="#Using-CSS-and-pseudo-classes"><span>Using CSS and pseudo classes</span></a></li><li><a class="tocitem" href="#Using-Styles-as-global-Stylesheet"><span>Using Styles as global Stylesheet</span></a></li></ul></li><li><a class="tocitem" href="components.html">Components</a></li><li><a class="tocitem" href="layouting.html">Layouting</a></li><li><a class="tocitem" href="widgets.html">Widgets</a></li><li><a class="tocitem" href="interactions.html">Interactions</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="plotting.html">Plotting</a></li><li><a class="tocitem" href="javascript-libraries.html">Wrapping JS libraries</a></li><li><a class="tocitem" href="assets.html">Assets</a></li><li><a class="tocitem" href="extending.html">Extending</a></li></ul></li><li><a class="tocitem" href="deployment.html">Deployment</a></li><li><a class="tocitem" href="static.html">Static Sites</a></li><li><a class="tocitem" href="api.html">Api</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Components</a></li><li class="is-active"><a href="styling.html">Styling</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="styling.html">Styling</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/master/docs/src/styling.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Styling"><a class="docs-heading-anchor" href="#Styling">Styling</a><a id="Styling-1"></a><a class="docs-heading-anchor-permalink" href="#Styling" title="Permalink"></a></h1><h2 id="Basics"><a class="docs-heading-anchor" href="#Basics">Basics</a><a id="Basics-1"></a><a class="docs-heading-anchor-permalink" href="#Basics" title="Permalink"></a></h2><p>The main type to style the DOM via css is <code>Style</code>:</p><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Bonito.Styles-styling" href="#Bonito.Styles-styling"><code>Bonito.Styles</code></a> — <span class="docstring-category">Type</span></header><section><div><pre><code class="language-julia hljs">Styles(css::CSS...)</code></pre><p>Creates a Styles object, which represents a Set of CSS objects. You can insert the Styles object into a DOM node, and it will be rendered as a <code>&lt;style&gt;</code> node. If you assign it directly to <code>DOM.div(style=Style(...))</code>, the styling will be applied to the specific div. Note, that per <code>Session</code>, each unique css object in all <code>Styles</code> across the session will only be rendered once. This makes it easy to create Styling inside of components, while not worrying about creating lots of Style nodes on the page. There are a two more convenience constructors to make <code>Styles</code> a bit easier to use:</p><pre><code class="language-julia hljs">Styles(pairs::Pair...) = Styles(CSS(pairs...))
+Styles(priority::Styles, defaults...) = merge(Styles(defaults...), priority)</code></pre><p>For styling components, it&#39;s recommended, to always allow user to merge in customizations of a Style, like this:</p><pre><code class="language-julia hljs">function MyComponent(; style=Styles())
+    return DOM.div(style=Styles(style, &quot;color&quot; =&gt; &quot;red&quot;))
+end</code></pre><p>All Bonito components are stylable this way.</p><div class="admonition is-info"><header class="admonition-header">Info</header><div class="admonition-body"><p>Why not <code>Hyperscript.Style</code>? While the scoped styling via <code>Hyperscript.Style</code> is great, it makes it harder to create stylable components, since it doesn&#39;t allow the deduplication of CSS objects across the session. It&#39;s also significantly slower, since it&#39;s not as specialized on the deduplication and the camelcase keyword to css attribute conversion is pretty costly. That&#39;s also why <code>CSS</code> uses pairs of strings instead of keyword arguments.</p></div></div></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/0016ee4afa2dcee3e3b064386a59c680f1b32e50/src/types.jl#L121-L147">source</a></section></article><h2 id="Using-CSS-and-pseudo-classes"><a class="docs-heading-anchor" href="#Using-CSS-and-pseudo-classes">Using CSS and pseudo classes</a><a id="Using-CSS-and-pseudo-classes-1"></a><a class="docs-heading-anchor-permalink" href="#Using-CSS-and-pseudo-classes" title="Permalink"></a></h2><p>The <code>CSS</code> object allows to specify a selector, which will be used to apply the styling to a specific DOM node. Since the main usage is to apply the <code>Style</code> object to a <code>DOM</code> node, the selector is usually empty and we use it mainly for pseudo classes like <code>:hover</code>:</p><pre><code class="language-julia hljs">App() do session
+    return DOM.div(
+        &quot;This turns red on hover&quot;,
+        style=Styles(
+            CSS(&quot;:hover&quot;, &quot;color&quot; =&gt; &quot;red&quot;, &quot;text-size&quot; =&gt; &quot;2rem&quot;)
+        )
+    )
+end</code></pre><div>
+  <div class="bonito-fragment" id="bafec285-235e-4f1d-b70c-ed3759a8f96a" data-jscall-id="root">
+    <div>
+      <script src="bonito/js/Bonito.bundled.js" type="module"></script>
+      <style></style>
+      <div></div>
+    </div>
+    <div>
+      <script type="module">Bonito.lock_loading(() => Bonito.init_session('bafec285-235e-4f1d-b70c-ed3759a8f96a', null, 'root'))</script>
+      <span></span>
+    </div>
+  </div>
+  <div class="bonito-fragment" id="f380928f-7c28-432c-b0a1-7715b1992140" data-jscall-id="subsession-application-dom">
+    <div>
+      <style>.style_2:hover {
+  color: red;
+  text-size: 2rem;
+}
+</style>
+      <div></div>
+    </div>
+    <div>
+      <script type="module">Bonito.lock_loading(() => Bonito.init_session('f380928f-7c28-432c-b0a1-7715b1992140', null, 'sub'))</script>
+      <div class=" style_2" style="" data-jscall-id="1">This turns red on hover</div>
+    </div>
+  </div>
+</div><p>A more involved example is the style we use for <code>Button</code>:</p><pre><code class="language-julia hljs">App() do
+    style = Styles(
+        CSS(
+            &quot;font-weight&quot; =&gt; 600,
+            &quot;border-width&quot; =&gt; &quot;1px&quot;,
+            &quot;border-color&quot; =&gt; &quot;#9CA3AF&quot;,
+            &quot;border-radius&quot; =&gt; &quot;0.25rem&quot;,
+            &quot;padding-left&quot; =&gt; &quot;0.75rem&quot;,
+            &quot;padding-right&quot; =&gt; &quot;0.75rem&quot;,
+            &quot;padding-top&quot; =&gt; &quot;0.25rem&quot;,
+            &quot;padding-bottom&quot; =&gt; &quot;0.25rem&quot;,
+            &quot;margin&quot; =&gt; &quot;0.25rem&quot;,
+            &quot;cursor&quot; =&gt; &quot;pointer&quot;,
+            &quot;min-width&quot; =&gt; &quot;8rem&quot;,
+            &quot;font-size&quot; =&gt; &quot;1rem&quot;,
+            &quot;background-color&quot; =&gt; &quot;white&quot;,
+            &quot;box-shadow&quot; =&gt; &quot;rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px&quot;;
+        ),
+        CSS(
+            &quot;:hover&quot;,
+            &quot;background-color&quot; =&gt; &quot;#F9FAFB&quot;,
+            &quot;box-shadow&quot; =&gt; &quot;rgba(0, 0, 0, 0) 0px 0px 0px 0px&quot;,
+        ),
+        CSS(
+            &quot;:focus&quot;,
+            &quot;outline&quot; =&gt; &quot;1px solid transparent&quot;,
+            &quot;outline-offset&quot; =&gt; &quot;1px&quot;,
+            &quot;box-shadow&quot; =&gt; &quot;rgba(66, 153, 225, 0.5) 0px 0px 0px 1px&quot;,
+        ),
+    )
+    return DOM.div(&quot;Hello&quot;, style=style)
+end</code></pre><div class="bonito-fragment" id="5b164b9a-4ede-4ca8-808d-7e5f7da057ce" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_3:hover {
+  background-color: #F9FAFB;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px;
+}
+.style_4 {
+  min-width: 8rem;
+  font-weight: 600;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+}
+.style_5:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(66, 153, 225, 0.5) 0px 0px 0px 1px;
+  outline: 1px solid transparent;
+}
+</style>
+    <div></div>
+  </div>
+  <div>
+    <script type="module">Bonito.lock_loading(() => Bonito.init_session('5b164b9a-4ede-4ca8-808d-7e5f7da057ce', null, 'sub'))</script>
+    <div class=" style_3 style_4 style_5" style="" data-jscall-id="2">Hello</div>
+  </div>
+</div><p>If we merged a complex <code>Style</code> like the above with a user given <code>Styles</code> object, it will merge all CSS objects with the same selector, allowing to easily overwrite all styling attributes.</p><p>This is how one can style a Button:</p><pre><code class="language-julia hljs">App() do
+    style = Styles(
+        CSS(&quot;font-weight&quot; =&gt; &quot;500&quot;),
+        CSS(&quot;:hover&quot;, &quot;background-color&quot; =&gt; &quot;silver&quot;),
+        CSS(&quot;:focus&quot;, &quot;box-shadow&quot; =&gt; &quot;rgba(0, 0, 0, 0.5) 0px 0px 5px&quot;),
+    )
+    button = Button(&quot;Click me&quot;; style=style)
+    return button
+end</code></pre><div class="bonito-fragment" id="b4aaa626-a63b-4ead-9958-34801782cb42" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_6:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 0px 5px;
+  outline: 1px solid transparent;
+}
+.style_7 {
+  min-width: 8rem;
+  font-weight: 500;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+}
+.style_8:hover {
+  background-color: silver;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+</style>
+    <div></div>
+  </div>
+  <div>
+    <script type="module">    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/0a08c48059679403ff4f46d96d9c91909e17bc92-13573831689395502684.bin').then(msgs=> Bonito.init_session('b4aaa626-a63b-4ead-9958-34801782cb42', msgs, 'sub'));
+    })
+</script>
+    <button onclick="" class=" style_6 style_7 style_8" style="" data-jscall-id="3">Click me</button>
+  </div>
+</div><h2 id="Using-Styles-as-global-Stylesheet"><a class="docs-heading-anchor" href="#Using-Styles-as-global-Stylesheet">Using Styles as global Stylesheet</a><a id="Using-Styles-as-global-Stylesheet-1"></a><a class="docs-heading-anchor-permalink" href="#Using-Styles-as-global-Stylesheet" title="Permalink"></a></h2><p>One can also define a global stylesheet with <code>Styles</code> using selectors to style parts of an HTML document. This can be handy to set some global styling, but please be careful, since this will affect the whole document. That&#39;s also why we need to set a specific attribute selector for all, to not affect the whole documentation page. This will not happen when assigning a style to <code>DOM.div(style=Styles(...))</code>, which will always just apply to that particular div and any other div assigned to. Note, that a style object directly inserted into the DOM will be rendered exactly where it occurs without deduplication!</p><pre><code class="language-julia hljs">App() do
+    style = Styles(
+        CSS(&quot;*[our-style]&quot;, &quot;font-style&quot; =&gt; &quot;italic&quot;),
+        CSS(&quot;p[our-style]&quot;, &quot;color&quot; =&gt; &quot;red&quot;),
+        CSS(&quot;.myClass[our-style]&quot;, &quot;text-decoration&quot; =&gt; &quot;underline&quot;),
+        CSS(&quot;#myId[our-style]&quot;, &quot;font-family&quot; =&gt; &quot;monospace&quot;),
+        CSS(&quot;p.myClass#myId[our-style]&quot;, &quot;font-size&quot; =&gt; &quot;1.5rem&quot;)
+    )
+    return DOM.div(
+        style,
+        DOM.div(ourStyle=1,
+            DOM.p(class=&quot;myClass&quot;, id=&quot;myId&quot;, &quot;I match everything.&quot;, ourStyle=1),
+            DOM.p(&quot;I match the universal and type selectors only.&quot;, ourStyle=1)
+        )
+    )
+end</code></pre><div class="bonito-fragment" id="654a1924-8aa8-45cb-8295-018c29a5b9b7" data-jscall-id="subsession-application-dom">
+  <div>
+    <style></style>
+    <div></div>
+  </div>
+  <div>
+    <script type="module">Bonito.lock_loading(() => Bonito.init_session('654a1924-8aa8-45cb-8295-018c29a5b9b7', null, 'sub'))</script>
+    <div data-jscall-id="4">
+      <style>p[our-style] {
+  color: red;
+}
+*[our-style] {
+  font-style: italic;
+}
+#myId[our-style] {
+  font-family: monospace;
+}
+p.myClass#myId[our-style] {
+  font-size: 1.5rem;
+}
+.myClass[our-style] {
+  text-decoration: underline;
+}
+</style>
+      <div data-jscall-id="5" our-style="1">
+        <p class="myClass" id="myId" data-jscall-id="6" our-style="1">I match everything.</p>
+        <p data-jscall-id="7" our-style="1">I match the universal and type selectors only.</p>
+      </div>
+    </div>
+  </div>
+</div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="index.html">« Home</a><a class="docs-footer-nextpage" href="components.html">Components »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Thursday 28 December 2023 14:14">Thursday 28 December 2023</span>. Using Julia version 1.10.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
