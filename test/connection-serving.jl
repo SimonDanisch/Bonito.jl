@@ -26,7 +26,7 @@ path = joinpath(@__DIR__, "test.html")
     app = App(export_test_app)
     export_static(path, app; connection=connection(), asset_server=server())
     # We need to drop a bit lower and cant use `testapp` here, since that uses fixed connection + asset server
-    window = Window(URI("file://" * path))
+    window = Bonito.EWindow(URI("file://" * path))
     sleep(0.5) # how did this work before without syncronization?
     result = run(window, "$(query_testid("result")).innerText")
     @test result == "passed"

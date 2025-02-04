@@ -28,7 +28,7 @@ class Websocket {
     }
 
     tryconnect() {
-        console.log(`tries; ${this.#tries}`);
+        console.log(`tries: ${this.#tries}`);
         if (this.#websocket) {
             this.#websocket.close();
             this.#websocket = undefined;

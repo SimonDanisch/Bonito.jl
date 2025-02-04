@@ -83,8 +83,7 @@ end
     @isdefined(app) && close(app)
     app = Bonito.Server(handler, "0.0.0.0", 8558)
     try
-        eapp = Electron.Application()
-        window = Electron.Window(eapp)
+        window = Bonito.EWindow()
         try
             @test obs[] == 0
             @test counter[] == 0
@@ -92,7 +91,7 @@ end
             Electron.load(window, URI(string("http://localhost:", 8558)))
             @wait_for counter[] == obs[]
         finally
-            close(eapp)
+            close(window)
         end
     finally
         close(app)

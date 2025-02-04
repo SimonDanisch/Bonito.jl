@@ -59,6 +59,7 @@ function update_dom_node(dom, html) {
 function fetch_binary(url) {
     return fetch(url).then((response) => {
         if (!response.ok) {
+
             throw new Error("HTTP error, status = " + response.status);
         }
         return response.arrayBuffer();

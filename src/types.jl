@@ -38,7 +38,11 @@ struct Asset <: AbstractAsset
     # to also be able to host it locally
     online_path::String
     local_path::Union{String, Path}
-    bundle_dir::Union{String, Path}
+
+    # only used if es6module
+    bundle_file::Union{String, Path}
+    bundle_data::Vector{UInt8}
+    content_hash::RefValue{String}
 end
 
 

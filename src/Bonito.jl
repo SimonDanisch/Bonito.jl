@@ -43,7 +43,7 @@ function HTTPServer.route!(server::HTTPServer.Server, routes::Routes)
 end
 
 
-import .HTTPServer: browser_display
+import .HTTPServer: browser_display, EWindow
 using .HTTPServer: Server, html, online_url, route!, file_mimetype, delete_websocket_route!, delete_route!, use_electron_display
 
 include("js_source.jl")
