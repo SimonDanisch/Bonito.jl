@@ -426,6 +426,85 @@ function jsrender(session::Session, table::Table)
     )
 end
 
+"""
+An interactive table that conform to the Tables.jl Table interface,
+which gets rendered nicely!
+"""
+struct InteractTable
+    table
+    cell_obs::Vector{Vector{Observable}}
+    colnames::Tuple
+    coltypes::Tuple
+end
+
+"""
+Constructor for the interactive table that is editable and comes with automatic writeback. Frontend input can be synchronized to the backend (but not vice versa).
+"""
+function InteractTable(tbl)
+    # construct nrows×ncols cell_obs::Observable
+    schema = Tables.schema(tbl)
+    colnames, coltypes = schema.names, schema.types
+    coltable = Tables.columntable(tbl)
+    ncols = length(colnames)
+    colvec1 = getproperty(coltable, colnames[1])
+    @assert colvec1 isa AbstractVector "The value of the table is not a vector."
+    nrows = length(colvec1)
+
+    cell_obs = [Vector{Observable}(undef, nrows) for _ in 1:ncols]
+    for (j, colvec) in enumerate(values(Tables.columns(coltable)))
+        for (i, val) in enumerate(colvec)
+            cell_obs[j][i] = Observable(val)
+            on(cell_obs[j][i]) do newval
+                colvec[i] = newval
+            end
+        end
+    end
+
+    return InteractTable(tbl, cell_obs, colnames, coltypes)
+end
+
+function jsrender(session::Session, table::InteractTable)
+    (; cell_obs, colnames, coltypes) = table
+    header = DOM.thead(DOM.tr(DOM.th.(string.(colnames))...))
+    ncols, nrows = length(colnames), length(cell_obs[1])
+
+    # Construct an editable <tbody>
+    tr_nodes = Vector{Hyperscript.Node{Hyperscript.HTMLSVG}}(undef, nrows)
+    for i in 1:nrows
+        td_nodes = Vector{Hyperscript.Node{Hyperscript.HTMLSVG}}(undef, ncols)
+        for j in 1:ncols
+            obs = cell_obs[j][i]
+            coltype = coltypes[j]
+            if coltype <: Number
+                input_type = "number"
+                parse_js = js""" e => {
+                    const val = parseFloat(e.target.value);
+                    if (!isNaN(val)) {
+                        $(obs).notify(val);
+                    }}
+                """
+            else
+                input_type = "text"
+                parse_js = js"e => {$(obs).notify(e.target.value);}"
+            end
+            # <input "text/number">
+            input_el = DOM.input(; type=input_type, value=obs, onchange=parse_js)
+            # Use onjs to listen to cell_obs (backend), synchronizing the frontend input_el.value when it changes.
+            onjs(session, obs, js"v => event.srcElement.value = String(v)")
+
+            td_nodes[j] = DOM.td(input_el)
+        end
+        tr_nodes[i] = DOM.tr(td_nodes...)
+    end
+
+    body = DOM.tbody(tr_nodes...)
+
+    return DOM.div(
+        jsrender(session, Asset(Bonito.dependency_path("table.css"))),
+        DOM.table(header, body),
+    )
+end
+
 struct CodeEditor
     theme::String
     language::String
