@@ -122,7 +122,7 @@ function (server::HTTPAssetServer)(context)
             return HTTP.Response(200, header; body=asset.data)
         else
             data = nothing
-            if isempty(asset.bundle_data)
+            if !isempty(asset.bundle_data)
                 data = asset.bundle_data
             else
                 if isfile(local_path(asset))

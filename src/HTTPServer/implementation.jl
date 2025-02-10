@@ -147,6 +147,9 @@ function online_url(server::Server, url)
     if isempty(base_url)
         return local_url(server, url)
     else
+        if endswith(base_url, "/") && startswith(url, "/")
+            url = url[2:end]
+        end
         return base_url * url
     end
 end
