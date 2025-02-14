@@ -478,7 +478,7 @@ function CodeEditor(
         "showPrintMargin" => false,
     )
     user_opts = Dict{String,Any}(string(k) => v for (k, v) in editor_options)
-    options = Dict{String,Any}(merge(user_opts, defaults))
+    options = Dict{String,Any}(merge(defaults, user_opts))
     onchange = Observable(initial_source)
     style = Styles(style,
         "position" => "relative",
