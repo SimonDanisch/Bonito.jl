@@ -34,11 +34,53 @@ function update_app!(parent::Session, new_app::App)
     update_session_dom!(parent, "subsession-application-dom", new_app)
 end
 
+function linkify_stacktrace(bt::String)
+    lines = split(bt, '\n'; keepempty=false)  # Split stack trace into lines
+    elements = []
+
+    for line in lines
+        # Match both Windows (C:\path\file.jl:123) and Unix (/path/file.jl:123) paths
+        m = match(r"^(.*?)([A-Za-z]:[\\/][^\s]+\.jl|\.[\\/][^\s]+\.jl):(\d+)(.*)", line)
+        if m !== nothing
+            prefix, file, line_num, suffix = m.captures
+            normalized_file = replace(file, "\\" => "/")  # Convert Windows paths to `/`
+            vscode_url = "vscode://file/" * normalized_file * ":" * line_num  # VS Code link
+            push!(elements,
+                DOM.a(
+                    prefix * file * ":" * line_num * suffix;
+                    href=vscode_url,
+                    style="display: inline;",
+                ),
+            )
+        else
+            push!(elements, DOM.code(String(line)))  # Normal line
+        end
+    end
+    return DOM.pre(DOM.div(elements...; class="backtrace"); class="backtrace-container")
+end
+
+function err_to_html(err, stacktrace)
+    error_msg = sprint() do io
+        Base.showerror(io, err)
+    end
+    stacktrace_msg = sprint() do io
+        Base.show_backtrace(io, stacktrace)
+    end
+    return DOM.div(
+        DOM.h1(error_msg; style="color: red;"),
+        linkify_stacktrace(stacktrace_msg),
+    )
+end
+
 function rendered_dom(session::Session, app::App, target=HTTP.Request())
     app.session[] = session
     session.current_app[] = app
-    dom = Base.invokelatest(app.handler, session, target)
-    return jsrender(session, dom)
+    try
+        dom = Base.invokelatest(app.handler, session, target)
+        return jsrender(session, dom)
+    catch err
+        return jsrender(session, err_to_html(err, Base.catch_backtrace()))
+    end
 end
 
 function bind_global(session::Session, var::AbstractObservable{T}) where T
@@ -160,6 +202,10 @@ end
 
 function wait_for_ready(app::App; timeout=100)
     wait_for(()-> !isnothing(app.session[]); timeout=timeout)
+    @show isclosed(app.session[]) isopen(app.session[])
     isclosed(app.session[]) && return nothing
-    wait_for(()-> isready(app.session[]); timeout=timeout)
+    @show typeof(app.session[]) isclosed(app.session[]) app.session[].id
+    wait_for(timeout=timeout) do
+        isready(app.session[]) || isclosed(app.session[])
+    end
 end
