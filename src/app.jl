@@ -34,58 +34,6 @@ function update_app!(parent::Session, new_app::App)
     update_session_dom!(parent, "subsession-application-dom", new_app)
 end
 
-function linkify_stacktrace(bt::String)
-    lines = split(bt, '\n'; keepempty=false)  # Split stack trace into lines
-    elements = []
-
-    for line in lines
-        # Match both Windows (C:\path\file.jl:123) and Unix (/path/file.jl:123) paths
-        m = match(r"^(.*?)([A-Za-z]:[\\/][^\s]+\.jl|\.[\\/][^\s]+\.jl):(\d+)(.*)", line)
-        if m !== nothing
-            prefix, file, line_num, suffix = m.captures
-            normalized_file = replace(file, "\\" => "/")  # Convert Windows paths to `/`
-            vscode_url = "vscode://file/" * normalized_file * ":" * line_num  # VS Code link
-            push!(elements,
-                DOM.span(
-                    String(prefix),
-                    DOM.a(
-                        file * ":" * line_num;
-                        href=vscode_url,
-                    ),
-                    String(suffix)
-                ),
-                DOM.br()
-            )
-        else
-            m2 = match(r"^(.*?)(\[\d+\])", line)
-            if !isnothing(m2)
-                prefix, suffix = m2.captures
-                push!(elements, DOM.span(String(line); style="color: darkred; font-weight: bold;"), DOM.br())  # Normal line
-            else
-                push!(elements, DOM.span(String(line)), DOM.br())  # Normal line
-            end
-        end
-    end
-    return DOM.pre(
-        elements...;
-        class="backtrace",
-        style="white-space: nowrap; overflow-x: auto;",
-    )
-end
-
-function err_to_html(err, stacktrace)
-    error_msg = sprint() do io
-        Base.showerror(io, err)
-    end
-    stacktrace_msg = sprint() do io
-        iol = IOContext(io, :stacktrace_types_limited => RefValue(true))
-        Base.show_backtrace(iol, stacktrace)
-    end
-    return DOM.div(
-        DOM.h1(error_msg; style="color: red;"),
-        linkify_stacktrace(stacktrace_msg),
-    )
-end
 
 function rendered_dom(session::Session, app::App, target=HTTP.Request())
     app.session[] = session
@@ -94,7 +42,8 @@ function rendered_dom(session::Session, app::App, target=HTTP.Request())
         dom = Base.invokelatest(app.handler, session, target)
         return jsrender(session, dom)
     catch err
-        return jsrender(session, err_to_html(err, Base.catch_backtrace()))
+        html = HTTPServer.err_to_html(err, Base.catch_backtrace())
+        return jsrender(session, html)
     end
 end
 
@@ -114,9 +63,7 @@ function serve_app(app, context)
     html_str = sprint() do io
         page_html(io, session, html_dom)
     end
-    response = html(html_str)
-    mark_displayed!(session)
-    return response
+    return html(html_str)
 end
 
 # Enable route!(server, "/" => app)
