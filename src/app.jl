@@ -34,11 +34,17 @@ function update_app!(parent::Session, new_app::App)
     update_session_dom!(parent, "subsession-application-dom", new_app)
 end
 
+
 function rendered_dom(session::Session, app::App, target=HTTP.Request())
     app.session[] = session
     session.current_app[] = app
-    dom = Base.invokelatest(app.handler, session, target)
-    return jsrender(session, dom)
+    try
+        dom = Base.invokelatest(app.handler, session, target)
+        return jsrender(session, dom)
+    catch err
+        html = HTTPServer.err_to_html(err, Base.catch_backtrace())
+        return jsrender(session, html)
+    end
 end
 
 function bind_global(session::Session, var::AbstractObservable{T}) where T
@@ -57,9 +63,8 @@ function serve_app(app, context)
     html_str = sprint() do io
         page_html(io, session, html_dom)
     end
-    response = html(html_str)
     mark_displayed!(session)
-    return response
+    return html(html_str)
 end
 
 # Enable route!(server, "/" => app)
@@ -161,5 +166,7 @@ end
 function wait_for_ready(app::App; timeout=100)
     wait_for(()-> !isnothing(app.session[]); timeout=timeout)
     isclosed(app.session[]) && return nothing
-    wait_for(()-> isready(app.session[]); timeout=timeout)
+    wait_for(timeout=timeout) do
+        isready(app.session[]) || isclosed(app.session[])
+    end
 end
