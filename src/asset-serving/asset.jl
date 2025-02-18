@@ -142,12 +142,15 @@ end
 
 
 function generate_bundle_file(file, bundle_file)
+    # If it's an URL we assume it's bundled if the bundle file exists,
+    # since the content of the url should not change (use versions in URLs!)
+    isfile(bundle_file) && is_online(file) && return bundle_file
     if isfile(file) || is_online(file)
         if needs_bundling(file, bundle_file)
             bundled, err = deno_bundle(file, bundle_file)
             if !bundled
                 if isfile(bundle_file)
-                    @warn "Failed to bundle $file: $err"
+                    @debug "Failed to bundle $file: $err"
                 else
                     error("Failed to bundle $file: $err")
                 end
@@ -254,7 +257,7 @@ function bundle_path(asset::Asset)
     return asset.bundle_file
 end
 
-last_modified(path::Path) = last_modified(Bonito.getroot(path))
+last_modified(path::Path) = last_modified(getroot(path))
 function last_modified(path::String)
     Dates.unix2datetime(Base.Filesystem.mtime(path))
 end
