@@ -63,6 +63,7 @@ function serve_app(app, context)
     html_str = sprint() do io
         page_html(io, session, html_dom)
     end
+    mark_displayed!(session)
     return html(html_str)
 end
 
