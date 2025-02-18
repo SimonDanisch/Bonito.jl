@@ -144,7 +144,7 @@ end
 function generate_bundle_file(file, bundle_file)
     # If it's an URL we assume it's bundled if the bundle file exists,
     # since the content of the url should not change (use versions in URLs!)
-    isfile(bundle_file) && is_online(file) && return false
+    isfile(bundle_file) && is_online(file) && return bundle_file
     if isfile(file) || is_online(file)
         if needs_bundling(file, bundle_file)
             bundled, err = deno_bundle(file, bundle_file)
