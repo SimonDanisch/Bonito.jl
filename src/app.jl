@@ -46,17 +46,31 @@ function linkify_stacktrace(bt::String)
             normalized_file = replace(file, "\\" => "/")  # Convert Windows paths to `/`
             vscode_url = "vscode://file/" * normalized_file * ":" * line_num  # VS Code link
             push!(elements,
-                DOM.a(
-                    prefix * file * ":" * line_num * suffix;
-                    href=vscode_url,
-                    style="display: inline;",
+                DOM.span(
+                    String(prefix),
+                    DOM.a(
+                        file * ":" * line_num;
+                        href=vscode_url,
+                    ),
+                    String(suffix)
                 ),
+                DOM.br()
             )
         else
-            push!(elements, DOM.code(String(line)))  # Normal line
+            m2 = match(r"^(.*?)(\[\d+\])", line)
+            if !isnothing(m2)
+                prefix, suffix = m2.captures
+                push!(elements, DOM.span(String(line); style="color: darkred; font-weight: bold;"), DOM.br())  # Normal line
+            else
+                push!(elements, DOM.span(String(line)), DOM.br())  # Normal line
+            end
         end
     end
-    return DOM.pre(DOM.div(elements...; class="backtrace"); class="backtrace-container")
+    return DOM.pre(
+        elements...;
+        class="backtrace",
+        style="white-space: nowrap; overflow-x: auto;",
+    )
 end
 
 function err_to_html(err, stacktrace)
@@ -64,7 +78,8 @@ function err_to_html(err, stacktrace)
         Base.showerror(io, err)
     end
     stacktrace_msg = sprint() do io
-        Base.show_backtrace(io, stacktrace)
+        iol = IOContext(io, :stacktrace_types_limited => RefValue(true))
+        Base.show_backtrace(iol, stacktrace)
     end
     return DOM.div(
         DOM.h1(error_msg; style="color: red;"),
@@ -202,9 +217,7 @@ end
 
 function wait_for_ready(app::App; timeout=100)
     wait_for(()-> !isnothing(app.session[]); timeout=timeout)
-    @show isclosed(app.session[]) isopen(app.session[])
     isclosed(app.session[]) && return nothing
-    @show typeof(app.session[]) isclosed(app.session[]) app.session[].id
     wait_for(timeout=timeout) do
         isready(app.session[]) || isclosed(app.session[])
     end
