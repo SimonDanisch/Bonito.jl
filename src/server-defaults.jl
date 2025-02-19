@@ -44,8 +44,10 @@ function jupyterlab_proxy_url(port)
         # TODO, how to match kernel?
         hostname = config[1]["hostname"]
         # TODO, this seems very fragile
-        if hostname == "0.0.0.0"
-            return string("http://", IJulia().profile["ip"], ":", config[1]["port"], "/proxy/", port)
+        if haskey(ENV, "BONITO_JUPYTER_REMOTE_HOST")
+            return string(get(ENV, "BONITO_JUPYTER_REMOTE_HOST"), config[1]["base_url"], "proxy/", port)
+        elseif hostname == "0.0.0.0" || hostname == "localhost"
+            return string("http://", IJulia().profile["ip"], ":", config[1]["port"], config[1]["base_url"], "proxy/", port)
         else
             return ""
         end
