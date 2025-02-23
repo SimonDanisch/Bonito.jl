@@ -136,7 +136,7 @@ function err_to_html(err, stacktrace)
         Base.show_backtrace(iol, stacktrace)
     end
     return DOM.div(
-        DOM.h1(error_msg; style="color: red;"), linkify_stacktrace(stacktrace_msg)
+        DOM.h3(error_msg; style="color: red;"), linkify_stacktrace(stacktrace_msg)
     )
 end
 

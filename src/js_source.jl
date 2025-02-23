@@ -154,7 +154,6 @@ end
 function inline_code(session::Session, asset_server, js::JSCode)
     # Print code while collecting all interpolated objects in an IdDict
     context = JSSourceContext(session)
-
     code = sprint() do io
         print_js_code(io, js, context)
     end

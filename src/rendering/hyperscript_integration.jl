@@ -103,11 +103,11 @@ end
 
 function attribute_render(session::Session, parent, attribute::String, jss::JSCode)
     # add js after parent gets loaded
-    func = js"""(node) => {
-        node[$attribute] = $(jss)
-    }"""
+    func = js"""(() => {
+        $(parent)[$attribute] = $(jss)
+    })()"""
     # preserve func.file
-    onload(session, parent, JSCode(func.source, jss.file))
+    evaljs(session, JSCode(func.source, jss.file))
     return ""
 end
 
