@@ -451,6 +451,7 @@ Defaults for `editor_options`:
     mergeUndoDeltas = "always"
 )
 ```
+The content of the editor (as a string) is updated in `editor.onchange::Observable`.
 """
 function CodeEditor(
     language::String;
