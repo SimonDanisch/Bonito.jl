@@ -541,9 +541,11 @@ end
 
 struct FileInput <: Bonito.WidgetsBase.AbstractWidget{String}
     value::Observable{Vector{String}}
+    multiple::Bool
 end
 
-FileInput() = FileInput(Observable([""]))
+FileInput(value::Observable{Vector{String}}; multiple = true) = FileInput(Observable([""]), multiple)
+FileInput(; kws...) = FileInput(Observable([""]); kws...)
 
 function Bonito.jsrender(session::Session, fi::FileInput)
     onchange = js"""event => {
@@ -555,5 +557,5 @@ function Bonito.jsrender(session::Session, fi::FileInput)
             $(fi.value).notify(files);
         }
     }"""
-    return DOM.input(; type="file", onchange=onchange, multiple=true)
+    return DOM.input(; type="file", onchange=onchange, multiple=fi.multiple)
 end
