@@ -25,7 +25,8 @@ function jsrender(style::Styles)
     return DOM.style(String(take!(io)))
 end
 
-convert_css_attribute(attribute::String) = chomp(attribute)
+convert_css_attribute(nested::CSS) = nested
+convert_css_attribute(attribute::String) = String(chomp(attribute))
 convert_css_attribute(color::Symbol) = convert_css_attribute(string(color))
 convert_css_attribute(@nospecialize(::Observable)) = error("Observable not supported in CSS attributes right now!")
 convert_css_attribute(@nospecialize(any)) = string(any)
@@ -35,12 +36,20 @@ function convert_css_attribute(color::Colorant)
     return "rgba($(rgba.r * 255), $(rgba.g * 255), $(rgba.b * 255), $(rgba.alpha))"
 end
 
-function render_style(io, prefix, css)
-    println(io, prefix, css.selector, " {")
+function render_element(io, key, value::String, nesting)
+    return println(io, "  "^(nesting), key, ": ", value, ";")
+end
+
+function render_element(io, key, css::CSS, nesting)
+    return render_style(io, "", css, nesting + 1)
+end
+
+function render_style(io, prefix, css::CSS, nesting=1)
+    println(io, "  "^(nesting-1), prefix, css.selector, " {")
     for (k, v) in css.attributes
-        println(io, "  ", k, ": ", v, ";")
+        render_element(io, k, v, nesting)
     end
-    println(io, "}")
+    println(io, "  "^(nesting-1), "}")
 end
 
 Base.show(io::IO, css::CSS) = show(io, MIME"text/plain"(), css)
@@ -80,6 +89,10 @@ function render_stylesheets!(root_session, stylesheets::Dict{HTMLElement, Set{CS
     end
     stylesheet = String(take!(io))
     return DOM.style(stylesheet)
+end
+
+function CSS(selector::String, args::CSS...)
+    return CSS(selector, Dict{String,Any}((arg.selector => arg for arg in args)))
 end
 
 function CSS(selector::String, args::Pair...)
