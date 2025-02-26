@@ -461,3 +461,131 @@ function LabelGrid(widget_pairs; label_style=Styles(), grid_kw...)
         grid_kw...,
     )
 end
+
+
+function VerticalSpinner(; width=80, nballs=3, gap=3)
+    balls = (width) / (2nballs)
+    positions = map(1:nballs) do i
+        posi = i == 1 ? 2 : i
+        pos = (((posi - 1) * 2balls) + (0.5balls))
+        return CSS(
+            ".lds-ellipsis div:nth-child($(i))",
+            "left" => "$(pos)px",
+            "animation" => "lds-ellipsis$(i) 1s infinite, color-change 1s infinite $((1/nballs) * (posi - 1))s",
+        )
+    end
+    keyframes = map(1:nballs) do i
+        if i == 1
+            CSS(
+                "@keyframes lds-ellipsis$(i)",
+                CSS("0%", "transform" => "scale(0)"),
+                CSS("100%", "transform" => "scale(1)"),
+            )
+        elseif i == nballs
+            CSS(
+                "@keyframes lds-ellipsis$(i)",
+                CSS("0%", "transform" => "scale(1)"),
+                CSS("100%", "transform" => "scale(0)"),
+            )
+        else
+            CSS(
+                "@keyframes lds-ellipsis$(i)",
+                CSS("0%", "transform" => "translate(0, 0)"),
+                CSS("100%", "transform" => "translate($(2balls)px, 0)"),
+            )
+        end
+    end
+
+    color_keyframes = CSS(
+        "@keyframes color-change",
+        CSS("0%", "background" => "currentColor"),
+        CSS("100%", "background" => "silver"),
+    )
+
+    return DOM.div(
+        DOM.div(; class="lds-ellipsis", fill(DOM.div(), nballs)...),
+        Styles(
+            CSS(".lds-ellipsis, .lds-ellipsis div", "box-sizing" => "border-box"),
+            CSS(
+                ".lds-ellipsis",
+                "display" => "inline-block",
+                "position" => "relative",
+                "width" => "$(width)px",
+            ),
+            CSS(
+                ".lds-ellipsis div",
+                "position" => "absolute",
+                "width" => "$(balls)px",
+                "height" => "$(balls)px",
+                "border-radius" => "50%",
+                "background" => "currentColor",
+                "animation-timing-function" => "cubic-bezier(0, 1, 1, 0)",
+            ),
+            positions...,
+            keyframes...,
+            color_keyframes,
+        ),
+    )
+end
+
+function RippleSpinner(; width=64, height=width, stroke=4, duration=1)
+    max_size = max(width, height)
+    half_size = max_size / (16 / 9)
+    keyframes = CSS(
+        "@keyframes lds-ripple",
+        CSS(
+            "0%",
+            "top" => "$(half_size)px",
+            "left" => "$(height / (16/9))px",
+            "width" => "0",
+            "height" => "0",
+            "opacity" => "0",
+        ),
+        CSS(
+            "4.9%",
+            "top" => "$(half_size)px",
+            "left" => "$(height / (16/9))px",
+            "width" => "0",
+            "height" => "0",
+            "opacity" => "0",
+        ),
+        CSS(
+            "5%",
+            "top" => "$(half_size)px",
+            "left" => "$(height / (16/9))px",
+            "width" => "0",
+            "height" => "0",
+            "opacity" => "1",
+        ),
+        CSS(
+            "100%",
+            "top" => "0px",
+            "left" => "0px",
+            "width" => "$(max_size * 1.125)px",
+            "height" => "$(height * 1.125)px",
+            "opacity" => "0",
+        ),
+    )
+
+    styles = Styles(
+        CSS(
+            ".lds-ripple",
+            "display" => "inline-block",
+            "position" => "relative",
+            "width" => "$(width)px",
+            "height" => "$(height)px",
+        ),
+        CSS(
+            ".lds-ripple div",
+            "position" => "absolute",
+            "opacity" => "1",
+            "border-radius" => "50%",
+            "border" => "$(stroke)px solid currentColor",
+            "animation" => "lds-ripple $(duration)s cubic-bezier(0, 0.2, 0.8, 1) infinite",
+        ),
+        CSS(".lds-ripple div:nth-child(2)", "animation-delay" => "-0.5s"),
+        keyframes,
+    )
+
+    return DOM.div(styles, DOM.div(), DOM.div(); class="lds-ripple")
+end
