@@ -361,7 +361,7 @@ end
 
 isroot(session::Session) = session.parent === nothing
 
-function render_dependencies(session::Session)
+function push_dependencies!(childs, session::Session)
     require_off = DOM.script("""
         window.__define = window.define;
         window.__require = window.require;
@@ -383,9 +383,11 @@ function render_dependencies(session::Session)
     assets_rendered = render_asset.(Ref(session), Ref(session.asset_server), assets)
     if any(x-> mediatype(x) == :js && !x.es6module, assets)
         # if a js non es6module is included, we may need to hack require... because JS! :(
-        return DOM.div(require_off, assets_rendered..., require_on)
+        push!(childs, require_off)
+        push!(childs, assets_rendered...)
+        push!(childs, require_on)
     else
-        return DOM.div(assets_rendered...)
+        push!(childs, assets_rendered...)
     end
 end
 
@@ -440,7 +442,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         pushfirst!(children(body), jsrender(session, init_connection))
     end
 
-    push!(children(head), render_dependencies(session))
+    push_dependencies!(children(head), session)
     issubsession = !isroot(session)
 
     if init
