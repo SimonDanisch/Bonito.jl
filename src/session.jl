@@ -27,6 +27,10 @@ function wait_for_ready(session::Session; timeout=100)
 end
 
 function get_messages!(session::Session, messages=[])
+    root = root_session(session)
+    if root !== session
+        get_messages!(root, messages)
+    end
     append!(messages, session.message_queue)
     for js in session.on_document_load
         onload = Dict(:msg_type=>EvalJavascript, :payload=>js)
@@ -34,10 +38,6 @@ function get_messages!(session::Session, messages=[])
     end
     empty!(session.on_document_load)
     empty!(session.message_queue)
-    root = root_session(session)
-    if root !== session
-        get_messages!(root, messages)
-    end
     return messages
 end
 
