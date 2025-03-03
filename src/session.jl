@@ -89,7 +89,7 @@ function free(session::Session)
         delete!(parent(session).children, session.id)
         for key in keys(session.session_objects)
             if haskey(root.session_objects, key)
-                delete_cached!(root, key)
+                delete_cached!(root, session, key)
             end
         end
     else
@@ -138,6 +138,7 @@ function Base.close(session::Session)
         session.current_app[] = nothing
         session.io_context[] = nothing
         close(session.inbox)
+        session.status = CLOSED
     end
     return
 end
@@ -442,7 +443,6 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
 
     push!(children(head), render_dependencies(session))
     issubsession = !isroot(session)
-
     if init
         msgs = fused_messages!(session)
         type = issubsession ? "sub" : "root"
