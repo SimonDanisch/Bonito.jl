@@ -404,7 +404,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     # If we have a head & body, we want to append our initialization
     # code and dom nodes to the right places, so we need to extract those
     head, body, dom = find_head_body(dom)
-    session_style = render_stylesheets!(root_session(session), session.stylesheets)
+    session_style = render_stylesheets!(root_session(session), session, session.stylesheets)
     # if nothing is found, we just use one div and append to that
     if isnothing(head) && isnothing(body)
         if html_document

@@ -101,11 +101,11 @@ end
 struct CSS
     selector::String
     # TODO use some kind of immutable Dict
-    attributes::Dict{String, Union{CSS, String}}
+    attributes::Dict{String, Union{CSS, String, Asset}}
     # We assume attributes to be immutable, so we calculate the hash once
     hash::UInt64
     function CSS(selector, attributes::Dict{String,T}) where T <: Any
-        css = Dict{String,Union{CSS,String}}()
+        css = Dict{String,Union{CSS,String,Asset}}()
         # Need to sort to always get the same hash!
         sorted_keys = sort!(collect(keys(attributes)))
         h = hash(selector, UInt64(0))
