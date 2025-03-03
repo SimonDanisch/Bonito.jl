@@ -2,7 +2,109 @@
 // deno-lint-ignore-file
 // This code was bundled using `deno bundle` and it's not recommended to edit it manually
 
-const session_websocket = [];
+class Websocket {
+    #websocket = undefined;
+    #tries = 0;
+    #onopen_callbacks = [];
+    url = "";
+    compression_enabled = false;
+    constructor(url, compression_enabled){
+        this.tries = 0;
+        this.url = url;
+        this.compression_enabled = compression_enabled;
+        this.tryconnect();
+    }
+    on_open(f) {
+        this.#onopen_callbacks.push(f);
+    }
+    tryconnect() {
+        console.log(`tries: ${this.#tries}`);
+        if (this.#websocket) {
+            this.#websocket.close();
+            this.#websocket = undefined;
+        }
+        const ws = new WebSocket(this.url);
+        ws.binaryType = "arraybuffer";
+        this.#websocket = ws;
+        const this_ws = this;
+        ws.onopen = function() {
+            console.log("CONNECTED!!: ", this_ws.url);
+            this_ws.#tries = 0;
+            this_ws.#onopen_callbacks.forEach((f)=>f());
+            ws.onmessage = function(evt) {
+                new Promise((resolve)=>{
+                    const binary = new Uint8Array(evt.data);
+                    if (binary.length === 1 && binary[0] === 0) {
+                        return resolve(null);
+                    }
+                    Bonito.OBJECT_FREEING_LOCK.lock(()=>{
+                        Bonito.process_message(Bonito.decode_binary(binary, this_ws.compression_enabled));
+                    });
+                    return resolve(null);
+                });
+            };
+        };
+        ws.onclose = function(evt) {
+            console.log("closed websocket connection");
+            this_ws.#websocket = undefined;
+            Bonito.on_connection_close();
+            console.log("Wesocket close code: " + evt.code);
+            console.log(evt);
+        };
+        ws.onerror = function(event) {
+            console.error("WebSocket error observed:");
+            console.log(event);
+            console.log(this_ws.tries);
+            if (this_ws.tries <= 10) {
+                this_ws.tries = this_ws.tries + 1;
+                console.log("Retrying to connect the " + this_ws.tries + " time!");
+                setTimeout(()=>this_ws.tryconnect(), 1000);
+            } else {
+                this_ws.#websocket = undefined;
+            }
+        };
+    }
+    ensure_connection() {
+        const ws = this.#websocket;
+        if (!ws) {
+            console.log("No websocket");
+            this.tryconnect();
+            if (!this.#websocket) {
+                console.log("No websocket after connect. We assume server is offline");
+                return "offline";
+            } else {
+                return this.isopen() ? "ok" : "offline";
+            }
+        } else {
+            if (this.isopen()) {
+                return "ok";
+            } else {
+                this.#websocket = undefined;
+                return this.ensure_connection();
+            }
+        }
+    }
+    isopen() {
+        if (!this.#websocket) {
+            return false;
+        }
+        return this.#websocket.readyState === 1;
+    }
+    send(binary_data) {
+        const status = this.ensure_connection();
+        if (status === "ok") {
+            if (this.#websocket && this.isopen()) {
+                this.#websocket.send(binary_data);
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            console.log("Websocket is null!");
+            return undefined;
+        }
+    }
+}
 function websocket_url(session_id, proxy_url) {
     let http_url = window.location.protocol + "//" + window.location.host;
     if (proxy_url) {
@@ -14,121 +116,15 @@ function websocket_url(session_id, proxy_url) {
     }
     return ws_url + session_id;
 }
-function ensure_connection() {
-    if (session_websocket.length == 0) {
-        console.log("Length of websocket 0");
-        setup_connection();
-        if (session_websocket.length == 0) {
-            console.log("Length of websocket 0 after setup_connection. We assume server is offline");
-            var popup = document.getElementById("WEBSOCKET_CONNECTION_WARNING");
-            if (!popup) {
-                const doc_root = document.getElementById("application-dom");
-                const popup = document.createElement("div");
-                popup.id = "WEBSOCKET_CONNECTION_WARNING";
-                popup.innerText = "Lost connection to server!";
-                doc_root.appendChild(popup);
-            }
-            return 'offline';
-        } else {
-            return isopen() ? 'ok' : 'offline';
-        }
-    } else {
-        if (isopen()) {
-            return 'ok';
-        } else {
-            session_websocket.pop();
-            return ensure_connection();
-        }
-    }
-}
-function isopen() {
-    if (session_websocket.length === 0) {
-        return false;
-    }
-    if (session_websocket[0]) {
-        return session_websocket[0].readyState === 1;
-    }
-    return false;
-}
-window.js_websocket_isopen = isopen;
-function websocket_send(binary_data) {
-    const status = ensure_connection();
-    if (status === 'ok') {
-        if (isopen()) {
-            session_websocket[0].send(binary_data);
-            return true;
-        } else {
-            return false;
-        }
-    } else {
-        console.log("Websocket is null!");
-        return undefined;
-    }
-}
-function send_pings() {
-    console.debug("pong");
-    Bonito.send_pingpong();
-    setTimeout(send_pings, 5000);
-}
-function setup_connection(config) {
-    let tries = 0;
-    let websocket;
-    function tryconnect(url) {
-        console.log(`tries; ${tries}`);
-        if (session_websocket.length != 0) {
-            const old_ws = session_websocket.pop();
-            old_ws.close();
-        }
-        websocket = new WebSocket(url);
-        websocket.binaryType = "arraybuffer";
-        session_websocket.push(websocket);
-        websocket.onopen = function() {
-            console.log("CONNECTED!!: ", url);
-            tries = 0;
-            websocket.onmessage = function(evt) {
-                new Promise((resolve)=>{
-                    const binary = new Uint8Array(evt.data);
-                    if (binary.length === 1 && binary[0] === 0) {
-                        return resolve(null);
-                    }
-                    Bonito.OBJECT_FREEING_LOCK.lock(()=>{
-                        Bonito.process_message(Bonito.decode_binary(binary, config.compression_enabled));
-                    });
-                    return resolve(null);
-                });
-            };
-            Bonito.on_connection_open(websocket_send, config.compression_enabled);
-            send_pings();
-        };
-        websocket.onclose = function(evt) {
-            console.log("closed websocket connection");
-            while(session_websocket.length > 0){
-                session_websocket.pop();
-            }
-            Bonito.on_connection_close();
-            console.log("Wesocket close code: " + evt.code);
-            console.log(evt);
-        };
-        websocket.onerror = function(event) {
-            console.error("WebSocket error observed:");
-            console.log(event);
-            console.log(tries);
-            if (tries <= 10) {
-                while(session_websocket.length > 0){
-                    session_websocket.pop();
-                }
-                tries = tries + 1;
-                console.log("Retrying to connect the " + tries + " time!");
-                setTimeout(()=>tryconnect(url), 1000);
-            } else {
-                session_websocket.push(null);
-            }
-        };
-    }
-    const { session_id , proxy_url  } = config;
+function setup_connection({ proxy_url , session_id , compression_enabled , query , main_connection  }) {
     const url = websocket_url(session_id, proxy_url);
-    tryconnect(url);
+    console.log(`connecting : ${url + query}`);
+    const ws = new Websocket(url + query, compression_enabled);
+    if (main_connection) {
+        ws.on_open(()=>{
+            Bonito.on_connection_open((binary)=>ws.send(binary), compression_enabled);
+        });
+    }
 }
-export { isopen as isopen };
 export { setup_connection as setup_connection };
 

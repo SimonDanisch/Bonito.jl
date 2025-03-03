@@ -73,7 +73,11 @@ function desired_location(assetfolder, asset)
     if !occursin(folder, path)
         file = basename(path)
         sub = subdir(asset)
-        return normpath(joinpath(folder, "bonito", sub, file))
+        name, ending = splitext(file)
+        h = string(hash(read(path)))
+        unique_name = string(name, h, ending)
+        filepath = normpath(joinpath(folder, "bonito", sub, unique_name))
+        return filepath
     end
     return path
 end
@@ -108,7 +112,7 @@ function url(assetfolder::AbstractAssetFolder, asset::Link)
     html_dir = to_unix_path(current_dir(assetfolder))
     root_dir = to_unix_path(folder(assetfolder))
     path_to_root = relpath(root_dir, html_dir)
-    return path_to_root * asset.target
+    return to_unix_path(path_to_root * asset.target)
 end
 
 function url(assetfolder::AbstractAssetFolder, asset::Asset)
@@ -121,7 +125,7 @@ function url(assetfolder::AbstractAssetFolder, asset::Asset)
     target_dir = to_unix_path(dirname(path))
     relative = replace(target_dir, root_dir => "")
     path_to_root = relpath(root_dir, html_dir)
-    return path_to_root * relative * "/" * basename(path)
+    return to_unix_path(path_to_root * relative * "/" * basename(path))
 end
 
 folder(folder) = folder.folder

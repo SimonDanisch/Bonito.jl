@@ -9,27 +9,23 @@
     end
     server = Server(app, "0.0.0.0", 8898)
 
-    window = Window(Application())
+    window = Bonito.EWindow()
     url = URI(online_url(server, "/"))
     @testset for i in 1:10
         load(window, url)
         @test test_dom(window) # re-use from threading.jl
     end
-    @test length(server.websocket_routes.table) == 10
-    success = Bonito.wait_for(()-> length(server.websocket_routes.table) == 1, timeout=10)
+    if app.session[].connection isa Bonito.DualWebsocket
+        @test length(server.websocket_routes.table) == 20
+        success = Bonito.wait_for(()-> length(server.websocket_routes.table) == 2, timeout=10)
+    else
+        @test length(server.websocket_routes.table) == 10
+        success = Bonito.wait_for(()-> length(server.websocket_routes.table) == 1, timeout=10)
+    end
     @test success == :success
     close(window)
     success = Bonito.wait_for(() -> isempty(server.websocket_routes.table), timeout=10)
     @test success == :success
     close(server)
     Bonito.set_cleanup_time!(0.0)
-end
-
-using RelocatableFolders
-
-@testset "Asset serving and Path" begin
-    asset = Asset(@path joinpath(@__DIR__, "serialization.jl"))
-    @test Bonito.serving_target(asset) isa RelocatableFolders.Path
-    @test isfile(Bonito.serving_target(asset))
-    @test read(Bonito.serving_target(asset)) isa Vector{UInt8}
 end

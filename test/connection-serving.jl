@@ -14,7 +14,11 @@ function export_test_app(session, request)
     )
 end
 
-connections = [(:NoConnection, ()-> NoConnection()), (:WebSocketConnection, ()-> WebSocketConnection())]
+connections = [
+    (:NoConnection, () -> NoConnection()),
+    (:WebSocketConnection, () -> WebSocketConnection()),
+    (:DualWebsocket, () -> Bonito.DualWebsocket()),
+]
 servers = [(:NoServer, () -> NoServer()), (:HTTPAssetServer, () -> HTTPAssetServer())]
 
 path = joinpath(@__DIR__, "test.html")
@@ -22,7 +26,7 @@ path = joinpath(@__DIR__, "test.html")
     app = App(export_test_app)
     export_static(path, app; connection=connection(), asset_server=server())
     # We need to drop a bit lower and cant use `testapp` here, since that uses fixed connection + asset server
-    window = Window(URI("file://" * path))
+    window = Bonito.EWindow(URI("file://" * path))
     sleep(0.5) # how did this work before without syncronization?
     result = run(window, "$(query_testid("result")).innerText")
     @test result == "passed"
@@ -52,11 +56,15 @@ rm(path; force=true)
     @test isready(parent(session))
 end
 
-@testset "websocket cleanup policy test" begin
-    policy = Bonito.DefaultCleanupPolicy(30, 2.0)
+struct TrivialCleanupPolicy <: Bonito.CleanupPolicy end
+Bonito.should_cleanup(::TrivialCleanupPolicy, ::Session) = true
+Bonito.allow_soft_close(::TrivialCleanupPolicy) = false
 
+function test_cleanup_policy(Connection)
+
+    policy = Bonito.DefaultCleanupPolicy(30, 2.0)
     # New session shouldn't be cleaned up
-    session = Session(WebSocketConnection())
+    session = Session(Connection())
     @test !Bonito.should_cleanup(policy, session)
 
     # Displayed session that hasn't connected shouldn't be cleaned up immediately
@@ -84,18 +92,18 @@ end
     zero_policy = Bonito.DefaultCleanupPolicy(30, 0.0)
     @test !Bonito.allow_soft_close(zero_policy)
 
-    struct TrivialCleanupPolicy <: Bonito.CleanupPolicy end
-
-    Bonito.should_cleanup(::TrivialCleanupPolicy, ::Session) = true
-    Bonito.allow_soft_close(::TrivialCleanupPolicy) = false
-
     original_cleanup_policy = Bonito.CLEANUP_POLICY[]
     try
         Bonito.set_cleanup_policy!(TrivialCleanupPolicy())
 
-        session = Session(WebSocketConnection())
+        session = Session(Connection())
         @test Bonito.should_cleanup(Bonito.CLEANUP_POLICY[], session)
     finally
         Bonito.set_cleanup_policy!(original_cleanup_policy)
     end
+end
+
+@testset "websocket cleanup policy test" begin
+    test_cleanup_policy(WebSocketConnection)
+    test_cleanup_policy(Bonito.DualWebsocket)
 end
