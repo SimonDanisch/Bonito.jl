@@ -406,7 +406,8 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     session_style = render_stylesheets!(root_session(session), session.stylesheets)
     issubsession = !isroot(session)
 
-    @assert xor(issubsession, html_document)
+    # should never request full html_doc for subsession
+    issubsession && @assert !html_document
     if issubsession && !isnothing(head) && !isnothing(body)
         @warn "Apps with head/body elements are not supported in subsessions, wrapping in a fragment"
         dom = page_to_fragment(head, body, dom)
