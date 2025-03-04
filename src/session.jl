@@ -186,6 +186,7 @@ function collect_messages(f)
     return msgs, msg
 end
 
+const COLLECT_LOCK = Base.ReentrantLock()
 function Sockets.send(session::Session, message::SerializedMessage)
     if isclosed(session)
         # We could also make this non fatal, but since `send` shouldn't be user facing,
@@ -196,8 +197,10 @@ function Sockets.send(session::Session, message::SerializedMessage)
         # if connection is open, we should never queue up messages
         @assert isempty(session.message_queue)
         write(session.connection, serialize_binary(session, message))
-        if COLLECT_MESSAGES[]
-            push!(COLLECTED_MESSAGES, message)
+        lock(COLLECT_LOCK) do
+            if COLLECT_MESSAGES[]
+                push!(COLLECTED_MESSAGES, message)
+            end
         end
     else
         push!(session.message_queue, message)
@@ -402,7 +405,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     # If we have a head & body, we want to append our initialization
     # code and dom nodes to the right places, so we need to extract those
     head, body, dom = find_head_body(dom)
-    session_style = render_stylesheets!(root_session(session), session.stylesheets)
+    session_style = render_stylesheets!(root_session(session), session, session.stylesheets)
     # if nothing is found, we just use one div and append to that
     if isnothing(head) && isnothing(body)
         if html_document
@@ -502,6 +505,25 @@ function update_session_dom!(parent::Session, node_uuid::String, app_or_dom; rep
     )
     message = SerializedMessage(sub, session_update)
     send(root_session(parent), message)
+    mark_displayed!(parent)
+    mark_displayed!(sub)
+    return sub
+end
+
+
+function append_child(parent::Session, parent_node::HTMLElement, new_html; replace=true)
+    if isclosed(parent)
+        error("Updating the session dom for a closed session")
+    end
+    sub, html = render_subsession(parent, new_html; init=false)
+    html_obs = Observable(html)
+    update_dom = js"""
+        $(parent_node).appendChild($(html_obs).value)
+    """
+    message = Bonito.SerializedMessage(
+        sub, Dict(:msg_type => Bonito.EvalJavascript, :payload => update_dom)
+    )
+    Bonito.send(parent, message)
     mark_displayed!(parent)
     mark_displayed!(sub)
     return sub
