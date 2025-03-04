@@ -451,6 +451,7 @@ Defaults for `editor_options`:
     mergeUndoDeltas = "always"
 )
 ```
+The content of the editor (as a string) is updated in `editor.onchange::Observable`.
 """
 function CodeEditor(
     language::String;
@@ -478,7 +479,7 @@ function CodeEditor(
         "showPrintMargin" => false,
     )
     user_opts = Dict{String,Any}(string(k) => v for (k, v) in editor_options)
-    options = Dict{String,Any}(merge(user_opts, defaults))
+    options = Dict{String,Any}(merge(defaults, user_opts))
     onchange = Observable(initial_source)
     style = Styles(style,
         "position" => "relative",
@@ -541,9 +542,11 @@ end
 
 struct FileInput <: Bonito.WidgetsBase.AbstractWidget{String}
     value::Observable{Vector{String}}
+    multiple::Bool
 end
 
-FileInput() = FileInput(Observable([""]))
+FileInput(value::Observable{Vector{String}}; multiple = true) = FileInput(Observable([""]), multiple)
+FileInput(; kws...) = FileInput(Observable([""]); kws...)
 
 function Bonito.jsrender(session::Session, fi::FileInput)
     onchange = js"""event => {
@@ -555,5 +558,5 @@ function Bonito.jsrender(session::Session, fi::FileInput)
             $(fi.value).notify(files);
         }
     }"""
-    return DOM.input(; type="file", onchange=onchange, multiple=true)
+    return DOM.input(; type="file", onchange=onchange, multiple=fi.multiple)
 end
