@@ -406,10 +406,10 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     session_style = render_stylesheets!(root_session(session), session.stylesheets)
     issubsession = !isroot(session)
 
-    @assert xor(subsession, html_document)
+    @assert xor(issubsession, html_document)
     if issubsession && !isnothing(head) && !isnothing(body)
         @warn "Apps with head/body elements are not supported in subsessions, wrapping in a fragment"
-        dom = page_to_fragment(dom)
+        dom = page_to_fragment(head, body, dom)
         head = body = nothing
     end
 
@@ -476,9 +476,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
     return dom
 end
 
-function page_to_fragment(page)
-    head, body, dom = Bonito.find_head_body(page)
-
+function page_to_fragment(head, body, dom)
     _head = Hyperscript.Node(
         Hyperscript.context(head),
         "div",
@@ -492,10 +490,10 @@ function page_to_fragment(page)
         Hyperscript.attrs(body)
     )
     return Hyperscript.Node(
-        Hyperscript.context(page),
+        Hyperscript.context(dom),
         "div",
         [_head, _body],
-        Hyperscript.attrs(page)
+        Hyperscript.attrs(dom)
     )
 end
 
