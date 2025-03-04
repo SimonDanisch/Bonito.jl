@@ -149,13 +149,14 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
         handler.session = parent
     end
     sub = Session(parent)
-    init_dom = session_dom(parent, App(nothing))
-    sub_dom = session_dom(sub, handler.current_app; html_document=true)
-    # first time rendering in a subsession, we combine init of parent session
-    # with the dom we're rendering right now by putting parent fragment into sub body
-    _, body, _ = find_head_body(sub_dom)
-    pushfirst!(children(body), init_dom)
-    html_str = sprint(io -> print_as_page(io, sub_dom))
+    parent_dom = session_dom(parent, App(nothing); html_document=true)
+    sub_dom = session_dom(sub, handler.current_app)
+
+    # first time rendering in a subsession, we put the
+    # subsession dom as a bonito fragment into the parent body
+    _, parent_body, _ = find_head_body(parent_dom)
+    push!(children(parent_body), sub_dom)
+    html_str = sprint(io -> print_as_page(io, parent_dom))
     # The closing time is calculated from here
     # If after 20s after rendering and sending the HTML to the browser
     # no connection is established, it will be assumed that the browser never connected
