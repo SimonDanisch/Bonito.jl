@@ -3626,7 +3626,7 @@ class Lock {
     unlock() {
         this.locked = false;
         if (this.queue.length > 0) {
-            const job = this.queue.pop();
+            const job = this.queue.shift();
             this.lock(job);
         }
     }

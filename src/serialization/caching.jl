@@ -25,7 +25,7 @@ function register_observable!(session::Session, obs::Observable)
     root = root_session(session)
     # Only register one time
     if !haskey(root.session_objects, obs.id)
-        updater = JSUpdateObservable(root, obs.id)
+        updater = JSUpdateObservable(session, obs.id)
         # Don't deregister on root / or session close
         # The updaters callbacks are freed manually in delete_cached!`
         on(updater, obs)
@@ -135,7 +135,7 @@ function remove_js_updates!(session::Session, observable::Observable)
     end
 end
 
-function delete_cached!(root::Session, key::String)
+function delete_cached!(root::Session, sub::Session, key::String)
     if !haskey(root.session_objects, key)
         # This should uncover any fault in our caching logic!
         @warn("Deleting key that doesn't belong to any cached object")
@@ -150,7 +150,7 @@ function delete_cached!(root::Session, key::String)
         object = pop!(root.session_objects, key)
         if object isa Observable
             # unregister all listeners updating the session
-            remove_js_updates!(root, object)
+            remove_js_updates!(sub, object)
         end
     end
 end
