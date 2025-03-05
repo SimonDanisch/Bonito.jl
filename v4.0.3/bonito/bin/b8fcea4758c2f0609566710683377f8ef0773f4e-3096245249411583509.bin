@@ -1,0 +1,27 @@
+í«,jìŸ$a216a59a-3562-4b64-b076-6000163ce18cÄ£subÇßpayloadì»¯kí«,jìŸ$a216a59a-3562-4b64-b076-6000163ce18cÄ£subÇßpayloadî»õkí«XjìŸ$a216a59a-3562-4b64-b076-6000163ce18cÉ£288«eí£288£287«eí£287ï£289«eí£289£subÉ£obs÷h£288ßpayload»fìÇ¥15466875985054485066÷h£289¥13900189765173337775÷h£287Ÿ©return (index) => {
+    const values = __lookup_interpolated('13900189765173337775').value
+    __lookup_interpolated('15466875985054485066').notify(values[index - 1])
+}
+Ÿ8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:272®msg_type°1» kí«:jìŸ$a216a59a-3562-4b64-b076-6000163ce18cÅ£292«eí£292°5£subÉ£obs÷h£292ßpayload«¡fìÄŸjreturn value=> Bonito.update_node_attribute(document.querySelector('[data-jscall-id="13"]'), 'max', value)ŸQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92®msg_type°1»"kí«:jìŸ$a216a59a-3562-4b64-b076-6000163ce18cÅ£293«eí£293°1£subÉ£obs÷h£293ßpayload«√fìÄŸlreturn value=> Bonito.update_node_attribute(document.querySelector('[data-jscall-id="13"]'), 'value', value)ŸQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92®msg_type°1»∆kí«,jìŸ$a216a59a-3562-4b64-b076-6000163ce18cÄ£subÇßpayload»~fìÅ¥14730424549365400628÷h£288⁄$((node) => {
+    node['oninput'] = (event)=> {
+    const idx = event.srcElement.valueAsNumber;
+    if (idx !== __lookup_interpolated('14730424549365400628').value) {
+        __lookup_interpolated('14730424549365400628').notify(idx)
+    }
+}
+})(document.querySelector('[data-jscall-id="13"]'));Ÿ8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:287®msg_type°2®msg_type°9»¡kí«,jìŸ$a216a59a-3562-4b64-b076-6000163ce18cÄ£subÇßpayload»yfìÅ≥7346303875791568731Ö°4ë«Nkí«-jìŸ$3d8aaf1d-6b63-4959-bf00-35e8eabca7e1Ä§rootÉßpayload°4¢id£293®msg_type°0°1ë«Nkí«-jìŸ$3d8aaf1d-6b63-4959-bf00-35e8eabca7e1Ä§rootÉßpayload°1¢id£293®msg_type°0°5ë«Nkí«-jìŸ$3d8aaf1d-6b63-4959-bf00-35e8eabca7e1Ä§rootÉßpayload°5¢id£293®msg_type°0°2ë«Nkí«-jìŸ$3d8aaf1d-6b63-4959-bf00-35e8eabca7e1Ä§rootÉßpayload°2¢id£293®msg_type°0°3ë«Nkí«-jìŸ$3d8aaf1d-6b63-4959-bf00-35e8eabca7e1Ä§rootÉßpayload°3¢id£293®msg_type°0⁄ÇBonito.fetch_binary('bonito/bin/0fae47bb6e88a5e363cb9a819b4dcad89388298e-16481214546266207328.bin').then(binary => {
+    const statemap = __lookup_interpolated('7346303875791568731')
+    console.log(statemap)
+    const observables = Bonito.decode_binary(binary, false);
+    Bonito.onany(observables, (states) => {
+        console.log(states)
+        // messages to send for this state of that observable
+        const messages = statemap[states]
+        // not all states trigger events
+        // so some states won't have any messages recorded
+        if (messages){
+            messages.forEach(Bonito.process_message)
+        }
+    })
+})
+Ÿ7/home/runner/work/Bonito.jl/Bonito.jl/src/export.jl:144®msg_type°2«Fkí«-jìŸ$3d8aaf1d-6b63-4959-bf00-35e8eabca7e1Ä§rootÇßpayloadê®msg_type°9®msg_type°9
