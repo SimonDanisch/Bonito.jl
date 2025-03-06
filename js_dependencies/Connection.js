@@ -131,7 +131,7 @@ export class Lock {
     unlock() {
         this.locked = false;
         if (this.queue.length > 0) {
-            const job = this.queue.pop();
+            const job = this.queue.shift();
             // this will call unlock after its finished and work through the queue like that
             this.lock(job);
         }
