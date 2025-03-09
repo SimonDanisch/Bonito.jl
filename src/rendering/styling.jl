@@ -17,15 +17,17 @@ function attribute_render(session::Session, parent, attribute::String, styles::S
     return ""
 end
 
-function jsrender(style::Styles)
+function jsrender(session::Session, style::Styles)
     io = IOBuffer()
     for (_, css) in style.styles
-        render_style(io, "", css)
+        render_style(io, session, "", css)
     end
     return DOM.style(String(take!(io)))
 end
 
-convert_css_attribute(attribute::String) = chomp(attribute)
+convert_css_attribute(asset::Asset) = asset
+convert_css_attribute(nested::CSS) = nested
+convert_css_attribute(attribute::String) = String(chomp(attribute))
 convert_css_attribute(color::Symbol) = convert_css_attribute(string(color))
 convert_css_attribute(@nospecialize(::Observable)) = error("Observable not supported in CSS attributes right now!")
 convert_css_attribute(@nospecialize(any)) = string(any)
@@ -35,28 +37,42 @@ function convert_css_attribute(color::Colorant)
     return "rgba($(rgba.r * 255), $(rgba.g * 255), $(rgba.b * 255), $(rgba.alpha))"
 end
 
-function render_style(io, prefix, css)
-    println(io, prefix, css.selector, " {")
+function render_element(io, session, key, value::String, nesting)
+    return println(io, "  "^(nesting), key, ": ", value, ";")
+end
+
+function render_element(io, session, key, value::Asset, nesting)
+    u = url(session, value)
+    return render_element(io, session, key, "url($u)", nesting)
+end
+
+
+function render_element(io, session, key, css::CSS, nesting)
+    return render_style(io, session, "", css, nesting + 1)
+end
+
+function render_style(io, session, prefix, css::CSS, nesting=1)
+    println(io, "  "^(nesting-1), prefix, css.selector, " {")
     for (k, v) in css.attributes
-        println(io, "  ", k, ": ", v, ";")
+        render_element(io, session, k, v, nesting)
     end
-    println(io, "}")
+    println(io, "  "^(nesting-1), "}")
 end
 
 Base.show(io::IO, css::CSS) = show(io, MIME"text/plain"(), css)
 
 function Base.show(io::IO, ::MIME"text/plain", css::CSS)
-    render_style(io, "", css)
+    render_style(io, Session(NoConnection(); asset_server=NoServer()), "", css)
 end
 
 Base.show(io::IO, styles::Styles) = show(io, MIME"text/plain"(), styles)
 function Base.show(io::IO, ::MIME"text/plain", styles::Styles)
     for (selector, css) in styles.styles
-        render_style(io, "", css)
+        render_style(io, Session(NoConnection(); asset_server=NoServer()), "", css)
     end
 end
 
-function render_stylesheets!(root_session, stylesheets::Dict{HTMLElement, Set{CSS}})
+function render_stylesheets!(root_session, session, stylesheets::Dict{HTMLElement, Set{CSS}})
     combined = Dict{CSS,Set{HTMLElement}}()
     for (node, styles) in stylesheets
         for css in styles
@@ -72,7 +88,7 @@ function render_stylesheets!(root_session, stylesheets::Dict{HTMLElement, Set{CS
         idx = root_session.style_counter += 1
         root_session.style_counter
         id = string("style_", idx)
-        render_style(io, "." * id, css)
+        render_style(io, session, "." * id, css)
         for node in nodes
             attr = Hyperscript.attrs(node)
             attr["class"] = get!(attr, "class", "") * " " * id
@@ -80,6 +96,10 @@ function render_stylesheets!(root_session, stylesheets::Dict{HTMLElement, Set{CS
     end
     stylesheet = String(take!(io))
     return DOM.style(stylesheet)
+end
+
+function CSS(selector::String, args::CSS...)
+    return CSS(selector, Dict{String,Any}((arg.selector => arg for arg in args)))
 end
 
 function CSS(selector::String, args::Pair...)
