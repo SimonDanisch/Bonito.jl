@@ -589,3 +589,14 @@ function RippleSpinner(; width=64, height=width, stroke=4, duration=1)
 
     return DOM.div(styles, DOM.div(), DOM.div(); class="lds-ripple")
 end
+
+struct MathJax
+    source::String
+end
+
+const PolyFill = Asset("https://polyfill.io/v3/polyfill.min.js?features=es6")
+const MathJaxJS = Asset("https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js")
+function jsrender(session::Session, md::MathJax)
+    dom = DOM.span(PolyFill, MathJaxJS, DOM.p_unesc(md.source), js"MathJax.typeset()")
+    return jsrender(session, dom)
+end
