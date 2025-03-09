@@ -3,24 +3,24 @@
 app = App() do
     return DOM.div(DOM.h1(&quot;hello world&quot;), js&quot;&quot;&quot;console.log(&#39;hello world&#39;)&quot;&quot;&quot;)
 end</code></pre><div>
-  <div class="bonito-fragment" id="ee0b9fd7-cb3f-49ae-91a9-1861495a9bb8" data-jscall-id="root">
+  <div class="bonito-fragment" id="64195daf-c90b-488e-b87a-6813f4da8754" data-jscall-id="root">
     <div>
       <script src="bonito/js/Bonito.bundled17210936323287318328.js" type="module"></script>
       <style></style>
       <div></div>
     </div>
     <div>
-      <script type="module">Bonito.lock_loading(() => Bonito.init_session('ee0b9fd7-cb3f-49ae-91a9-1861495a9bb8', null, 'root', false))</script>
+      <script type="module">Bonito.lock_loading(() => Bonito.init_session('64195daf-c90b-488e-b87a-6813f4da8754', null, 'root', false))</script>
       <span></span>
     </div>
   </div>
-  <div class="bonito-fragment" id="2aa7a26a-4596-4f63-b54e-8e6fed9a6815" data-jscall-id="subsession-application-dom">
+  <div class="bonito-fragment" id="b20a4cdb-1e1e-4f53-ae0f-140051cd192e" data-jscall-id="subsession-application-dom">
     <div>
       <style></style>
       <div></div>
     </div>
     <div>
-      <script type="module">Bonito.lock_loading(() => Bonito.init_session('2aa7a26a-4596-4f63-b54e-8e6fed9a6815', null, 'sub', false))</script>
+      <script type="module">Bonito.lock_loading(() => Bonito.init_session('b20a4cdb-1e1e-4f53-ae0f-140051cd192e', null, 'sub', false))</script>
       <div data-jscall-id="1">
         <h1 data-jscall-id="2">hello world</h1>
         <script type="module">console.log('hello world')</script>
@@ -38,7 +38,7 @@ App(DOM.div(...))</code></pre><p>The app will be displayed by e.g. the VSCode pl
 server = Server(&quot;0.0.0.0&quot;, 8080)
 route!(server, &quot;/&quot; =&gt; app)
 # So you can add many apps to one server, and even regexes are supported:
-route!(server, r&quot;*&quot; =&gt; App(DOM.div(&quot;404, no content for this route&quot;)))
+route!(server, r&quot;.*&quot; =&gt; App(DOM.div(&quot;404, no content for this route&quot;)))
 route!(server, &quot;/some-app&quot; =&gt; App(DOM.div(&quot;app&quot;)))</code></pre><h2 id="Easy-integration-with-existing-JS-CSS-libraries"><a class="docs-heading-anchor" href="#Easy-integration-with-existing-JS-CSS-libraries">Easy integration with existing JS + CSS libraries</a><a id="Easy-integration-with-existing-JS-CSS-libraries-1"></a><a class="docs-heading-anchor-permalink" href="#Easy-integration-with-existing-JS-CSS-libraries" title="Permalink"></a></h2><p>It&#39;s quite easy to integrate existing Libraries into your Bonito App:</p><pre><code class="language-julia hljs">App() do
     js = ES6Module(&quot;https://esm.sh/v133/leaflet@1.9.4/es2022/leaflet.mjs&quot;)
     css = Asset(&quot;https://unpkg.com/leaflet@1.9.4/dist/leaflet.css&quot;)
@@ -52,7 +52,7 @@ route!(server, &quot;/some-app&quot; =&gt; App(DOM.div(&quot;app&quot;)))</code>
         })
         &quot;&quot;&quot;
     )
-end</code></pre><div class="bonito-fragment" id="902363aa-52db-40ca-92cc-d4977a524d62" data-jscall-id="subsession-application-dom">
+end</code></pre><div class="bonito-fragment" id="0aad6c73-208f-4112-9ab8-389c141d98c5" data-jscall-id="subsession-application-dom">
   <div>
     <style></style>
     <div>
@@ -60,7 +60,7 @@ end</code></pre><div class="bonito-fragment" id="902363aa-52db-40ca-92cc-d4977a5
     </div>
   </div>
   <div>
-    <script type="module">Bonito.lock_loading(() => Bonito.init_session('902363aa-52db-40ca-92cc-d4977a524d62', null, 'sub', false))</script>
+    <script type="module">Bonito.lock_loading(() => Bonito.init_session('0aad6c73-208f-4112-9ab8-389c141d98c5', null, 'sub', false))</script>
     <div data-jscall-id="3">
       <div id="map" data-jscall-id="4" style="height: 300px; width: 100%"></div>
       <script type="module">import('https://esm.sh/v133/leaflet@1.9.4/es2022/leaflet.mjs').then(L=> {
@@ -70,4 +70,4 @@ end</code></pre><div class="bonito-fragment" id="902363aa-52db-40ca-92cc-d4977a5
 </script>
     </div>
   </div>
-</div><p>Read more about wrapping libraries in <a href="javascript-libraries.html#Javascript">Javascript</a>.</p><h2 id="Deploying"><a class="docs-heading-anchor" href="#Deploying">Deploying</a><a id="Deploying-1"></a><a class="docs-heading-anchor-permalink" href="#Deploying" title="Permalink"></a></h2><p><code>Bonito.jl</code> wants to run everywhere, from Notebooks, IDEs, Electron, to being directly inserted into existing web pages.</p><p><img src="https://user-images.githubusercontent.com/1010467/214662497-a1a1c8e7-5f4d-4e57-b129-fdcc227253ca.gif" alt="Bonito-wales"/></p><p>Find out more about the different ways to serve your apps in <a href="deployment.html#Deployment">Deployment</a>.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="styling.html">Styling »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.1 on <span class="colophon-date" title="Wednesday 5 March 2025 17:25">Wednesday 5 March 2025</span>. Using Julia version 1.11.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</div><p>Read more about wrapping libraries in <a href="javascript-libraries.html#Javascript">Javascript</a>.</p><h2 id="Deploying"><a class="docs-heading-anchor" href="#Deploying">Deploying</a><a id="Deploying-1"></a><a class="docs-heading-anchor-permalink" href="#Deploying" title="Permalink"></a></h2><p><code>Bonito.jl</code> wants to run everywhere, from Notebooks, IDEs, Electron, to being directly inserted into existing web pages.</p><p><img src="https://user-images.githubusercontent.com/1010467/214662497-a1a1c8e7-5f4d-4e57-b129-fdcc227253ca.gif" alt="Bonito-wales"/></p><p>Find out more about the different ways to serve your apps in <a href="deployment.html#Deployment">Deployment</a>.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="styling.html">Styling »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.1 on <span class="colophon-date" title="Sunday 9 March 2025 12:55">Sunday 9 March 2025</span>. Using Julia version 1.11.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
