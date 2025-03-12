@@ -76,6 +76,7 @@ mutable struct SubConnection <: FrontendConnection
 end
 
 struct SerializedMessage
+    session_cache::Vector{UInt8}
     bytes::Vector{UInt8}
 end
 

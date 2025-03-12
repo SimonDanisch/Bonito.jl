@@ -3668,7 +3668,7 @@ function process_message(data) {
                 data.payload();
                 break;
             case FusedMessage:
-                data.payload.forEach(process_message);
+                data.payload[1].forEach(process_message);
                 break;
             case PingPong:
                 console.debug("ping");
@@ -3832,9 +3832,7 @@ register_ext(108, (uint_8_array)=>{
     return div;
 });
 function decode_binary(binary, compression_enabled) {
-    const serialized_message = unpack_binary(binary, compression_enabled);
-    const [session_id, message_data] = serialized_message;
-    return message_data;
+    return unpack_binary(binary, compression_enabled);
 }
 function init_session(session_id, binary_messages, session_status, compression_enabled) {
     track_deleted_sessions();
@@ -3986,8 +3984,16 @@ register_ext(106, (uint_8_array)=>{
     return session_id;
 });
 register_ext(107, (uint_8_array)=>{
-    const [session_id, message] = unpack(uint_8_array);
-    return message;
+    const [session_cache_bytes, data_bytes] = unpack(uint_8_array);
+    if (session_cache_bytes.length > 0) {
+        unpack(session_cache_bytes);
+    }
+    return unpack(data_bytes);
+});
+register_ext(109, (uint_8_array)=>{
+    const session_caches = unpack(uint_8_array);
+    const result = session_caches.map(unpack);
+    return result;
 });
 function base64encode(data_as_uint8array) {
     const base64_promise = new Promise((resolve)=>{

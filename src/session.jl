@@ -43,7 +43,15 @@ end
 
 function fused_messages!(session::Session)
     messages = get_messages!(session)
-    return Dict(:msg_type=>FusedMessage, :payload=>messages)
+    caches = map(messages) do msg
+        data = copy(msg.session_cache)
+        empty!(msg.session_cache)
+        return data
+    end
+    return Dict(
+        :msg_type => FusedMessage,
+        :payload => [SessionCaches(caches), messages],
+    )
 end
 
 function init_session(session::Session)
@@ -161,8 +169,6 @@ function send_large(session::Session, message)
         push!(session.message_queue, serialized)
     end
 end
-
-
 
 function Sockets.send(session::Session, message::Dict{Symbol, Any})
     serialized = SerializedMessage(session, message)
