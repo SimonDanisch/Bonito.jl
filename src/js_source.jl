@@ -164,12 +164,14 @@ function inline_code(session::Session, asset_server, js::JSCode)
         interpolated_objects = Dict(v => k for (k, v) in context.objects)
         binary = BinaryAsset(session, interpolated_objects)
         src = """
-            // JSCode from $(js.file)
+        // JSCode from $(js.file)
+        Bonito.OBJECT_FREEING_LOCK.lock(() => {
             Bonito.fetch_binary('$(url(session, binary))').then(bin_messages=>{
                 const objects = Bonito.decode_binary(bin_messages, $(session.compression_enabled));
                 const __lookup_interpolated = (id) => objects[id]
                 $code
             })
+        })
         """
     end
     return inline_code(session, asset_server, src)
