@@ -186,7 +186,7 @@ export function process_message(data) {
                 data.payload();
                 break;
             case FusedMessage:
-                data.payload.forEach(process_message);
+                data.payload[1].forEach(process_message);
                 break;
             case PingPong:
                 // just getting a ping, nothing to do here :)
