@@ -4204,20 +4204,22 @@ function decode_binary(binary, compression_enabled) {
 }
 function init_session(session_id, binary_messages, session_status, compression_enabled) {
     track_deleted_sessions();
-    try {
-        SESSIONS[session_id] = [
-            new Set(),
-            session_status
-        ];
-        if (binary_messages) {
-            process_message(decode_binary(binary_messages, compression_enabled));
+    lock_loading(()=>{
+        try {
+            SESSIONS[session_id] = [
+                new Set(),
+                session_status
+            ];
+            if (binary_messages) {
+                process_message(decode_binary(binary_messages, compression_enabled));
+            }
+            done_initializing_session(session_id);
+        } catch (error) {
+            send_done_loading(session_id, error);
+            console.error(error.stack);
+            throw error;
         }
-        done_initializing_session(session_id);
-    } catch (error) {
-        send_done_loading(session_id, error);
-        console.error(error.stack);
-        throw error;
-    }
+    });
 }
 function close_session(session_id) {
     const session = SESSIONS[session_id];
