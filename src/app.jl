@@ -119,10 +119,11 @@ function update_app!(handler::DisplayHandler, app::App)
         old_session = handler.current_app.session[]
         handler.current_app = app
         if isready(handler.session)
+
+            update_app!(handler.session, app)
             if !isnothing(old_session)
                 close(old_session)
             end
-            update_app!(handler.session, app)
             return false
         else
             # Need to wait for someone to actually visit http://.../browser-display
