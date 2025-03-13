@@ -2,6 +2,410 @@
 // deno-lint-ignore-file
 // This code was bundled using `deno bundle` and it's not recommended to edit it manually
 
+var E = Object.create;
+var d = Object.defineProperty;
+var L = Object.getOwnPropertyDescriptor;
+var O = Object.getOwnPropertyNames;
+var C = Object.getPrototypeOf, A = Object.prototype.hasOwnProperty;
+var k = (n, e)=>()=>(e || n((e = {
+            exports: {}
+        }).exports, e), e.exports);
+var P = (n, e, t, s)=>{
+    if (e && typeof e == "object" || typeof e == "function") for (let i of O(e))!A.call(n, i) && i !== t && d(n, i, {
+        get: ()=>e[i],
+        enumerable: !(s = L(e, i)) || s.enumerable
+    });
+    return n;
+};
+var N = (n, e, t)=>(t = n != null ? E(C(n)) : {}, P(e || !n || !n.__esModule ? d(t, "default", {
+        value: n,
+        enumerable: !0
+    }) : t, n));
+var m = k((q, x)=>{
+    "use strict";
+    var S = Object.prototype.hasOwnProperty, l = "~";
+    function _() {}
+    Object.create && (_.prototype = Object.create(null), new _().__proto__ || (l = !1));
+    function T(n, e, t) {
+        this.fn = n, this.context = e, this.once = t || !1;
+    }
+    function w(n, e, t, s, i) {
+        if (typeof t != "function") throw new TypeError("The listener must be a function");
+        var u = new T(t, s || n, i), o = l ? l + e : e;
+        return n._events[o] ? n._events[o].fn ? n._events[o] = [
+            n._events[o],
+            u
+        ] : n._events[o].push(u) : (n._events[o] = u, n._eventsCount++), n;
+    }
+    function y(n, e) {
+        --n._eventsCount === 0 ? n._events = new _ : delete n._events[e];
+    }
+    function c() {
+        this._events = new _, this._eventsCount = 0;
+    }
+    c.prototype.eventNames = function() {
+        var e = [], t, s;
+        if (this._eventsCount === 0) return e;
+        for(s in t = this._events)S.call(t, s) && e.push(l ? s.slice(1) : s);
+        return Object.getOwnPropertySymbols ? e.concat(Object.getOwnPropertySymbols(t)) : e;
+    };
+    c.prototype.listeners = function(e) {
+        var t = l ? l + e : e, s = this._events[t];
+        if (!s) return [];
+        if (s.fn) return [
+            s.fn
+        ];
+        for(var i = 0, u = s.length, o = new Array(u); i < u; i++)o[i] = s[i].fn;
+        return o;
+    };
+    c.prototype.listenerCount = function(e) {
+        var t = l ? l + e : e, s = this._events[t];
+        return s ? s.fn ? 1 : s.length : 0;
+    };
+    c.prototype.emit = function(e, t, s, i, u, o) {
+        var a = l ? l + e : e;
+        if (!this._events[a]) return !1;
+        var r = this._events[a], p = arguments.length, h, f;
+        if (r.fn) {
+            switch(r.once && this.removeListener(e, r.fn, void 0, !0), p){
+                case 1:
+                    return r.fn.call(r.context), !0;
+                case 2:
+                    return r.fn.call(r.context, t), !0;
+                case 3:
+                    return r.fn.call(r.context, t, s), !0;
+                case 4:
+                    return r.fn.call(r.context, t, s, i), !0;
+                case 5:
+                    return r.fn.call(r.context, t, s, i, u), !0;
+                case 6:
+                    return r.fn.call(r.context, t, s, i, u, o), !0;
+            }
+            for(f = 1, h = new Array(p - 1); f < p; f++)h[f - 1] = arguments[f];
+            r.fn.apply(r.context, h);
+        } else {
+            var b = r.length, v;
+            for(f = 0; f < b; f++)switch(r[f].once && this.removeListener(e, r[f].fn, void 0, !0), p){
+                case 1:
+                    r[f].fn.call(r[f].context);
+                    break;
+                case 2:
+                    r[f].fn.call(r[f].context, t);
+                    break;
+                case 3:
+                    r[f].fn.call(r[f].context, t, s);
+                    break;
+                case 4:
+                    r[f].fn.call(r[f].context, t, s, i);
+                    break;
+                default:
+                    if (!h) for(v = 1, h = new Array(p - 1); v < p; v++)h[v - 1] = arguments[v];
+                    r[f].fn.apply(r[f].context, h);
+            }
+        }
+        return !0;
+    };
+    c.prototype.on = function(e, t, s) {
+        return w(this, e, t, s, !1);
+    };
+    c.prototype.once = function(e, t, s) {
+        return w(this, e, t, s, !0);
+    };
+    c.prototype.removeListener = function(e, t, s, i) {
+        var u = l ? l + e : e;
+        if (!this._events[u]) return this;
+        if (!t) return y(this, u), this;
+        var o = this._events[u];
+        if (o.fn) o.fn === t && (!i || o.once) && (!s || o.context === s) && y(this, u);
+        else {
+            for(var a = 0, r = [], p = o.length; a < p; a++)(o[a].fn !== t || i && !o[a].once || s && o[a].context !== s) && r.push(o[a]);
+            r.length ? this._events[u] = r.length === 1 ? r[0] : r : y(this, u);
+        }
+        return this;
+    };
+    c.prototype.removeAllListeners = function(e) {
+        var t;
+        return e ? (t = l ? l + e : e, this._events[t] && y(this, t)) : (this._events = new _, this._eventsCount = 0), this;
+    };
+    c.prototype.off = c.prototype.removeListener;
+    c.prototype.addListener = c.prototype.on;
+    c.prefixed = l;
+    c.EventEmitter = c;
+    typeof x < "u" && (x.exports = c);
+});
+var g = N(m(), 1);
+g.default;
+var export_EventEmitter = g.default;
+var u = class extends Error {
+    constructor(e){
+        super(e), this.name = "TimeoutError";
+    }
+}, d1 = class extends Error {
+    constructor(e){
+        super(), this.name = "AbortError", this.message = e;
+    }
+}, E1 = (n)=>globalThis.DOMException === void 0 ? new d1(n) : new DOMException(n), p = (n)=>{
+    let e = n.reason === void 0 ? E1("This operation was aborted.") : n.reason;
+    return e instanceof Error ? e : E1(e);
+};
+function T(n, e) {
+    let { milliseconds: o , fallback: f , message: a , customTimers: m = {
+        setTimeout,
+        clearTimeout
+    }  } = e, c, i, l = new Promise((s, r)=>{
+        if (typeof o != "number" || Math.sign(o) !== 1) throw new TypeError(`Expected \`milliseconds\` to be a positive number, got \`${o}\``);
+        if (e.signal) {
+            let { signal: t  } = e;
+            t.aborted && r(p(t)), i = ()=>{
+                r(p(t));
+            }, t.addEventListener("abort", i, {
+                once: !0
+            });
+        }
+        if (o === Number.POSITIVE_INFINITY) {
+            n.then(s, r);
+            return;
+        }
+        let b = new u;
+        c = m.setTimeout.call(void 0, ()=>{
+            if (f) {
+                try {
+                    s(f());
+                } catch (t) {
+                    r(t);
+                }
+                return;
+            }
+            typeof n.cancel == "function" && n.cancel(), a === !1 ? s() : a instanceof Error ? r(a) : (b.message = a ?? `Promise timed out after ${o} milliseconds`, r(b));
+        }, o), (async ()=>{
+            try {
+                s(await n);
+            } catch (t) {
+                r(t);
+            }
+        })();
+    }).finally(()=>{
+        l.clear(), i && e.signal && e.signal.removeEventListener("abort", i);
+    });
+    return l.clear = ()=>{
+        m.clearTimeout.call(void 0, c), c = void 0;
+    }, l;
+}
+function a(u, t, e) {
+    let i = 0, s = u.length;
+    for(; s > 0;){
+        let r = Math.trunc(s / 2), n = i + r;
+        e(u[n], t) <= 0 ? (i = ++n, s -= r + 1) : s = r;
+    }
+    return i;
+}
+var h = class {
+    #t = [];
+    enqueue(t, e) {
+        e = {
+            priority: 0,
+            ...e
+        };
+        let i = {
+            priority: e.priority,
+            id: e.id,
+            run: t
+        };
+        if (this.size === 0 || this.#t[this.size - 1].priority >= e.priority) {
+            this.#t.push(i);
+            return;
+        }
+        let s = a(this.#t, i, (r, n)=>n.priority - r.priority);
+        this.#t.splice(s, 0, i);
+    }
+    setPriority(t, e) {
+        let i = this.#t.findIndex((r)=>r.id === t);
+        if (i === -1) throw new ReferenceError(`No promise function with the id "${t}" exists in the queue.`);
+        let [s] = this.#t.splice(i, 1);
+        this.enqueue(s.run, {
+            priority: e,
+            id: t
+        });
+    }
+    dequeue() {
+        return this.#t.shift()?.run;
+    }
+    filter(t) {
+        return this.#t.filter((e)=>e.priority === t.priority).map((e)=>e.run);
+    }
+    get size() {
+        return this.#t.length;
+    }
+};
+var l = class extends export_EventEmitter {
+    #t;
+    #h;
+    #n = 0;
+    #d;
+    #u;
+    #m = 0;
+    #i;
+    #a;
+    #e;
+    #y;
+    #r = 0;
+    #l;
+    #s;
+    #v;
+    #g = 1n;
+    timeout;
+    constructor(t){
+        if (super(), t = {
+            carryoverConcurrencyCount: !1,
+            intervalCap: Number.POSITIVE_INFINITY,
+            interval: 0,
+            concurrency: Number.POSITIVE_INFINITY,
+            autoStart: !0,
+            queueClass: h,
+            ...t
+        }, !(typeof t.intervalCap == "number" && t.intervalCap >= 1)) throw new TypeError(`Expected \`intervalCap\` to be a number from 1 and up, got \`${t.intervalCap?.toString() ?? ""}\` (${typeof t.intervalCap})`);
+        if (t.interval === void 0 || !(Number.isFinite(t.interval) && t.interval >= 0)) throw new TypeError(`Expected \`interval\` to be a finite number >= 0, got \`${t.interval?.toString() ?? ""}\` (${typeof t.interval})`);
+        this.#t = t.carryoverConcurrencyCount, this.#h = t.intervalCap === Number.POSITIVE_INFINITY || t.interval === 0, this.#d = t.intervalCap, this.#u = t.interval, this.#e = new t.queueClass, this.#y = t.queueClass, this.concurrency = t.concurrency, this.timeout = t.timeout, this.#v = t.throwOnTimeout === !0, this.#s = t.autoStart === !1;
+    }
+    get #p() {
+        return this.#h || this.#n < this.#d;
+    }
+    get #T() {
+        return this.#r < this.#l;
+    }
+    #C() {
+        this.#r--, this.#o(), this.emit("next");
+    }
+    #E() {
+        this.#w(), this.#I(), this.#a = void 0;
+    }
+    get #b() {
+        let t = Date.now();
+        if (this.#i === void 0) {
+            let e = this.#m - t;
+            if (e < 0) this.#n = this.#t ? this.#r : 0;
+            else return this.#a === void 0 && (this.#a = setTimeout(()=>{
+                this.#E();
+            }, e)), !0;
+        }
+        return !1;
+    }
+    #o() {
+        if (this.#e.size === 0) return this.#i && clearInterval(this.#i), this.#i = void 0, this.emit("empty"), this.#r === 0 && this.emit("idle"), !1;
+        if (!this.#s) {
+            let t = !this.#b;
+            if (this.#p && this.#T) {
+                let e = this.#e.dequeue();
+                return e ? (this.emit("active"), e(), t && this.#I(), !0) : !1;
+            }
+        }
+        return !1;
+    }
+    #I() {
+        this.#h || this.#i !== void 0 || (this.#i = setInterval(()=>{
+            this.#w();
+        }, this.#u), this.#m = Date.now() + this.#u);
+    }
+    #w() {
+        this.#n === 0 && this.#r === 0 && this.#i && (clearInterval(this.#i), this.#i = void 0), this.#n = this.#t ? this.#r : 0, this.#c();
+    }
+    #c() {
+        for(; this.#o(););
+    }
+    get concurrency() {
+        return this.#l;
+    }
+    set concurrency(t) {
+        if (!(typeof t == "number" && t >= 1)) throw new TypeError(`Expected \`concurrency\` to be a number from 1 and up, got \`${t}\` (${typeof t})`);
+        this.#l = t, this.#c();
+    }
+    async #x(t) {
+        return new Promise((e, i)=>{
+            t.addEventListener("abort", ()=>{
+                i(t.reason);
+            }, {
+                once: !0
+            });
+        });
+    }
+    setPriority(t, e) {
+        this.#e.setPriority(t, e);
+    }
+    async add(t, e = {}) {
+        return e.id ??= (this.#g++).toString(), e = {
+            timeout: this.timeout,
+            throwOnTimeout: this.#v,
+            ...e
+        }, new Promise((i, s)=>{
+            this.#e.enqueue(async ()=>{
+                this.#r++, this.#n++;
+                try {
+                    e.signal?.throwIfAborted();
+                    let r = t({
+                        signal: e.signal
+                    });
+                    e.timeout && (r = T(Promise.resolve(r), {
+                        milliseconds: e.timeout
+                    })), e.signal && (r = Promise.race([
+                        r,
+                        this.#x(e.signal)
+                    ]));
+                    let n = await r;
+                    i(n), this.emit("completed", n);
+                } catch (r) {
+                    if (r instanceof u && !e.throwOnTimeout) {
+                        i();
+                        return;
+                    }
+                    s(r), this.emit("error", r);
+                } finally{
+                    this.#C();
+                }
+            }, e), this.emit("add"), this.#o();
+        });
+    }
+    async addAll(t, e) {
+        return Promise.all(t.map(async (i)=>this.add(i, e)));
+    }
+    start() {
+        return this.#s ? (this.#s = !1, this.#c(), this) : this;
+    }
+    pause() {
+        this.#s = !0;
+    }
+    clear() {
+        this.#e = new this.#y;
+    }
+    async onEmpty() {
+        this.#e.size !== 0 && await this.#f("empty");
+    }
+    async onSizeLessThan(t) {
+        this.#e.size < t || await this.#f("next", ()=>this.#e.size < t);
+    }
+    async onIdle() {
+        this.#r === 0 && this.#e.size === 0 || await this.#f("idle");
+    }
+    async #f(t, e) {
+        return new Promise((i)=>{
+            let s = ()=>{
+                e && !e() || (this.off(t, s), i());
+            };
+            this.on(t, s);
+        });
+    }
+    get size() {
+        return this.#e.size;
+    }
+    sizeBy(t) {
+        return this.#e.filter(t).length;
+    }
+    get pending() {
+        return this.#r;
+    }
+    get isPaused() {
+        return this.#s;
+    }
+};
 function utf8Count(str) {
     var strLength = str.length;
     var byteLength = 0;
@@ -2086,10 +2490,10 @@ function We(e, i) {
 }
 var si = (e)=>e < 256 ? pe[e] : pe[256 + (e >>> 7)], ke = (e, i)=>{
     e.pending_buf[e.pending++] = i & 255, e.pending_buf[e.pending++] = i >>> 8 & 255;
-}, N = (e, i, t)=>{
+}, N1 = (e, i, t)=>{
     e.bi_valid > Ge - t ? (e.bi_buf |= i << e.bi_valid & 65535, ke(e, e.bi_buf), e.bi_buf = i >> Ge - e.bi_valid, e.bi_valid += t - Ge) : (e.bi_buf |= i << e.bi_valid & 65535, e.bi_valid += t);
 }, F = (e, i, t)=>{
-    N(e, t[i * 2], t[i * 2 + 1]);
+    N1(e, t[i * 2], t[i * 2 + 1]);
 }, ci = (e, i)=>{
     let t = 0;
     do t |= e & 1, e >>>= 1, t <<= 1;
@@ -2146,7 +2550,7 @@ var si = (e)=>e < 256 ? pe[e] : pe[256 + (e >>> 7)], ke = (e, i)=>{
     e.heap[t] = n;
 }, kt = (e, i, t)=>{
     let n, a, l = 0, o, f;
-    if (e.last_lit !== 0) do n = e.pending_buf[e.d_buf + l * 2] << 8 | e.pending_buf[e.d_buf + l * 2 + 1], a = e.pending_buf[e.l_buf + l], l++, n === 0 ? F(e, a, i) : (o = xe[a], F(e, o + Ae + 1, i), f = ft[o], f !== 0 && (a -= ut[o], N(e, a, f)), n--, o = si(n), F(e, o, t), f = $e[o], f !== 0 && (n -= He[o], N(e, n, f)));
+    if (e.last_lit !== 0) do n = e.pending_buf[e.d_buf + l * 2] << 8 | e.pending_buf[e.d_buf + l * 2 + 1], a = e.pending_buf[e.l_buf + l], l++, n === 0 ? F(e, a, i) : (o = xe[a], F(e, o + Ae + 1, i), f = ft[o], f !== 0 && (a -= ut[o], N1(e, a, f)), n--, o = si(n), F(e, o, t), f = $e[o], f !== 0 && (n -= He[o], N1(e, n, f)));
     while (l < e.last_lit)
     F(e, ct, i);
 }, ot = (e, i)=>{
@@ -2166,7 +2570,7 @@ var si = (e)=>e < 256 ? pe[e] : pe[256 + (e >>> 7)], ke = (e, i)=>{
     for(o === 0 && (c = 138, r = 3), n = 0; n <= t; n++)if (l = o, o = i[(n + 1) * 2 + 1], !(++f < c && l === o)) {
         if (f < r) do F(e, l, e.bl_tree);
         while (--f !== 0)
-        else l !== 0 ? (l !== a && (F(e, l, e.bl_tree), f--), F(e, li, e.bl_tree), N(e, f - 3, 2)) : f <= 10 ? (F(e, ri, e.bl_tree), N(e, f - 3, 3)) : (F(e, fi, e.bl_tree), N(e, f - 11, 7));
+        else l !== 0 ? (l !== a && (F(e, l, e.bl_tree), f--), F(e, li, e.bl_tree), N1(e, f - 3, 2)) : f <= 10 ? (F(e, ri, e.bl_tree), N1(e, f - 3, 3)) : (F(e, fi, e.bl_tree), N1(e, f - 11, 7));
         f = 0, a = l, o === 0 ? (c = 138, r = 3) : l === o ? (c = 6, r = 3) : (c = 7, r = 4);
     }
 }, ji = (e)=>{
@@ -2175,7 +2579,7 @@ var si = (e)=>e < 256 ? pe[e] : pe[256 + (e >>> 7)], ke = (e, i)=>{
     return e.opt_len += 3 * (i + 1) + 5 + 5 + 4, i;
 }, Wi = (e, i, t, n)=>{
     let a;
-    for(N(e, i - 257, 5), N(e, t - 1, 5), N(e, n - 4, 4), a = 0; a < n; a++)N(e, e.bl_tree[oi[a] * 2 + 1], 3);
+    for(N1(e, i - 257, 5), N1(e, t - 1, 5), N1(e, n - 4, 4), a = 0; a < n; a++)N1(e, e.bl_tree[oi[a] * 2 + 1], 3);
     Et(e, e.dyn_ltree, i - 1), Et(e, e.dyn_dtree, t - 1);
 }, Vi = (e)=>{
     let i = 4093624447, t;
@@ -2186,12 +2590,12 @@ var si = (e)=>e < 256 ? pe[e] : pe[256 + (e >>> 7)], ke = (e, i)=>{
 }, yt = !1, Ji = (e)=>{
     yt || (Yi(), yt = !0), e.l_desc = new We(e.dyn_ltree, _i), e.d_desc = new We(e.dyn_dtree, hi), e.bl_desc = new We(e.bl_tree, di), e.bi_buf = 0, e.bi_valid = 0, bi(e);
 }, gi = (e, i, t, n)=>{
-    N(e, ($i << 1) + (n ? 1 : 0), 3), Gi(e, i, t, !0);
+    N1(e, ($i << 1) + (n ? 1 : 0), 3), Gi(e, i, t, !0);
 }, Qi = (e)=>{
-    N(e, ai << 1, 3), F(e, ct, B), Pi(e);
+    N1(e, ai << 1, 3), F(e, ct, B), Pi(e);
 }, qi = (e, i, t, n)=>{
     let a, l, o = 0;
-    e.level > 0 ? (e.strm.data_type === 2 && (e.strm.data_type = Vi(e)), ot(e, e.l_desc), ot(e, e.d_desc), o = ji(e), a = e.opt_len + 3 + 7 >>> 3, l = e.static_len + 3 + 7 >>> 3, l <= a && (a = l)) : a = l = t + 5, t + 4 <= a && i !== -1 ? gi(e, i, t, n) : e.strategy === 4 || l === a ? (N(e, (ai << 1) + (n ? 1 : 0), 3), kt(e, B, ue)) : (N(e, (Ci << 1) + (n ? 1 : 0), 3), Wi(e, e.l_desc.max_code + 1, e.d_desc.max_code + 1, o + 1), kt(e, e.dyn_ltree, e.dyn_dtree)), bi(e), n && wi(e);
+    e.level > 0 ? (e.strm.data_type === 2 && (e.strm.data_type = Vi(e)), ot(e, e.l_desc), ot(e, e.d_desc), o = ji(e), a = e.opt_len + 3 + 7 >>> 3, l = e.static_len + 3 + 7 >>> 3, l <= a && (a = l)) : a = l = t + 5, t + 4 <= a && i !== -1 ? gi(e, i, t, n) : e.strategy === 4 || l === a ? (N1(e, (ai << 1) + (n ? 1 : 0), 3), kt(e, B, ue)) : (N1(e, (Ci << 1) + (n ? 1 : 0), 3), Wi(e, e.l_desc.max_code + 1, e.d_desc.max_code + 1, o + 1), kt(e, e.dyn_ltree, e.dyn_dtree)), bi(e), n && wi(e);
 }, ea = (e, i, t)=>(e.pending_buf[e.d_buf + e.last_lit * 2] = i >>> 8 & 255, e.pending_buf[e.d_buf + e.last_lit * 2 + 1] = i & 255, e.pending_buf[e.l_buf + e.last_lit] = t & 255, e.last_lit++, i === 0 ? e.dyn_ltree[t * 2]++ : (e.matches++, i--, e.dyn_ltree[(xe[t] + Ae + 1) * 2]++, e.dyn_dtree[si(i) * 2]++), e.last_lit === e.lit_bufsize - 1), ta = Ji, ia = gi, aa = qi, na = ea, la = Qi, ra = {
     _tr_init: ta,
     _tr_stored_block: ia,
@@ -2259,14 +2663,14 @@ var si = (e)=>e < 256 ? pe[e] : pe[256 + (e >>> 7)], ke = (e, i)=>{
     Z_TEXT: 1,
     Z_UNKNOWN: 2,
     Z_DEFLATED: 8
-}, { _tr_init: da , _tr_stored_block: sa , _tr_flush_block: ca , _tr_tally: j , _tr_align: ua  } = ra, { Z_NO_FLUSH: le , Z_PARTIAL_FLUSH: ba , Z_FULL_FLUSH: wa , Z_FINISH: W , Z_BLOCK: St , Z_OK: M , Z_STREAM_END: At , Z_STREAM_ERROR: L , Z_DATA_ERROR: ga , Z_BUF_ERROR: Je , Z_DEFAULT_COMPRESSION: pa , Z_FILTERED: xa , Z_HUFFMAN_ONLY: Ie , Z_RLE: ka , Z_FIXED: va , Z_DEFAULT_STRATEGY: Ea , Z_UNKNOWN: ya , Z_DEFLATED: Pe  } = ne, Sa = 9, Aa = 15, Ra = 8, za = 29, Ta = 256, _t = Ta + 1 + za, ma = 30, Da = 19, Za = 2 * _t + 1, Ia = 15, k = 3, Y = 258, $ = Y + k + 1, Oa = 32, Xe = 42, ht = 69, Ce = 73, Fe = 91, Me = 103, q = 113, se = 666, D = 1, Re = 2, te = 3, he = 4, Na = 3, G = (e, i)=>(e.msg = ee[i], i), Rt = (e)=>(e << 1) - (e > 4 ? 9 : 0), X = (e)=>{
+}, { _tr_init: da , _tr_stored_block: sa , _tr_flush_block: ca , _tr_tally: j , _tr_align: ua  } = ra, { Z_NO_FLUSH: le , Z_PARTIAL_FLUSH: ba , Z_FULL_FLUSH: wa , Z_FINISH: W , Z_BLOCK: St , Z_OK: M , Z_STREAM_END: At , Z_STREAM_ERROR: L1 , Z_DATA_ERROR: ga , Z_BUF_ERROR: Je , Z_DEFAULT_COMPRESSION: pa , Z_FILTERED: xa , Z_HUFFMAN_ONLY: Ie , Z_RLE: ka , Z_FIXED: va , Z_DEFAULT_STRATEGY: Ea , Z_UNKNOWN: ya , Z_DEFLATED: Pe  } = ne, Sa = 9, Aa = 15, Ra = 8, za = 29, Ta = 256, _t = Ta + 1 + za, ma = 30, Da = 19, Za = 2 * _t + 1, Ia = 15, k1 = 3, Y = 258, $ = Y + k1 + 1, Oa = 32, Xe = 42, ht = 69, Ce = 73, Fe = 91, Me = 103, q = 113, se = 666, D = 1, Re = 2, te = 3, he = 4, Na = 3, G = (e, i)=>(e.msg = ee[i], i), Rt = (e)=>(e << 1) - (e > 4 ? 9 : 0), X = (e)=>{
     let i = e.length;
     for(; --i >= 0;)e[i] = 0;
-}, La = (e, i, t)=>(i << e.hash_shift ^ t) & e.hash_mask, V = La, P = (e)=>{
+}, La = (e, i, t)=>(i << e.hash_shift ^ t) & e.hash_mask, V = La, P1 = (e)=>{
     let i = e.state, t = i.pending;
     t > e.avail_out && (t = e.avail_out), t !== 0 && (e.output.set(i.pending_buf.subarray(i.pending_out, i.pending_out + t), e.next_out), e.next_out += t, i.pending_out += t, e.total_out += t, e.avail_out -= t, i.pending -= t, i.pending === 0 && (i.pending_out = 0));
-}, O = (e, i)=>{
-    ca(e, e.block_start >= 0 ? e.block_start : -1, e.strstart - e.block_start, i), e.block_start = e.strstart, P(e.strm);
+}, O1 = (e, i)=>{
+    ca(e, e.block_start >= 0 ? e.block_start : -1, e.strstart - e.block_start, i), e.block_start = e.strstart, P1(e.strm);
 }, y = (e, i)=>{
     e.pending_buf[e.pending++] = i;
 }, de = (e, i)=>{
@@ -2301,7 +2705,7 @@ var si = (e)=>e < 256 ? pe[e] : pe[256 + (e >>> 7)], ke = (e, i)=>{
             l += i;
         }
         if (e.strm.avail_in === 0) break;
-        if (n = Ua(e.strm, e.window, e.strstart + e.lookahead, l), e.lookahead += n, e.lookahead + e.insert >= k) for(o = e.strstart - e.insert, e.ins_h = e.window[o], e.ins_h = V(e, e.ins_h, e.window[o + 1]); e.insert && (e.ins_h = V(e, e.ins_h, e.window[o + k - 1]), e.prev[o & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = o, o++, e.insert--, !(e.lookahead + e.insert < k)););
+        if (n = Ua(e.strm, e.window, e.strstart + e.lookahead, l), e.lookahead += n, e.lookahead + e.insert >= k1) for(o = e.strstart - e.insert, e.ins_h = e.window[o], e.ins_h = V(e, e.ins_h, e.window[o + 1]); e.insert && (e.ins_h = V(e, e.ins_h, e.window[o + k1 - 1]), e.prev[o & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = o, o++, e.insert--, !(e.lookahead + e.insert < k1)););
     }while (e.lookahead < $ && e.strm.avail_in !== 0)
 }, $a = (e, i)=>{
     let t = 65535;
@@ -2312,9 +2716,9 @@ var si = (e)=>e < 256 ? pe[e] : pe[256 + (e >>> 7)], ke = (e, i)=>{
         }
         e.strstart += e.lookahead, e.lookahead = 0;
         let n = e.block_start + t;
-        if ((e.strstart === 0 || e.strstart >= n) && (e.lookahead = e.strstart - n, e.strstart = n, O(e, !1), e.strm.avail_out === 0) || e.strstart - e.block_start >= e.w_size - $ && (O(e, !1), e.strm.avail_out === 0)) return D;
+        if ((e.strstart === 0 || e.strstart >= n) && (e.lookahead = e.strstart - n, e.strstart = n, O1(e, !1), e.strm.avail_out === 0) || e.strstart - e.block_start >= e.w_size - $ && (O1(e, !1), e.strm.avail_out === 0)) return D;
     }
-    return e.insert = 0, i === W ? (O(e, !0), e.strm.avail_out === 0 ? te : he) : (e.strstart > e.block_start && (O(e, !1), e.strm.avail_out === 0), D);
+    return e.insert = 0, i === W ? (O1(e, !0), e.strm.avail_out === 0 ? te : he) : (e.strstart > e.block_start && (O1(e, !1), e.strm.avail_out === 0), D);
 }, Qe = (e, i)=>{
     let t, n;
     for(;;){
@@ -2322,16 +2726,16 @@ var si = (e)=>e < 256 ? pe[e] : pe[256 + (e >>> 7)], ke = (e, i)=>{
             if (ie(e), e.lookahead < $ && i === le) return D;
             if (e.lookahead === 0) break;
         }
-        if (t = 0, e.lookahead >= k && (e.ins_h = V(e, e.ins_h, e.window[e.strstart + k - 1]), t = e.prev[e.strstart & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = e.strstart), t !== 0 && e.strstart - t <= e.w_size - $ && (e.match_length = pi(e, t)), e.match_length >= k) if (n = j(e, e.strstart - e.match_start, e.match_length - k), e.lookahead -= e.match_length, e.match_length <= e.max_lazy_match && e.lookahead >= k) {
+        if (t = 0, e.lookahead >= k1 && (e.ins_h = V(e, e.ins_h, e.window[e.strstart + k1 - 1]), t = e.prev[e.strstart & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = e.strstart), t !== 0 && e.strstart - t <= e.w_size - $ && (e.match_length = pi(e, t)), e.match_length >= k1) if (n = j(e, e.strstart - e.match_start, e.match_length - k1), e.lookahead -= e.match_length, e.match_length <= e.max_lazy_match && e.lookahead >= k1) {
             e.match_length--;
-            do e.strstart++, e.ins_h = V(e, e.ins_h, e.window[e.strstart + k - 1]), t = e.prev[e.strstart & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = e.strstart;
+            do e.strstart++, e.ins_h = V(e, e.ins_h, e.window[e.strstart + k1 - 1]), t = e.prev[e.strstart & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = e.strstart;
             while (--e.match_length !== 0)
             e.strstart++;
         } else e.strstart += e.match_length, e.match_length = 0, e.ins_h = e.window[e.strstart], e.ins_h = V(e, e.ins_h, e.window[e.strstart + 1]);
         else n = j(e, 0, e.window[e.strstart]), e.lookahead--, e.strstart++;
-        if (n && (O(e, !1), e.strm.avail_out === 0)) return D;
+        if (n && (O1(e, !1), e.strm.avail_out === 0)) return D;
     }
-    return e.insert = e.strstart < k - 1 ? e.strstart : k - 1, i === W ? (O(e, !0), e.strm.avail_out === 0 ? te : he) : e.last_lit && (O(e, !1), e.strm.avail_out === 0) ? D : Re;
+    return e.insert = e.strstart < k1 - 1 ? e.strstart : k1 - 1, i === W ? (O1(e, !0), e.strm.avail_out === 0 ? te : he) : e.last_lit && (O1(e, !1), e.strm.avail_out === 0) ? D : Re;
 }, re = (e, i)=>{
     let t, n, a;
     for(;;){
@@ -2339,16 +2743,16 @@ var si = (e)=>e < 256 ? pe[e] : pe[256 + (e >>> 7)], ke = (e, i)=>{
             if (ie(e), e.lookahead < $ && i === le) return D;
             if (e.lookahead === 0) break;
         }
-        if (t = 0, e.lookahead >= k && (e.ins_h = V(e, e.ins_h, e.window[e.strstart + k - 1]), t = e.prev[e.strstart & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = e.strstart), e.prev_length = e.match_length, e.prev_match = e.match_start, e.match_length = k - 1, t !== 0 && e.prev_length < e.max_lazy_match && e.strstart - t <= e.w_size - $ && (e.match_length = pi(e, t), e.match_length <= 5 && (e.strategy === xa || e.match_length === k && e.strstart - e.match_start > 4096) && (e.match_length = k - 1)), e.prev_length >= k && e.match_length <= e.prev_length) {
-            a = e.strstart + e.lookahead - k, n = j(e, e.strstart - 1 - e.prev_match, e.prev_length - k), e.lookahead -= e.prev_length - 1, e.prev_length -= 2;
-            do ++e.strstart <= a && (e.ins_h = V(e, e.ins_h, e.window[e.strstart + k - 1]), t = e.prev[e.strstart & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = e.strstart);
+        if (t = 0, e.lookahead >= k1 && (e.ins_h = V(e, e.ins_h, e.window[e.strstart + k1 - 1]), t = e.prev[e.strstart & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = e.strstart), e.prev_length = e.match_length, e.prev_match = e.match_start, e.match_length = k1 - 1, t !== 0 && e.prev_length < e.max_lazy_match && e.strstart - t <= e.w_size - $ && (e.match_length = pi(e, t), e.match_length <= 5 && (e.strategy === xa || e.match_length === k1 && e.strstart - e.match_start > 4096) && (e.match_length = k1 - 1)), e.prev_length >= k1 && e.match_length <= e.prev_length) {
+            a = e.strstart + e.lookahead - k1, n = j(e, e.strstart - 1 - e.prev_match, e.prev_length - k1), e.lookahead -= e.prev_length - 1, e.prev_length -= 2;
+            do ++e.strstart <= a && (e.ins_h = V(e, e.ins_h, e.window[e.strstart + k1 - 1]), t = e.prev[e.strstart & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = e.strstart);
             while (--e.prev_length !== 0)
-            if (e.match_available = 0, e.match_length = k - 1, e.strstart++, n && (O(e, !1), e.strm.avail_out === 0)) return D;
+            if (e.match_available = 0, e.match_length = k1 - 1, e.strstart++, n && (O1(e, !1), e.strm.avail_out === 0)) return D;
         } else if (e.match_available) {
-            if (n = j(e, 0, e.window[e.strstart - 1]), n && O(e, !1), e.strstart++, e.lookahead--, e.strm.avail_out === 0) return D;
+            if (n = j(e, 0, e.window[e.strstart - 1]), n && O1(e, !1), e.strstart++, e.lookahead--, e.strm.avail_out === 0) return D;
         } else e.match_available = 1, e.strstart++, e.lookahead--;
     }
-    return e.match_available && (n = j(e, 0, e.window[e.strstart - 1]), e.match_available = 0), e.insert = e.strstart < k - 1 ? e.strstart : k - 1, i === W ? (O(e, !0), e.strm.avail_out === 0 ? te : he) : e.last_lit && (O(e, !1), e.strm.avail_out === 0) ? D : Re;
+    return e.match_available && (n = j(e, 0, e.window[e.strstart - 1]), e.match_available = 0), e.insert = e.strstart < k1 - 1 ? e.strstart : k1 - 1, i === W ? (O1(e, !0), e.strm.avail_out === 0 ? te : he) : e.last_lit && (O1(e, !1), e.strm.avail_out === 0) ? D : Re;
 }, Ca = (e, i)=>{
     let t, n, a, l, o = e.window;
     for(;;){
@@ -2356,15 +2760,15 @@ var si = (e)=>e < 256 ? pe[e] : pe[256 + (e >>> 7)], ke = (e, i)=>{
             if (ie(e), e.lookahead <= Y && i === le) return D;
             if (e.lookahead === 0) break;
         }
-        if (e.match_length = 0, e.lookahead >= k && e.strstart > 0 && (a = e.strstart - 1, n = o[a], n === o[++a] && n === o[++a] && n === o[++a])) {
+        if (e.match_length = 0, e.lookahead >= k1 && e.strstart > 0 && (a = e.strstart - 1, n = o[a], n === o[++a] && n === o[++a] && n === o[++a])) {
             l = e.strstart + Y;
             do ;
             while (n === o[++a] && n === o[++a] && n === o[++a] && n === o[++a] && n === o[++a] && n === o[++a] && n === o[++a] && n === o[++a] && a < l)
             e.match_length = Y - (l - a), e.match_length > e.lookahead && (e.match_length = e.lookahead);
         }
-        if (e.match_length >= k ? (t = j(e, 1, e.match_length - k), e.lookahead -= e.match_length, e.strstart += e.match_length, e.match_length = 0) : (t = j(e, 0, e.window[e.strstart]), e.lookahead--, e.strstart++), t && (O(e, !1), e.strm.avail_out === 0)) return D;
+        if (e.match_length >= k1 ? (t = j(e, 1, e.match_length - k1), e.lookahead -= e.match_length, e.strstart += e.match_length, e.match_length = 0) : (t = j(e, 0, e.window[e.strstart]), e.lookahead--, e.strstart++), t && (O1(e, !1), e.strm.avail_out === 0)) return D;
     }
-    return e.insert = 0, i === W ? (O(e, !0), e.strm.avail_out === 0 ? te : he) : e.last_lit && (O(e, !1), e.strm.avail_out === 0) ? D : Re;
+    return e.insert = 0, i === W ? (O1(e, !0), e.strm.avail_out === 0 ? te : he) : e.last_lit && (O1(e, !1), e.strm.avail_out === 0) ? D : Re;
 }, Fa = (e, i)=>{
     let t;
     for(;;){
@@ -2372,50 +2776,50 @@ var si = (e)=>e < 256 ? pe[e] : pe[256 + (e >>> 7)], ke = (e, i)=>{
             if (i === le) return D;
             break;
         }
-        if (e.match_length = 0, t = j(e, 0, e.window[e.strstart]), e.lookahead--, e.strstart++, t && (O(e, !1), e.strm.avail_out === 0)) return D;
+        if (e.match_length = 0, t = j(e, 0, e.window[e.strstart]), e.lookahead--, e.strstart++, t && (O1(e, !1), e.strm.avail_out === 0)) return D;
     }
-    return e.insert = 0, i === W ? (O(e, !0), e.strm.avail_out === 0 ? te : he) : e.last_lit && (O(e, !1), e.strm.avail_out === 0) ? D : Re;
+    return e.insert = 0, i === W ? (O1(e, !0), e.strm.avail_out === 0 ? te : he) : e.last_lit && (O1(e, !1), e.strm.avail_out === 0) ? D : Re;
 };
-function C(e, i, t, n, a) {
+function C1(e, i, t, n, a) {
     this.good_length = e, this.max_lazy = i, this.nice_length = t, this.max_chain = n, this.func = a;
 }
 var ce = [
-    new C(0, 0, 0, 0, $a),
-    new C(4, 4, 8, 4, Qe),
-    new C(4, 5, 16, 8, Qe),
-    new C(4, 6, 32, 32, Qe),
-    new C(4, 4, 16, 16, re),
-    new C(8, 16, 32, 32, re),
-    new C(8, 16, 128, 128, re),
-    new C(8, 32, 128, 256, re),
-    new C(32, 128, 258, 1024, re),
-    new C(32, 258, 258, 4096, re)
+    new C1(0, 0, 0, 0, $a),
+    new C1(4, 4, 8, 4, Qe),
+    new C1(4, 5, 16, 8, Qe),
+    new C1(4, 6, 32, 32, Qe),
+    new C1(4, 4, 16, 16, re),
+    new C1(8, 16, 32, 32, re),
+    new C1(8, 16, 128, 128, re),
+    new C1(8, 32, 128, 256, re),
+    new C1(32, 128, 258, 1024, re),
+    new C1(32, 258, 258, 4096, re)
 ], Ma = (e)=>{
-    e.window_size = 2 * e.w_size, X(e.head), e.max_lazy_match = ce[e.level].max_lazy, e.good_match = ce[e.level].good_length, e.nice_match = ce[e.level].nice_length, e.max_chain_length = ce[e.level].max_chain, e.strstart = 0, e.block_start = 0, e.lookahead = 0, e.insert = 0, e.match_length = e.prev_length = k - 1, e.match_available = 0, e.ins_h = 0;
+    e.window_size = 2 * e.w_size, X(e.head), e.max_lazy_match = ce[e.level].max_lazy, e.good_match = ce[e.level].good_length, e.nice_match = ce[e.level].nice_length, e.max_chain_length = ce[e.level].max_chain, e.strstart = 0, e.block_start = 0, e.lookahead = 0, e.insert = 0, e.match_length = e.prev_length = k1 - 1, e.match_available = 0, e.ins_h = 0;
 };
 function Ha() {
     this.strm = null, this.status = 0, this.pending_buf = null, this.pending_buf_size = 0, this.pending_out = 0, this.pending = 0, this.wrap = 0, this.gzhead = null, this.gzindex = 0, this.method = Pe, this.last_flush = -1, this.w_size = 0, this.w_bits = 0, this.w_mask = 0, this.window = null, this.window_size = 0, this.prev = null, this.head = null, this.ins_h = 0, this.hash_size = 0, this.hash_bits = 0, this.hash_mask = 0, this.hash_shift = 0, this.block_start = 0, this.match_length = 0, this.prev_match = 0, this.match_available = 0, this.strstart = 0, this.match_start = 0, this.lookahead = 0, this.prev_length = 0, this.max_chain_length = 0, this.max_lazy_match = 0, this.level = 0, this.strategy = 0, this.good_match = 0, this.nice_match = 0, this.dyn_ltree = new Uint16Array(Za * 2), this.dyn_dtree = new Uint16Array((2 * ma + 1) * 2), this.bl_tree = new Uint16Array((2 * Da + 1) * 2), X(this.dyn_ltree), X(this.dyn_dtree), X(this.bl_tree), this.l_desc = null, this.d_desc = null, this.bl_desc = null, this.bl_count = new Uint16Array(Ia + 1), this.heap = new Uint16Array(2 * _t + 1), X(this.heap), this.heap_len = 0, this.heap_max = 0, this.depth = new Uint16Array(2 * _t + 1), X(this.depth), this.l_buf = 0, this.lit_bufsize = 0, this.last_lit = 0, this.d_buf = 0, this.opt_len = 0, this.static_len = 0, this.matches = 0, this.insert = 0, this.bi_buf = 0, this.bi_valid = 0;
 }
 var xi = (e)=>{
-    if (!e || !e.state) return G(e, L);
+    if (!e || !e.state) return G(e, L1);
     e.total_in = e.total_out = 0, e.data_type = ya;
     let i = e.state;
     return i.pending = 0, i.pending_out = 0, i.wrap < 0 && (i.wrap = -i.wrap), i.status = i.wrap ? Xe : q, e.adler = i.wrap === 2 ? 0 : 1, i.last_flush = le, da(i), M;
 }, ki = (e)=>{
     let i = xi(e);
     return i === M && Ma(e.state), i;
-}, Ba = (e, i)=>!e || !e.state || e.state.wrap !== 2 ? L : (e.state.gzhead = i, M), vi = (e, i, t, n, a, l)=>{
-    if (!e) return L;
+}, Ba = (e, i)=>!e || !e.state || e.state.wrap !== 2 ? L1 : (e.state.gzhead = i, M), vi = (e, i, t, n, a, l)=>{
+    if (!e) return L1;
     let o = 1;
-    if (i === pa && (i = 6), n < 0 ? (o = 0, n = -n) : n > 15 && (o = 2, n -= 16), a < 1 || a > Sa || t !== Pe || n < 8 || n > 15 || i < 0 || i > 9 || l < 0 || l > va) return G(e, L);
+    if (i === pa && (i = 6), n < 0 ? (o = 0, n = -n) : n > 15 && (o = 2, n -= 16), a < 1 || a > Sa || t !== Pe || n < 8 || n > 15 || i < 0 || i > 9 || l < 0 || l > va) return G(e, L1);
     n === 8 && (n = 9);
     let f = new Ha;
-    return e.state = f, f.strm = e, f.wrap = o, f.gzhead = null, f.w_bits = n, f.w_size = 1 << f.w_bits, f.w_mask = f.w_size - 1, f.hash_bits = a + 7, f.hash_size = 1 << f.hash_bits, f.hash_mask = f.hash_size - 1, f.hash_shift = ~~((f.hash_bits + k - 1) / k), f.window = new Uint8Array(f.w_size * 2), f.head = new Uint16Array(f.hash_size), f.prev = new Uint16Array(f.w_size), f.lit_bufsize = 1 << a + 6, f.pending_buf_size = f.lit_bufsize * 4, f.pending_buf = new Uint8Array(f.pending_buf_size), f.d_buf = 1 * f.lit_bufsize, f.l_buf = (1 + 2) * f.lit_bufsize, f.level = i, f.strategy = l, f.method = t, ki(e);
+    return e.state = f, f.strm = e, f.wrap = o, f.gzhead = null, f.w_bits = n, f.w_size = 1 << f.w_bits, f.w_mask = f.w_size - 1, f.hash_bits = a + 7, f.hash_size = 1 << f.hash_bits, f.hash_mask = f.hash_size - 1, f.hash_shift = ~~((f.hash_bits + k1 - 1) / k1), f.window = new Uint8Array(f.w_size * 2), f.head = new Uint16Array(f.hash_size), f.prev = new Uint16Array(f.w_size), f.lit_bufsize = 1 << a + 6, f.pending_buf_size = f.lit_bufsize * 4, f.pending_buf = new Uint8Array(f.pending_buf_size), f.d_buf = 1 * f.lit_bufsize, f.l_buf = (1 + 2) * f.lit_bufsize, f.level = i, f.strategy = l, f.method = t, ki(e);
 }, Ka = (e, i)=>vi(e, i, Pe, Aa, Ra, Ea), Pa = (e, i)=>{
     let t, n;
-    if (!e || !e.state || i > St || i < 0) return e ? G(e, L) : L;
+    if (!e || !e.state || i > St || i < 0) return e ? G(e, L1) : L1;
     let a = e.state;
-    if (!e.output || !e.input && e.avail_in !== 0 || a.status === se && i !== W) return G(e, e.avail_out === 0 ? Je : L);
+    if (!e.output || !e.input && e.avail_in !== 0 || a.status === se && i !== W) return G(e, e.avail_out === 0 ? Je : L1);
     a.strm = e;
     let l = a.last_flush;
     if (a.last_flush = i, a.status === Xe) if (a.wrap === 2) e.adler = 0, y(a, 31), y(a, 139), y(a, 8), a.gzhead ? (y(a, (a.gzhead.text ? 1 : 0) + (a.gzhead.hcrc ? 2 : 0) + (a.gzhead.extra ? 4 : 0) + (a.gzhead.name ? 8 : 0) + (a.gzhead.comment ? 16 : 0)), y(a, a.gzhead.time & 255), y(a, a.gzhead.time >> 8 & 255), y(a, a.gzhead.time >> 16 & 255), y(a, a.gzhead.time >> 24 & 255), y(a, a.level === 9 ? 2 : a.strategy >= Ie || a.level < 2 ? 4 : 0), y(a, a.gzhead.os & 255), a.gzhead.extra && a.gzhead.extra.length && (y(a, a.gzhead.extra.length & 255), y(a, a.gzhead.extra.length >> 8 & 255)), a.gzhead.hcrc && (e.adler = I(e.adler, a.pending_buf, a.pending, 0)), a.gzindex = 0, a.status = ht) : (y(a, 0), y(a, 0), y(a, 0), y(a, 0), y(a, 0), y(a, a.level === 9 ? 2 : a.strategy >= Ie || a.level < 2 ? 4 : 0), y(a, Na), a.status = q);
@@ -2424,13 +2828,13 @@ var xi = (e)=>{
         a.strategy >= Ie || a.level < 2 ? f = 0 : a.level < 6 ? f = 1 : a.level === 6 ? f = 2 : f = 3, o |= f << 6, a.strstart !== 0 && (o |= Oa), o += 31 - o % 31, a.status = q, de(a, o), a.strstart !== 0 && (de(a, e.adler >>> 16), de(a, e.adler & 65535)), e.adler = 1;
     }
     if (a.status === ht) if (a.gzhead.extra) {
-        for(t = a.pending; a.gzindex < (a.gzhead.extra.length & 65535) && !(a.pending === a.pending_buf_size && (a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), P(e), t = a.pending, a.pending === a.pending_buf_size));)y(a, a.gzhead.extra[a.gzindex] & 255), a.gzindex++;
+        for(t = a.pending; a.gzindex < (a.gzhead.extra.length & 65535) && !(a.pending === a.pending_buf_size && (a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), P1(e), t = a.pending, a.pending === a.pending_buf_size));)y(a, a.gzhead.extra[a.gzindex] & 255), a.gzindex++;
         a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), a.gzindex === a.gzhead.extra.length && (a.gzindex = 0, a.status = Ce);
     } else a.status = Ce;
     if (a.status === Ce) if (a.gzhead.name) {
         t = a.pending;
         do {
-            if (a.pending === a.pending_buf_size && (a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), P(e), t = a.pending, a.pending === a.pending_buf_size)) {
+            if (a.pending === a.pending_buf_size && (a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), P1(e), t = a.pending, a.pending === a.pending_buf_size)) {
                 n = 1;
                 break;
             }
@@ -2441,7 +2845,7 @@ var xi = (e)=>{
     if (a.status === Fe) if (a.gzhead.comment) {
         t = a.pending;
         do {
-            if (a.pending === a.pending_buf_size && (a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), P(e), t = a.pending, a.pending === a.pending_buf_size)) {
+            if (a.pending === a.pending_buf_size && (a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), P1(e), t = a.pending, a.pending === a.pending_buf_size)) {
                 n = 1;
                 break;
             }
@@ -2449,38 +2853,38 @@ var xi = (e)=>{
         }while (n !== 0)
         a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), n === 0 && (a.status = Me);
     } else a.status = Me;
-    if (a.status === Me && (a.gzhead.hcrc ? (a.pending + 2 > a.pending_buf_size && P(e), a.pending + 2 <= a.pending_buf_size && (y(a, e.adler & 255), y(a, e.adler >> 8 & 255), e.adler = 0, a.status = q)) : a.status = q), a.pending !== 0) {
-        if (P(e), e.avail_out === 0) return a.last_flush = -1, M;
+    if (a.status === Me && (a.gzhead.hcrc ? (a.pending + 2 > a.pending_buf_size && P1(e), a.pending + 2 <= a.pending_buf_size && (y(a, e.adler & 255), y(a, e.adler >> 8 & 255), e.adler = 0, a.status = q)) : a.status = q), a.pending !== 0) {
+        if (P1(e), e.avail_out === 0) return a.last_flush = -1, M;
     } else if (e.avail_in === 0 && Rt(i) <= Rt(l) && i !== W) return G(e, Je);
     if (a.status === se && e.avail_in !== 0) return G(e, Je);
     if (e.avail_in !== 0 || a.lookahead !== 0 || i !== le && a.status !== se) {
         let o = a.strategy === Ie ? Fa(a, i) : a.strategy === ka ? Ca(a, i) : ce[a.level].func(a, i);
         if ((o === te || o === he) && (a.status = se), o === D || o === te) return e.avail_out === 0 && (a.last_flush = -1), M;
-        if (o === Re && (i === ba ? ua(a) : i !== St && (sa(a, 0, 0, !1), i === wa && (X(a.head), a.lookahead === 0 && (a.strstart = 0, a.block_start = 0, a.insert = 0))), P(e), e.avail_out === 0)) return a.last_flush = -1, M;
+        if (o === Re && (i === ba ? ua(a) : i !== St && (sa(a, 0, 0, !1), i === wa && (X(a.head), a.lookahead === 0 && (a.strstart = 0, a.block_start = 0, a.insert = 0))), P1(e), e.avail_out === 0)) return a.last_flush = -1, M;
     }
-    return i !== W ? M : a.wrap <= 0 ? At : (a.wrap === 2 ? (y(a, e.adler & 255), y(a, e.adler >> 8 & 255), y(a, e.adler >> 16 & 255), y(a, e.adler >> 24 & 255), y(a, e.total_in & 255), y(a, e.total_in >> 8 & 255), y(a, e.total_in >> 16 & 255), y(a, e.total_in >> 24 & 255)) : (de(a, e.adler >>> 16), de(a, e.adler & 65535)), P(e), a.wrap > 0 && (a.wrap = -a.wrap), a.pending !== 0 ? M : At);
+    return i !== W ? M : a.wrap <= 0 ? At : (a.wrap === 2 ? (y(a, e.adler & 255), y(a, e.adler >> 8 & 255), y(a, e.adler >> 16 & 255), y(a, e.adler >> 24 & 255), y(a, e.total_in & 255), y(a, e.total_in >> 8 & 255), y(a, e.total_in >> 16 & 255), y(a, e.total_in >> 24 & 255)) : (de(a, e.adler >>> 16), de(a, e.adler & 65535)), P1(e), a.wrap > 0 && (a.wrap = -a.wrap), a.pending !== 0 ? M : At);
 }, Xa = (e)=>{
-    if (!e || !e.state) return L;
+    if (!e || !e.state) return L1;
     let i = e.state.status;
-    return i !== Xe && i !== ht && i !== Ce && i !== Fe && i !== Me && i !== q && i !== se ? G(e, L) : (e.state = null, i === q ? G(e, ga) : M);
+    return i !== Xe && i !== ht && i !== Ce && i !== Fe && i !== Me && i !== q && i !== se ? G(e, L1) : (e.state = null, i === q ? G(e, ga) : M);
 }, Ya = (e, i)=>{
     let t = i.length;
-    if (!e || !e.state) return L;
+    if (!e || !e.state) return L1;
     let n = e.state, a = n.wrap;
-    if (a === 2 || a === 1 && n.status !== Xe || n.lookahead) return L;
+    if (a === 2 || a === 1 && n.status !== Xe || n.lookahead) return L1;
     if (a === 1 && (e.adler = ve(e.adler, i, t, 0)), n.wrap = 0, t >= n.w_size) {
         a === 0 && (X(n.head), n.strstart = 0, n.block_start = 0, n.insert = 0);
         let c = new Uint8Array(n.w_size);
         c.set(i.subarray(t - n.w_size, t), 0), i = c, t = n.w_size;
     }
     let l = e.avail_in, o = e.next_in, f = e.input;
-    for(e.avail_in = t, e.next_in = 0, e.input = i, ie(n); n.lookahead >= k;){
-        let c = n.strstart, r = n.lookahead - (k - 1);
-        do n.ins_h = V(n, n.ins_h, n.window[c + k - 1]), n.prev[c & n.w_mask] = n.head[n.ins_h], n.head[n.ins_h] = c, c++;
+    for(e.avail_in = t, e.next_in = 0, e.input = i, ie(n); n.lookahead >= k1;){
+        let c = n.strstart, r = n.lookahead - (k1 - 1);
+        do n.ins_h = V(n, n.ins_h, n.window[c + k1 - 1]), n.prev[c & n.w_mask] = n.head[n.ins_h], n.head[n.ins_h] = c, c++;
         while (--r)
-        n.strstart = c, n.lookahead = k - 1, ie(n);
+        n.strstart = c, n.lookahead = k1 - 1, ie(n);
     }
-    return n.strstart += n.lookahead, n.block_start = n.strstart, n.insert = n.lookahead, n.lookahead = 0, n.match_length = n.prev_length = k - 1, n.match_available = 0, e.next_in = o, e.input = f, e.avail_in = l, n.wrap = a, M;
+    return n.strstart += n.lookahead, n.block_start = n.strstart, n.insert = n.lookahead, n.lookahead = 0, n.match_length = n.prev_length = k1 - 1, n.match_available = 0, e.next_in = o, e.input = f, e.avail_in = l, n.wrap = a, M;
 }, Ga = Ka, ja = vi, Wa = ki, Va = xi, Ja = Ba, Qa = Pa, qa = Xa, en = Ya, tn = "pako deflate (from Nodeca project)", be = {
     deflateInit: Ga,
     deflateInit2: ja,
@@ -2868,7 +3272,7 @@ var vn = ze, En = bt, yn = xn, Sn = kn, An = ne, Rn = {
         }
     }
     return A !== 0 && (a[b + A] = r - m << 24 | 64 << 16 | 0), f.bits = h, 0;
-}, we = On, Nn = 0, Ai = 1, Ri = 2, { Z_FINISH: Zt , Z_BLOCK: Ln , Z_TREES: Ne , Z_OK: ae , Z_STREAM_END: Un , Z_NEED_DICT: $n , Z_STREAM_ERROR: U , Z_DATA_ERROR: zi , Z_MEM_ERROR: Ti , Z_BUF_ERROR: Cn , Z_DEFLATED: It  } = ne, mi = 1, Ot = 2, Nt = 3, Lt = 4, Ut = 5, $t = 6, Ct = 7, Ft = 8, Mt = 9, Ht = 10, Ke = 11, H = 12, et = 13, Bt = 14, tt = 15, Kt = 16, Pt = 17, Xt = 18, Yt = 19, Le = 20, Ue = 21, Gt = 22, jt = 23, Wt = 24, Vt = 25, Jt = 26, it = 27, Qt = 28, qt = 29, T = 30, Di = 31, Fn = 32, Mn = 852, Hn = 592, Bn = 15, Kn = Bn, ei = (e)=>(e >>> 24 & 255) + (e >>> 8 & 65280) + ((e & 65280) << 8) + ((e & 255) << 24);
+}, we = On, Nn = 0, Ai = 1, Ri = 2, { Z_FINISH: Zt , Z_BLOCK: Ln , Z_TREES: Ne , Z_OK: ae , Z_STREAM_END: Un , Z_NEED_DICT: $n , Z_STREAM_ERROR: U , Z_DATA_ERROR: zi , Z_MEM_ERROR: Ti , Z_BUF_ERROR: Cn , Z_DEFLATED: It  } = ne, mi = 1, Ot = 2, Nt = 3, Lt = 4, Ut = 5, $t = 6, Ct = 7, Ft = 8, Mt = 9, Ht = 10, Ke = 11, H = 12, et = 13, Bt = 14, tt = 15, Kt = 16, Pt = 17, Xt = 18, Yt = 19, Le = 20, Ue = 21, Gt = 22, jt = 23, Wt = 24, Vt = 25, Jt = 26, it = 27, Qt = 28, qt = 29, T1 = 30, Di = 31, Fn = 32, Mn = 852, Hn = 592, Bn = 15, Kn = Bn, ei = (e)=>(e >>> 24 & 255) + (e >>> 8 & 65280) + ((e & 65280) << 8) + ((e & 255) << 24);
 function Pn() {
     this.mode = 0, this.last = !1, this.wrap = 0, this.havedict = !1, this.flags = 0, this.dmax = 0, this.check = 0, this.total = 0, this.head = null, this.wbits = 0, this.wsize = 0, this.whave = 0, this.wnext = 0, this.window = null, this.hold = 0, this.bits = 0, this.length = 0, this.offset = 0, this.extra = 0, this.lencode = null, this.distcode = null, this.lenbits = 0, this.distbits = 0, this.ncode = 0, this.nlen = 0, this.ndist = 0, this.have = 0, this.next = null, this.lens = new Uint16Array(320), this.work = new Uint16Array(288), this.lendyn = null, this.distdyn = null, this.sane = 0, this.back = 0, this.was = 0;
 }
@@ -2949,16 +3353,16 @@ var Zi = (e)=>{
                 break;
             }
             if (t.flags = 0, t.head && (t.head.done = !1), !(t.wrap & 1) || (((r & 255) << 8) + (r >> 8)) % 31) {
-                e.msg = "incorrect header check", t.mode = T;
+                e.msg = "incorrect header check", t.mode = T1;
                 break;
             }
             if ((r & 15) !== It) {
-                e.msg = "unknown compression method", t.mode = T;
+                e.msg = "unknown compression method", t.mode = T1;
                 break;
             }
             if (r >>>= 4, _ -= 4, b = (r & 15) + 8, t.wbits === 0) t.wbits = b;
             else if (b > t.wbits) {
-                e.msg = "invalid window size", t.mode = T;
+                e.msg = "invalid window size", t.mode = T1;
                 break;
             }
             t.dmax = 1 << t.wbits, e.adler = t.check = 1, t.mode = r & 512 ? Ht : H, r = 0, _ = 0;
@@ -2969,11 +3373,11 @@ var Zi = (e)=>{
                 f--, r += n[l++] << _, _ += 8;
             }
             if (t.flags = r, (t.flags & 255) !== It) {
-                e.msg = "unknown compression method", t.mode = T;
+                e.msg = "unknown compression method", t.mode = T1;
                 break;
             }
             if (t.flags & 57344) {
-                e.msg = "unknown header flags set", t.mode = T;
+                e.msg = "unknown header flags set", t.mode = T1;
                 break;
             }
             t.head && (t.head.text = r >> 8 & 1), t.flags & 512 && (R[0] = r & 255, R[1] = r >>> 8 & 255, t.check = I(t.check, R, 2, 0)), r = 0, _ = 0, t.mode = Nt;
@@ -3026,7 +3430,7 @@ var Zi = (e)=>{
                     f--, r += n[l++] << _, _ += 8;
                 }
                 if (r !== (t.check & 65535)) {
-                    e.msg = "header crc mismatch", t.mode = T;
+                    e.msg = "header crc mismatch", t.mode = T1;
                     break;
                 }
                 r = 0, _ = 0;
@@ -3067,7 +3471,7 @@ var Zi = (e)=>{
                     t.mode = Pt;
                     break;
                 case 3:
-                    e.msg = "invalid block type", t.mode = T;
+                    e.msg = "invalid block type", t.mode = T1;
             }
             r >>>= 2, _ -= 2;
             break;
@@ -3077,7 +3481,7 @@ var Zi = (e)=>{
                 f--, r += n[l++] << _, _ += 8;
             }
             if ((r & 65535) !== (r >>> 16 ^ 65535)) {
-                e.msg = "invalid stored block lengths", t.mode = T;
+                e.msg = "invalid stored block lengths", t.mode = T1;
                 break;
             }
             if (t.length = r & 65535, r = 0, _ = 0, t.mode = tt, i === Ne) break e;
@@ -3097,7 +3501,7 @@ var Zi = (e)=>{
                 f--, r += n[l++] << _, _ += 8;
             }
             if (t.nlen = (r & 31) + 257, r >>>= 5, _ -= 5, t.ndist = (r & 31) + 1, r >>>= 5, _ -= 5, t.ncode = (r & 15) + 4, r >>>= 4, _ -= 4, t.nlen > 286 || t.ndist > 30) {
-                e.msg = "too many length or distance symbols", t.mode = T;
+                e.msg = "too many length or distance symbols", t.mode = T1;
                 break;
             }
             t.have = 0, t.mode = Xt;
@@ -3113,7 +3517,7 @@ var Zi = (e)=>{
             if (t.lencode = t.lendyn, t.lenbits = 7, g = {
                 bits: t.lenbits
             }, z = we(Nn, t.lens, 0, 19, t.lencode, 0, t.work, g), t.lenbits = g.bits, z) {
-                e.msg = "invalid code lengths set", t.mode = T;
+                e.msg = "invalid code lengths set", t.mode = T1;
                 break;
             }
             t.have = 0, t.mode = Yt;
@@ -3131,7 +3535,7 @@ var Zi = (e)=>{
                             f--, r += n[l++] << _, _ += 8;
                         }
                         if (r >>>= w, _ -= w, t.have === 0) {
-                            e.msg = "invalid bit length repeat", t.mode = T;
+                            e.msg = "invalid bit length repeat", t.mode = T1;
                             break;
                         }
                         b = t.lens[t.have - 1], h = 3 + (r & 3), r >>>= 2, _ -= 2;
@@ -3149,27 +3553,27 @@ var Zi = (e)=>{
                         r >>>= w, _ -= w, b = 0, h = 11 + (r & 127), r >>>= 7, _ -= 7;
                     }
                     if (t.have + h > t.nlen + t.ndist) {
-                        e.msg = "invalid bit length repeat", t.mode = T;
+                        e.msg = "invalid bit length repeat", t.mode = T1;
                         break;
                     }
                     for(; h--;)t.lens[t.have++] = b;
                 }
             }
-            if (t.mode === T) break;
+            if (t.mode === T1) break;
             if (t.lens[256] === 0) {
-                e.msg = "invalid code -- missing end-of-block", t.mode = T;
+                e.msg = "invalid code -- missing end-of-block", t.mode = T1;
                 break;
             }
             if (t.lenbits = 9, g = {
                 bits: t.lenbits
             }, z = we(Ai, t.lens, 0, t.nlen, t.lencode, 0, t.work, g), t.lenbits = g.bits, z) {
-                e.msg = "invalid literal/lengths set", t.mode = T;
+                e.msg = "invalid literal/lengths set", t.mode = T1;
                 break;
             }
             if (t.distbits = 6, t.distcode = t.distdyn, g = {
                 bits: t.distbits
             }, z = we(Ri, t.lens, t.nlen, t.ndist, t.distcode, 0, t.work, g), t.distbits = g.bits, z) {
-                e.msg = "invalid distances set", t.mode = T;
+                e.msg = "invalid distances set", t.mode = T1;
                 break;
             }
             if (t.mode = Le, i === Ne) break e;
@@ -3200,7 +3604,7 @@ var Zi = (e)=>{
                 break;
             }
             if (A & 64) {
-                e.msg = "invalid literal/length code", t.mode = T;
+                e.msg = "invalid literal/length code", t.mode = T1;
                 break;
             }
             t.extra = A & 15, t.mode = Gt;
@@ -3226,7 +3630,7 @@ var Zi = (e)=>{
                 r >>>= d, _ -= d, t.back += d;
             }
             if (r >>>= w, _ -= w, t.back += w, A & 64) {
-                e.msg = "invalid distance code", t.mode = T;
+                e.msg = "invalid distance code", t.mode = T1;
                 break;
             }
             t.offset = x, t.extra = A & 15, t.mode = Wt;
@@ -3239,7 +3643,7 @@ var Zi = (e)=>{
                 t.offset += r & (1 << t.extra) - 1, r >>>= t.extra, _ -= t.extra, t.back += t.extra;
             }
             if (t.offset > t.dmax) {
-                e.msg = "invalid distance too far back", t.mode = T;
+                e.msg = "invalid distance too far back", t.mode = T1;
                 break;
             }
             t.mode = Vt;
@@ -3247,7 +3651,7 @@ var Zi = (e)=>{
             if (c === 0) break e;
             if (h = s - c, t.offset > h) {
                 if (h = t.offset - h, h > t.whave && t.sane) {
-                    e.msg = "invalid distance too far back", t.mode = T;
+                    e.msg = "invalid distance too far back", t.mode = T1;
                     break;
                 }
                 h > t.wnext ? (h -= t.wnext, u = t.wsize - h) : u = t.wnext - h, h > t.length && (h = t.length), m = t.window;
@@ -3268,7 +3672,7 @@ var Zi = (e)=>{
                     f--, r |= n[l++] << _, _ += 8;
                 }
                 if (s -= c, e.total_out += s, t.total += s, s && (e.adler = t.check = t.flags ? I(t.check, a, s, o - s) : ve(t.check, a, s, o - s)), s = c, (t.flags ? r : ei(r)) !== t.check) {
-                    e.msg = "incorrect data check", t.mode = T;
+                    e.msg = "incorrect data check", t.mode = T1;
                     break;
                 }
                 r = 0, _ = 0;
@@ -3281,7 +3685,7 @@ var Zi = (e)=>{
                     f--, r += n[l++] << _, _ += 8;
                 }
                 if (r !== (t.total & 4294967295)) {
-                    e.msg = "incorrect length check", t.mode = T;
+                    e.msg = "incorrect length check", t.mode = T1;
                     break;
                 }
                 r = 0, _ = 0;
@@ -3290,7 +3694,7 @@ var Zi = (e)=>{
         case qt:
             z = Un;
             break e;
-        case T:
+        case T1:
             z = zi;
             break e;
         case Di:
@@ -3299,7 +3703,7 @@ var Zi = (e)=>{
         default:
             return U;
     }
-    return e.next_out = o, e.avail_out = c, e.next_in = l, e.avail_in = f, t.hold = r, t.bits = _, (t.wsize || s !== e.avail_out && t.mode < T && (t.mode < it || i !== Zt)) && Li(e, e.output, e.next_out, s - e.avail_out), E -= e.avail_in, s -= e.avail_out, e.total_in += E, e.total_out += s, t.total += s, t.wrap && s && (e.adler = t.check = t.flags ? I(t.check, a, s, e.next_out - s) : ve(t.check, a, s, e.next_out - s)), e.data_type = t.bits + (t.last ? 64 : 0) + (t.mode === H ? 128 : 0) + (t.mode === Le || t.mode === tt ? 256 : 0), (E === 0 && s === 0 || i === Zt) && z === ae && (z = Cn), z;
+    return e.next_out = o, e.avail_out = c, e.next_in = l, e.avail_in = f, t.hold = r, t.bits = _, (t.wsize || s !== e.avail_out && t.mode < T1 && (t.mode < it || i !== Zt)) && Li(e, e.output, e.next_out, s - e.avail_out), E -= e.avail_in, s -= e.avail_out, e.total_in += E, e.total_out += s, t.total += s, t.wrap && s && (e.adler = t.check = t.flags ? I(t.check, a, s, e.next_out - s) : ve(t.check, a, s, e.next_out - s)), e.data_type = t.bits + (t.last ? 64 : 0) + (t.mode === H ? 128 : 0) + (t.mode === Le || t.mode === tt ? 256 : 0), (E === 0 && s === 0 || i === Zt) && z === ae && (z = Cn), z;
 }, jn = (e)=>{
     if (!e || !e.state) return U;
     let i = e.state;
@@ -3505,6 +3909,92 @@ function send_error(message, exception) {
 }
 const SESSIONS = {};
 const GLOBAL_OBJECT_CACHE = {};
+const OBJECT_FREEING_LOCK = new l({
+    concurrency: 1
+});
+function lock_loading(f) {
+    OBJECT_FREEING_LOCK.add(f);
+}
+function lookup_global_object(key) {
+    const object = GLOBAL_OBJECT_CACHE[key];
+    if (object) {
+        if (object instanceof Retain) {
+            return object.value;
+        } else {
+            return object;
+        }
+    }
+    throw new Error(`Key ${key} not found! ${object}`);
+}
+function is_still_referenced(id) {
+    for(const session_id in SESSIONS){
+        const [tracked_objects, allow_delete] = SESSIONS[session_id];
+        if (allow_delete && tracked_objects.has(id)) {
+            return true;
+        }
+    }
+    return false;
+}
+function free_object(id) {
+    const data = GLOBAL_OBJECT_CACHE[id];
+    if (data) {
+        if (data instanceof Promise) {
+            return;
+        }
+        if (data instanceof Retain) {
+            return;
+        }
+        if (!is_still_referenced(id)) {
+            delete GLOBAL_OBJECT_CACHE[id];
+        }
+        return;
+    } else {
+        console.warn(`Trying to delete object ${id}, which is not in global session cache.`);
+    }
+    return;
+}
+let DELETE_OBSERVER = undefined;
+function track_deleted_sessions() {
+    if (!DELETE_OBSERVER) {
+        const observer = new MutationObserver(function(mutations) {
+            let removal_occured = false;
+            const to_delete = new Set();
+            mutations.forEach((mutation)=>{
+                mutation.removedNodes.forEach((x)=>{
+                    if (x.id in SESSIONS) {
+                        const status = SESSIONS[x.id][1];
+                        if (status === "delete") {
+                            to_delete.add(x.id);
+                        }
+                    } else {
+                        removal_occured = true;
+                    }
+                });
+            });
+            if (removal_occured) {
+                Object.keys(SESSIONS).forEach((id)=>{
+                    const status = SESSIONS[id][1];
+                    if (status === "delete") {
+                        if (!document.getElementById(id)) {
+                            console.debug(`adding session to delete candidates: ${id}`);
+                            to_delete.add(id);
+                        }
+                    }
+                });
+            }
+            to_delete.forEach((id)=>{
+                close_session(id);
+            });
+        });
+        observer.observe(document, {
+            attributes: false,
+            childList: true,
+            characterData: false,
+            subtree: true
+        });
+        DELETE_OBSERVER = observer;
+    }
+}
 function send_pingpong() {
     send_to_julia({
         msg_type: PingPong
@@ -3594,6 +4084,39 @@ register_ext(103, (uint_8_array)=>{
     const real_value = unpack(uint_8_array);
     return new Retain(real_value);
 });
+register_ext(104, (uint_8_array)=>{
+    const key = unpack(uint_8_array);
+    return lookup_global_object(key);
+});
+function create_tag(tag, attributes) {
+    if (attributes.juliasvgnode) {
+        return document.createElementNS("http://www.w3.org/2000/svg", tag);
+    } else {
+        return document.createElement(tag);
+    }
+}
+register_ext(105, (uint_8_array)=>{
+    const [tag, children, attributes] = unpack(uint_8_array);
+    const node = create_tag(tag, attributes);
+    Object.keys(attributes).forEach((key)=>{
+        if (key == "juliasvgnode") {
+            return;
+        }
+        if (key == "class") {
+            node.className = attributes[key];
+        } else {
+            node.setAttribute(key, attributes[key]);
+        }
+    });
+    children.forEach((child)=>node.append(child));
+    return node;
+});
+register_ext(108, (uint_8_array)=>{
+    const html = unpack(uint_8_array);
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    return div;
+});
 function send_warning(message) {
     console.warn(message);
     send_to_julia({
@@ -3616,44 +4139,6 @@ function send_close_session(session, subsession) {
         session,
         subsession
     });
-}
-class Lock {
-    constructor(){
-        this.locked = false;
-        this.queue = [];
-        this.locking_tasks = new Set();
-    }
-    unlock() {
-        this.locked = false;
-        if (this.queue.length > 0) {
-            const job = this.queue.shift();
-            this.lock(job);
-        }
-    }
-    task_lock(task_id) {
-        this.locked = true;
-        this.locking_tasks.add(task_id);
-    }
-    task_unlock(task_id) {
-        this.locking_tasks.delete(task_id);
-        if (this.locking_tasks.size == 0) {
-            this.unlock();
-        }
-    }
-    lock(func) {
-        return new Promise((resolve)=>{
-            if (this.locked) {
-                const func_res = ()=>Promise.resolve(func()).then(resolve);
-                this.queue.push(func_res);
-            } else {
-                this.locked = true;
-                Promise.resolve(func()).then((x)=>{
-                    this.unlock();
-                    resolve(x);
-                });
-            }
-        });
-    }
 }
 function process_message(data) {
     try {
@@ -3701,93 +4186,8 @@ const mod = {
     send_warning: send_warning,
     send_done_loading: send_done_loading,
     send_close_session: send_close_session,
-    Lock: Lock,
     process_message: process_message
 };
-const OBJECT_FREEING_LOCK = new Lock();
-function lock_loading(f) {
-    OBJECT_FREEING_LOCK.lock(f);
-}
-function lookup_global_object(key) {
-    const object = GLOBAL_OBJECT_CACHE[key];
-    if (object) {
-        if (object instanceof Retain) {
-            return object.value;
-        } else {
-            return object;
-        }
-    }
-    throw new Error(`Key ${key} not found! ${object}`);
-}
-function is_still_referenced(id) {
-    for(const session_id in SESSIONS){
-        const [tracked_objects, allow_delete] = SESSIONS[session_id];
-        if (allow_delete && tracked_objects.has(id)) {
-            return true;
-        }
-    }
-    return false;
-}
-function free_object(id) {
-    const data = GLOBAL_OBJECT_CACHE[id];
-    if (data) {
-        if (data instanceof Promise) {
-            return;
-        }
-        if (data instanceof Retain) {
-            return;
-        }
-        if (!is_still_referenced(id)) {
-            delete GLOBAL_OBJECT_CACHE[id];
-        }
-        return;
-    } else {
-        console.warn(`Trying to delete object ${id}, which is not in global session cache.`);
-    }
-    return;
-}
-let DELETE_OBSERVER = undefined;
-function track_deleted_sessions() {
-    if (!DELETE_OBSERVER) {
-        const observer = new MutationObserver(function(mutations) {
-            let removal_occured = false;
-            const to_delete = new Set();
-            mutations.forEach((mutation)=>{
-                mutation.removedNodes.forEach((x)=>{
-                    if (x.id in SESSIONS) {
-                        const status = SESSIONS[x.id][1];
-                        if (status === "delete") {
-                            to_delete.add(x.id);
-                        }
-                    } else {
-                        removal_occured = true;
-                    }
-                });
-            });
-            if (removal_occured) {
-                Object.keys(SESSIONS).forEach((id)=>{
-                    const status = SESSIONS[id][1];
-                    if (status === "delete") {
-                        if (!document.getElementById(id)) {
-                            console.debug(`adding session to delete candidates: ${id}`);
-                            to_delete.add(id);
-                        }
-                    }
-                });
-            }
-            to_delete.forEach((id)=>{
-                close_session(id);
-            });
-        });
-        observer.observe(document, {
-            attributes: false,
-            childList: true,
-            characterData: false,
-            subtree: true
-        });
-        DELETE_OBSERVER = observer;
-    }
-}
 function done_initializing_session(session_id) {
     if (!(session_id in SESSIONS)) {
         throw new Error("Session ");
@@ -3796,41 +4196,7 @@ function done_initializing_session(session_id) {
     if (SESSIONS[session_id][1] != "root") {
         SESSIONS[session_id][1] = "delete";
     }
-    console.log(`session ${session_id} fully initialized`);
 }
-register_ext(104, (uint_8_array)=>{
-    const key = unpack(uint_8_array);
-    return lookup_global_object(key);
-});
-function create_tag(tag, attributes) {
-    if (attributes.juliasvgnode) {
-        return document.createElementNS("http://www.w3.org/2000/svg", tag);
-    } else {
-        return document.createElement(tag);
-    }
-}
-register_ext(105, (uint_8_array)=>{
-    const [tag, children, attributes] = unpack(uint_8_array);
-    const node = create_tag(tag, attributes);
-    Object.keys(attributes).forEach((key)=>{
-        if (key == "juliasvgnode") {
-            return;
-        }
-        if (key == "class") {
-            node.className = attributes[key];
-        } else {
-            node.setAttribute(key, attributes[key]);
-        }
-    });
-    children.forEach((child)=>node.append(child));
-    return node;
-});
-register_ext(108, (uint_8_array)=>{
-    const html = unpack(uint_8_array);
-    const div = document.createElement("div");
-    div.innerHTML = html;
-    return div;
-});
 function decode_binary(binary, compression_enabled) {
     const serialized_message = unpack_binary(binary, compression_enabled);
     const [session_id, message_data] = serialized_message;
@@ -3838,13 +4204,11 @@ function decode_binary(binary, compression_enabled) {
 }
 function init_session(session_id, binary_messages, session_status, compression_enabled) {
     track_deleted_sessions();
-    OBJECT_FREEING_LOCK.task_lock(session_id);
     try {
         SESSIONS[session_id] = [
             new Set(),
             session_status
         ];
-        console.log(`init session: ${session_id}, ${session_status}`);
         if (binary_messages) {
             process_message(decode_binary(binary_messages, compression_enabled));
         }
@@ -3853,8 +4217,6 @@ function init_session(session_id, binary_messages, session_status, compression_e
         send_done_loading(session_id, error);
         console.error(error.stack);
         throw error;
-    } finally{
-        OBJECT_FREEING_LOCK.task_unlock(session_id);
     }
 }
 function close_session(session_id) {
@@ -3879,7 +4241,7 @@ function close_session(session_id) {
     return;
 }
 function free_session(session_id) {
-    OBJECT_FREEING_LOCK.lock(()=>{
+    lock_loading(()=>{
         const session = SESSIONS[session_id];
         if (!session) {
             console.warn("double freeing session from Julia!");
@@ -3927,9 +4289,7 @@ function update_session_dom(message) {
             send_done_loading(session_id, error);
             console.error(error.stack);
             throw error;
-        } finally{
-            OBJECT_FREEING_LOCK.task_unlock(session_id);
-        }
+        } finally{}
     });
     return;
 }
@@ -3954,7 +4314,6 @@ function update_session_cache(session_id, new_jl_objects, session_status) {
     if (session) {
         update_cache(session[0]);
     } else {
-        OBJECT_FREEING_LOCK.task_lock(session_id);
         const tracked_items = new Set();
         SESSIONS[session_id] = [
             tracked_items,
