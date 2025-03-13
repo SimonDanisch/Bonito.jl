@@ -94,6 +94,10 @@ function Base.push!(set::OrderedSet, item)
     (item in set.items) || push!(set.items, item)
 end
 
+function Base.setdiff(set1::OrderedSet{T}, set2) where {T}
+    OrderedSet{T}(setdiff(set1.items, set2))
+end
+
 function Base.union!(set1::OrderedSet, set2)
     union!(set1.items, set2)
 end
