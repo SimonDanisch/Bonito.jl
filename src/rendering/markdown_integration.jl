@@ -52,6 +52,9 @@ function md_html(header::Markdown.Header{l}) where l
 end
 
 function md_html(code::Markdown.Code)
+    if code.language == "latex"
+        return [MathJax(code.code)]
+    end
     maybe_lang = !isempty(code.language) ? Any[:class=>"language-$(code.language)"] : []
     return [DOM.m("pre", DOM.m("code", code.code; maybe_lang...))]
 end

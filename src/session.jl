@@ -192,6 +192,7 @@ function collect_messages(f)
     return msgs, msg
 end
 
+const COLLECT_LOCK = Base.ReentrantLock()
 function Sockets.send(session::Session, message::SerializedMessage)
     if isclosed(session)
         # We could also make this non fatal, but since `send` shouldn't be user facing,
@@ -202,8 +203,10 @@ function Sockets.send(session::Session, message::SerializedMessage)
         # if connection is open, we should never queue up messages
         @assert isempty(session.message_queue)
         write(session.connection, serialize_binary(session, message))
-        if COLLECT_MESSAGES[]
-            push!(COLLECTED_MESSAGES, message)
+        lock(COLLECT_LOCK) do
+            if COLLECT_MESSAGES[]
+                push!(COLLECTED_MESSAGES, message)
+            end
         end
     else
         push!(session.message_queue, message)
@@ -403,73 +406,75 @@ function mark_displayed!(session::Session)
 end
 
 function session_dom(session::Session, dom::Node; init=true, html_document=false, dom_id=isroot(session) ? "root" : "subsession-application-dom")
-    # the dom we can render may be anything between a
-    # dom fragment or a full page with head & body etc.
-    # If we have a head & body, we want to append our initialization
-    # code and dom nodes to the right places, so we need to extract those
-    head, body, dom = find_head_body(dom)
-    session_style = render_stylesheets!(root_session(session), session.stylesheets)
-    # if nothing is found, we just use one div and append to that
-    if isnothing(head) && isnothing(body)
-        if html_document
-            # emit a whole html document
-            body_dom = DOM.div(dom, id=session.id, dataJscallId=dom_id)
-            head = Hyperscript.m("head",
-                Hyperscript.m(
-                    "meta";
-                    name="viewport", content="width=device-width, initial-scale=1.0"
-                ),
-                Hyperscript.m("meta"; charset="UTF-8"),
-                Hyperscript.m("title", session.title),
-                session_style
-            )
-            body = Hyperscript.m("body", body_dom)
-            dom = Hyperscript.m("html", head, body; class="bonito-fragment")
+    lock(root_session(session).deletion_lock) do
+        # the dom we can render may be anything between a
+        # dom fragment or a full page with head & body etc.
+        # If we have a head & body, we want to append our initialization
+        # code and dom nodes to the right places, so we need to extract those
+        head, body, dom = find_head_body(dom)
+        session_style = render_stylesheets!(root_session(session), session, session.stylesheets)
+        # if nothing is found, we just use one div and append to that
+        if isnothing(head) && isnothing(body)
+            if html_document
+                # emit a whole html document
+                body_dom = DOM.div(dom, id=session.id, dataJscallId=dom_id)
+                head = Hyperscript.m("head",
+                    Hyperscript.m(
+                        "meta";
+                        name="viewport", content="width=device-width, initial-scale=1.0"
+                    ),
+                    Hyperscript.m("meta"; charset="UTF-8"),
+                    Hyperscript.m("title", session.title),
+                    session_style
+                )
+                body = Hyperscript.m("body", body_dom)
+                dom = Hyperscript.m("html", head, body; class="bonito-fragment")
+            else
+                # Emit a "fragment"
+                head = DOM.div(session_style)
+                body = DOM.div(dom)
+                dom = DOM.div(
+                    head, body; id=session.id, class="bonito-fragment", dataJscallId=dom_id
+                )
+            end
         else
-            # Emit a "fragment"
-            head = DOM.div(session_style)
-            body = DOM.div(dom)
-            dom = DOM.div(
-                head, body; id=session.id, class="bonito-fragment", dataJscallId=dom_id
-            )
+            push!(children(head), session_style)
         end
-    else
-        push!(children(head), session_style)
-    end
-    # first render BonitoLib
-    Bonito_import = DOM.script(src=url(session, BonitoLib), type="module")
-    init_server = setup_asset_server(session.asset_server)
-    if !isnothing(init_server)
-        pushfirst!(children(body), jsrender(session, init_server))
-    end
-    init_connection = setup_connection(session)
-    if !isnothing(init_connection)
-        pushfirst!(children(body), jsrender(session, init_connection))
-    end
-
-    push!(children(head), render_dependencies(session))
-    issubsession = !isroot(session)
-    if init
-        msgs = fused_messages!(session)
-        type = issubsession ? "sub" : "root"
-        if isempty(msgs[:payload])
-            init_session = js"""Bonito.lock_loading(() => Bonito.init_session($(session.id), null, $(type), $(session.compression_enabled)))"""
-        else
-            binary = BinaryAsset(session, msgs)
-            init_session = js"""
-                Bonito.lock_loading(() => {
-                    return $(binary).then(msgs=> Bonito.init_session($(session.id), msgs, $(type), $(session.compression_enabled)));
-                })
-            """
+        # first render BonitoLib
+        Bonito_import = DOM.script(src=url(session, BonitoLib), type="module")
+        init_server = setup_asset_server(session.asset_server)
+        if !isnothing(init_server)
+            pushfirst!(children(body), jsrender(session, init_server))
         end
-        pushfirst!(children(body), jsrender(session, init_session))
-    end
+        init_connection = setup_connection(session)
+        if !isnothing(init_connection)
+            pushfirst!(children(body), jsrender(session, init_connection))
+        end
 
-    if !issubsession
-        pushfirst!(children(head), Bonito_import)
+        push!(children(head), render_dependencies(session))
+        issubsession = !isroot(session)
+        if init
+            msgs = fused_messages!(session)
+            type = issubsession ? "sub" : "root"
+            if isempty(msgs[:payload])
+                init_session = js"""Bonito.lock_loading(() => Bonito.init_session($(session.id), null, $(type), $(session.compression_enabled)))"""
+            else
+                binary = BinaryAsset(session, msgs)
+                init_session = js"""
+                    Bonito.lock_loading(() => {
+                        return $(binary).then(msgs=> Bonito.init_session($(session.id), msgs, $(type), $(session.compression_enabled)));
+                    })
+                """
+            end
+            pushfirst!(children(body), jsrender(session, init_session))
+        end
+
+        if !issubsession
+            pushfirst!(children(head), Bonito_import)
+        end
+        session.status = RENDERED
+        return dom
     end
-    session.status = RENDERED
-    return dom
 end
 
 function render_subsession(p::Session, data; init=false)
@@ -508,6 +513,25 @@ function update_session_dom!(parent::Session, node_uuid::String, app_or_dom; rep
     )
     message = SerializedMessage(sub, session_update)
     send(root_session(parent), message)
+    mark_displayed!(parent)
+    mark_displayed!(sub)
+    return sub
+end
+
+
+function append_child(parent::Session, parent_node::HTMLElement, new_html; replace=true)
+    if isclosed(parent)
+        error("Updating the session dom for a closed session")
+    end
+    sub, html = render_subsession(parent, new_html; init=true)
+    html_obs = Observable(html)
+    update_dom = js"""
+        $(parent_node).appendChild($(html_obs).value)
+    """
+    message = Bonito.SerializedMessage(
+        sub, Dict(:msg_type => Bonito.EvalJavascript, :payload => update_dom)
+    )
+    Bonito.send(parent, message)
     mark_displayed!(parent)
     mark_displayed!(sub)
     return sub
