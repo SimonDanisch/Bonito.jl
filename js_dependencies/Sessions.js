@@ -1,9 +1,8 @@
 import { Retain, decode_binary } from "./Protocol.js";
-import { Lock } from "./Connection.js";
+import PQueue from "https://esm.sh/p-queue";
 
 import {
     send_close_session,
-    send_warning,
     send_done_loading,
     process_message,
 } from "./Connection.js";
@@ -21,10 +20,10 @@ const GLOBAL_OBJECT_CACHE = {};
 // So, if session2 gets a chance to free object-x, before session1 is initialized,
 // the check for `is_still_referenced(object-x)` will return false so object-x will actually get deleted.
 // Even though a moment later after initialization of session1, `is_still_referenced(object-x)` will return true and object won't get deleted.
-const OBJECT_FREEING_LOCK = new Lock();
+const OBJECT_FREEING_LOCK = new PQueue({ concurrency: 1 });
 
 export function lock_loading(f) {
-    OBJECT_FREEING_LOCK.lock(f);
+    OBJECT_FREEING_LOCK.add(f);
 }
 
 export function lookup_global_object(key) {
@@ -138,15 +137,12 @@ export function done_initializing_session(session_id) {
         SESSIONS[session_id][1] = "delete";
     }
     // allow delete now!
-    console.log(`session ${session_id} fully initialized`);
 }
 
 export function init_session(session_id, binary_messages, session_status, compression_enabled) {
     track_deleted_sessions(); // no-op if already tracking
-    OBJECT_FREEING_LOCK.task_lock(session_id);
     try {
         SESSIONS[session_id] = [new Set(), session_status]
-        console.log(`init session: ${session_id}, ${session_status}`);
         if (binary_messages) {
             process_message(
                 decode_binary(binary_messages, compression_enabled)
@@ -157,8 +153,6 @@ export function init_session(session_id, binary_messages, session_status, compre
         send_done_loading(session_id, error);
         console.error(error.stack);
         throw error;
-    } finally {
-        OBJECT_FREEING_LOCK.task_unlock(session_id);
     }
 }
 
@@ -192,11 +186,11 @@ export function close_session(session_id) {
 
 // called from julia!
 export function free_session(session_id) {
-    OBJECT_FREEING_LOCK.lock(() => {
+    lock_loading(() => {
         const session = SESSIONS[session_id];
         if (!session) {
             console.warn("double freeing session from Julia!");
-            return
+            return;
         }
         const [tracked_objects, status] = session;
         delete SESSIONS[session_id];
@@ -246,7 +240,7 @@ export function update_session_dom(message) {
         } finally {
             // this locks corresponds to the below task_lock from update session cache for an unitialized session
             // which happens, since we need to send this session via a message
-            OBJECT_FREEING_LOCK.task_unlock(session_id);
+            // OBJECT_FREEING_LOCK.task_unlock(session_id);
         }
     });
     return;
@@ -284,7 +278,7 @@ export function update_session_cache(session_id, new_jl_objects, session_status)
     } else {
         // we can update the session cache for a not yet registered session, which we then need to register first:
         // but this means our session is not initialized yet, and we need to lock it from freing objects
-        OBJECT_FREEING_LOCK.task_lock(session_id);
+        // OBJECT_FREEING_LOCK.task_lock(session_id);
         const tracked_items = new Set();
         SESSIONS[session_id] = [tracked_items, session_status];
         update_cache(tracked_items);
