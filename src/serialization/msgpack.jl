@@ -160,6 +160,10 @@ function decode_extension_and_addbits(ext::MsgPack.Extension)
         elseif DOM_NODE_TAG == ext.type
             tag, children, attributes = decode_extension_and_addbits(MsgPack.unpack(ext.data))
             return Hyperscript.Node{Hyperscript.HTMLSVG}(Hyperscript.DEFAULT_HTMLSVG_CONTEXT, tag, children, attributes)
+        elseif SERIALIZED_MESSAGE_TAG == ext.type
+            unpacked = unpack(ext.data)
+            bytes = decode_extension_and_addbits.(unpacked)
+            return decode_extension_and_addbits.(unpack.(bytes))
         elseif ARRAY_TAG == ext.type
             data = MsgPack.unpack(ext.data)
             unpacked = decode_extension_and_addbits(data)
