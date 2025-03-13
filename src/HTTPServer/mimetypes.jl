@@ -1008,7 +1008,10 @@ const known_mimetypes = Dict([
 ])
 
 const mime2fileending = let
-    dict = Dict((mime => fe for (fe, mime) in known_mimetypes if "svgz" != fe))
+    dict = Dict((
+        mime => fe for
+        (fe, mime) in known_mimetypes if !(fe in ("svgz", "mp4v", "mpg4"))
+    ))
     dict["application/octet-stream"] = "bin" # default to bin ending for octet-stream
     dict
 end

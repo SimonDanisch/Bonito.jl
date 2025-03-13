@@ -88,6 +88,58 @@ function apply_handler(chain::Tuple, context, args...)
     return apply_handler(Base.tail(chain), context, result...)
 end
 
+function linkify_stacktrace(bt::String)
+    lines = split(bt, '\n'; keepempty=false)  # Split stack trace into lines
+    elements = []
+
+    for line in lines
+        # Match both Windows (C:\path\file.jl:123) and Unix (/path/file.jl:123) paths
+        m = match(r"^(.*?)([A-Za-z]:[\\/][^\s]+\.jl|\.[\\/][^\s]+\.jl):(\d+)(.*)", line)
+        if m !== nothing
+            prefix, file, line_num, suffix = m.captures
+            normalized_file = replace(file, "\\" => "/")  # Convert Windows paths to `/`
+            vscode_url = "vscode://file/" * normalized_file * ":" * line_num  # VS Code link
+            push!(
+                elements,
+                DOM.span(
+                    String(prefix),
+                    DOM.a(file * ":" * line_num; href=vscode_url),
+                    String(suffix),
+                ),
+                DOM.br(),
+            )
+        else
+            m2 = match(r"^(.*?)(\[\d+\])", line)
+            if !isnothing(m2)
+                prefix, suffix = m2.captures
+                push!(
+                    elements,
+                    DOM.span(String(line); style="color: darkred; font-weight: bold;"),
+                    DOM.br(),
+                )  # Normal line
+            else
+                push!(elements, DOM.span(String(line)), DOM.br())  # Normal line
+            end
+        end
+    end
+    return DOM.pre(
+        elements...; class="backtrace", style="white-space: nowrap; overflow-x: auto;"
+    )
+end
+
+function err_to_html(err, stacktrace)
+    error_msg = sprint() do io
+        Base.showerror(io, err)
+    end
+    stacktrace_msg = sprint() do io
+        iol = IOContext(io, :stacktrace_types_limited => Base.RefValue(true))
+        Base.show_backtrace(iol, stacktrace)
+    end
+    return DOM.div(
+        DOM.h3(error_msg; style="color: red;"), linkify_stacktrace(stacktrace_msg)
+    )
+end
+
 function delegate(routes::Routes, application, request::Request, args...)
     try
         for (pattern, f) in routes.table
@@ -107,9 +159,14 @@ function delegate(routes::Routes, application, request::Request, args...)
         # What a classic this response!
         return response_404("Didn't find route for $(request.target)")
     catch e
-        err = CapturedException(e, Base.catch_backtrace())
+        stacktrace = Base.catch_backtrace()
+        err = CapturedException(e, stacktrace)
         Base.showerror(stderr, err)
-        return response_500(err)
+        html = err_to_html(e, stacktrace)
+        html_str = sprint() do io
+            Bonito.print_as_page(io,  html)
+        end
+        return response_500(html_str)
     end
 end
 
@@ -147,6 +204,9 @@ function online_url(server::Server, url)
     if isempty(base_url)
         return local_url(server, url)
     else
+        if endswith(base_url, "/") && startswith(url, "/")
+            url = url[2:end]
+        end
         return base_url * url
     end
 end

@@ -4,7 +4,7 @@ struct SerializationContext
 end
 
 function SerializationContext(session::Session)
-    return SerializationContext(Dict{String, Any}(), session)
+    return SerializationContext(Dict{String,Any}(), session)
 end
 
 object_identity(retain::Retain) = object_identity(retain.value)
@@ -25,7 +25,7 @@ function register_observable!(session::Session, obs::Observable)
     root = root_session(session)
     # Only register one time
     if !haskey(root.session_objects, obs.id)
-        updater = JSUpdateObservable(root, obs.id)
+        updater = JSUpdateObservable(session, obs.id)
         # Don't deregister on root / or session close
         # The updaters callbacks are freed manually in delete_cached!`
         on(updater, obs)
@@ -59,7 +59,12 @@ function serialize_cached(context::SerializationContext, node::Node{Hyperscript.
     return SerializedNode(context.session, node)
 end
 
-serialize_cached(context::SerializationContext, @nospecialize(obj)) = obj
+function serialize_cached(context::SerializationContext, lu::LargeUpdate)
+    return serialize_cached(context, lu.data)
+end
+
+
+serialize_cached(::SerializationContext, @nospecialize(obj)) = obj
 serialize_cached(::SerializationContext, native::MSGPACK_NATIVE_TYPES) = native
 serialize_cached(::SerializationContext, native::AbstractArray{<:Number}) = native
 
@@ -130,24 +135,40 @@ function remove_js_updates!(session::Session, observable::Observable)
     end
 end
 
-function delete_cached!(root::Session, key::String)
-    lock(root.deletion_lock) do
-        if !haskey(root.session_objects, key)
-            # This should uncover any fault in our caching logic!
-            @warn("Deleting key that doesn't belong to any cached object")
-            return
+function delete_cached!(root::Session, sub::Session, key::String)
+    if !haskey(root.session_objects, key)
+        # This should uncover any fault in our caching logic!
+        @warn("Deleting key that doesn't belong to any cached object")
+        return
+    end
+    # We only free Retain, when the root session is closing!
+    root.session_objects[key] isa Retain && return
+    # We don't do reference counting, but we check if any child still holds a reference to the object we want to delete
+    has_ref = any(((id, s),)-> child_has_reference(s, key), root.children)
+    if !has_ref
+        # So only delete it if nobody has it anymore!
+        object = pop!(root.session_objects, key)
+        if object isa Observable
+            # unregister all listeners updating the session
+            remove_js_updates!(sub, object)
         end
-        # We never free Retain, since that's the whole point of it
-        root.session_objects[key] isa Retain && return
-        # We don't do reference counting, but we check if any child still holds a reference to the object we want to delete
-        has_ref = any(((id, s),)-> child_has_reference(s, key), root.children)
-        if !has_ref
-            # So only delete it if nobody has it anymore!
-            object = pop!(root.session_objects, key)
-            if object isa Observable
-                # unregister all listeners updating the session
-                remove_js_updates!(root, object)
-            end
-        end
+    end
+end
+
+
+function force_delete!(root::Session, key::String)
+    if !haskey(root.session_objects, key)
+        # This should uncover any fault in our caching logic!
+        @warn("Deleting key that doesn't belong to any cached object")
+        return nothing
+    end
+    # We only free Retain, when the root session is closing!
+    object = pop!(root.session_objects, key)
+    if object isa Retain
+        object = object.value
+    end
+    if object isa Observable
+        # unregister all listeners updating the session
+        remove_js_updates!(root, object)
     end
 end

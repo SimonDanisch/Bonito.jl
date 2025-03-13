@@ -48,7 +48,7 @@ server = Server(app, "0.0.0.0", 8080)
 server = Server("0.0.0.0", 8080)
 route!(server, "/" => app)
 # So you can add many apps to one server, and even regexes are supported:
-route!(server, r"*" => App(DOM.div("404, no content for this route")))
+route!(server, r".*" => App(DOM.div("404, no content for this route")))
 route!(server, "/some-app" => App(DOM.div("app")))
 ```
 

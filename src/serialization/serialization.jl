@@ -15,17 +15,25 @@ end
 function SerializedMessage(session::Session, data)
     serialized = serialize_cached(session, data)
     bytes = MsgPack.pack(serialized)
-    if session.compression_enabled
-        bytes = transcode(GzipCompressor, bytes)
-    end
     return SerializedMessage(bytes)
 end
 
-serialize_binary(session::Session, data) = SerializedMessage(session, data).bytes
+function serialize_binary(session::Session, msg::SerializedMessage)
+    bytes = msg.bytes
+    if session.compression_enabled
+        bytes = transcode(GzipCompressor, bytes)
+    end
+    return bytes
+end
 
-function deserialize_binary(bytes::AbstractVector{UInt8})
-    # message_msgpacked = transcode(GzipDecompressor, bytes)
-    # return MsgPack.unpack(message_msgpacked)
+function serialize_binary(session::Session, data)
+    return serialize_binary(session, SerializedMessage(session, data))
+end
+
+function deserialize_binary(bytes::AbstractVector{UInt8}, compression_enabled::Bool=false)
+    if compression_enabled
+        bytes = transcode(GzipDecompressor, bytes)
+    end
     return MsgPack.unpack(bytes)
     # return decode_extension_and_addbits()
 end

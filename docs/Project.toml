@@ -9,5 +9,5 @@ PlotlyLight = "ca7969ec-10b3-423e-8d99-40f33abb42bf"
 WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
 
 [compat]
-PlotlyLight = "0.7"
+PlotlyLight = "0.11"
 Gadfly = "1.4"

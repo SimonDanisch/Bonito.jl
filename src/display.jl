@@ -23,7 +23,8 @@ function Page(;
         exportable::Union{Bool,Nothing}=nothing,
         connection::Union{Nothing, FrontendConnection}=nothing,
         current_page_dir = abspath(pwd()), # For documenter server
-    server_config...)
+        server_config...
+        )
     old_session = CURRENT_SESSION[]
     if !isempty(server_config)
         configure_server!(; server_config...)
@@ -34,19 +35,19 @@ function Page(;
     CURRENT_SESSION[] = nothing
     if isnothing(offline) # do nothing
     elseif offline
-        force_connection!(NoConnection())
+        force_connection!(NoConnection)
     else
         force_connection!()
     end
 
     if isnothing(exportable) # do nothing
     elseif exportable
-        force_asset_server!(NoServer())
+        force_asset_server!(NoServer)
     else
         force_asset_server!()
     end
     if !isnothing(connection)
-        force_connection!(connection)
+        force_connection!(typeof(connection))
     end
     asset_server = default_asset_server()
     if asset_server isa DocumenterAssets

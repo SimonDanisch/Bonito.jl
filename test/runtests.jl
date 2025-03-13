@@ -1,10 +1,12 @@
+# Needs to be done before loading Bonito
+include("test-bundles.jl")
 using Bonito
 # ENV["JULIA_DEBUG"] = Bonito
-
 using Deno_jll
 using Hyperscript, Markdown, Test, RelocatableFolders
 using Observables
 using Bonito: Session, evaljs, linkjs, div
+
 using Bonito: onjs, JSString, Asset, jsrender
 using Bonito: @js_str, uuid, SerializationContext, serialize_binary
 using Bonito.DOM
@@ -55,38 +57,68 @@ function OfflineSession()
     return Session(NoConnection(); asset_server=NoServer())
 end
 
-edisplay = Bonito.use_electron_display(; devtools=true)
-
 @testset "Bonito" begin
-    @testset "components" begin
-        include("components.jl")
+    global edisplay = Bonito.use_electron_display(; devtools=true)
+    @testset "Default Connection" begin
+        @testset "components" begin
+            include("components.jl")
+        end
+        @testset "styling" begin
+            include("styling.jl")
+        end
+        @testset "threading" begin
+            include("threading.jl")
+        end
+        @testset "server" begin
+            include("server.jl")
+        end
+        @testset "subsessions" begin
+            include("subsessions.jl")
+        end
+        @testset "connection-serving" begin
+            include("connection-serving.jl")
+        end
+        @testset "serialization" begin
+            include("serialization.jl")
+        end
+        @testset "widgets" begin
+            include("widgets.jl")
+        end
+        # @testset "various" begin; include("various.jl"); end
+        @testset "markdown" begin
+            include("markdown.jl")
+        end
+        @testset "basics" begin
+            include("basics.jl")
+        end
     end
-    @testset "styling" begin
-        include("styling.jl")
-    end
-    @testset "threading" begin
-        include("threading.jl")
-    end
-    @testset "server" begin
-        include("server.jl")
-    end
-    @testset "subsessions" begin
-        include("subsessions.jl")
-    end
-    @testset "connection-serving" begin
-        include("connection-serving.jl")
-    end
-    @testset "serialization" begin
-        include("serialization.jl")
-    end
-    @testset "widgets" begin
-        include("widgets.jl")
-    end
-    # @testset "various" begin; include("various.jl"); end
-    @testset "markdown" begin
-        include("markdown.jl")
-    end
-    @testset "basics" begin
-        include("basics.jl")
+    close(edisplay)
+    global edisplay = Bonito.use_electron_display(; devtools=true)
+    @testset "Compression true + DualWebsocket" begin
+        @testset "Compression + DualWebsocket" begin
+            Bonito.use_compression!(true)
+            Bonito.force_connection!(Bonito.DualWebsocket)
+            @testset "components" begin
+                include("components.jl")
+            end
+            @testset "threading" begin
+                include("threading.jl")
+            end
+            @testset "server" begin
+                include("server.jl")
+            end
+            @testset "subsessions" begin
+                include("subsessions.jl")
+            end
+            @testset "serialization" begin
+                include("serialization.jl")
+            end
+            @testset "widgets" begin
+                include("widgets.jl")
+            end
+            @testset "markdown" begin
+                include("markdown.jl")
+            end
+        end
     end
 end
