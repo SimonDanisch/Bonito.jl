@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Styling · Bonito</title><meta name="title" content="Styling · Bonito"/><meta property="og:title" content="Styling · Bonito"/><meta property="twitter:title" content="Styling · Bonito"/><meta name="description" content="Documentation for Bonito."/><meta property="og:description" content="Documentation for Bonito."/><meta property="twitter:description" content="Documentation for Bonito."/><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="index.html">Bonito</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li><span class="tocitem">Components</span><ul><li class="is-active"><a class="tocitem" href="styling.html">Styling</a><ul class="internal"><li><a class="tocitem" href="#Basics"><span>Basics</span></a></li><li><a class="tocitem" href="#Using-CSS-and-pseudo-classes"><span>Using CSS and pseudo classes</span></a></li><li><a class="tocitem" href="#Using-Styles-as-global-Stylesheet"><span>Using Styles as global Stylesheet</span></a></li></ul></li><li><a class="tocitem" href="components.html">Components</a></li><li><a class="tocitem" href="layouting.html">Layouting</a></li><li><a class="tocitem" href="widgets.html">Widgets</a></li><li><a class="tocitem" href="interactions.html">Interactions</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="plotting.html">Plotting</a></li><li><a class="tocitem" href="javascript-libraries.html">Wrapping JS libraries</a></li><li><a class="tocitem" href="assets.html">Assets</a></li><li><a class="tocitem" href="extending.html">Extending</a></li></ul></li><li><a class="tocitem" href="deployment.html">Deployment</a></li><li><a class="tocitem" href="static.html">Static Sites</a></li><li><a class="tocitem" href="api.html">Api</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Components</a></li><li class="is-active"><a href="styling.html">Styling</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="styling.html">Styling</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/master/docs/src/styling.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Styling"><a class="docs-heading-anchor" href="#Styling">Styling</a><a id="Styling-1"></a><a class="docs-heading-anchor-permalink" href="#Styling" title="Permalink"></a></h1><h2 id="Basics"><a class="docs-heading-anchor" href="#Basics">Basics</a><a id="Basics-1"></a><a class="docs-heading-anchor-permalink" href="#Basics" title="Permalink"></a></h2><p>The main type to style the DOM via css is <code>Style</code>:</p><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Bonito.Styles-styling" href="#Bonito.Styles-styling"><code>Bonito.Styles</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Styles(css::CSS...)</code></pre><p>Creates a Styles object, which represents a Set of CSS objects. You can insert the Styles object into a DOM node, and it will be rendered as a <code>&lt;style&gt;</code> node. If you assign it directly to <code>DOM.div(style=Style(...))</code>, the styling will be applied to the specific div. Note, that per <code>Session</code>, each unique css object in all <code>Styles</code> across the session will only be rendered once. This makes it easy to create Styling inside of components, while not worrying about creating lots of Style nodes on the page. There are a two more convenience constructors to make <code>Styles</code> a bit easier to use:</p><pre><code class="language-julia hljs">Styles(pairs::Pair...) = Styles(CSS(pairs...))
 Styles(priority::Styles, defaults...) = merge(Styles(defaults...), priority)</code></pre><p>For styling components, it&#39;s recommended, to always allow user to merge in customizations of a Style, like this:</p><pre><code class="language-julia hljs">function MyComponent(; style=Styles())
     return DOM.div(style=Styles(style, &quot;color&quot; =&gt; &quot;red&quot;))
-end</code></pre><p>All Bonito components are stylable this way.</p><div class="admonition is-info"><header class="admonition-header">Info</header><div class="admonition-body"><p>Why not <code>Hyperscript.Style</code>? While the scoped styling via <code>Hyperscript.Style</code> is great, it makes it harder to create stylable components, since it doesn&#39;t allow the deduplication of CSS objects across the session. It&#39;s also significantly slower, since it&#39;s not as specialized on the deduplication and the camelcase keyword to css attribute conversion is pretty costly. That&#39;s also why <code>CSS</code> uses pairs of strings instead of keyword arguments.</p></div></div></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/b1ac7f1f5056a61bd9af08bb19c36a5cb9bda5d6/src/types.jl#L126-L152">source</a></section></article><h2 id="Using-CSS-and-pseudo-classes"><a class="docs-heading-anchor" href="#Using-CSS-and-pseudo-classes">Using CSS and pseudo classes</a><a id="Using-CSS-and-pseudo-classes-1"></a><a class="docs-heading-anchor-permalink" href="#Using-CSS-and-pseudo-classes" title="Permalink"></a></h2><p>The <code>CSS</code> object allows to specify a selector, which will be used to apply the styling to a specific DOM node. Since the main usage is to apply the <code>Style</code> object to a <code>DOM</code> node, the selector is usually empty and we use it mainly for pseudo classes like <code>:hover</code>:</p><pre><code class="language-julia hljs">App() do session
+end</code></pre><p>All Bonito components are stylable this way.</p><div class="admonition is-info"><header class="admonition-header">Info</header><div class="admonition-body"><p>Why not <code>Hyperscript.Style</code>? While the scoped styling via <code>Hyperscript.Style</code> is great, it makes it harder to create stylable components, since it doesn&#39;t allow the deduplication of CSS objects across the session. It&#39;s also significantly slower, since it&#39;s not as specialized on the deduplication and the camelcase keyword to css attribute conversion is pretty costly. That&#39;s also why <code>CSS</code> uses pairs of strings instead of keyword arguments.</p></div></div></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/d424b74c950e45a4104619bc20ce8c2a0580fd39/src/types.jl#L126-L152">source</a></section></article><h2 id="Using-CSS-and-pseudo-classes"><a class="docs-heading-anchor" href="#Using-CSS-and-pseudo-classes">Using CSS and pseudo classes</a><a id="Using-CSS-and-pseudo-classes-1"></a><a class="docs-heading-anchor-permalink" href="#Using-CSS-and-pseudo-classes" title="Permalink"></a></h2><p>The <code>CSS</code> object allows to specify a selector, which will be used to apply the styling to a specific DOM node. Since the main usage is to apply the <code>Style</code> object to a <code>DOM</code> node, the selector is usually empty and we use it mainly for pseudo classes like <code>:hover</code>:</p><pre><code class="language-julia hljs">App() do session
     return DOM.div(
         &quot;This turns red on hover&quot;,
         style=Styles(
@@ -10,7 +10,7 @@ end</code></pre><p>All Bonito components are stylable this way.</p><div class="a
         )
     )
 end</code></pre><div>
-  <div class="bonito-fragment" id="1364ca87-5866-4419-82a3-5391bf8537ad" data-jscall-id="root">
+  <div class="bonito-fragment" id="ee8b0a1a-5a39-461e-ba3f-463cdeadd60f" data-jscall-id="root">
     <div>
       <script src="bonito/js/Bonito.bundled15296040944313869337.js" type="module"></script>
       <style></style>
@@ -18,13 +18,13 @@ end</code></pre><div>
     </div>
     <div>
       <script type="module">    Bonito.lock_loading(() => {
-        return Bonito.fetch_binary('bonito/bin/0cf38f4d653e9ccf645d5abb61d13f444e7aeaa8-14707609041542477366.bin').then(msgs=> Bonito.init_session('1364ca87-5866-4419-82a3-5391bf8537ad', msgs, 'root', false));
+        return Bonito.fetch_binary('bonito/bin/c3a4725049162152dfd188af48e0dbe0e35b859c-6450304077581483124.bin').then(msgs=> Bonito.init_session('ee8b0a1a-5a39-461e-ba3f-463cdeadd60f', msgs, 'root', false));
     })
 </script>
       <span></span>
     </div>
   </div>
-  <div class="bonito-fragment" id="aae01c63-c30c-448d-b29f-cab51857ace7" data-jscall-id="subsession-application-dom">
+  <div class="bonito-fragment" id="a250c4ea-4925-49b3-999d-70af99d8e21e" data-jscall-id="subsession-application-dom">
     <div>
       <style>.style_2:hover {
   color: red;
@@ -35,7 +35,7 @@ end</code></pre><div>
     </div>
     <div>
       <script type="module">    Bonito.lock_loading(() => {
-        return Bonito.fetch_binary('bonito/bin/920aac8da9087a67cf3c5022597181876da472c7-15364382072699543102.bin').then(msgs=> Bonito.init_session('aae01c63-c30c-448d-b29f-cab51857ace7', msgs, 'sub', false));
+        return Bonito.fetch_binary('bonito/bin/5af33c986d34f95c750b4b97adf8ab8fd973ecec-5437307419575003394.bin').then(msgs=> Bonito.init_session('a250c4ea-4925-49b3-999d-70af99d8e21e', msgs, 'sub', false));
     })
 </script>
       <div class=" style_2" style="" data-jscall-id="1">This turns red on hover</div>
@@ -72,7 +72,7 @@ end</code></pre><div>
         ),
     )
     return DOM.div(&quot;Hello&quot;, style=style)
-end</code></pre><div class="bonito-fragment" id="46de7977-88d2-418d-ad98-05c832874f10" data-jscall-id="subsession-application-dom">
+end</code></pre><div class="bonito-fragment" id="396bd5c6-0d1b-4a9d-8ffd-5d2aab41083a" data-jscall-id="subsession-application-dom">
   <div>
     <style>.style_3:hover {
   background-color: #F9FAFB;
@@ -104,7 +104,7 @@ end</code></pre><div class="bonito-fragment" id="46de7977-88d2-418d-ad98-05c8328
   </div>
   <div>
     <script type="module">    Bonito.lock_loading(() => {
-        return Bonito.fetch_binary('bonito/bin/2c76e6ba26a0bf7ab0bf1254606a2d1371269289-3417279803704838689.bin').then(msgs=> Bonito.init_session('46de7977-88d2-418d-ad98-05c832874f10', msgs, 'sub', false));
+        return Bonito.fetch_binary('bonito/bin/b109ce6241efc8eda47bd095333a612a733b58ea-5758838656230049896.bin').then(msgs=> Bonito.init_session('396bd5c6-0d1b-4a9d-8ffd-5d2aab41083a', msgs, 'sub', false));
     })
 </script>
     <div class=" style_3 style_4 style_5" style="" data-jscall-id="2">Hello</div>
@@ -117,7 +117,7 @@ end</code></pre><div class="bonito-fragment" id="46de7977-88d2-418d-ad98-05c8328
     )
     button = Button(&quot;Click me&quot;; style=style)
     return button
-end</code></pre><div class="bonito-fragment" id="d970789b-ce48-4f25-aac9-a72918a38e2b" data-jscall-id="subsession-application-dom">
+end</code></pre><div class="bonito-fragment" id="10453130-675c-4119-b285-04a9a1568c41" data-jscall-id="subsession-application-dom">
   <div>
     <style>.style_6:focus {
   outline-offset: 1px;
@@ -149,7 +149,7 @@ end</code></pre><div class="bonito-fragment" id="d970789b-ce48-4f25-aac9-a72918a
   </div>
   <div>
     <script type="module">    Bonito.lock_loading(() => {
-        return Bonito.fetch_binary('bonito/bin/d9709da664e3e5becf818e6cde10f5f410648aee-6658064073102528445.bin').then(msgs=> Bonito.init_session('d970789b-ce48-4f25-aac9-a72918a38e2b', msgs, 'sub', false));
+        return Bonito.fetch_binary('bonito/bin/b82bca24fdd48bc7142cd0154a5f5f5b2854cc4d-16217910312588825209.bin').then(msgs=> Bonito.init_session('10453130-675c-4119-b285-04a9a1568c41', msgs, 'sub', false));
     })
 </script>
     <button onclick="" class=" style_6 style_7 style_8" style="" data-jscall-id="3">Click me</button>
@@ -169,14 +169,14 @@ end</code></pre><div class="bonito-fragment" id="d970789b-ce48-4f25-aac9-a72918a
             DOM.p(&quot;I match the universal and type selectors only.&quot;, ourStyle=1)
         )
     )
-end</code></pre><div class="bonito-fragment" id="b07c6a22-80a9-4919-bb76-2bdf25b8b616" data-jscall-id="subsession-application-dom">
+end</code></pre><div class="bonito-fragment" id="4affad77-7865-44f5-b777-1f904417151f" data-jscall-id="subsession-application-dom">
   <div>
     <style></style>
     <div></div>
   </div>
   <div>
     <script type="module">    Bonito.lock_loading(() => {
-        return Bonito.fetch_binary('bonito/bin/1a330b8c970bb7bc70b0b50f82ced39a789096a6-16751195503562308075.bin').then(msgs=> Bonito.init_session('b07c6a22-80a9-4919-bb76-2bdf25b8b616', msgs, 'sub', false));
+        return Bonito.fetch_binary('bonito/bin/f8ac14616f1d5465564811ccf9744c206efb94cb-4857927675859273117.bin').then(msgs=> Bonito.init_session('4affad77-7865-44f5-b777-1f904417151f', msgs, 'sub', false));
     })
 </script>
     <div data-jscall-id="4">
@@ -202,4 +202,4 @@ p.myClass#myId[our-style] {
       </div>
     </div>
   </div>
-</div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="index.html">« Home</a><a class="docs-footer-nextpage" href="components.html">Components »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.1 on <span class="colophon-date" title="Thursday 13 March 2025 12:24">Thursday 13 March 2025</span>. Using Julia version 1.11.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="index.html">« Home</a><a class="docs-footer-nextpage" href="components.html">Components »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.1 on <span class="colophon-date" title="Thursday 13 March 2025 12:37">Thursday 13 March 2025</span>. Using Julia version 1.11.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
