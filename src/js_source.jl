@@ -147,7 +147,7 @@ end
 # TODO, NoServer is kind of misussed here, since Pluto happens to use it
 # I guess the best solution would be a trait system or some other config object
 # for deciding how to inline code into pure HTML
-function inline_code(session::Session, noserver, source::String)
+function inline_code(::Session, noserver, source::String)
     return DOM.script(source; type="module")
 end
 

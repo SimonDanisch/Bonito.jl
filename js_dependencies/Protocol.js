@@ -110,6 +110,7 @@ const DOM_NODE_TAG = 105;
 const SESSION_CACHE_TAG = 106;
 const SERIALIZED_MESSAGE_TAG = 107;
 const RAW_HTML_TAG = 108;
+const SESSION_CACHES_TAG = 109;
 
 register_ext(OBSERVABLE_TAG, (uint_8_array) => {
     const [id, value] = unpack(uint_8_array);
@@ -196,9 +197,20 @@ register_ext(SESSION_CACHE_TAG, (uint_8_array) => {
 });
 
 register_ext(SERIALIZED_MESSAGE_TAG, (uint_8_array) => {
-    const [session_id, message] = unpack(uint_8_array);
-    return message;
+    const [session_cache_bytes, data_bytes] = unpack(uint_8_array);
+    if (session_cache_bytes.length > 0) {
+        // unpack already inserts cached objects
+        unpack(session_cache_bytes);
+    }
+    return unpack(data_bytes);
 });
+
+register_ext(SESSION_CACHES_TAG, (uint_8_array) => {
+    const session_caches = unpack(uint_8_array);
+    const result = session_caches.map(unpack);
+    return result;
+});
+
 
 /**
  * @param {Uint8Array} data_as_uint8array
@@ -251,9 +263,7 @@ export function decode_base64_message(base64_string, compression_enabled) {
 
 export function decode_binary(binary, compression_enabled) {
     // This should ALWAYS be a `SerializedMessage` from the Julia side
-    const serialized_message = unpack_binary(binary, compression_enabled);
-    const [session_id, message_data] = serialized_message;
-    return message_data;
+    return unpack_binary(binary, compression_enabled);
 }
 
 /**
