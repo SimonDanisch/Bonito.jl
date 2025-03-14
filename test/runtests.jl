@@ -60,6 +60,9 @@ end
 @testset "Bonito" begin
     global edisplay = Bonito.use_electron_display(; devtools=true)
     @testset "Default Connection" begin
+        @testset "basics" begin
+            include("basics.jl")
+        end
         @testset "components" begin
             include("components.jl")
         end
@@ -87,9 +90,6 @@ end
         # @testset "various" begin; include("various.jl"); end
         @testset "markdown" begin
             include("markdown.jl")
-        end
-        @testset "basics" begin
-            include("basics.jl")
         end
     end
     close(edisplay)

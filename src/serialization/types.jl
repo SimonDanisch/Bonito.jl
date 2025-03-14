@@ -31,6 +31,11 @@ function SessionCache(session::Session, objects::Dict{String,Any})
     )
 end
 
+# Many serialized caches
+struct SessionCaches
+    bytes::Vector{Vector{UInt8}}
+end
+
 # We want typed arrays to arrive as JS typed arrays
 const JSTypedArrayEltypes = [Int8, UInt8, Int16, UInt16, Int32, UInt32, Float32, Float64]
 const JSTypedNumber = Union{JSTypedArrayEltypes...}

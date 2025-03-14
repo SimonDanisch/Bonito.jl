@@ -37,7 +37,7 @@ class Websocket {
                     if (binary.length === 1 && binary[0] === 0) {
                         return resolve(null);
                     }
-                    Bonito.OBJECT_FREEING_LOCK.lock(()=>{
+                    Bonito.lock_loading(()=>{
                         Bonito.process_message(Bonito.decode_binary(binary, this_ws.compression_enabled));
                     });
                     return resolve(null);
