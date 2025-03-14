@@ -4197,9 +4197,97 @@ function done_initializing_session(session_id) {
         SESSIONS[session_id][1] = "delete";
     }
 }
+function update_session_cache(session_id, new_jl_objects, session_status) {
+    function update_cache(tracked_objects) {
+        for(const key in new_jl_objects){
+            tracked_objects.add(key);
+            const new_object = new_jl_objects[key];
+            if (new_object == "tracking-only") {
+                if (!(key in GLOBAL_OBJECT_CACHE)) {
+                    throw new Error(`Key ${key} only send for tracking, but not already tracked!!!`);
+                }
+            } else {
+                if (key in GLOBAL_OBJECT_CACHE) {
+                    console.warn(`${key} in session cache and send again!! ${new_object}`);
+                }
+                GLOBAL_OBJECT_CACHE[key] = new_object;
+            }
+        }
+    }
+    const session = SESSIONS[session_id];
+    if (session) {
+        update_cache(session[0]);
+    } else {
+        const tracked_items = new Set();
+        SESSIONS[session_id] = [
+            tracked_items,
+            session_status
+        ];
+        update_cache(tracked_items);
+    }
+}
+register_ext(106, (uint_8_array)=>{
+    const [session_id, objects, session_status] = unpack(uint_8_array);
+    update_session_cache(session_id, objects, session_status);
+    return session_id;
+});
+register_ext(107, (uint_8_array)=>{
+    const [session_cache_bytes, data_bytes] = unpack(uint_8_array);
+    if (session_cache_bytes.length > 0) {
+        unpack(session_cache_bytes);
+    }
+    return unpack(data_bytes);
+});
+register_ext(109, (uint_8_array)=>{
+    const session_caches = unpack(uint_8_array);
+    const result = session_caches.map(unpack);
+    return result;
+});
+function base64encode(data_as_uint8array) {
+    const base64_promise = new Promise((resolve)=>{
+        const reader = new FileReader();
+        reader.onload = ()=>{
+            const len = 37;
+            const base64url = reader.result;
+            resolve(base64url.slice(len, base64url.length));
+        };
+        reader.readAsDataURL(new Blob([
+            data_as_uint8array
+        ]));
+    });
+    return base64_promise;
+}
+function base64decode(base64_str) {
+    return new Promise((resolve)=>{
+        fetch("data:application/octet-stream;base64," + base64_str).then((response)=>{
+            response.arrayBuffer().then((array)=>{
+                resolve(new Uint8Array(array));
+            });
+        });
+    });
+}
+function decode_base64_message(base64_string, compression_enabled) {
+    return base64decode(base64_string).then((x)=>decode_binary(x, compression_enabled));
+}
 function decode_binary(binary, compression_enabled) {
     return unpack_binary(binary, compression_enabled);
 }
+function unpack_binary(binary, compression_enabled) {
+    if (compression_enabled) {
+        return unpack(Ol(binary));
+    } else {
+        return unpack(binary);
+    }
+}
+const mod1 = {
+    Retain: Retain,
+    base64encode: base64encode,
+    base64decode: base64decode,
+    decode_base64_message: decode_base64_message,
+    decode_binary: decode_binary,
+    unpack_binary: unpack_binary,
+    encode_binary: encode_binary
+};
 function init_session(session_id, binary_messages, session_status, compression_enabled) {
     track_deleted_sessions();
     lock_loading(()=>{
@@ -4211,7 +4299,9 @@ function init_session(session_id, binary_messages, session_status, compression_e
             if (binary_messages) {
                 process_message(decode_binary(binary_messages, compression_enabled));
             }
-            done_initializing_session(session_id);
+            OBJECT_FREEING_LOCK.onIdle().then(()=>{
+                done_initializing_session(session_id);
+            });
         } catch (error) {
             send_done_loading(session_id, error);
             console.error(error.stack);
@@ -4279,50 +4369,22 @@ function update_or_replace(node, new_html, replace) {
     }
 }
 function update_session_dom(message) {
-    const { session_id , messages , html , dom_node_selector , replace  } = message;
-    on_node_available(dom_node_selector, 1).then((dom)=>{
-        try {
-            update_or_replace(dom, html, replace);
-            process_message(messages);
-            done_initializing_session(session_id);
-        } catch (error) {
-            send_done_loading(session_id, error);
-            console.error(error.stack);
-            throw error;
-        } finally{}
-    });
-    return;
-}
-function update_session_cache(session_id, new_jl_objects, session_status) {
-    function update_cache(tracked_objects) {
-        for(const key in new_jl_objects){
-            tracked_objects.add(key);
-            const new_object = new_jl_objects[key];
-            if (new_object == "tracking-only") {
-                if (!(key in GLOBAL_OBJECT_CACHE)) {
-                    throw new Error(`Key ${key} only send for tracking, but not already tracked!!!`);
-                }
-            } else {
-                if (key in GLOBAL_OBJECT_CACHE) {
-                    console.warn(`${key} in session cache and send again!! ${new_object}`);
-                }
-                GLOBAL_OBJECT_CACHE[key] = new_object;
+    lock_loading(()=>{
+        const { session_id , messages , html , dom_node_selector , replace  } = message;
+        on_node_available(dom_node_selector, 1).then((dom)=>{
+            try {
+                update_or_replace(dom, html, replace);
+                process_message(messages);
+                done_initializing_session(session_id);
+            } catch (error) {
+                send_done_loading(session_id, error);
+                console.error(error.stack);
+                throw error;
             }
-        }
-    }
-    const session = SESSIONS[session_id];
-    if (session) {
-        update_cache(session[0]);
-    } else {
-        const tracked_items = new Set();
-        SESSIONS[session_id] = [
-            tracked_items,
-            session_status
-        ];
-        update_cache(tracked_items);
-    }
+        });
+    });
 }
-const mod1 = {
+const mod2 = {
     SESSIONS: SESSIONS,
     GLOBAL_OBJECT_CACHE: GLOBAL_OBJECT_CACHE,
     OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK,
@@ -4339,65 +4401,6 @@ const mod1 = {
     update_session_dom: update_session_dom,
     update_session_cache: update_session_cache
 };
-register_ext(106, (uint_8_array)=>{
-    const [session_id, objects, session_status] = unpack(uint_8_array);
-    update_session_cache(session_id, objects, session_status);
-    return session_id;
-});
-register_ext(107, (uint_8_array)=>{
-    const [session_cache_bytes, data_bytes] = unpack(uint_8_array);
-    if (session_cache_bytes.length > 0) {
-        unpack(session_cache_bytes);
-    }
-    return unpack(data_bytes);
-});
-register_ext(109, (uint_8_array)=>{
-    const session_caches = unpack(uint_8_array);
-    const result = session_caches.map(unpack);
-    return result;
-});
-function base64encode(data_as_uint8array) {
-    const base64_promise = new Promise((resolve)=>{
-        const reader = new FileReader();
-        reader.onload = ()=>{
-            const len = 37;
-            const base64url = reader.result;
-            resolve(base64url.slice(len, base64url.length));
-        };
-        reader.readAsDataURL(new Blob([
-            data_as_uint8array
-        ]));
-    });
-    return base64_promise;
-}
-function base64decode(base64_str) {
-    return new Promise((resolve)=>{
-        fetch("data:application/octet-stream;base64," + base64_str).then((response)=>{
-            response.arrayBuffer().then((array)=>{
-                resolve(new Uint8Array(array));
-            });
-        });
-    });
-}
-function decode_base64_message(base64_string, compression_enabled) {
-    return base64decode(base64_string).then((x)=>decode_binary(x, compression_enabled));
-}
-function unpack_binary(binary, compression_enabled) {
-    if (compression_enabled) {
-        return unpack(Ol(binary));
-    } else {
-        return unpack(binary);
-    }
-}
-const mod2 = {
-    Retain: Retain,
-    base64encode: base64encode,
-    base64decode: base64decode,
-    decode_base64_message: decode_base64_message,
-    decode_binary: decode_binary,
-    unpack_binary: unpack_binary,
-    encode_binary: encode_binary
-};
 function onany(observables, f) {
     const callback = (x)=>f(observables.map((x)=>x.value));
     observables.forEach((obs)=>{
@@ -4405,8 +4408,8 @@ function onany(observables, f) {
     });
 }
 const { send_error: send_error1 , send_warning: send_warning1 , process_message: process_message1 , on_connection_open: on_connection_open1 , on_connection_close: on_connection_close1 , send_close_session: send_close_session1 , send_pingpong: send_pingpong1 , can_send_to_julia: can_send_to_julia1 , send_to_julia: send_to_julia1  } = mod;
-const { base64decode: base64decode1 , base64encode: base64encode1 , decode_binary: decode_binary1 , encode_binary: encode_binary1 , decode_base64_message: decode_base64_message1  } = mod2;
-const { init_session: init_session1 , free_session: free_session1 , lookup_global_object: lookup_global_object1 , update_or_replace: update_or_replace1 , lock_loading: lock_loading1 , OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK1 , free_object: free_object1  } = mod1;
+const { base64decode: base64decode1 , base64encode: base64encode1 , decode_binary: decode_binary1 , encode_binary: encode_binary1 , decode_base64_message: decode_base64_message1  } = mod1;
+const { init_session: init_session1 , free_session: free_session1 , lookup_global_object: lookup_global_object1 , update_or_replace: update_or_replace1 , lock_loading: lock_loading1 , OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK1 , free_object: free_object1  } = mod2;
 function update_node_attribute(node, attribute, value) {
     if (node) {
         if (node[attribute] != value) {
@@ -4452,7 +4455,7 @@ function throttle_function(func, delay) {
     return inner_throttle;
 }
 const Bonito = {
-    Protocol: mod2,
+    Protocol: mod1,
     base64decode: base64decode1,
     base64encode: base64encode1,
     decode_binary: decode_binary1,
@@ -4467,7 +4470,7 @@ const Bonito = {
     on_connection_close: on_connection_close1,
     send_close_session: send_close_session1,
     send_pingpong: send_pingpong1,
-    Sessions: mod1,
+    Sessions: mod2,
     init_session: init_session1,
     free_session: free_session1,
     lock_loading: lock_loading1,
@@ -4483,5 +4486,5 @@ const Bonito = {
     throttle_function
 };
 window.Bonito = Bonito;
-export { mod2 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, mod as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, mod1 as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany, OBJECT_FREEING_LOCK1 as OBJECT_FREEING_LOCK, can_send_to_julia1 as can_send_to_julia, free_object1 as free_object, send_to_julia1 as send_to_julia, throttle_function as throttle_function };
+export { mod1 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, mod as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, mod2 as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany, OBJECT_FREEING_LOCK1 as OBJECT_FREEING_LOCK, can_send_to_julia1 as can_send_to_julia, free_object1 as free_object, send_to_julia1 as send_to_julia, throttle_function as throttle_function };
 

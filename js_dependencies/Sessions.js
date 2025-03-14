@@ -149,7 +149,10 @@ export function init_session(session_id, binary_messages, session_status, compre
                     decode_binary(binary_messages, compression_enabled)
                 );
             }
-            done_initializing_session(session_id);
+            // we need for all tasks to be done before we can send the done loading message
+            OBJECT_FREEING_LOCK.onIdle().then(() => {
+                done_initializing_session(session_id);
+            })
         } catch (error) {
             send_done_loading(session_id, error);
             console.error(error.stack);
@@ -229,23 +232,20 @@ export function update_or_replace(node, new_html, replace) {
 }
 
 export function update_session_dom(message) {
-    const { session_id, messages, html, dom_node_selector, replace } = message;
-    on_node_available(dom_node_selector, 1).then((dom) => {
-        try {
-            update_or_replace(dom, html, replace);
-            process_message(messages);
-            done_initializing_session(session_id);
-        } catch (error) {
-            send_done_loading(session_id, error);
-            console.error(error.stack);
-            throw error
-        } finally {
-            // this locks corresponds to the below task_lock from update session cache for an unitialized session
-            // which happens, since we need to send this session via a message
-            // OBJECT_FREEING_LOCK.task_unlock(session_id);
-        }
+    lock_loading(() => {
+        const { session_id, messages, html, dom_node_selector, replace } = message;
+        on_node_available(dom_node_selector, 1).then((dom) => {
+            try {
+                update_or_replace(dom, html, replace);
+                process_message(messages);
+                done_initializing_session(session_id);
+            } catch (error) {
+                send_done_loading(session_id, error);
+                console.error(error.stack);
+                throw error
+            }
+        });
     });
-    return;
 }
 
 export function update_session_cache(session_id, new_jl_objects, session_status) {

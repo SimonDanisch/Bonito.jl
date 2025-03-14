@@ -2,9 +2,7 @@ using .HTTPServer: has_route, get_route, route!
 
 mutable struct HTTPAssetServer <: AbstractAssetServer
     # Reference count the files/binary assets, so we can clean them up for child sessions
-    registered_files::Dict{
-        String,Tuple{Set{UInt}, AbstractAsset}
-    }
+    registered_files::Dict{String,Tuple{Set{UInt}, AbstractAsset}}
     server::Server
     lock::ReentrantLock
 end
