@@ -1,3 +1,4 @@
+.vscode
 *.jl.*.cov
 *.jl.cov
 *.jl.mem
@@ -7,8 +8,9 @@
 /js_dependencies/session_temp_data/
 /examples/Bonito_demo/exported/*
 yarn.lock
-package.json
 node_modules
 docs/build
 docs/Manifest.toml
 test/three.bundled.js
+.qodo
+package-lock.json
