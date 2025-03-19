@@ -601,6 +601,15 @@ end
 
 const MathJaxJS = Asset("https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js")
 function jsrender(session::Session, md::MathJax)
-    dom = DOM.span(MathJaxJS, DOM.p_unesc(md.source), js"""MathJax.typeset()""", class="mathjax-container")
+    typeset = js"""
+    if (window.MATHJAX_TYPESET_PROMISE) {
+        window.MATHJAX_TYPESET_PROMISE.then(() => {
+            MathJax.typesetPromise()
+        });
+    } else {
+        window.MATHJAX_TYPESET_PROMISE = MathJax.typesetPromise();
+    }
+    """
+    dom = DOM.span(MathJaxJS, DOM.p_unesc(md.source), typeset; class="mathjax-container")
     return jsrender(session, dom)
 end
