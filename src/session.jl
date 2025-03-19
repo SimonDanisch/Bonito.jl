@@ -102,6 +102,7 @@ function free(session::Session)
         end
     else
         # If this is a root session, we don't do any refcounting anymore
+        # Since if root is over, everything is over.
         # and just delete everything!
         for key in keys(session.session_objects)
             force_delete!(session, key)

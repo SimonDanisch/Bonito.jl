@@ -166,7 +166,7 @@ function inline_code(session::Session, asset_server, js::JSCode)
         src = """
         // JSCode from $(js.file)
         Bonito.lock_loading(() => {
-            Bonito.fetch_binary('$(url(session, binary))').then(bin_messages=>{
+            return Bonito.fetch_binary('$(url(session, binary))').then(bin_messages=>{
                 const objects = Bonito.decode_binary(bin_messages, $(session.compression_enabled));
                 const __lookup_interpolated = (id) => objects[id]
                 $code
