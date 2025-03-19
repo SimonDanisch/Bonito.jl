@@ -52,6 +52,9 @@ function md_html(header::Markdown.Header{l}) where l
 end
 
 function md_html(code::Markdown.Code)
+    if code.language == "latex"
+        return [MathJax(code.code)]
+    end
     maybe_lang = !isempty(code.language) ? Any[:class=>"language-$(code.language)"] : []
     return [DOM.m("pre", DOM.m("code", code.code; maybe_lang...))]
 end
@@ -77,7 +80,7 @@ end
 function md_html(md::Markdown.List)
     maybe_attr = md.ordered > 1 ? Any[:start => string(md.ordered)] : []
     tag = Markdown.isordered(md) ? "ol" : "ul"
-    style = Styles("list-style-type" => "disc", "list-style" => "inside")
+    style = Styles("list-style-type" => "disc")
     return [DOM.m(
         tag, maybe_attr...,
         map(md.items) do item
