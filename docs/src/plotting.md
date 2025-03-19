@@ -3,7 +3,7 @@
 All plotting frameworks overloading the Julia display system should work out of the box and all Javascript plotting libraries should be easy to integrate!
 The following example shows how to integrate popular libraries like Makie, Plotly and Gadfly.
 
-```julia
+```@example 1
 using Bonito
 using WGLMakie
 import WGLMakie as W

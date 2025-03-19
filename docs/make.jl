@@ -36,6 +36,8 @@ makedocs(
     ]
 )
 
+cp("build/.documenter/bonito", "build/final_site/bonito")
+
 if ci
     deploydocs(repo="github.com/SimonDanisch/Bonito.jl.git"; push_preview=true)
 end
