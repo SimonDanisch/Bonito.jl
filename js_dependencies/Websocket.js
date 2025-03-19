@@ -51,7 +51,7 @@ class Websocket {
                         // test write
                         return resolve(null);
                     }
-                    Bonito.OBJECT_FREEING_LOCK.lock(() => {
+                    Bonito.lock_loading(() => {
                         Bonito.process_message(
                             Bonito.decode_binary(
                                 binary,
