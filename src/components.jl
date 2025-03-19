@@ -592,11 +592,15 @@ end
 
 struct MathJax
     source::String
+    config::Dict{String, Any}
 end
 
-const PolyFill = Asset("https://polyfill.io/v3/polyfill.min.js?features=es6")
+function MathJax(source::String)
+    return MathJax(source, Dict{String, Any}())
+end
+
 const MathJaxJS = Asset("https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js")
 function jsrender(session::Session, md::MathJax)
-    dom = DOM.span(PolyFill, MathJaxJS, DOM.p_unesc(md.source), js"MathJax.typeset()")
+    dom = DOM.span(MathJaxJS, DOM.p_unesc(md.source), js"""MathJax.typeset()""", class="mathjax-container")
     return jsrender(session, dom)
 end
