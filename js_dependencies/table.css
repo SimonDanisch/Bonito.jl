@@ -1,26 +1,123 @@
+/* ============================== */
+/*          Default-theme         */
+/* ============================== */
 table {
-  font-family: Arial, Helvetica, sans-serif;
-  border-collapse: collapse;
-  width: 100%;
+    font-family: Arial, Helvetica, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+    color: #000000;
 }
 
-
-td, th, tr {
+table td,
+table th {
     padding: 1px 5px;
+    resize: horizontal;
+    /* Drag-and-drop column widths */
+    overflow: auto;
+    min-width: 100px;
+    /* Give an initial column width */
+    border: 1px solid #dddddd;
+    /* add a border */
 }
 
-tr:nth-child(even) {
+table tr:nth-child(even) {
     background-color: #f2f2f2;
 }
 
-tr:hover {
-    background-color: #ddd;
+table tr:hover {
+    background-color: #dddddd;
 }
 
-th {
+table th {
     padding-top: 10px;
     padding-bottom: 10px;
     text-align: left;
     background-color: #e2e2e2;
-    color: white;
+    color: #000000;
+    /* font color */
+}
+
+
+/* ============================== */
+/*           Light-theme          */
+/* ============================== */
+.light-theme table {
+    font-family: Arial, Helvetica, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+    color: #000000;
+}
+
+.light-theme table td,
+.light-theme table th {
+    padding: 1px 5px;
+    resize: horizontal; /* Drag-and-drop column widths */
+    overflow: auto;
+    min-width: 100px; /* Give an initial column width */
+    border: 1px solid #dddddd; /* add a border */
+}
+
+.light-theme table tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+.light-theme table tr:hover {
+    background-color: #dddddd;
+}
+
+.light-theme table th {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    text-align: left;
+    background-color: #e2e2e2;
+    color: #000000; /* font color */
+}
+
+.light-theme table input {
+    background-color: rgba(255, 255, 255, 0.5);
+    color: #000; /* font color */
+    font-size: 14px;
+}
+
+
+/* ============================== */
+/*          Dark-theme            */
+/* ============================== */
+.dark-theme table {
+    font-family: Arial, Helvetica, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+    color: #ffffff;
+    background-color: #2c2c2c;
+}
+
+.dark-theme table td,
+.dark-theme table th {
+    padding: 1px 5px;
+    resize: horizontal;
+    overflow: auto;
+    min-width: 100px;
+    border: 1px solid #555555;
+}
+
+.dark-theme table tr:nth-child(even) {
+    background-color: #3a3a3a;
+}
+
+.dark-theme table tr:hover {
+    background-color: #444444;
+}
+
+.dark-theme table th {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    text-align: left;
+    background-color: #555555;
+    color: #ffffff;
+}
+
+.dark-theme table input {
+    background-color: rgba(255, 255, 255, 0);
+    color: #fff; /* font color */
+    font-size: 14px;
 }
