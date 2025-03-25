@@ -81,7 +81,7 @@ end
 end
 
 function jsrender(session::Session, obs::Observable)
-    root_node = DOM.span()
+    root_node = DOM.div()
     old_sub, html = render_subsession(session, obs[]; init=true)
     mark_displayed!(old_sub)
     on(session, obs) do data

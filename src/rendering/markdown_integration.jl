@@ -141,6 +141,11 @@ function htmlinline(link::Markdown.Link)
     return [DOM.m("a", href = link.url, htmlinline(link.text)...)]
 end
 
+function htmlinline(latex::Markdown.LaTeX)
+    return [MathJax("\$" * latex.formula * "\$")]
+end
+
+
 function htmlinline(br::Markdown.LineBreak)
     return [DOM.m("br")]
 end

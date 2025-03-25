@@ -88,7 +88,7 @@ function apply_handler(chain::Tuple, context, args...)
     return apply_handler(Base.tail(chain), context, result...)
 end
 
-function linkify_stacktrace(bt::String)
+function linkify_stacktrace(error_msg, bt::String)
     lines = split(bt, '\n'; keepempty=false)  # Split stack trace into lines
     elements = []
 
@@ -123,7 +123,10 @@ function linkify_stacktrace(bt::String)
         end
     end
     return DOM.pre(
-        elements...; class="backtrace", style="white-space: nowrap; overflow-x: auto;"
+        DOM.h3(error_msg; style="color: red;"),
+        elements...;
+        class="backtrace",
+        style="overflow-x: auto;",
     )
 end
 
@@ -135,9 +138,7 @@ function err_to_html(err, stacktrace)
         iol = IOContext(io, :stacktrace_types_limited => Base.RefValue(true))
         Base.show_backtrace(iol, stacktrace)
     end
-    return DOM.div(
-        DOM.h3(error_msg; style="color: red;"), linkify_stacktrace(stacktrace_msg)
-    )
+    return linkify_stacktrace(error_msg, stacktrace_msg)
 end
 
 function delegate(routes::Routes, application, request::Request, args...)

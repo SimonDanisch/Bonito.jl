@@ -546,16 +546,13 @@ function update_session_dom!(parent::Session, node_uuid::String, app_or_dom; rep
     return sub
 end
 
-
-function append_child(parent::Session, parent_node::HTMLElement, new_html; replace=true)
+function dom_in_js(parent::Session,  new_html, js_func)
     if isclosed(parent)
         error("Updating the session dom for a closed session")
     end
     sub, html = render_subsession(parent, new_html; init=true)
     html_obs = Observable(html)
-    update_dom = js"""
-        $(parent_node).appendChild($(html_obs).value)
-    """
+    update_dom = js"""($(js_func))($(html_obs).value)"""
     message = Bonito.SerializedMessage(
         sub, Dict(:msg_type => Bonito.EvalJavascript, :payload => update_dom)
     )
@@ -563,4 +560,11 @@ function append_child(parent::Session, parent_node::HTMLElement, new_html; repla
     mark_displayed!(parent)
     mark_displayed!(sub)
     return sub
+end
+
+
+function append_child(parent::Session, parent_node::HTMLElement, new_html)
+    return dom_in_js(parent, new_html, js"""(elem) => {
+        $(parent_node).appendChild(elem);
+    }""")
 end
