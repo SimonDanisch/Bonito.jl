@@ -13,7 +13,7 @@ function response_404(body="Not Found")
 end
 
 function response_500(html)
-    return HTTP.Response(404, [
+    return HTTP.Response(500, [
         "Content-Type" => "text/html",
         "charset" => "utf-8",
         # Avoids throwing lots of errors in the devtools console when
