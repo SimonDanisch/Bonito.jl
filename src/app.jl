@@ -116,14 +116,13 @@ end
 function update_app!(handler::DisplayHandler, app::App)
     # the connection is open, so we can just use it to update the dom!
     old_session = handler.current_app.session[]
-
     handler.current_app = app
     if isready(handler.session)
-        update_app!(handler.session, app)
-        # Close old session after rendering, so we can don't delete re-used resources
         if !isnothing(old_session)
             close(old_session)
         end
+        update_app!(handler.session, app)
+
         return false
     else
         # Need to wait for someone to actually visit http://.../browser-display
@@ -149,12 +148,14 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
         handler.session = parent
     end
     sub = Session(parent)
-    init_dom = session_dom(parent, App(nothing); html_document=true)
+    parent_dom = session_dom(parent, App(nothing); html_document=true)
     sub_dom = session_dom(sub, handler.current_app)
-    # first time rendering in a subsession, we combine init of parent session
-    # with the dom we're rendering right now
-    dom = DOM.div(init_dom, sub_dom)
-    html_str = sprint(io -> print_as_page(io, dom))
+
+    # first time rendering in a subsession, we put the
+    # subsession dom as a bonito fragment into the parent body
+    _, parent_body, _ = find_head_body(parent_dom)
+    push!(children(parent_body), sub_dom)
+    html_str = sprint(io -> print_as_page(io, parent_dom))
     # The closing time is calculated from here
     # If after 20s after rendering and sending the HTML to the browser
     # no connection is established, it will be assumed that the browser never connected

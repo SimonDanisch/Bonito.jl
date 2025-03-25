@@ -80,7 +80,7 @@ end
 function md_html(md::Markdown.List)
     maybe_attr = md.ordered > 1 ? Any[:start => string(md.ordered)] : []
     tag = Markdown.isordered(md) ? "ol" : "ul"
-    style = Styles("list-style-type" => "disc", "list-style" => "inside")
+    style = Styles("list-style-type" => "disc")
     return [DOM.m(
         tag, maybe_attr...,
         map(md.items) do item

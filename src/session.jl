@@ -94,6 +94,7 @@ function free(session::Session)
         end
     else
         # If this is a root session, we don't do any refcounting anymore
+        # Since if root is over, everything is over.
         # and just delete everything!
         for key in keys(session.session_objects)
             force_delete!(session, key)
@@ -365,7 +366,7 @@ end
 
 isroot(session::Session) = session.parent === nothing
 
-function render_dependencies(session::Session)
+function push_dependencies!(childs, session::Session)
     require_off = DOM.script("""
         window.__define = window.define;
         window.__require = window.require;
@@ -387,9 +388,11 @@ function render_dependencies(session::Session)
     assets_rendered = render_asset.(Ref(session), Ref(session.asset_server), assets)
     if any(x-> mediatype(x) == :js && !x.es6module, assets)
         # if a js non es6module is included, we may need to hack require... because JS! :(
-        return DOM.div(require_off, assets_rendered..., require_on)
+        push!(childs, require_off)
+        push!(childs, assets_rendered...)
+        push!(childs, require_on)
     else
-        return DOM.div(assets_rendered...)
+        push!(childs, assets_rendered...)
     end
 end
 
@@ -407,6 +410,16 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         # code and dom nodes to the right places, so we need to extract those
         head, body, dom = find_head_body(dom)
         session_style = render_stylesheets!(root_session(session), session, session.stylesheets)
+        issubsession = !isroot(session)
+
+        # should never request full html_doc for subsession
+        issubsession && @assert !html_document
+        if issubsession && !isnothing(head) && !isnothing(body)
+            @warn "Apps with head/body elements are not supported in subsessions, wrapping in a fragment"
+            dom = page_to_fragment(head, body, dom)
+            head = body = nothing
+        end
+
         # if nothing is found, we just use one div and append to that
         if isnothing(head) && isnothing(body)
             if html_document
@@ -445,8 +458,8 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
             pushfirst!(children(body), jsrender(session, init_connection))
         end
 
-        push!(children(head), render_dependencies(session))
-        issubsession = !isroot(session)
+        push_dependencies!(children(head), session)
+
         if init
             msgs = fused_messages!(session)
             type = issubsession ? "sub" : "root"
@@ -469,6 +482,27 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         session.status = RENDERED
         return dom
     end
+end
+
+function page_to_fragment(head, body, dom)
+    _head = Hyperscript.Node(
+        Hyperscript.context(head),
+        "div",
+        Hyperscript.children(head),
+        Hyperscript.attrs(head)
+    )
+    _body = Hyperscript.Node(
+        Hyperscript.context(body),
+        "div",
+        Hyperscript.children(body),
+        Hyperscript.attrs(body)
+    )
+    return Hyperscript.Node(
+        Hyperscript.context(dom),
+        "div",
+        [_head, _body],
+        Hyperscript.attrs(dom)
+    )
 end
 
 function render_subsession(p::Session, data; init=false)

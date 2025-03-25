@@ -98,7 +98,9 @@ function add_cached!(create_cached_object::Function, session::Session, send_to_j
         key = object_identity(object)::String
         result = CacheKey(key)
         # If already in session, there's nothing we need to do, since we've done the work the first time we added the object
-        haskey(session.session_objects, key) && return result
+        if haskey(session.session_objects, key)
+            return result
+        end
         # Now, we have two code paths, depending on whether we have a child session or a root session
         # we are root, so we simply cache the object (we already checked it's not cached yet)
         if root === session
