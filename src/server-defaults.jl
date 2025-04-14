@@ -134,13 +134,7 @@ function configure_server!(;
     end
 
     if isnothing(proxy_url)
-        if listen_url == "0.0.0.0"
-            proxy_url = string(Sockets.getipaddr(), ":$forwarded_port")
-        elseif listen_url in ("127.0.0.1", "localhost")
-            proxy_url = "http://localhost:$forwarded_port"
-        else
-            error("Trying to listen to $(listen_url), while only \"127.0.0.1\", \"0.0.0.0\" and \"localhost\" are supported")
-        end
+        proxy_url = ""
     end
     # set the config!
     SERVER_CONFIGURATION.listen_url[] = listen_url

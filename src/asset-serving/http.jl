@@ -72,7 +72,7 @@ function refs_and_url(server, asset::AbstractAsset)
     if asset isa Asset && asset.es6module
         key = key * "?" * asset.content_hash[]
     end
-    return refs, HTTPServer.online_url(server.server, key)
+    return refs, HTTPServer.relative_url(server.server, key)
 end
 
 function url(server::HTTPAssetServer, asset::AbstractAsset)
