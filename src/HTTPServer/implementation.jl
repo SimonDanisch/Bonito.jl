@@ -212,6 +212,19 @@ function online_url(server::Server, url)
     end
 end
 
+function relative_url(server::Server, url)
+    base_url = server.proxy_url
+    if isempty(base_url)
+        url = startswith(url, "/") ? url[2:end] : url
+        return "./" * url
+    else
+        if endswith(base_url, "/") && startswith(url, "/")
+            url = url[2:end]
+        end
+        return base_url * url
+    end
+end
+
 function stream_handler(application::Server, stream::Stream)
     if HTTP.WebSockets.isupgrade(stream.message)
         try
