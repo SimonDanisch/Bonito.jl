@@ -8,10 +8,15 @@ function iterate_interpolations(source::String, result=Union{Expr,JSString,Symbo
         # which is a template literal placeholder in Javascript.
         #
         # "{ ... }" is a deprecated syntax in Julia, so this is fine.
-        if c == '$' && i != lindex && source[i + 1] != '{'
+        # don't interpolate on "\$"
+        next_is_brace = i != lindex && source[Base.nextind(source, i)] == '{'
+        prev_is_backslash = i != firstindex(source) && source[Base.prevind(source, i)] == '\\'
+
+        if c == '$' && !next_is_brace && !prev_is_backslash
             # add elements before $
-            if !isempty(lastidx:(i - 1))
-                push!(result, text_func(source[lastidx:(i-1)]))
+            if !isempty(lastidx:Base.prevind(source, i))
+                jsstring = replace(source[lastidx:Base.prevind(source, i)], raw"\$"=>raw"$")
+                push!(result, text_func(jsstring))
             end
             # parse the $ expression
             expr, i2 = Meta.parse(source, i + 1, greedy = false, raise = false)
@@ -25,7 +30,8 @@ function iterate_interpolations(source::String, result=Union{Expr,JSString,Symbo
         else
             if i == lindex
                 if !isempty(lastidx:lindex)
-                    push!(result, text_func(source[lastidx:lindex]))
+                    jsstring = replace(source[lastidx:lindex], raw"\$"=>raw"$")
+                    push!(result, text_func(jsstring))
                 end
                 break
             end
