@@ -137,6 +137,9 @@ function EWindow(args...)
             "--no-sandbox",
             "--user-data-dir=$(mktempdir())",
             "--disable-features=AccessibilityObjectModel",
+            "--enable-unsafe-swiftshader",        # ← allow SwiftShader fallback
+            "--use-gl=swiftshader",               # ← explicitly request software GL
+            "--disable-gpu",                      # ← disable GPU to avoid GPU errors
         ],
     )
     return Electron().Window(app, args...)
