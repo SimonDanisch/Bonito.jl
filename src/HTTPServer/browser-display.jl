@@ -133,8 +133,8 @@ end
 function EWindow(args...)
     app = Electron().Application(;
         additional_electron_args=[
-            "--disable-logging",
             "--no-sandbox",
+            "--enable-logging",
             "--user-data-dir=$(mktempdir())",
             "--disable-features=AccessibilityObjectModel",
             "--enable-unsafe-swiftshader",        # ← allow SwiftShader fallback
