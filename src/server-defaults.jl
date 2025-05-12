@@ -62,7 +62,7 @@ function find_proxy_in_environment()
         return port-> ENV["JH_APP_URL"] * "proxy/$(port)"
     elseif haskey(ENV, "JULIA_WEBIO_BASEURL")
         # Possibly not working anymore, but used to be used in e.g. nextjournal for the proxy url
-        return ENV["JULIA_WEBIO_BASEURL"]
+        return port-> ENV["JULIA_WEBIO_BASEURL"]
     elseif haskey(ENV, "BINDER_SERVICE_HOST")
         # binder
         return port -> ENV["BINDER_SERVICE_HOST"] * "proxy/$port"
