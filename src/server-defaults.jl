@@ -45,7 +45,7 @@ function jupyterlab_proxy_url(port)
         hostname = config[1]["hostname"]
         # TODO, this seems very fragile
         if haskey(ENV, "BONITO_JUPYTER_REMOTE_HOST")
-            return string(get(ENV, "BONITO_JUPYTER_REMOTE_HOST"), config[1]["base_url"], "proxy/", port)
+            return string(ENV["BONITO_JUPYTER_REMOTE_HOST"], config[1]["base_url"], "proxy/", port)
         elseif hostname == "0.0.0.0" || hostname == "localhost"
             return string("http://", IJulia().profile["ip"], ":", config[1]["port"], config[1]["base_url"], "proxy/", port)
         else
