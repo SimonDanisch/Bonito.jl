@@ -190,8 +190,7 @@ function setup_connection(session::Session, connection::WebSocketConnection)
     server = connection.server
     add_cleanup_task!(server)
     HTTPServer.websocket_route!(server, "/$(session.id)" => connection)
-    external_url = online_url(server, "")
-    return setup_websocket_connection_js(external_url, session)
+    return setup_websocket_connection_js(server.proxy_url, session)
 end
 
 function setup_connection(session::Session{WebSocketConnection})
