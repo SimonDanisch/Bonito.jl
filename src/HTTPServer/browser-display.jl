@@ -117,6 +117,7 @@ end
 
 # Poor mans Require.jl for Electron
 const ELECTRON_PKG_ID = Base.PkgId(Base.UUID("a1bb12fb-d4d1-54b4-b10a-ee7951ef7ad3"), "Electron")
+
 function Electron()
     if haskey(Base.loaded_modules, ELECTRON_PKG_ID)
         return Base.loaded_modules[ELECTRON_PKG_ID]
@@ -130,9 +131,10 @@ struct ElectronDisplay{EWindow} <: Base.Multimedia.AbstractDisplay
     browserdisplay::BrowserDisplay
 end
 
-function EWindow(args...)
-    app = Electron().Application(;
-        additional_electron_args=[
+function default_electron_args()
+    # Not an exhaustive check, but we can add if needed
+    if haskey(ENV, "GITHUB_ACTIONS")
+        return [
             "--no-sandbox",
             "--enable-logging",
             "--user-data-dir=$(mktempdir())",
@@ -140,13 +142,22 @@ function EWindow(args...)
             "--enable-unsafe-swiftshader",        # ← allow SwiftShader fallback
             "--use-gl=swiftshader",               # ← explicitly request software GL
             "--disable-gpu",                      # ← disable GPU to avoid GPU errors
-        ],
+        ]
+    else
+        return []
+    end
+end
+
+function EWindow(args...; electron_args=default_electron_args())
+    app = Electron().Application(;
+        additional_electron_args=electron_args,
     )
     return Electron().Window(app, args...)
 end
 
-function ElectronDisplay(; devtools = false)
-    w = EWindow()
+
+function ElectronDisplay(; devtools = false, electron_args=default_electron_args())
+    w = EWindow(; electron_args=electron_args)
     devtools && Electron().toggle_devtools(w)
     return ElectronDisplay(w, BrowserDisplay(; open_browser=false))
 end
@@ -163,15 +174,24 @@ function Base.display(display::ElectronDisplay, app::App)
     return display
 end
 
-function use_electron_display(; devtools = false)
-    disp = ElectronDisplay(; devtools = devtools)
-    filter!(x-> !(x isa ElectronDisplay), Base.Multimedia.displays)
+
+function use_electron_display(; devtools = false, electron_args=default_electron_args())
+    disp = ElectronDisplay(; devtools = devtools, electron_args=electron_args)
+    filter!(Base.Multimedia.displays) do x
+        # remove all other ElectronDisplays
+        if x isa ElectronDisplay
+            close(x)
+            return false
+        else
+            return true
+        end
+    end
     Base.Multimedia.pushdisplay(disp)
     return disp
 end
 
 function Base.close(display::ElectronDisplay)
-    isopen(display.window) && close(display.window)
+    close(display.window.app)
     close(display.browserdisplay)
     return nothing
 end
