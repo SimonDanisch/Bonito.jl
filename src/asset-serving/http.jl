@@ -2,9 +2,7 @@ using .HTTPServer: has_route, get_route, route!
 
 mutable struct HTTPAssetServer <: AbstractAssetServer
     # Reference count the files/binary assets, so we can clean them up for child sessions
-    registered_files::Dict{
-        String,Tuple{Set{UInt},Union{Path, String, BinaryAsset}}
-    }
+    registered_files::Dict{String,Tuple{Set{UInt}, AbstractAsset}}
     server::Server
     lock::ReentrantLock
 end
@@ -21,7 +19,8 @@ end
 const MATCH_HEX = r"[\da-f]"
 const ASSET_ROUTE_REGEX = r"assets-(?:\d+){20}"
 const UNIQUE_FILE_KEY_REGEX = MATCH_HEX^40 * r"-.*"
-const ASSET_URL_REGEX = "/" * ASSET_ROUTE_REGEX * "/" * UNIQUE_FILE_KEY_REGEX
+const ASSET_URL_REGEX =
+    "/" * ASSET_ROUTE_REGEX * "/" * UNIQUE_FILE_KEY_REGEX * r"(/?(?:\d+){20})?"
 const HTTP_ASSET_ROUTE_KEY = "/assets/" * UNIQUE_FILE_KEY_REGEX
 
 HTTPAssetServer() = HTTPAssetServer(get_server())
@@ -65,17 +64,15 @@ function Base.close(server::ChildAssetServer)
     end
 end
 
-serving_target(path::Path) = path
-serving_target(path::AbstractString) = normpath(abspath(expanduser(path)))
-serving_target(asset::Asset) = serving_target(local_path(asset))
-serving_target(asset::AbstractAsset) = asset
-
 function refs_and_url(server, asset::AbstractAsset)
     key = "/assets/" * unique_file_key(asset)
-    refs, target = get!(server.registered_files, key) do
-        return (Set{UInt}(), serving_target(asset))
+    refs, _ = get!(server.registered_files, key) do
+        return (Set{UInt}(), asset)
     end
-    return refs, HTTPServer.online_url(server.server, key)
+    if asset isa Asset && asset.es6module
+        key = key * "?" * asset.content_hash[]
+    end
+    return refs, HTTPServer.relative_url(server.server, key)
 end
 
 function url(server::HTTPAssetServer, asset::AbstractAsset)
@@ -99,9 +96,9 @@ function js_to_local_url(server::HTTPAssetServer, url::AbstractString)
     if isnothing(m) || isempty(m)
         return url
     else
-        key = m[1]
-        refs, path = server.registered_files[string(key)]
-        return path * ":" * m[2]
+        key = URIs.URI(m[1]).path
+        _, asset = server.registered_files[string(key)]
+        return local_path(asset) * ":" * m[2]
     end
 end
 
@@ -113,22 +110,32 @@ function js_to_local_stacktrace(server::HTTPAssetServer, line::AbstractString)
 end
 
 function (server::HTTPAssetServer)(context)
-    path = context.request.target
+    path = URIs.URI(context.request.target).path
     rf = server.registered_files
     if haskey(rf, path)
-        refs, filepath = rf[path]
-        if filepath isa BinaryAsset
+        _, asset = rf[path]
+        if asset isa BinaryAsset
             header = ["Access-Control-Allow-Origin" => "*",
                 "Content-Type" => "application/octet-stream"]
-            return HTTP.Response(200, header, body=filepath.data)
+            return HTTP.Response(200, header; body=asset.data)
         else
-            if isfile(filepath)
+            data = nothing
+            if !isempty(asset.bundle_data)
+                data = asset.bundle_data
+            else
+                if isfile(local_path(asset))
+                    data = read(local_path(asset))
+                end
+            end
+            if !isnothing(data)
                 header = ["Access-Control-Allow-Origin" => "*",
-                    "Content-Type" => file_mimetype(filepath)]
-                return HTTP.Response(200, header, body = read(filepath))
+                    "Content-Type" => file_mimetype(local_path(asset)),
+                ]
+                return HTTP.Response(200, header, body = data)
             end
         end
     end
+
     return HTTP.Response(404)
 end
 

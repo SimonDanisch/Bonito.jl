@@ -12,15 +12,16 @@ function response_404(body="Not Found")
     ], body=body)
 end
 
-function response_500(exception)
-    body = sprint(io-> Base.showerror(io, exception))
-    return HTTP.Response(404, [
+function response_500(html)
+    return HTTP.Response(500, [
         "Content-Type" => "text/html",
         "charset" => "utf-8",
         # Avoids throwing lots of errors in the devtools console when
         # VSCode tries to load non-existent resources from the plots pane.
         "Access-Control-Allow-Origin" => "*",
-    ], body=body)
+        ];
+        body=html,
+    )
 end
 
 # TODO, how to do this without pircay? THis happens inside HTTP, so we can't just use try & catch in our own code

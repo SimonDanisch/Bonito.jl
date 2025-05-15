@@ -121,52 +121,6 @@ export function send_close_session(session, subsession) {
     });
 }
 
-// JS DOESN't HAVE LOCKS ?????
-export class Lock {
-    constructor() {
-        this.locked = false;
-        this.queue = [];
-        this.locking_tasks = new Set();
-    }
-    unlock() {
-        this.locked = false;
-        if (this.queue.length > 0) {
-            const job = this.queue.pop();
-            // this will call unlock after its finished and work through the queue like that
-            this.lock(job);
-        }
-    }
-    /**
-     * @param {string} task_id
-     */
-    task_lock(task_id) {
-        this.locked = true
-        this.locking_tasks.add(task_id)
-    }
-    task_unlock(task_id) {
-        this.locking_tasks.delete(task_id);
-        if (this.locking_tasks.size == 0){
-            this.unlock()
-        }
-    }
-    lock(func) {
-        return new Promise(resolve=> {
-            if (this.locked) {
-                const func_res = ()=> Promise.resolve(func()).then(resolve);
-                this.queue.push(func_res);
-            } else {
-                this.locked = true;
-                // func may return a promise that needs resolved first
-                Promise.resolve(func()).then((x) => {
-                    this.unlock()
-                    resolve(x)
-                });
-            }
-        })
-    }
-}
-
-
 export function process_message(data) {
     try {
         switch (data.msg_type) {

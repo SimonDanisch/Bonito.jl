@@ -18,7 +18,7 @@ class Websocket {
         this.#onopen_callbacks.push(f);
     }
     tryconnect() {
-        console.log(`tries; ${this.#tries}`);
+        console.log(`tries: ${this.#tries}`);
         if (this.#websocket) {
             this.#websocket.close();
             this.#websocket = undefined;
@@ -37,7 +37,7 @@ class Websocket {
                     if (binary.length === 1 && binary[0] === 0) {
                         return resolve(null);
                     }
-                    Bonito.OBJECT_FREEING_LOCK.lock(()=>{
+                    Bonito.lock_loading(()=>{
                         Bonito.process_message(Bonito.decode_binary(binary, this_ws.compression_enabled));
                     });
                     return resolve(null);
@@ -107,7 +107,7 @@ class Websocket {
 }
 function websocket_url(session_id, proxy_url) {
     let http_url = window.location.protocol + "//" + window.location.host;
-    if (proxy_url) {
+    if (proxy_url !== "") {
         http_url = proxy_url;
     }
     let ws_url = http_url.replace("http", "ws");

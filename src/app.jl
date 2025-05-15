@@ -34,11 +34,17 @@ function update_app!(parent::Session, new_app::App)
     update_session_dom!(parent, "subsession-application-dom", new_app)
 end
 
+
 function rendered_dom(session::Session, app::App, target=HTTP.Request())
     app.session[] = session
     session.current_app[] = app
-    dom = Base.invokelatest(app.handler, session, target)
-    return jsrender(session, dom)
+    try
+        dom = Base.invokelatest(app.handler, session, target)
+        return jsrender(session, dom)
+    catch err
+        html = HTTPServer.err_to_html(err, Base.catch_backtrace())
+        return jsrender(session, html)
+    end
 end
 
 function bind_global(session::Session, var::AbstractObservable{T}) where T
@@ -57,9 +63,8 @@ function serve_app(app, context)
     html_str = sprint() do io
         page_html(io, session, html_dom)
     end
-    response = html(html_str)
     mark_displayed!(session)
-    return response
+    return html(html_str)
 end
 
 # Enable route!(server, "/" => app)
@@ -111,14 +116,13 @@ end
 function update_app!(handler::DisplayHandler, app::App)
     # the connection is open, so we can just use it to update the dom!
     old_session = handler.current_app.session[]
-
     handler.current_app = app
     if isready(handler.session)
-        update_app!(handler.session, app)
-        # Close old session after rendering, so we can don't delete re-used resources
         if !isnothing(old_session)
             close(old_session)
         end
+        update_app!(handler.session, app)
+
         return false
     else
         # Need to wait for someone to actually visit http://.../browser-display
@@ -144,12 +148,14 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
         handler.session = parent
     end
     sub = Session(parent)
-    init_dom = session_dom(parent, App(nothing); html_document=true)
+    parent_dom = session_dom(parent, App(nothing); html_document=true)
     sub_dom = session_dom(sub, handler.current_app)
-    # first time rendering in a subsession, we combine init of parent session
-    # with the dom we're rendering right now
-    dom = DOM.div(init_dom, sub_dom)
-    html_str = sprint(io -> print_as_page(io, dom))
+
+    # first time rendering in a subsession, we put the
+    # subsession dom as a bonito fragment into the parent body
+    _, parent_body, _ = find_head_body(parent_dom)
+    push!(children(parent_body), sub_dom)
+    html_str = sprint(io -> print_as_page(io, parent_dom))
     # The closing time is calculated from here
     # If after 20s after rendering and sending the HTML to the browser
     # no connection is established, it will be assumed that the browser never connected
@@ -161,5 +167,7 @@ end
 function wait_for_ready(app::App; timeout=100)
     wait_for(()-> !isnothing(app.session[]); timeout=timeout)
     isclosed(app.session[]) && return nothing
-    wait_for(()-> isready(app.session[]); timeout=timeout)
+    wait_for(timeout=timeout) do
+        isready(app.session[]) || isclosed(app.session[])
+    end
 end

@@ -44,8 +44,10 @@ function jupyterlab_proxy_url(port)
         # TODO, how to match kernel?
         hostname = config[1]["hostname"]
         # TODO, this seems very fragile
-        if hostname == "0.0.0.0"
-            return string("http://", IJulia().profile["ip"], ":", config[1]["port"], "/proxy/", port)
+        if haskey(ENV, "BONITO_JUPYTER_REMOTE_HOST")
+            return string(ENV["BONITO_JUPYTER_REMOTE_HOST"], config[1]["base_url"], "proxy/", port)
+        elseif hostname == "0.0.0.0" || hostname == "localhost"
+            return string("http://", IJulia().profile["ip"], ":", config[1]["port"], config[1]["base_url"], "proxy/", port)
         else
             return ""
         end
@@ -60,7 +62,7 @@ function find_proxy_in_environment()
         return port-> ENV["JH_APP_URL"] * "proxy/$(port)"
     elseif haskey(ENV, "JULIA_WEBIO_BASEURL")
         # Possibly not working anymore, but used to be used in e.g. nextjournal for the proxy url
-        return ENV["JULIA_WEBIO_BASEURL"]
+        return port-> ENV["JULIA_WEBIO_BASEURL"]
     elseif haskey(ENV, "BINDER_SERVICE_HOST")
         # binder
         return port -> ENV["BINDER_SERVICE_HOST"] * "proxy/$port"
@@ -132,13 +134,7 @@ function configure_server!(;
     end
 
     if isnothing(proxy_url)
-        if listen_url == "0.0.0.0"
-            proxy_url = string(Sockets.getipaddr(), ":$forwarded_port")
-        elseif listen_url in ("127.0.0.1", "localhost")
-            proxy_url = "http://localhost:$forwarded_port"
-        else
-            error("Trying to listen to $(listen_url), while only \"127.0.0.1\", \"0.0.0.0\" and \"localhost\" are supported")
-        end
+        proxy_url = ""
     end
     # set the config!
     SERVER_CONFIGURATION.listen_url[] = listen_url

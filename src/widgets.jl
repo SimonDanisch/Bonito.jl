@@ -258,7 +258,7 @@ function Slider(values::AbstractArray{T}; value=first(values), kw...) where {T}
     values_obs = convert(Observable{Vector{T}}, values)
     initial_idx = findfirst((==)(value), values_obs[])
     index = Observable(initial_idx)
-    value_obs = map(getindex, values_obs, index)
+    value_obs = Observable(values_obs[][initial_idx])
     return Slider(values_obs, value_obs, index, Dict{Symbol,Any}(kw))
 end
 
@@ -285,8 +285,11 @@ function jsrender(session::Session, slider::Slider)
             value=index,
             step=1,
             oninput=js"""(event)=> {
-              $(index).notify(parseInt(event.srcElement.value))
-          }""",
+                const idx = event.srcElement.valueAsNumber;
+                if (idx !== $(index).value) {
+                    $(index).notify(idx)
+                }
+            }""",
             style=styles,
             slider.attributes...,
         ),
@@ -329,6 +332,7 @@ end
 
 A simple Checkbox, which can be styled via the `style::Styles` attribute.
 """
+Checkbox
 
 function jsrender(session::Session, tb::Checkbox)
     style = Styles(Styles("min-width" => "auto", "transform" => "scale(1.5)"), BUTTON_STYLE)
@@ -526,6 +530,7 @@ Defaults for `editor_options`:
     mergeUndoDeltas = "always"
 )
 ```
+The content of the editor (as a string) is updated in `editor.onchange::Observable`.
 """
 function CodeEditor(
     language::String;
@@ -553,7 +558,7 @@ function CodeEditor(
         "showPrintMargin" => false,
     )
     user_opts = Dict{String,Any}(string(k) => v for (k, v) in editor_options)
-    options = Dict{String,Any}(merge(user_opts, defaults))
+    options = Dict{String,Any}(merge(defaults, user_opts))
     onchange = Observable(initial_source)
     style = Styles(style,
         "position" => "relative",
@@ -564,6 +569,7 @@ function CodeEditor(
 end
 
 function jsrender(session::Session, editor::CodeEditor)
+
     theme = "ace/theme/$(editor.theme)"
     language = "ace/mode/$(editor.language)"
     ace_url = "https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"
@@ -615,9 +621,11 @@ end
 
 struct FileInput <: Bonito.WidgetsBase.AbstractWidget{String}
     value::Observable{Vector{String}}
+    multiple::Bool
 end
 
-FileInput() = FileInput(Observable([""]))
+FileInput(value::Observable{Vector{String}}; multiple = true) = FileInput(Observable([""]), multiple)
+FileInput(; kws...) = FileInput(Observable([""]); kws...)
 
 function Bonito.jsrender(session::Session, fi::FileInput)
     onchange = js"""event => {
@@ -629,5 +637,5 @@ function Bonito.jsrender(session::Session, fi::FileInput)
             $(fi.value).notify(files);
         }
     }"""
-    return DOM.input(; type="file", onchange=onchange, multiple=true)
+    return DOM.input(; type="file", onchange=onchange, multiple=fi.multiple)
 end

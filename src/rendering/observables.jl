@@ -16,9 +16,14 @@ function Base.show(io::IO, up::JSUpdateObservable)
 end
 
 function (x::JSUpdateObservable)(value)
-    # Sent an update event
-    if !isclosed(x.session)
-        send(x.session, payload=value, id=x.id, msg_type=UpdateObservable)
+    try
+        # Sent an update event
+        if !isclosed(x.session)
+            send(x.session, payload=value, id=x.id, msg_type=UpdateObservable)
+        end
+    catch e
+        println("Error in JSUpdateObservable:")
+        Base.showerror(stderr, e)
     end
 end
 
@@ -76,7 +81,7 @@ end
 end
 
 function jsrender(session::Session, obs::Observable)
-    root_node = DOM.span()
+    root_node = DOM.div()
     old_sub, html = render_subsession(session, obs[]; init=true)
     mark_displayed!(old_sub)
     on(session, obs) do data
@@ -95,7 +100,11 @@ end
 # Fast path for simple types
 function jsrender(session::Session, obs::Observable{T}) where {T <: Union{Number, String, Symbol}}
     root_node = DOM.span(string(obs[]))
-    onjs(session, map(string, session, obs), js"""(val)=> {
+    obs_js = map(string, session, obs)
+    onjs(
+        session,
+        obs_js,
+        js"""(val)=> {
         $(root_node).innerText = val
     }""")
     return root_node

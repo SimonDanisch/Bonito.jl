@@ -22,11 +22,17 @@ connections = [
 servers = [(:NoServer, () -> NoServer()), (:HTTPAssetServer, () -> HTTPAssetServer())]
 
 path = joinpath(@__DIR__, "test.html")
+
+# We need to use a proxy url to not have relative URLS for HTTPAssetServer, when serving from a file.
+s = Bonito.get_server()
+Bonito.configure_server!(proxy_url="http://localhost:$(s.port)")
+
 @testset "connection $(c) server: $(s)" for ((c, connection), (s, server)) in Iterators.product(connections, servers)
     app = App(export_test_app)
-    export_static(path, app; connection=connection(), asset_server=server())
+    s = server()
+    sess = export_static(path, app; connection=connection(), asset_server=s)
     # We need to drop a bit lower and cant use `testapp` here, since that uses fixed connection + asset server
-    window = Window(URI("file://" * path))
+    window = Bonito.EWindow(URI("file://" * path))
     sleep(0.5) # how did this work before without syncronization?
     result = run(window, "$(query_testid("result")).innerText")
     @test result == "passed"
@@ -34,6 +40,8 @@ path = joinpath(@__DIR__, "test.html")
     close(app)
 end
 rm(path; force=true)
+Bonito.configure_server!(proxy_url=nothing)
+
 
 # Finalizers and other problems have been closing our connection unintentional,
 # So we do this little stress test:

@@ -28,7 +28,7 @@ class Websocket {
     }
 
     tryconnect() {
-        console.log(`tries; ${this.#tries}`);
+        console.log(`tries: ${this.#tries}`);
         if (this.#websocket) {
             this.#websocket.close();
             this.#websocket = undefined;
@@ -51,7 +51,7 @@ class Websocket {
                         // test write
                         return resolve(null);
                     }
-                    Bonito.OBJECT_FREEING_LOCK.lock(() => {
+                    Bonito.lock_loading(() => {
                         Bonito.process_message(
                             Bonito.decode_binary(
                                 binary,
@@ -147,7 +147,7 @@ class Websocket {
 function websocket_url(session_id, proxy_url) {
     // something like http://127.0.0.1:8081/
     let http_url = window.location.protocol + "//" + window.location.host;
-    if (proxy_url) {
+    if (proxy_url !== "") {
         http_url = proxy_url;
     }
     let ws_url = http_url.replace("http", "ws");

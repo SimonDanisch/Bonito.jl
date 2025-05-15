@@ -43,7 +43,7 @@ function HTTPServer.route!(server::HTTPServer.Server, routes::Routes)
 end
 
 
-import .HTTPServer: browser_display
+import .HTTPServer: browser_display, EWindow
 using .HTTPServer: Server, html, online_url, route!, file_mimetype, delete_websocket_route!, delete_route!, use_electron_display
 
 include("js_source.jl")
@@ -70,7 +70,7 @@ include("interactive.jl")
 # Core functionality
 export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset, CSS
 export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor
-export browser_display, configure_server!, Server, html, route!, online_url, use_electron_display
+export browser_display, configure_server!, Server, show_html, html, route!, online_url, use_electron_display
 export Observable, on, onany, bind_global
 export linkjs, evaljs, evaljs_value, onjs
 export NoServer, AssetFolder, HTTPAssetServer, DocumenterAssets

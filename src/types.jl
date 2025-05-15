@@ -38,7 +38,11 @@ struct Asset <: AbstractAsset
     # to also be able to host it locally
     online_path::String
     local_path::Union{String, Path}
-    bundle_dir::Union{String, Path}
+
+    # only used if es6module
+    bundle_file::Union{String, Path}
+    bundle_data::Vector{UInt8}
+    content_hash::RefValue{String}
 end
 
 
@@ -90,6 +94,10 @@ function Base.push!(set::OrderedSet, item)
     (item in set.items) || push!(set.items, item)
 end
 
+function Base.setdiff(set1::OrderedSet{T}, set2) where {T}
+    OrderedSet{T}(setdiff(set1.items, set2))
+end
+
 function Base.union!(set1::OrderedSet, set2)
     union!(set1.items, set2)
 end
@@ -97,18 +105,18 @@ end
 struct CSS
     selector::String
     # TODO use some kind of immutable Dict
-    attributes::Dict{String,String}
+    attributes::Dict{String, Union{CSS, String, Asset}}
     # We assume attributes to be immutable, so we calculate the hash once
     hash::UInt64
     function CSS(selector, attributes::Dict{String,T}) where T <: Any
-        css = Dict{String,String}()
+        css = Dict{String,Union{CSS,String,Asset}}()
         # Need to sort to always get the same hash!
         sorted_keys = sort!(collect(keys(attributes)))
         h = hash(selector, UInt64(0))
         h = hash(sorted_keys, h)
         for k in sorted_keys
             converted = convert_css_attribute(attributes[k])
-            css[k] = converted
+            css[String(k)] = converted
             h = hash(converted, h)
         end
         return new(selector, css, h)
