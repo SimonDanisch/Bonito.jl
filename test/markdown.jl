@@ -160,7 +160,7 @@ app = TestSession(URI("http://localhost:8555/show"),
 app.dom = dom;
 app.initialized = false
 wait(app)
-Electron.toggle_devtools(app.window)
+Electron.toggle_devtools(app.window.window)
 @testset "electron inline display" begin
     test_current_session(app)
 end

@@ -126,8 +126,13 @@ function Electron()
     end
 end
 
-struct ElectronDisplay{EWindow} <: Base.Multimedia.AbstractDisplay
-    window::EWindow # a type parameter here so, that we dont need to depend on Electron Directly!
+struct EWindow
+    app
+    window
+end
+
+struct ElectronDisplay <: Base.Multimedia.AbstractDisplay
+    window::EWindow
     browserdisplay::BrowserDisplay
 end
 
@@ -148,17 +153,18 @@ function default_electron_args()
     end
 end
 
+
+
 function EWindow(args...; electron_args=default_electron_args())
     app = Electron().Application(;
         additional_electron_args=electron_args,
     )
-    return Electron().Window(app, args...)
+    return EWindow(app, Electron().Window(app, args...))
 end
-
 
 function ElectronDisplay(; devtools = false, electron_args=default_electron_args())
     w = EWindow(; electron_args=electron_args)
-    devtools && Electron().toggle_devtools(w)
+    devtools && Electron().toggle_devtools(w.window)
     return ElectronDisplay(w, BrowserDisplay(; open_browser=false))
 end
 
@@ -168,12 +174,11 @@ function Base.display(display::ElectronDisplay, app::App)
     needs_load = Base.display(display.browserdisplay, app)
     url = online_url(display.browserdisplay)
     if needs_load
-        Electron().load(display.window, URI(url))
+        Electron().load(display.window.window, URI(url))
     end
     wait_for_ready(app)
     return display
 end
-
 
 function use_electron_display(; devtools = false, electron_args=default_electron_args())
     disp = ElectronDisplay(; devtools = devtools, electron_args=electron_args)
@@ -190,8 +195,29 @@ function use_electron_display(; devtools = false, electron_args=default_electron
     return disp
 end
 
+function Base.run(win::EWindow, args...)
+    run(win.window, args...)
+end
+
+function Base.close(win::EWindow)
+    window = win.window
+    if window.app.exists
+        close(window.app)
+    end
+    if window.exists
+        close(window)
+    end
+    if win.app.exists
+        close(win.app)
+    end
+    if isopen(win.app.proc)
+        kill(win.app.proc)
+    end
+    return
+end
+
 function Base.close(display::ElectronDisplay)
-    close(display.window.app)
+    close(display.window)
     close(display.browserdisplay)
     return nothing
 end

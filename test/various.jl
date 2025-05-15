@@ -88,7 +88,7 @@ end
             @test obs[] == 0
             @test counter[] == 0
             testing_started[] = true
-            Electron.load(window, URI(string("http://localhost:", 8558)))
+            Electron.load(window.window, URI(string("http://localhost:", 8558)))
             @wait_for counter[] == obs[]
         finally
             close(window)

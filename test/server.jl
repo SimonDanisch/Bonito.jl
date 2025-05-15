@@ -12,7 +12,7 @@
     window = Bonito.EWindow()
     url = URI(online_url(server, "/"))
     @testset for i in 1:10
-        load(window, url)
+        load(window.window, url)
         @test test_dom(window) # re-use from threading.jl
     end
     if app.session[].connection isa Bonito.DualWebsocket
