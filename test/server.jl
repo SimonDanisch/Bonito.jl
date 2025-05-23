@@ -1,3 +1,5 @@
+import Bonito.HTTPServer: online_url, local_url, relative_url
+
 @testset "server cleanup" begin
     Bonito.set_cleanup_time!(5 / 60 / 60) # 1 second
 
@@ -28,4 +30,29 @@
     @test success == :success
     close(server)
     Bonito.set_cleanup_time!(0.0)
+end
+
+@testset "proxy_url" begin
+    server = Server("0.0.0.0", 8787)
+    port = server.port # just in case this 8787 is used already somehow
+    @testset "default" begin
+        @test server.proxy_url == ""
+        @test online_url(server, "") == "http://localhost:$(port)"
+        @test local_url(server, "") == "http://localhost:$(port)"
+        @test relative_url(server, "") == "http://localhost:$(port)"
+    end
+
+    @testset "relative urls" begin
+        server.proxy_url = "."
+        @test online_url(server, "") == "http://localhost:$(port)"
+        @test local_url(server, "") == "http://localhost:$(port)"
+        @test relative_url(server, "") == "./"
+    end
+    @testset "absolute urls" begin
+        server.proxy_url = "https://bonito.makie.org"
+        @test online_url(server, "") == "https://bonito.makie.org/"
+        @test local_url(server, "") == "http://localhost:$(port)"
+        @test relative_url(server, "") == "https://bonito.makie.org/"
+    end
+    close(server)
 end

@@ -3,6 +3,7 @@ struct Routes
     lock::Base.ReentrantLock
 end
 
+
 """
 HTTP server with websocket & http routes
 """
@@ -10,12 +11,14 @@ mutable struct Server
     url::String
     port::Int
     # If behind a proxy, this is the url content is served after the proxy
-    proxy_url::String
+    # "." -> relative urls to the site it's served to
+    # "" -> use local url (e.g 0.0.0.0:8081)
+    proxy_url::Union{String, Nothing}
     server_task::Ref{Task}
     server_connection::Ref{TCPServer}
     routes::Routes
     websocket_routes::Routes
-    protocol
+    protocol::String
 end
 
 Routes(pairs::Pair...) = Routes(Pair{Any, Any}[pairs...], Base.ReentrantLock())
@@ -194,6 +197,12 @@ function local_url(server::Server, url)
     return string(server.protocol, base_url, ":", server.port, url)
 end
 
+function join_url(base, url)
+    base = rstrip(base, '/')
+    url = lstrip(url, '/')
+    return base * "/" * url
+end
+
 """
     online_url(server::Server, url)
 
@@ -201,27 +210,23 @@ The url to connect to the server from the internet.
 Needs to have `server.proxy_url` set to the IP or dns route of the server
 """
 function online_url(server::Server, url)
-    base_url = server.proxy_url
-    if isempty(base_url)
+    proxy_url = server.proxy_url
+    # Relative urls or
+    if proxy_url in (".", "")
         return local_url(server, url)
     else
-        if endswith(base_url, "/") && startswith(url, "/")
-            url = url[2:end]
-        end
-        return base_url * url
+        return join_url(proxy_url, url)
     end
 end
 
 function relative_url(server::Server, url)
-    base_url = server.proxy_url
-    if isempty(base_url)
-        url = startswith(url, "/") ? url[2:end] : url
-        return "./" * url
+    proxy_url = server.proxy_url
+    if proxy_url == ""
+        # Absolute URLS!
+        return online_url(server, url)
     else
-        if endswith(base_url, "/") && startswith(url, "/")
-            url = url[2:end]
-        end
-        return base_url * url
+        # absolute proxy URLS
+        return join_url(proxy_url, url)
     end
 end
 

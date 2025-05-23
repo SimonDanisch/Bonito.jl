@@ -110,12 +110,13 @@ Configures the parameters for the automatically started server.
         if port gets forwarded to some other port, set it here!
 
     * proxy_url=nothing
-        The url from which the server is reachable.
-        If served on "127.0.0.1", this will default to http://localhost:forwarded_port
-        if listen_url is "0.0.0.0", this will default to http://\$(Sockets.getipaddr()):forwarded_port
-        so that the server is reachable inside the local network.
-        If the server should be reachable from some external dns server,
-        this needs to be set here.
+        The url from which the server is reachable, used to declare resources in Bonitos HTML and to establish a websocket connection.
+        Setting it to `""` or `nothing` will use the url the server listens to.
+        So, if `listen_url="127.0.0.1"`, this will default to http://localhost:forwarded_port (same as `local_url(server, "")`).
+        You can also set this to `"."` to use relative urls, e.g. for accessing the webpage on a local network, or when serving it online with your own server.
+        This is the preferred option for serving a whole website via Bonito, where you dont know in advanced where the page will be served.
+        If it's more complicated, e.g. when the HTML is served on a different url from the url to proxy through to the Bonito server,
+         a full URL needs to set, e.g. `proxy_url=https://bonito.makie.org`.
 """
 function configure_server!(;
         listen_url=nothing,
