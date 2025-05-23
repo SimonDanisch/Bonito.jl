@@ -71,7 +71,8 @@ function setup_connection(session::Session, connection::DualWebsocket)
     add_cleanup_task!(server)
     HTTPServer.websocket_route!(server, "/$(session.id)?low_latency" => connection)
     HTTPServer.websocket_route!(server, "/$(session.id)?large_data" => connection)
-    external_url = server.proxy_url
+    external_url = HTTPServer.relative_url(server, "")
+    @show external_url
     js_ll = setup_websocket_connection_js(external_url, session; query="?low_latency")
     js_ld = setup_websocket_connection_js(external_url, session; query="?large_data", main_connection=false)
     return js"{

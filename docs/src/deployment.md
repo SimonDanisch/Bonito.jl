@@ -32,6 +32,10 @@ server = Bonito.Server(example_app, "0.0.0.0", 8080; proxy_url="https://my-domai
 server.proxy_url = ".../$(server.port)"
 ```
 
+You can also set the proxy_url to `"."` to use relative to the served page url.
+This works well e.g. for accessing the webpage on a local network, or when serving it online with your own server.
+This needs to support then establish the websocket connection via the same relative url (so if only the HTML is served via that URL, but not all requests are forwarded to the Bonito server, this won't work).
+
 Bonito tries to do this for known environments like JuliaHub via `get_server()`.
 This will find the most common proxy setup and return a started server:
 
