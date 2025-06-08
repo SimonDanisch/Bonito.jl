@@ -56,3 +56,10 @@ end
     end
     close(server)
 end
+
+@testset "get online URL" begin
+    App() do session::Session
+        server = get_server(session)
+        DOM.div(string(Bonito.online_url(server, "")))
+    end
+end

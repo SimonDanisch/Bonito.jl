@@ -175,16 +175,19 @@ end
 
 get_server() = get_server(find_proxy_in_environment())
 
-function get_server(proxy_callback)
-    # we have found nothing, so don't do any fancy setup
-    if isnothing(proxy_callback)
-        return singleton_server()
-    else
-        url = proxy_callback(8888) # call it with any port, to see if its empty and therefore no proxy is found/needed
-        listen_url = isempty(url) ? "127.0.0.1" : "0.0.0.0" # we only need to serve on 0.0.0.0, if we proxy
-        server = singleton_server(; listen_url=listen_url)
-        real_port = server.port # can change if already in use
-        server.proxy_url = proxy_callback(real_port) # which is why the url needs to be a callbacks
-        return server
-    end
+# we have found nothing, so don't do any fancy setup
+get_server(::Nothing) = singleton_server()
+
+function get_server(proxy_callback::Function)
+    url = proxy_callback(8888) # call it with any port, to see if its empty and therefore no proxy is found/needed
+    listen_url = isempty(url) ? "127.0.0.1" : "0.0.0.0" # we only need to serve on 0.0.0.0, if we proxy
+    server = singleton_server(; listen_url=listen_url)
+    real_port = server.port # can change if already in use
+    server.proxy_url = proxy_callback(real_port) # which is why the url needs to be a callbacks
+    return server
 end
+
+get_server(session::Session) = get_server(session.asset_server)
+get_server(server::HTTPAssetServer) = server.server
+get_server(server::Bonito.ChildAssetServer) = get_server(server.parent)
+get_server(any) = error("Not an HTTP server for session")
