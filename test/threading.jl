@@ -62,11 +62,11 @@ end
     server = Server(app, "0.0.0.0", 8888)
 
     nwindows = 4
-    all_windows = Channel{Window}(nwindows)
-    created_windows = Window[]
+    all_windows = Channel{Bonito.EWindow}(nwindows)
+    created_windows = Bonito.EWindow[]
     for i in 1:nwindows
         win = Bonito.EWindow()
-        Electron.toggle_devtools(win)
+        Electron.toggle_devtools(win.window)
         put!(all_windows, win)
         push!(created_windows, win)
     end
@@ -75,7 +75,7 @@ end
     results = asyncmap(1:100) do i
         window = take!(all_windows)
         try
-            load(window, url)
+            load(window.window, url)
             return test_dom(window)
         finally
             put!(all_windows, window)

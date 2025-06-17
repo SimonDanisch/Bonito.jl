@@ -28,7 +28,7 @@ mutable struct TestSession
     initialized::Bool
     error_in_handler::Any
     server::Bonito.Server
-    window::Electron.Window
+    window::Bonito.EWindow
     session::Session
     dom::Node{HTMLSVG}
     request::Request
@@ -37,7 +37,7 @@ mutable struct TestSession
         return new(url, false, nothing)
     end
 
-    function TestSession(url::URI, server::Bonito.Server, window::Electron.Window, session::Session)
+    function TestSession(url::URI, server::Bonito.Server, window::Bonito.EWindow, session::Session)
         testsession = new(url, true, nothing, server, window, session)
         return testsession
     end
@@ -119,11 +119,11 @@ Note, if you call wait on a fully loaded test
 """
 function Base.wait(testsession::TestSession; timeout=300)
     testsession.initialized && return true
-    if !testsession.window.exists
+    if !testsession.window.window.exists
         error("Window isn't open, can't wait for testsession to be initialized")
     end
-    Electron.toggle_devtools(testsession.window)
-    while testsession.window.exists
+    Electron.toggle_devtools(testsession.window.window)
+    while testsession.window.window.exists
         # We done!
         isdefined(testsession, :session) && isopen(testsession.session) && break
         if testsession.error_in_handler !== nothing
@@ -171,7 +171,7 @@ function reload!(testsession::TestSession; timeout=300)
     @assert response.status == 200
     testsession.initialized = false
     testsession.error_in_handler = nothing
-    Electron.load(testsession.window, testsession.url)
+    Electron.load(testsession.window.window, testsession.url)
     wait(testsession; timeout=timeout)
     @assert testsession.initialized
     return true
@@ -189,7 +189,7 @@ function start(testsession::TestSession; timeout=300)
         if isrunning(testsession.server)
             start(testsession.server)
         end
-        if !isdefined(testsession, :window) || !testsession.window.exists
+        if !isdefined(testsession, :window) || !testsession.window.window.exists
             testsession.window = Bonito.EWindow()
         end
         reload!(testsession; timeout=timeout)
@@ -208,7 +208,7 @@ Close the testsession and clean up the state!
 function Base.close(testsession::TestSession)
     if isdefined(testsession, :window)
         # testsession.window.app.exists && close(testsession.window.app)
-        testsession.window.exists && close(testsession.window)
+        close(testsession.window)
     end
     testsession.initialized = false
     if isdefined(testsession, :server)

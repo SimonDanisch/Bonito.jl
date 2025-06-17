@@ -147,9 +147,12 @@ class Websocket {
 function websocket_url(session_id, proxy_url) {
     // something like http://127.0.0.1:8081/
     let http_url = window.location.protocol + "//" + window.location.host;
-    if (proxy_url) {
+    console.log(proxy_url)
+    if (proxy_url !== "./") {
+        console.log(proxy_url)
         http_url = proxy_url;
     }
+    console.log(http_url)
     let ws_url = http_url.replace("http", "ws");
     // now should be like: ws://127.0.0.1:8081/
     if (!ws_url.endsWith("/")) {

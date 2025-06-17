@@ -45,7 +45,7 @@ function jupyterlab_proxy_url(port)
         hostname = config[1]["hostname"]
         # TODO, this seems very fragile
         if haskey(ENV, "BONITO_JUPYTER_REMOTE_HOST")
-            return string(get(ENV, "BONITO_JUPYTER_REMOTE_HOST"), config[1]["base_url"], "proxy/", port)
+            return string(ENV["BONITO_JUPYTER_REMOTE_HOST"], config[1]["base_url"], "proxy/", port)
         elseif hostname == "0.0.0.0" || hostname == "localhost"
             return string("http://", IJulia().profile["ip"], ":", config[1]["port"], config[1]["base_url"], "proxy/", port)
         else
@@ -62,7 +62,7 @@ function find_proxy_in_environment()
         return port-> ENV["JH_APP_URL"] * "proxy/$(port)"
     elseif haskey(ENV, "JULIA_WEBIO_BASEURL")
         # Possibly not working anymore, but used to be used in e.g. nextjournal for the proxy url
-        return ENV["JULIA_WEBIO_BASEURL"]
+        return port-> ENV["JULIA_WEBIO_BASEURL"]
     elseif haskey(ENV, "BINDER_SERVICE_HOST")
         # binder
         return port -> ENV["BINDER_SERVICE_HOST"] * "proxy/$port"
@@ -110,12 +110,13 @@ Configures the parameters for the automatically started server.
         if port gets forwarded to some other port, set it here!
 
     * proxy_url=nothing
-        The url from which the server is reachable.
-        If served on "127.0.0.1", this will default to http://localhost:forwarded_port
-        if listen_url is "0.0.0.0", this will default to http://\$(Sockets.getipaddr()):forwarded_port
-        so that the server is reachable inside the local network.
-        If the server should be reachable from some external dns server,
-        this needs to be set here.
+        The url from which the server is reachable, used to declare resources in Bonitos HTML and to establish a websocket connection.
+        Setting it to `""` or `nothing` will use the url the server listens to.
+        So, if `listen_url="127.0.0.1"`, this will default to http://localhost:forwarded_port (same as `local_url(server, "")`).
+        You can also set this to `"."` to use relative urls, e.g. for accessing the webpage on a local network, or when serving it online with your own server.
+        This is the preferred option for serving a whole website via Bonito, where you dont know in advanced where the page will be served.
+        If it's more complicated, e.g. when the HTML is served on a different url from the url to proxy through to the Bonito server,
+         a full URL needs to set, e.g. `proxy_url=https://bonito.makie.org`.
 """
 function configure_server!(;
         listen_url=nothing,
@@ -134,13 +135,7 @@ function configure_server!(;
     end
 
     if isnothing(proxy_url)
-        if listen_url == "0.0.0.0"
-            proxy_url = string(Sockets.getipaddr(), ":$forwarded_port")
-        elseif listen_url in ("127.0.0.1", "localhost")
-            proxy_url = "http://localhost:$forwarded_port"
-        else
-            error("Trying to listen to $(listen_url), while only \"127.0.0.1\", \"0.0.0.0\" and \"localhost\" are supported")
-        end
+        proxy_url = ""
     end
     # set the config!
     SERVER_CONFIGURATION.listen_url[] = listen_url
