@@ -18,8 +18,7 @@ function safe_read(websocket)
         if WebSockets.isok(e)
             # it's ok :shrug:
         elseif e isa Union{Base.IOError, EOFError}
-            @info("WS connection closed because of IO error")
-            rethrow(e)
+            @debug("WS connection closed because of IO error")
             return nothing
         else
             rethrow(e)

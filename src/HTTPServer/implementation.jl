@@ -14,8 +14,7 @@ mutable struct Server
     # "." -> relative urls to the site it's served to
     # "" -> use local url (e.g 0.0.0.0:8081)
     proxy_url::Union{String, Nothing}
-    server_task::Ref{Task}
-    server_connection::Ref{TCPServer}
+    server::Union{Nothing, HTTP.Servers.Server}
     routes::Routes
     websocket_routes::Routes
     protocol::String
@@ -75,6 +74,7 @@ end
 function route!(application::Server, pattern_func::Pair)
     return route!(application.routes, pattern_func)
 end
+
 function websocket_route!(application::Server, pattern_func::Pair)
     route!(application.websocket_routes, pattern_func)
 end
@@ -280,7 +280,7 @@ function Server(
     )
     server = Server(
         url, port, proxy_url,
-        Ref{Task}(), Ref{TCPServer}(),
+        nothing,
         routes,
         websocket_routes,
         haskey(listener_kw, :sslconfig) ? "https://" : "http://"
@@ -306,45 +306,34 @@ function Server(
     return server
 end
 
-function isrunning(application::Server)
-    return (isassigned(application.server_task) &&
-        isassigned(application.server_connection) &&
-        !istaskdone(application.server_task[]) &&
-        isopen(application.server_connection[]))
+function isrunning(server::Server)
+    return !isnothing(server.server) && !istaskdone(server.server.task)
 end
 
-function Base.close(application::Server)
-    if isassigned(application.server_connection)
-        close(application.server_connection[])
-        @assert !isopen(application.server_connection[])
-    end
-    # For good measures, wait until the task finishes!
-    if isassigned(application.server_task)
-        task = application.server_task[]
+function Base.close(server::Server)
+    isnothing(server.server) && return
+    for (k, web_handler) in server.websocket_routes.table
         try
-            # Somehow wait(task) deadlocks when there is still an open page?
-            # Really weird, especially since I can't make an MWE ... (Windows, Julia 1.8.2, HTTP@v1.5.5)
-            # TODO, do we hold on to resources in the stream handler??
-            Bonito.wait_for(() -> istaskdone(task))
-            @assert !Base.istaskdone(task)
+            close(web_handler)
         catch e
-            @debug "Server task failed with an (expected) exception on close" exception=e
+            @warn "Error while closing websocket handler for route $(k)" exception=(e, Base.catch_backtrace())
         end
     end
-    @assert !isrunning(application)
+    close(server.server)
 end
 
 
-function try_listen(url, port)
-    address = Sockets.InetAddr(Sockets.getaddrinfo(url), port)
+function try_listen(url, port, server, verbose; listener_kw...)
     try
-        ioserver = Sockets.listen(address)
-        return port, ioserver
+        httpserver = HTTP.listen!(url, port; verbose=verbose, listener_kw...) do stream::Stream
+            Base.invokelatest(stream_handler, server, stream)
+        end
+        return port, httpserver
     catch e
         if e isa Base.IOError
             #address already in use
             if e.code == Base.UV_EADDRINUSE
-                return try_listen(url, port+1)
+                return try_listen(url, port+1, server, verbose; listener_kw...)
             end
         end
         rethrow(e)
@@ -353,27 +342,12 @@ end
 
 function start(server::Server; verbose=-1, listener_kw...)
     isrunning(server) && return
-
-    newport, ioserver = try_listen(server.url, server.port)
+    newport, http_server = try_listen(server.url, server.port, server, verbose; listener_kw...)
     if server.port != newport
         @warn "Port in use, using different port. New port: $(newport)"
         server.port = newport
     end
-
-    server.server_connection[] = ioserver
-    # pass tcp connection to listen, so that we can close the server
-
-    server.server_task[] = @async begin
-        http_server = HTTP.listen!(server=ioserver; verbose=verbose, listener_kw...) do stream::Stream
-            Base.invokelatest(stream_handler, server, stream)
-        end
-        try
-            wait(http_server)
-        finally
-            # try to gracefully close
-            close(http_server)
-        end
-    end
+    server.server = http_server
     return
 end
 
@@ -383,15 +357,15 @@ end
 Wait on the server task, i.e. block execution by bringing the server event loop to the foreground.
 """
 function Base.wait(server::Server)
-    wait(server.server_task[])
+    wait(server.server.task)
 end
 
 function get_error(server::Server)
     # Running server has no problems!
     isrunning(server) && return nothing
-    !istaskfailed(server.server_task[]) && return nothing
+    !istaskfailed(server.server.task) && return nothing
     try
-        return fetch(server.server_task[])
+        return fetch(server.server.task)
     catch e
         return e
     end
