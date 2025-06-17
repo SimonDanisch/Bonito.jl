@@ -164,12 +164,10 @@ function singleton_server(;
     create() = Server(listen_url, listen_port; verbose=verbose)
     if isnothing(GLOBAL_SERVER[])
         GLOBAL_SERVER[] = create()
-    elseif istaskdone(GLOBAL_SERVER[].server_task[])
-        GLOBAL_SERVER[] = create()
     else
         server = GLOBAL_SERVER[]
         # re-create if parameters have changed
-        if server.url != listen_url # && server.port == listen_port # leave out port since it matters listens
+        if server.url != listen_url  || !HTTPServer.isrunning(server)# && server.port == listen_port # leave out port since it matters listens
             close(server)
             GLOBAL_SERVER[] = create()
         end

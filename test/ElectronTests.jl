@@ -61,7 +61,6 @@ end
 
 function TestSession(handler; url="0.0.0.0", port=8081, timeout=300)
     check_and_close_display()
-    testsession = TestSession(URI(string("http://localhost:", port)))
     app = App() do session, request
         try
             dom = handler(session, request)
@@ -73,7 +72,9 @@ function TestSession(handler; url="0.0.0.0", port=8081, timeout=300)
             testsession.error_in_handler = (e, Base.catch_backtrace())
         end
     end
-    testsession.server = Bonito.Server(app, url, port)
+    server = Bonito.Server(app, url, port)
+    testsession = TestSession(URI(string("http://localhost:", server.port)))
+    testsession.server = server
     try
         start(testsession; timeout=timeout)
         return testsession
@@ -205,14 +206,14 @@ end
 Close the testsession and clean up the state!
 """
 function Base.close(testsession::TestSession)
-    if isdefined(testsession, :server)
-        close(testsession.server)
-    end
     if isdefined(testsession, :window)
         # testsession.window.app.exists && close(testsession.window.app)
         testsession.window.exists && close(testsession.window)
     end
     testsession.initialized = false
+    if isdefined(testsession, :server)
+        close(testsession.server)
+    end
 end
 
 """
