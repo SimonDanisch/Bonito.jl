@@ -335,9 +335,12 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
     # TODO, have an on error callback, that triggers when evaljs goes wrong
     # (e.g. because of syntax error that isn't caught by the above try catch!)
     # TODO do this with channels, but we still dont have a way to timeout for wait(channel)... so...
-    wait_for(timeout=timeout) do
-        return !isnothing(comm[])
-    end
+    wait(Threads.@spawn wait_for(timeout=timeout) do
+        lock(root.deletion_lock) do
+            Bonito.isclosed(session) && return true
+            return !isnothing(comm[])
+        end
+    end)
     value = comm[]
     # manually free observable, since it exists outside session lifetimes
     lock(root.deletion_lock) do
