@@ -382,11 +382,12 @@ function push_dependencies!(childs, session::Session)
         window.__define = undefined;
         window.__require = undefined;
     """)
-    assets = if isroot(session)
-        session.imports
+    if isroot(session)
+        assets = session.imports
     else
         # only render the assets that aren't already in root session
-        setdiff(session.imports, root_session(session).imports)
+        assets = setdiff(session.imports, root_session(session).imports)
+        union!(root_session(session).imports, session.imports)
     end
     assets_rendered = render_asset.(Ref(session), Ref(session.asset_server), assets)
     if any(x-> mediatype(x) == :js && !x.es6module, assets)
