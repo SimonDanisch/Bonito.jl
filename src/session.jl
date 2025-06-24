@@ -21,9 +21,11 @@ Base.show(io::IO, session::Session) = show_session(io, session)
 
 function wait_for_ready(session::Session; timeout=100)
     session.status === CLOSED && return false
-    return wait_for(timeout=timeout) do
+    success = wait_for(timeout=timeout) do
+        isclosed(session) && return :closed
         return isready(session)
     end
+    return success
 end
 
 function get_messages!(session::Session, messages=[])
@@ -335,9 +337,9 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
     # TODO, have an on error callback, that triggers when evaljs goes wrong
     # (e.g. because of syntax error that isn't caught by the above try catch!)
     # TODO do this with channels, but we still dont have a way to timeout for wait(channel)... so...
-    wait(Threads.@spawn wait_for(timeout=timeout) do
+    result = fetch(Threads.@spawn wait_for(timeout=timeout) do
         lock(root.deletion_lock) do
-            Bonito.isclosed(session) && return true
+            Bonito.isclosed(session) && return :closed
             return !isnothing(comm[])
         end
     end)
@@ -348,6 +350,7 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
         delete!(root.session_objects, comm.id)
     end
     Observables.clear(comm) # cleanup
+    result == :closed && return
     if isnothing(value)
         error("Timed out")
     end
