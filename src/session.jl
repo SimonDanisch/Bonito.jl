@@ -317,6 +317,7 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
     # For each request we need a new observable to have this thread safe
     # And multiple request not waiting on the same observable
     comm = Observable{Any}(nothing)
+            
     js_with_result = js"""{
         const comm = $(comm);
         try{
@@ -333,6 +334,7 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
         }
     }
     """
+              
     evaljs(session, js_with_result)
     # TODO, have an on error callback, that triggers when evaljs goes wrong
     # (e.g. because of syntax error that isn't caught by the above try catch!)
@@ -385,11 +387,12 @@ function push_dependencies!(childs, session::Session)
         window.__define = undefined;
         window.__require = undefined;
     """)
-    assets = if isroot(session)
-        session.imports
+    if isroot(session)
+        assets = session.imports
     else
         # only render the assets that aren't already in root session
-        setdiff(session.imports, root_session(session).imports)
+        assets = setdiff(session.imports, root_session(session).imports)
+        union!(root_session(session).imports, session.imports)
     end
     assets_rendered = render_asset.(Ref(session), Ref(session.asset_server), assets)
     if any(x-> mediatype(x) == :js && !x.es6module, assets)
