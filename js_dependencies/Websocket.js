@@ -37,7 +37,9 @@ class Websocket {
         ws.binaryType = "arraybuffer";
         this.#websocket = ws;
         const this_ws = this;
+        const retryInABit = setTimeout(this_ws.tryconnect, (this.#tries % 17) * 500)
         ws.onopen = function () {
+            clearTimeout(retryInABit)
             console.log("CONNECTED!!: ", this_ws.url);
             this_ws.#tries = 0; // reset tries
 
@@ -70,22 +72,21 @@ class Websocket {
             Bonito.on_connection_close();
             console.log("Wesocket close code: " + evt.code);
             console.log(evt);
+            setTimeout(
+                () => this_ws.tryconnect(),
+                (this_ws.tries % 17) * 500
+            );
         };
 
         ws.onerror = function (event) {
             console.error("WebSocket error observed:");
             console.log(event);
             console.log(this_ws.tries);
-            if (this_ws.tries <= 10) {
-                this_ws.tries = this_ws.tries + 1;
-                console.log(
-                    "Retrying to connect the " + this_ws.tries + " time!"
-                );
-                setTimeout(() => this_ws.tryconnect(), 1000);
-            } else {
-                // ok, we really cant connect and are offline!
-                this_ws.#websocket = undefined;
-            }
+            this_ws.tries = this_ws.tries + 1;
+            console.log(
+                "Retrying to connect the " + this_ws.tries + " time!"
+            );
+            setTimeout(() => this_ws.tryconnect(), (this_ws.tries % 17) * 500);
         };
     }
 
