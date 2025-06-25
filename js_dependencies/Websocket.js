@@ -37,7 +37,7 @@ class Websocket {
         ws.binaryType = "arraybuffer";
         this.#websocket = ws;
         const this_ws = this;
-        const retryInABit = setTimeout(this_ws.tryconnect, (this.#tries % 17) * 500)
+        const retryInABit = setTimeout(this_ws.tryconnect, (++this.#tries % 17) * 500)
         ws.onopen = function () {
             clearTimeout(retryInABit)
             console.log("CONNECTED!!: ", this_ws.url);
