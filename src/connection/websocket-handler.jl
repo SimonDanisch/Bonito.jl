@@ -81,6 +81,7 @@ function Base.close(ws::WebSocketHandler)
     end
 end
 
+const WEBSOCKET_CLEANUP = Threads.Atomic{Float64}(30.0)
 
 """
     runs the main connection loop for the websocket
@@ -97,7 +98,13 @@ function run_connection_loop(session::Session, handler::WebSocketHandler, websoc
     # JS will try for ~30 seconds to reconnect, we wait for that here.
     # If we return here before that, we will close(session) immediately
     # And all retries will fail.
-    sleep(40) # a bit more than 30 to be sure
+    time_start = time()
+    while !isclosed(session) # closing session from Julia should stop our wait
+        if time() - time_start > WEBSOCKET_CLEANUP[]
+            break
+        end
+        sleep(0.1)
+    end
 end
 
 

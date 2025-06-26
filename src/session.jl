@@ -135,13 +135,13 @@ function Base.close(session::Session)
             # If not ready, we already lost connection to JS frontend, so no need to close things on the JS side
             isready(root) && evaljs(root, js"""Bonito.free_session($(session.id))""")
         end
-        close(session.connection)
         close(session.asset_server)
         Observables.clear(session.on_close)
         session.current_app[] = nothing
         session.io_context[] = nothing
         close(session.inbox)
         session.status = CLOSED
+        close(session.connection)
     end
     return
 end
@@ -317,7 +317,7 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
     # For each request we need a new observable to have this thread safe
     # And multiple request not waiting on the same observable
     comm = Observable{Any}(nothing)
-            
+
     js_with_result = js"""{
         const comm = $(comm);
         try{
@@ -334,7 +334,7 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
         }
     }
     """
-              
+
     evaljs(session, js_with_result)
     # TODO, have an on error callback, that triggers when evaljs goes wrong
     # (e.g. because of syntax error that isn't caught by the above try catch!)

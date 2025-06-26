@@ -51,7 +51,9 @@ function test_dom(window)
     # @test dropdown2_jl.value[] == "c2"
 end
 
-
+# Disable cleanup wait so that we can test if all sessions close properly
+# After closing the windows!
+Bonito.WEBSOCKET_CLEANUP[] = 0.0
 @testset "stresstest threading" begin
     app = App(threaded=true) do session
         dropdown1 = Bonito.Dropdown(["a", "b", "c"])
@@ -91,3 +93,4 @@ end
     @test success == :success
     close(server)
 end
+Bonito.WEBSOCKET_CLEANUP[] = 30.0
