@@ -24,6 +24,7 @@ function Base.close(ws::WebSocketConnection)
     if !isnothing(ws.session)
         session = ws.session
         delete_websocket_route!(ws.server, "/$(session.id)")
+        close(session)
     end
     return
 end
