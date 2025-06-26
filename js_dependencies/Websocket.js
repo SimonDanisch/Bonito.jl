@@ -1,13 +1,12 @@
 class Websocket {
-
     /**
      * @type {WebSocket | undefined}
      * @description A private WebSocket instance used for managing WebSocket connections.
      */
     #websocket = undefined;
 
-    #tries = 0;
     #onopen_callbacks = [];
+    #is_retrying = false;
 
     url = "";
     compression_enabled = false;
@@ -17,7 +16,6 @@ class Websocket {
      * @param {boolean} compression_enabled
      */
     constructor(url, compression_enabled) {
-        this.tries = 0;
         this.url = url;
         this.compression_enabled = compression_enabled;
         this.tryconnect();
@@ -27,24 +25,77 @@ class Websocket {
         this.#onopen_callbacks.push(f);
     }
 
-    tryconnect() {
-        console.log(`tries: ${this.#tries}`);
-        if (this.#websocket) {
-            this.#websocket.close();
-            this.#websocket = undefined;
+    retry_connection(total_time_seconds = 30) {
+        if (this.#is_retrying) {
+            console.log("Already retrying connection");
+            return;
         }
+        if (this.isopen()) {
+            return;
+        }
+
+        this.#websocket = undefined; // Reset websocket
+        this.#is_retrying = true;
+
+        const start_time = Date.now();
+        const total_time_ms = total_time_seconds * 1000;
+        let attempt = 0;
+        let delay = 1000; // Start with 1 second
+        const max_delay = 10000; // Cap at 10 seconds
+        const self = this;
+
+        function give_up() {
+            console.log(
+                `Giving up after ${total_time_seconds}s and ${attempt} attempts`
+            );
+            self.#websocket = undefined;
+            self.#is_retrying = false; // Reset flag
+            Bonito.on_connection_close();
+        }
+
+        function attempt_connection() {
+            // Check if we're out of time
+            if (self.isopen()) {
+                // We did it!
+                return
+            }
+            const elapsed = Date.now() - start_time;
+            if (elapsed >= total_time_ms) {
+                give_up();
+                return; // Stop trying
+            }
+            attempt++;
+            console.log(`Connection attempt ${attempt}`);
+            if (self.#websocket === undefined) {
+                self.tryconnect();
+            } else if (self.#websocket.readyState === WebSocket.CLOSED) {
+                // If the websocket is closed, try to reconnect
+                self.tryconnect();
+            } else if (self.#websocket.readyState === WebSocket.CONNECTING) {
+                // If it's still connecting, just wait
+                console.log("WebSocket is still connecting...");
+            }
+            // Schedule next attempt immediately on error
+            console.log(`Waiting ${delay / 1000}s before retry...`);
+            setTimeout(attempt_connection, delay);
+            delay = Math.min(delay * 2, max_delay);
+        }
+
+        // Start the first attempt immediately
+        attempt_connection();
+    }
+
+    tryconnect() {
         const ws = new WebSocket(this.url);
         ws.binaryType = "arraybuffer";
         this.#websocket = ws;
         const this_ws = this;
+
         ws.onopen = function () {
             console.log("CONNECTED!!: ", this_ws.url);
-            this_ws.#tries = 0; // reset tries
-
             this_ws.#onopen_callbacks.forEach((f) => f());
 
             ws.onmessage = function (evt) {
-                // run this async... (or do we?)
                 new Promise((resolve) => {
                     const binary = new Uint8Array(evt.data);
                     if (binary.length === 1 && binary[0] === 0) {
@@ -65,27 +116,15 @@ class Websocket {
         };
 
         ws.onclose = function (evt) {
-            console.log("closed websocket connection");
-            this_ws.#websocket = undefined;
-            Bonito.on_connection_close();
-            console.log("Wesocket close code: " + evt.code);
+            console.log("closed websocket connection, code:", evt.code);
             console.log(evt);
+            this_ws.retry_connection();
         };
 
         ws.onerror = function (event) {
             console.error("WebSocket error observed:");
             console.log(event);
-            console.log(this_ws.tries);
-            if (this_ws.tries <= 10) {
-                this_ws.tries = this_ws.tries + 1;
-                console.log(
-                    "Retrying to connect the " + this_ws.tries + " time!"
-                );
-                setTimeout(() => this_ws.tryconnect(), 1000);
-            } else {
-                // ok, we really cant connect and are offline!
-                this_ws.#websocket = undefined;
-            }
+            // Let onclose handle the retry to avoid double retries
         };
     }
 
@@ -93,33 +132,29 @@ class Websocket {
         const ws = this.#websocket;
         if (!ws) {
             console.log("No websocket");
-            // try to connect again!
-            this.tryconnect();
-            // check if we have a connection now!
-            if (!this.#websocket) {
-                console.log(
-                    "No websocket after connect. We assume server is offline"
-                );
-                return "offline";
-            } else {
-                return this.isopen() ? "ok" : "offline";
-            }
+            this.retry_connection();
+            return "connecting";
         } else {
             if (this.isopen()) {
                 return "ok";
             } else {
-                // session_websocket.length != 0 && !isopen()
-                // so we pop the closed connection, and try again!
-                this.#websocket = undefined;
-                return this.ensure_connection();
+                // Connection exists but isn't open
+                if (ws.readyState === WebSocket.CONNECTING) {
+                    return "connecting";
+                } else {
+                    // Connection is closed/failed, clean up and try again
+                    this.#websocket = undefined;
+                    return this.ensure_connection();
+                }
             }
         }
     }
+
     isopen() {
         if (!this.#websocket) {
             return false;
         }
-        return this.#websocket.readyState === 1;
+        return this.#websocket.readyState === WebSocket.OPEN;
     }
 
     send(binary_data) {
@@ -131,14 +166,15 @@ class Websocket {
             } else {
                 return false;
             }
+        } else if (status === "connecting") {
+            console.log("Websocket is connecting, message queued/dropped");
+            return false;
         } else {
-            console.log("Websocket is null!");
-            // we're in offline mode!
+            console.log("Websocket is offline!");
             return undefined;
         }
     }
 }
-
 
 /**
  * @param {string} session_id
@@ -147,12 +183,9 @@ class Websocket {
 function websocket_url(session_id, proxy_url) {
     // something like http://127.0.0.1:8081/
     let http_url = window.location.protocol + "//" + window.location.host;
-    console.log(proxy_url)
     if (proxy_url !== "./") {
-        console.log(proxy_url)
         http_url = proxy_url;
     }
-    console.log(http_url)
     let ws_url = http_url.replace("http", "ws");
     // now should be like: ws://127.0.0.1:8081/
     if (!ws_url.endsWith("/")) {
@@ -166,7 +199,7 @@ export function setup_connection({
     session_id,
     compression_enabled,
     query,
-    main_connection
+    main_connection,
 }) {
     const url = websocket_url(session_id, proxy_url);
     console.log(`connecting : ${url + query}`);

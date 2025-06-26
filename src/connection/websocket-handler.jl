@@ -94,6 +94,10 @@ function run_connection_loop(session::Session, handler::WebSocketHandler, websoc
         isnothing(bytes) && break
         put!(session.inbox, bytes)
     end
+    # JS will try for ~30 seconds to reconnect, we wait for that here.
+    # If we return here before that, we will close(session) immediately
+    # And all retries will fail.
+    sleep(40) # a bit more than 30 to be sure
 end
 
 
