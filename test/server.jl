@@ -1,5 +1,5 @@
 import Bonito.HTTPServer: online_url, local_url, relative_url
-
+Bonito.WEBSOCKET_CLEANUP[] = 0.0
 @testset "server cleanup" begin
     Bonito.set_cleanup_time!(5 / 60 / 60) # 1 second
 
@@ -56,3 +56,4 @@ end
     end
     close(server)
 end
+Bonito.WEBSOCKET_CLEANUP[] = 30.0

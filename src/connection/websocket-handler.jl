@@ -81,6 +81,7 @@ function Base.close(ws::WebSocketHandler)
     end
 end
 
+const WEBSOCKET_CLEANUP = Threads.Atomic{Float64}(30.0)
 
 """
     runs the main connection loop for the websocket
@@ -99,10 +100,10 @@ function run_connection_loop(session::Session, handler::WebSocketHandler, websoc
     # And all retries will fail.
     time_start = time()
     while !isclosed(session) # closing session from Julia should stop our wait
-        sleep(0.1)
-        if time() - time_start > 40
+        if time() - time_start > WEBSOCKET_CLEANUP[]
             break
         end
+        sleep(0.1)
     end
 end
 

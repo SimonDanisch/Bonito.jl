@@ -42,7 +42,7 @@
         @test keys(js_objects) == Set([global_obs.value.id]) # we used Retain for global_obs, so it should stay as long as root session is open
     end
 end
-
+Bonito.WEBSOCKET_CLEANUP[] = 0.0
 @testset "server cleanup" begin
     # Close edisplay to remove Retain (gotta add a functionality to do this nonviolently)
     # But this is also a good chance to test server cleanup :)
@@ -59,6 +59,7 @@ end
     asset_server = server.routes.table[2][2]
     @test isempty(asset_server.registered_files)
 end
+Bonito.WEBSOCKET_CLEANUP[] = 30.0
 
 # Re-Create edisplay for other tests
 edisplay = Bonito.use_electron_display(devtools=true)
