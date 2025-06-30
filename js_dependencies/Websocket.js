@@ -21,7 +21,13 @@ class Websocket {
         this.compression_enabled = compression_enabled;
         this.tryconnect();
     }
-
+    close() {
+        if (this.#websocket) {
+            this.#websocket.close();
+        } else {
+            console.log("No websocket to close");
+        }
+    }
     on_open(f) {
         this.#onopen_callbacks.push(f);
     }

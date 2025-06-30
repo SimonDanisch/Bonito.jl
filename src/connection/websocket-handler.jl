@@ -81,8 +81,6 @@ function Base.close(ws::WebSocketHandler)
     end
 end
 
-const WEBSOCKET_CLEANUP = Threads.Atomic{Float64}(30.0)
-
 """
     runs the main connection loop for the websocket
 """

@@ -6,7 +6,6 @@ function export_test_app(session, request)
         result,
         js"""
             const three = await $(THREE)
-            console.log(three)
             if ('AdditiveAnimationBlendMode' in three) {
                 $(result).innerText = "passed"
             }
