@@ -1,7 +1,7 @@
 import Bonito.HTTPServer: online_url, local_url, relative_url
-Bonito.WEBSOCKET_CLEANUP[] = 0.0
+Bonito.set_cleanup_time!(0.0)
 @testset "server cleanup" begin
-    Bonito.set_cleanup_time!(5 / 60 / 60) # 1 second
+    Bonito.Bonito.set_cleanup_time!(5 / 60 / 60) # 1 second
 
     app = App() do session
         dropdown1 = Bonito.Dropdown(["a", "b", "c"])
@@ -29,7 +29,7 @@ Bonito.WEBSOCKET_CLEANUP[] = 0.0
     success = Bonito.wait_for(() -> isempty(server.websocket_routes.table), timeout=10)
     @test success == :success
     close(server)
-    Bonito.set_cleanup_time!(0.0)
+    Bonito.Bonito.set_cleanup_time!(0.0)
 end
 
 @testset "proxy_url" begin
@@ -56,4 +56,4 @@ end
     end
     close(server)
 end
-Bonito.WEBSOCKET_CLEANUP[] = 30.0
+Bonito.set_cleanup_time!(30/60/60)

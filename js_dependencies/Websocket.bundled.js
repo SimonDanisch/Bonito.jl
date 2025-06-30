@@ -6,6 +6,7 @@ class Websocket {
     #websocket = undefined;
     #onopen_callbacks = [];
     #is_retrying = false;
+    #retry_timeout_id = null;
     url = "";
     compression_enabled = false;
     constructor(url, compression_enabled){
@@ -24,8 +25,12 @@ class Websocket {
         if (this.isopen()) {
             return;
         }
-        this.#websocket = undefined;
+        this.#cleanup_websocket();
         this.#is_retrying = true;
+        if (this.#retry_timeout_id) {
+            clearTimeout(this.#retry_timeout_id);
+            this.#retry_timeout_id = null;
+        }
         const start_time = Date.now();
         const total_time_ms = total_time_seconds * 1000;
         let attempt = 0;
@@ -34,12 +39,22 @@ class Websocket {
         const self = this;
         function give_up() {
             console.log(`Giving up after ${total_time_seconds}s and ${attempt} attempts`);
-            self.#websocket = undefined;
+            if (self.#retry_timeout_id) {
+                clearTimeout(self.#retry_timeout_id);
+                self.#retry_timeout_id = null;
+            }
+            self.#cleanup_websocket();
             self.#is_retrying = false;
             Bonito.on_connection_close();
         }
         function attempt_connection() {
             if (self.isopen()) {
+                self.#is_retrying = false;
+                if (self.#retry_timeout_id) {
+                    clearTimeout(self.#retry_timeout_id);
+                    self.#retry_timeout_id = null;
+                }
+                console.log("Connection successful!");
                 return;
             }
             const elapsed = Date.now() - start_time;
@@ -56,9 +71,11 @@ class Websocket {
             } else if (self.#websocket.readyState === WebSocket.CONNECTING) {
                 console.log("WebSocket is still connecting...");
             }
-            console.log(`Waiting ${delay / 1000}s before retry...`);
-            setTimeout(attempt_connection, delay);
-            delay = Math.min(delay * 2, max_delay);
+            if (!self.isopen() && Date.now() - start_time < total_time_ms) {
+                console.log(`Waiting ${delay / 1000}s before retry...`);
+                self.#retry_timeout_id = setTimeout(attempt_connection, delay);
+                delay = Math.min(delay * 2, max_delay);
+            }
         }
         attempt_connection();
     }
@@ -86,7 +103,9 @@ class Websocket {
         ws.onclose = function(evt) {
             console.log("closed websocket connection, code:", evt.code);
             console.log(evt);
-            this_ws.retry_connection();
+            if (!this_ws.#is_retrying) {
+                this_ws.retry_connection();
+            }
         };
         ws.onerror = function(event) {
             console.error("WebSocket error observed:");
@@ -106,10 +125,23 @@ class Websocket {
                 if (ws.readyState === WebSocket.CONNECTING) {
                     return "connecting";
                 } else {
-                    this.#websocket = undefined;
-                    return this.ensure_connection();
+                    this.#cleanup_websocket();
+                    this.retry_connection();
+                    return "connecting";
                 }
             }
+        }
+    }
+    #cleanup_websocket() {
+        if (this.#websocket) {
+            this.#websocket.onopen = null;
+            this.#websocket.onclose = null;
+            this.#websocket.onerror = null;
+            this.#websocket.onmessage = null;
+            if (this.#websocket.readyState === WebSocket.OPEN || this.#websocket.readyState === WebSocket.CONNECTING) {
+                this.#websocket.close();
+            }
+            this.#websocket = undefined;
         }
     }
     isopen() {
@@ -151,6 +183,7 @@ function setup_connection({ proxy_url , session_id , compression_enabled , query
     const url = websocket_url(session_id, proxy_url);
     console.log(`connecting : ${url + query}`);
     const ws = new Websocket(url + query, compression_enabled);
+    window.WEBSOCKET = ws;
     if (main_connection) {
         ws.on_open(()=>{
             Bonito.on_connection_open((binary)=>ws.send(binary), compression_enabled);

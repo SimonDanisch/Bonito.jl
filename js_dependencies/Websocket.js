@@ -7,6 +7,7 @@ class Websocket {
 
     #onopen_callbacks = [];
     #is_retrying = false;
+    #retry_timeout_id = null;
 
     url = "";
     compression_enabled = false;
@@ -34,8 +35,14 @@ class Websocket {
             return;
         }
 
-        this.#websocket = undefined; // Reset websocket
+        this.#cleanup_websocket(); // Clean up existing websocket
         this.#is_retrying = true;
+
+        // Clear any existing retry timeout
+        if (this.#retry_timeout_id) {
+            clearTimeout(this.#retry_timeout_id);
+            this.#retry_timeout_id = null;
+        }
 
         const start_time = Date.now();
         const total_time_ms = total_time_seconds * 1000;
@@ -48,7 +55,11 @@ class Websocket {
             console.log(
                 `Giving up after ${total_time_seconds}s and ${attempt} attempts`
             );
-            self.#websocket = undefined;
+            if (self.#retry_timeout_id) {
+                clearTimeout(self.#retry_timeout_id);
+                self.#retry_timeout_id = null;
+            }
+            self.#cleanup_websocket();
             self.#is_retrying = false; // Reset flag
             Bonito.on_connection_close();
         }
@@ -56,8 +67,13 @@ class Websocket {
         function attempt_connection() {
             // Check if we're out of time
             if (self.isopen()) {
-                // We did it!
-                return
+                self.#is_retrying = false; // Reset retry flag
+                if (self.#retry_timeout_id) {
+                    clearTimeout(self.#retry_timeout_id);
+                    self.#retry_timeout_id = null;
+                }
+                console.log("Connection successful!");
+                return; // Exit successfully
             }
             const elapsed = Date.now() - start_time;
             if (elapsed >= total_time_ms) {
@@ -75,10 +91,12 @@ class Websocket {
                 // If it's still connecting, just wait
                 console.log("WebSocket is still connecting...");
             }
-            // Schedule next attempt immediately on error
-            console.log(`Waiting ${delay / 1000}s before retry...`);
-            setTimeout(attempt_connection, delay);
-            delay = Math.min(delay * 2, max_delay);
+            // Only schedule next attempt if we haven't succeeded and have time left
+            if (!self.isopen() && (Date.now() - start_time) < total_time_ms) {
+                console.log(`Waiting ${delay / 1000}s before retry...`);
+                self.#retry_timeout_id = setTimeout(attempt_connection, delay);
+                delay = Math.min(delay * 2, max_delay);
+            }
         }
 
         // Start the first attempt immediately
@@ -118,7 +136,10 @@ class Websocket {
         ws.onclose = function (evt) {
             console.log("closed websocket connection, code:", evt.code);
             console.log(evt);
-            this_ws.retry_connection();
+            // Only retry if not already retrying
+            if (!this_ws.#is_retrying) {
+                this_ws.retry_connection();
+            }
         };
 
         ws.onerror = function (event) {
@@ -143,10 +164,29 @@ class Websocket {
                     return "connecting";
                 } else {
                     // Connection is closed/failed, clean up and try again
-                    this.#websocket = undefined;
-                    return this.ensure_connection();
+                    this.#cleanup_websocket();
+                    this.retry_connection();
+                    return "connecting";
                 }
             }
+        }
+    }
+
+    #cleanup_websocket() {
+        if (this.#websocket) {
+            // Remove event listeners to prevent memory leaks
+            this.#websocket.onopen = null;
+            this.#websocket.onclose = null;
+            this.#websocket.onerror = null;
+            this.#websocket.onmessage = null;
+
+            // Close if still open
+            if (this.#websocket.readyState === WebSocket.OPEN ||
+                this.#websocket.readyState === WebSocket.CONNECTING) {
+                this.#websocket.close();
+            }
+
+            this.#websocket = undefined;
         }
     }
 
@@ -204,6 +244,7 @@ export function setup_connection({
     const url = websocket_url(session_id, proxy_url);
     console.log(`connecting : ${url + query}`);
     const ws = new Websocket(url + query, compression_enabled);
+    window.WEBSOCKET = ws;
     if (main_connection) {
         ws.on_open(() => {
             Bonito.on_connection_open(
