@@ -15,6 +15,8 @@ const PingPong = "11";
 const UpdateSession = "12";
 const GetSessionDOM = "13"
 
+const PING_INTERVAL = 5000 
+
 function clean_stack(stack) {
     return stack.replaceAll(
         /(data:\w+\/\w+;base64,)[a-zA-Z0-9\+\/=]+:/g,
@@ -34,7 +36,8 @@ const CONNECTION = {
     send_message: undefined,
     queue: [],
     status: "closed",
-    compression_enabled: false
+    compression_enabled: false,
+    lastPing: Date.now()
 };
 
 export function on_connection_open(send_message_callback, compression_enabled, enable_pings = true) {
@@ -56,6 +59,10 @@ export function can_send_to_julia() {
     return CONNECTION.status === "open";
 }
 
+export function is_julia_responsive(){
+    return Date.now() - CONNECTION.lastPing < 2 * PING_INTERVAL
+}
+
 export function send_to_julia(message) {
     const { send_message, status, compression_enabled } = CONNECTION;
     if (send_message !== undefined && status === "open") {
@@ -71,12 +78,14 @@ export function send_pingpong() {
     send_to_julia({ msg_type: PingPong });
 }
 
+let timeout = null;
 function send_pings() {
+    clearTimeout(timeout)
     if (!can_send_to_julia()) {
         return
     }
     send_pingpong()
-    setTimeout(send_pings, 5000)
+    timeout = setTimeout(send_pings, PING_INTERVAL)
 }
 
 
@@ -145,6 +154,7 @@ export function process_message(data) {
             case PingPong:
                 // just getting a ping, nothing to do here :)
                 console.debug("ping");
+                CONNECTION.lastPing = Date.now()
                 break;
             case UpdateSession:
                 update_session_dom(data);
