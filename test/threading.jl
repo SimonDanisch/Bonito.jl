@@ -53,7 +53,7 @@ end
 
 # Disable cleanup wait so that we can test if all sessions close properly
 # After closing the windows!
-Bonito.WEBSOCKET_CLEANUP[] = 0.0
+Bonito.set_cleanup_time!(0.0)
 @testset "stresstest threading" begin
     app = App(threaded=true) do session
         dropdown1 = Bonito.Dropdown(["a", "b", "c"])
@@ -93,4 +93,4 @@ Bonito.WEBSOCKET_CLEANUP[] = 0.0
     @test success == :success
     close(server)
 end
-Bonito.WEBSOCKET_CLEANUP[] = 30.0
+Bonito.set_cleanup_time!(30/60/60)

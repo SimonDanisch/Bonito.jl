@@ -95,7 +95,10 @@ mutable struct DefaultCleanupPolicy <: CleanupPolicy
     cleanup_time::Real
 end
 
-DefaultCleanupPolicy() = DefaultCleanupPolicy(30, 0.0)
+# 30 seconds as cleanup wait time
+# Allowing to reconnect for 30s after any event killing the websocket connection
+# Without closing the tab.
+DefaultCleanupPolicy() = DefaultCleanupPolicy(30, 30 / 60 / 60)
 
 """
     set_cleanup_time!(time_in_hrs::Real)

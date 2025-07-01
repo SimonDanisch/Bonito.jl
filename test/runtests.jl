@@ -60,6 +60,9 @@ end
 @testset "Bonito" begin
     global edisplay = Bonito.use_electron_display(; devtools=true)
     @testset "Default Connection" begin
+        @testset "websocket-closing" begin
+            include("websocket-closing.jl")
+        end
         @testset "components" begin
             include("components.jl")
         end
