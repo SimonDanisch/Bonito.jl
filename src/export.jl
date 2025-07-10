@@ -125,20 +125,44 @@ end
 """
     record_states(session::Session, dom::Hyperscript.Node)
 
-Records the states of all widgets in the dom.
-Any widget that implements the following interface will be found in the DOM and can be recorded:
+Records widget states and their UI updates for offline/static HTML export. This function captures how the UI changes in response to widget interactions, allowing exported HTML to remain interactive without a Julia backend.
+
+## How it works
+
+Each widget's states are recorded independently:
+- The function finds all widgets in the DOM that implement the widget interface
+- For each widget, it records the UI updates triggered by each possible state
+- The resulting state map is embedded in the exported HTML
+
+## Widget Interface
+
+To make a widget recordable, implement these methods:
 
 ```julia
-# Implementing interface for Bonito.Slider!
-is_widget(::Slider) = true
-value_range(slider::Slider) = 1:length(slider.values[])
-to_watch(slider::Slider) = slider.index # the observable that will trigger JS state change
+is_widget(::YourWidget) = true                    # Marks the type as a recordable widget
+value_range(w::YourWidget) = [...]                 # Returns all possible states
+to_watch(w::YourWidget) = w.observable             # Returns the observable to monitor
 ```
 
-!!! warn
-    This is experimental and might change in the future!
-    It can also create really large HTML files, since it needs to record all combinations of widget states.
-    It's also not well optimized yet and may create a lot of duplicated messages.
+## Limitations
+
+!!! warning "Experimental Feature"
+    - **Large file sizes**: Recording all states can significantly increase HTML size
+    - **Independent states only**: Widgets are recorded independently. Computed observables that depend on multiple widgets won't update correctly in the exported HTML
+    - **Performance**: Not optimized for large numbers of widgets or states
+
+## Example
+
+```julia
+# This will work - independent widgets
+s = Slider(1:10)
+c = Checkbox(true)
+record_states(session, DOM.div(s, c))
+
+# This won't fully work - dependent computed observable
+combined = map((s,c) -> "Slider: \$s, Checkbox: \$c", s.value, c.value)
+record_states(session, DOM.div(s, c, combined))  # combined won't update
+```
 """
 function record_states(session::Session, dom::Hyperscript.Node)
     widgets, post_notify = extract_widgets(dom)
@@ -171,7 +195,7 @@ function record_states(session::Session, dom::Hyperscript.Node)
                 # Set this widget to the state we want to record
                 obs.val = state
                 # Use generate_state_key for consistency with JavaScript
-                key = generate_state_key([state])
+                key = generate_state_key(state)
                 try
                     widget_statemap[key] = record_values(session, widget_id_set) do
                         notify(obs)
@@ -200,52 +224,18 @@ function record_states(session::Session, dom::Hyperscript.Node)
         const widget_statemaps = $(widget_statemaps)
         console.log('Widget statemaps:', widget_statemaps)
         const observables = Bonito.decode_binary(binary, $(session.compression_enabled));
-
-        // Create a map from observable to its index for easy lookup
-        const obsToIndex = new Map();
-        observables.forEach((obs, idx) => {
-            obsToIndex.set(obs, idx);
-        });
-
-        // Function to replay all widget states
-        function replayAllStates(currentStates) {
-            const allMessages = [];
-
-            // Collect messages for each widget's current state
-            observables.forEach((obs, idx) => {
-                const widgetId = obs.id;
-                const widgetStatemap = widget_statemaps[widgetId];
-                if (widgetStatemap) {
-                    const state = currentStates[idx];
-                    // Use Bonito.generate_state_key for consistency
-                    const key = Bonito.generate_state_key([state]);
-                    const messages = widgetStatemap[key];
-                    if (messages) {
-                        allMessages.push(...messages);
-                    }
-                }
-            });
-
-            // Process all messages
-            allMessages.forEach(msg => Bonito.process_message(msg));
-        }
-
-        // Keep track of current states
-        let currentStates = observables.map(obs => obs.value);
-
         // Set up individual listeners for each observable
         observables.forEach((obs, idx) => {
             obs.on(value => {
-                // Update current state
-                currentStates[idx] = value;
-                console.log('Widget', obs.id, 'changed to', value, '- replaying all states:', currentStates);
-                // Replay all widget states
-                replayAllStates(currentStates);
+                const obs_states = widget_statemaps[obs.id]
+                const key = Bonito.generate_state_key(value);
+                const messages = obs_states[key];
+                if (messages){
+                    messages.forEach(Bonito.process_message)
+                }
             });
         });
 
-        // Initial replay to set up the correct state
-        replayAllStates(currentStates);
     })
     """
     evaljs(session, statemap_script)

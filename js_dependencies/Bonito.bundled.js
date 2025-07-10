@@ -3871,26 +3871,24 @@ function throttle_function(func, delay) {
     }
     return inner_throttle;
 }
-function generate_state_key(values) {
-    return values.map((v)=>{
-        if (typeof v === 'number') {
-            if (isNaN(v)) {
-                return 'NaN';
-            } else if (!isFinite(v)) {
-                return v > 0 ? 'Infinity' : '-Infinity';
-            } else {
-                let formatted = v.toFixed(6);
-                if (formatted.includes('.')) {
-                    formatted = formatted.replace(/\.?0+$/, '');
-                }
-                return formatted;
-            }
-        } else if (typeof v === 'boolean') {
-            return v ? 'true' : 'false';
+function generate_state_key(v) {
+    if (typeof v === 'number') {
+        if (isNaN(v)) {
+            return 'NaN';
+        } else if (!isFinite(v)) {
+            return v > 0 ? 'Infinity' : '-Infinity';
         } else {
-            return String(v);
+            let formatted = v.toFixed(6);
+            if (formatted.includes('.')) {
+                formatted = formatted.replace(/\.?0+$/, '');
+            }
+            return formatted;
         }
-    }).join(',');
+    } else if (typeof v === 'boolean') {
+        return v ? 'true' : 'false';
+    } else {
+        return String(v);
+    }
 }
 const Bonito = {
     Protocol: mod1,
