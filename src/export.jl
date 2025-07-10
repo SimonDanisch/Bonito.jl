@@ -18,7 +18,7 @@ to_watch(x) = observe(x)
 # Implement interface for slider!
 is_widget(::Slider) = true
 value_range(slider::Slider) = 1:length(slider.values[])
-to_watch(slider::Slider) = slider.index
+to_watch(slider::Slider) = slider.value
 
 # Implement interface for Dropdown
 
@@ -32,7 +32,7 @@ to_watch(d::Checkbox) = d.value
 
 function do_session(f, session)
     s = session
-    while s.parent != nothing
+    while !isnothing(s.parent)
         f(s)
         s = s.parent
     end
@@ -43,11 +43,11 @@ function do_session(f, session)
     end
 end
 
-struct IgnoreObsUpdates2 <: Function
+struct IgnoreObsUpdates <: Function
     widget_ids::Set{String}
 end
 
-function (ignore::IgnoreObsUpdates2)(msg)
+function (ignore::IgnoreObsUpdates)(msg)
     if msg[:msg_type] == UpdateObservable
         # Ignore all messages that directly update the observable we watch
         # because otherwise, that will trigger itself recursively, once those messages are applied
@@ -58,7 +58,7 @@ function (ignore::IgnoreObsUpdates2)(msg)
 end
 
 function record_values(f, session, widget_ids)
-    ignore = IgnoreObsUpdates2(widget_ids)
+    ignore = IgnoreObsUpdates(widget_ids)
     do_session(session) do s
         s.ignore_message[] = ignore
         empty!(s.message_queue)
@@ -125,12 +125,18 @@ function record_states(session::Session, dom::Hyperscript.Node)
         for state_array in all_states
             key = join(state_array, ",") # js joins all elements in an array as a dict key -.-
             # TODO, somehow we must set + reset the observables before recording...
-            # Makes sense, to bring them to the correct state first, but we should be able to do this more efficiently
+            # Makes sense, to bring them to the correct state first,
+            # but we should be able to do this more efficiently
             for (state, obs) in zip(state_array, widget_observables)
                 obs[] = state
             end
-            statemap[key] = record_values(session, widget_id_set) do
-                foreach(notify, widget_observables)
+            try
+                statemap[key] = record_values(session, widget_id_set) do
+                    foreach(notify, widget_observables)
+                end
+            catch e
+                @warn "Error while recording state $key" exception=(e, Base.catch_backtrace())
+                continue
             end
         end
     end
@@ -147,9 +153,9 @@ function record_states(session::Session, dom::Hyperscript.Node)
         console.log(statemap)
         const observables = Bonito.decode_binary(binary, $(session.compression_enabled));
         Bonito.onany(observables, (states) => {
-            console.log(states)
             // messages to send for this state of that observable
             const messages = statemap[states]
+            console.log(messages)
             // not all states trigger events
             // so some states won't have any messages recorded
             if (messages){
