@@ -2,22 +2,26 @@ import Observables: observe
 
 is_independant(x) = true
 is_widget(x) = false
+needs_post_notify(x) = false
+function post_notify_callback end
 function value_range end
 function update_value!(x, value) end
 
 function extract_widgets(dom_root)
     result = Base.IdSet()
+    post_notify = Base.IdSet()
     walk_dom(dom_root) do x
         is_widget(x) && push!(result, x)
+        needs_post_notify(x) && push!(post_notify, x)
     end
-    return result
+    return collect(result), collect(post_notify)
 end
 
 to_watch(x) = observe(x)
 
 # Implement interface for slider!
 is_widget(::Slider) = true
-value_range(slider::Slider) = 1:length(slider.values[])
+value_range(slider::Slider) = slider.values[]
 to_watch(slider::Slider) = slider.value
 
 # Implement interface for Dropdown
@@ -65,6 +69,7 @@ function record_values(f, session, widget_ids)
     end
     try
         f()
+        yield()
         messages = SerializedMessage[]
         do_session(session) do s
             append!(messages, s.message_queue)
@@ -87,26 +92,80 @@ function while_disconnected(f, session::Session)
     f()
 end
 
+
+"""
+    generate_state_key(values)
+
+Generate a consistent key for state values that works identically in Julia and JavaScript.
+Handles Float64 values specially to ensure consistent string representation.
+"""
+function generate_state_key(v)
+    if v isa AbstractFloat
+        # Format floats to ensure consistency between Julia and JavaScript
+        # Round to 6 significant digits and remove trailing zeros
+        if isnan(v)
+            return "NaN"
+        elseif isinf(v)
+            return v > 0 ? "Infinity" : "-Infinity"
+        else
+            # Format with up to 6 decimal places, removing trailing zeros
+            formatted = string(round(v, digits=6))
+            # Remove trailing zeros after decimal point
+            if occursin(".", formatted)
+                formatted = rstrip(rstrip(formatted, '0'), '.')
+            end
+            return formatted
+        end
+    else
+        # For other types, use string representation
+        return string(v)
+    end
+end
+
 """
     record_states(session::Session, dom::Hyperscript.Node)
 
-Records the states of all widgets in the dom.
-Any widget that implements the following interface will be found in the DOM and can be recorded:
+Records widget states and their UI updates for offline/static HTML export. This function captures how the UI changes in response to widget interactions, allowing exported HTML to remain interactive without a Julia backend.
+
+## How it works
+
+Each widget's states are recorded independently:
+- The function finds all widgets in the DOM that implement the widget interface
+- For each widget, it records the UI updates triggered by each possible state
+- The resulting state map is embedded in the exported HTML
+
+## Widget Interface
+
+To make a widget recordable, implement these methods:
 
 ```julia
-# Implementing interface for Bonito.Slider!
-is_widget(::Slider) = true
-value_range(slider::Slider) = 1:length(slider.values[])
-to_watch(slider::Slider) = slider.index # the observable that will trigger JS state change
+is_widget(::YourWidget) = true                    # Marks the type as a recordable widget
+value_range(w::YourWidget) = [...]                 # Returns all possible states
+to_watch(w::YourWidget) = w.observable             # Returns the observable to monitor
 ```
 
-!!! warn
-    This is experimental and might change in the future!
-    It can also create really large HTML files, since it needs to record all combinations of widget states.
-    It's also not well optimized yet and may create a lot of duplicated messages.
+## Limitations
+
+!!! warning "Experimental Feature"
+    - **Large file sizes**: Recording all states can significantly increase HTML size
+    - **Independent states only**: Widgets are recorded independently. Computed observables that depend on multiple widgets won't update correctly in the exported HTML
+    - **Performance**: Not optimized for large numbers of widgets or states
+
+## Example
+
+```julia
+# This will work - independent widgets
+s = Slider(1:10)
+c = Checkbox(true)
+record_states(session, DOM.div(s, c))
+
+# This won't fully work - dependent computed observable
+combined = map((s,c) -> "Slider: \$s, Checkbox: \$c", s.value, c.value)
+record_states(session, DOM.div(s, c, combined))  # combined won't update
+```
 """
 function record_states(session::Session, dom::Hyperscript.Node)
-    widgets = extract_widgets(dom)
+    widgets, post_notify = extract_widgets(dom)
     rendered = jsrender(session, dom)
     # We'll mess with the message_queue to record the statemap
     # So we copy the current message queue and disconnect the session!
@@ -117,27 +176,40 @@ function record_states(session::Session, dom::Hyperscript.Node)
     do_session(session) do s
         session_states[s.id] = SerializedMessage(s, fused_messages!(s))
     end
-    all_states = Iterators.product(value_range.(widgets)...)
-    statemap = Dict{String, Vector{SerializedMessage}}()
+
+    # Record states for each widget independently
     widget_observables = to_watch.(widgets)
-    widget_id_set = Set([obs.id for obs in widget_observables])
+    post_notify_callbacks = post_notify_callback.(post_notify)
+    widget_statemaps = Dict{String, Dict{String, Vector{SerializedMessage}}}()
+
     while_disconnected(session) do
-        for state_array in all_states
-            key = join(state_array, ",") # js joins all elements in an array as a dict key -.-
-            # TODO, somehow we must set + reset the observables before recording...
-            # Makes sense, to bring them to the correct state first,
-            # but we should be able to do this more efficiently
-            for (state, obs) in zip(state_array, widget_observables)
-                obs[] = state
-            end
-            try
-                statemap[key] = record_values(session, widget_id_set) do
-                    foreach(notify, widget_observables)
+        for (widget_idx, (widget, obs)) in enumerate(zip(widgets, widget_observables))
+            widget_id = obs.id
+            widget_statemap = Dict{String, Vector{SerializedMessage}}()
+            widget_id_set = Set([widget_id])
+
+            # Save current states of all widgets
+
+            # Record each state for this widget
+            for state in value_range(widget)
+                # Set this widget to the state we want to record
+                obs.val = state
+                # Use generate_state_key for consistency with JavaScript
+                key = generate_state_key(state)
+                try
+                    widget_statemap[key] = record_values(session, widget_id_set) do
+                        notify(obs)
+                        for f in post_notify_callbacks
+                            f()
+                        end
+                    end
+                catch e
+                    @warn "Error while recording state $key for widget $widget_id" exception=(e, Base.catch_backtrace())
+                    continue
                 end
-            catch e
-                @warn "Error while recording state $key" exception=(e, Base.catch_backtrace())
-                continue
             end
+
+            widget_statemaps[widget_id] = widget_statemap
         end
     end
 
@@ -149,19 +221,21 @@ function record_states(session::Session, dom::Hyperscript.Node)
     asset = BinaryAsset(session, widget_observables)
     statemap_script = js"""
     $(asset).then(binary => {
-        const statemap = $(statemap)
-        console.log(statemap)
+        const widget_statemaps = $(widget_statemaps)
+        console.log('Widget statemaps:', widget_statemaps)
         const observables = Bonito.decode_binary(binary, $(session.compression_enabled));
-        Bonito.onany(observables, (states) => {
-            // messages to send for this state of that observable
-            const messages = statemap[states]
-            console.log(messages)
-            // not all states trigger events
-            // so some states won't have any messages recorded
-            if (messages){
-                messages.forEach(Bonito.process_message)
-            }
-        })
+        // Set up individual listeners for each observable
+        observables.forEach((obs, idx) => {
+            obs.on(value => {
+                const obs_states = widget_statemaps[obs.id]
+                const key = Bonito.generate_state_key(value);
+                const messages = obs_states[key];
+                if (messages){
+                    messages.forEach(Bonito.process_message)
+                }
+            });
+        });
+
     })
     """
     evaljs(session, statemap_script)

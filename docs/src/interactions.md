@@ -18,7 +18,8 @@ App() do session
     value = map(s.value) do x
         return x ^ 2
     end
-    # Record states is an experimental feature to record all states generated in the Julia session and allow the slider to stay interactive in the statically hosted docs!
+    # record_states captures widget interactions for static HTML export
+    # This allows the slider to remain interactive even without a Julia backend!
     return Bonito.record_states(session, DOM.div(s, value))
 end
 ```
@@ -55,17 +56,30 @@ App() do session
     s = D.Slider("Slider: ", 1:3)
     checkbox = D.Checkbox("Chose:", true)
     menu = D.Dropdown("Menu: ", [sin, tan, cos])
-    app = map(checkbox.widget.value, s.widget.value, menu.widget.value) do checkboxval, sliderval, menuval
-        DOM.div(checkboxval, sliderval, menuval)
+    dependent = map(checkbox.widget.value, s.widget.value, menu.widget.value) do args...
+        D.FlexCol(DOM.div.(args)...)
     end
     return Bonito.record_states(session, D.FlexRow(
         D.Card(D.FlexCol(checkbox, s, menu)),
-        D.Card(app)
+        D.Card(D.FlexCol(D.Title("Independent (supported)"), checkbox.value, s.value, menu.value)),
+        D.Card(D.FlexCol(D.Title("Dependent (not supported)"), dependent))
     ))
 end
 ```
 
-Likes this one create interactive examples like this:
+## Understanding `record_states` Limitations
+
+The `record_states` function is designed to capture widget interactions for static HTML export. However, it has an important limitation: **only independent widget states are recorded**.
+
+In the example above:
+- **Independent widgets work**: The slider, checkbox, and dropdown values update correctly because they're displayed directly
+- **Dependent observables don't work**: The `dependent` observable that combines multiple widget values won't update correctly in the exported HTML
+
+This happens because `record_states` records each widget's states independently to avoid exponential growth in file size. For complex interactions, consider using JavaScript-based solutions (shown later in this guide).
+
+## Creating Interactive Examples
+
+Despite these limitations, you can still create engaging interactive examples:
 
 ```@example 1
 import Bonito.TailwindDashboard as D

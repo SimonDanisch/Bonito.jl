@@ -105,6 +105,29 @@ function throttle_function(func, delay) {
     return inner_throttle;
 }
 
+// JavaScript version of generate_state_key to match Julia's formatting
+export function generate_state_key(v) {
+    if (typeof v === 'number') {
+        if (isNaN(v)) {
+            return 'NaN';
+        } else if (!isFinite(v)) {
+            return v > 0 ? 'Infinity' : '-Infinity';
+        } else {
+            // Round to 6 decimal places and remove trailing zeros
+            let formatted = v.toFixed(6);
+            // Remove trailing zeros after decimal point
+            if (formatted.includes('.')) {
+                formatted = formatted.replace(/\.?0+$/, '');
+            }
+            return formatted;
+        }
+    } else if (typeof v === 'boolean') {
+        return v ? 'true' : 'false';
+    } else {
+        return String(v);
+    }
+}
+
 const Bonito = {
     Protocol,
     base64decode,
@@ -138,6 +161,7 @@ const Bonito = {
     free_object,
     send_to_julia,
     throttle_function,
+    generate_state_key,
 };
 
 // @ts-ignore
