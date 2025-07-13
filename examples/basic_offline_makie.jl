@@ -24,9 +24,7 @@ app = App() do session
     h_slider = styled_slider(hue_slider, color_swatch)
     sliders = rows(m_slider, h_slider)
     dom = DOM.div(Bonito.Styling, Bonito.TailwindCSS, columns(sliders, f))
-    return Bonito.record_states(session, dom) do
-        WGLMakie.poll_all_plots(f.scene)
-    end
+    return Bonito.record_states(session, dom)
 end;
 
 
