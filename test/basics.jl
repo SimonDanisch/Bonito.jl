@@ -220,3 +220,34 @@ end
 #     @test haskey(parent.session_objects, color.id)
 
 # end
+
+@testset "Class with observable" begin
+    app = App() do
+        style = Styles(CSS(
+            ".test",
+            "background-color" => "#f0f0f0"
+        ))
+        button = Bonito.Button("Click")
+        last_click = Ref(true)
+        class = map(button.value) do _
+            last_click[] = !last_click[]
+            return last_click[] ? "test" : ""
+        end
+        @show class
+        DOM.div(style, button, DOM.div("HEY HEY"; class=class))
+    end
+    display(edisplay, app)
+    Bonito.wait_for_ready(app)
+    evaljs(app.session[], js"""
+        const button = document.querySelector("button");
+        button.click();
+    """)
+    success = Bonito.wait_for() do
+        class = evaljs_value(app.session[], js"""(()=>{
+            const b = document.querySelector(".test");
+            return b.className;
+        })()""")
+        return class == "test"
+    end
+    @test success == :success
+end
