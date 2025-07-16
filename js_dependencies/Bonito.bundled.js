@@ -3829,7 +3829,9 @@ const { base64decode: base64decode1 , base64encode: base64encode1 , decode_binar
 const { init_session: init_session1 , free_session: free_session1 , lookup_global_object: lookup_global_object1 , update_or_replace: update_or_replace1 , lock_loading: lock_loading1 , OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK1 , free_object: free_object1  } = mod;
 function update_node_attribute(node, attribute, value) {
     if (node) {
-        if (node[attribute] != value) {
+        if (attribute === "class") {
+            node.className = value;
+        } else if (node[attribute] != value) {
             node[attribute] = value;
         }
         return true;

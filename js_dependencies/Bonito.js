@@ -35,7 +35,9 @@ const {
 
 function update_node_attribute(node, attribute, value) {
     if (node) {
-        if (node[attribute] != value) {
+        if (attribute === "class") {
+            node.className = value; // Use className for class attribute
+        } else if (node[attribute] != value) {
             node[attribute] = value;
         }
         return true;
