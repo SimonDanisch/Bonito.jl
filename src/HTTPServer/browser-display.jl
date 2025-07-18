@@ -24,6 +24,10 @@ function Base.close(display::BrowserDisplay)
     if !isnothing(display.handler)
         close(display.handler)
     end
+    filter!(Base.Multimedia.displays) do x
+        # remove all BrowserDisplays
+        return x !== display
+    end
     return
 end
 
@@ -131,6 +135,10 @@ struct EWindow
     window
 end
 
+function Base.isopen(display::EWindow)
+    return isopen(display.app) && isopen(display.window)
+end
+
 struct ElectronDisplay <: Base.Multimedia.AbstractDisplay
     window::EWindow
     browserdisplay::BrowserDisplay
@@ -170,7 +178,14 @@ end
 
 Base.displayable(d::ElectronDisplay, ::MIME{Symbol("text/html")}) = true
 
+Base.isopen(d::ElectronDisplay) = isopen(d.window)
+
 function Base.display(display::ElectronDisplay, app::App)
+    if !isopen(display)
+        # Window got closed, fall back to any other display
+        close(display)
+        return display(app)
+    end
     needs_load = Base.display(display.browserdisplay, app)
     url = online_url(display.browserdisplay)
     if needs_load
@@ -219,5 +234,9 @@ end
 function Base.close(display::ElectronDisplay)
     close(display.window)
     close(display.browserdisplay)
+    filter!(Base.Multimedia.displays) do x
+        # remove all ElectronDisplays
+        return x !== display
+    end
     return nothing
 end
