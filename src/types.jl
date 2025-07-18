@@ -198,6 +198,7 @@ mutable struct Session{Connection <: FrontendConnection}
     io_context::RefValue{Union{Nothing, IOContext}}
     stylesheets::Dict{HTMLElement, Set{CSS}}
     inbox::Channel{Vector{UInt8}}
+    outbox::Channel{Tuple{Union{SerializedMessage, Dict}, Bool}}
     threadid::Int
 
     function Session(
@@ -223,6 +224,7 @@ mutable struct Session{Connection <: FrontendConnection}
             n_inbox = Inf
         ) where {Connection}
         inbox = Channel{Vector{UInt8}}(n_inbox)
+        outbox = Channel{Tuple{Union{SerializedMessage, Dict}, Bool}}(Inf)
         session = new{Connection}(
             UNINITIALIZED,
             time(),
@@ -251,8 +253,15 @@ mutable struct Session{Connection <: FrontendConnection}
             RefValue{Union{Nothing,IOContext}}(nothing),
             Dict{HTMLElement,Set{CSS}}(),
             inbox,
+            outbox,
             Threads.threadid()
         )
+
+        Threads.@spawn for (msg, is_large) in outbox
+            isclosed(session) && break
+            _send(session, msg, is_large)
+        end
+
         task = Task() do
             for message in inbox
                 try

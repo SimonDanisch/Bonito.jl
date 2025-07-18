@@ -29,6 +29,9 @@ function wait_for_ready(session::Session; timeout=100)
 end
 
 function get_messages!(session::Session, messages=[])
+    while !isempty(session.outbox)
+        sleep(0.001)
+    end
     root = root_session(session)
     if root !== session
         get_messages!(root, messages)
@@ -140,6 +143,7 @@ function Base.close(session::Session)
         session.current_app[] = nothing
         session.io_context[] = nothing
         close(session.inbox)
+        close(session.outbox)
         session.status = CLOSED
         close(session.connection)
     end
@@ -153,61 +157,63 @@ Send values to the frontend via MsgPack for now
 """
 Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
-function send_large(session::Session, message)
-    serialized = SerializedMessage(session, message)
-    if isready(session)
-        write_large(session.connection, serialize_binary(session, serialized))
-        if COLLECT_MESSAGES[]
-            push!(COLLECTED_MESSAGES, serialized)
-        end
-    else
-        push!(session.message_queue, serialized)
-    end
-end
-
-
-
-function Sockets.send(session::Session, message::Dict{Symbol, Any})
-    serialized = SerializedMessage(session, message)
-    if session.ignore_message[](message)::Bool
-        return
-    end
-    send(session, serialized)
-end
-
 const COLLECT_MESSAGES = Threads.Atomic{Bool}(false)
-const COLLECTED_MESSAGES = SerializedMessage[]
+const COLLECTED_MESSAGES = Dict{Symbol, Any}[]
+const COLLECT_LOCK = Base.ReentrantLock()
 
 function collect_messages(f)
     empty!(COLLECTED_MESSAGES)
     COLLECT_MESSAGES[] = true
     f()
-    len = length(COLLECTED_MESSAGES)
-    total = sum(map(x-> sizeof(x.bytes), COLLECTED_MESSAGES))
+    msgs = copy(COLLECTED_MESSAGES)
+    len = length(msgs)
+    s = Session(NoConnection(); asset_server=NoServer())
+    total = mapreduce(+, msgs) do msg
+        bytes = serialize_binary(s, msg)
+        return sizeof(bytes)
+    end
     msg = "Send $(len) messages with a total size of $(Base.format_bytes(total))"
-    msgs = map(x-> decode_extension_and_addbits(deserialize(x)), COLLECTED_MESSAGES)
     return msgs, msg
 end
 
-const COLLECT_LOCK = Base.ReentrantLock()
-function Sockets.send(session::Session, message::SerializedMessage)
-    if isclosed(session)
-        # We could also make this non fatal, but since `send` shouldn't be user facing,
-        # We should rather make sure that no internal code sends a message to a closed session.
-        error("Trying to send to a closed session")
+function Sockets.send(session::Session, message::Dict{Symbol}; large=false)
+    if session.ignore_message[](message)::Bool
+        return
     end
+    lock(COLLECT_LOCK) do
+        if COLLECT_MESSAGES[]
+            push!(COLLECTED_MESSAGES, message)
+        end
+    end
+    put!(session.outbox, (message, large))
+end
+
+function Sockets.send(session::Session, message::SerializedMessage; large=false)
+    lock(COLLECT_LOCK) do
+        if COLLECT_MESSAGES[]
+            msg = deserialize(message)
+            push!(COLLECTED_MESSAGES, decode_extension_and_addbits(msg))
+        end
+    end
+    put!(session.outbox, (message, large))
+end
+
+function _send(session::Session, sm::SerializedMessage, large::Bool)
     if isready(session)
-        # if connection is open, we should never queue up messages
-        @assert isempty(session.message_queue)
-        write(session.connection, serialize_binary(session, message))
-        lock(COLLECT_LOCK) do
-            if COLLECT_MESSAGES[]
-                push!(COLLECTED_MESSAGES, message)
-            end
+        bin = serialize_binary(session, sm)
+        if large
+            write_large(session.connection, bin)
+        else
+            write(session.connection, bin)
         end
     else
-        push!(session.message_queue, message)
+        push!(session.message_queue, sm)
     end
+end
+
+function _send(session::Session, message::Dict, large::Bool)
+    sm = SerializedMessage(session, message)
+    _send(session, sm, large)
 end
 
 function HTTP.WebSockets.isclosed(session::Session)
