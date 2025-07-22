@@ -35,7 +35,8 @@ export function lookup_global_object(key) {
             return object;
         }
     }
-    throw new Error(`Key ${key} not found! ${object}`);
+    console.warn(`Key ${key} not found! ${object}`);
+    return null;
 }
 
 function is_still_referenced(id) {

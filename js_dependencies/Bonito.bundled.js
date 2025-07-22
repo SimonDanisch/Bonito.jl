@@ -3333,7 +3333,8 @@ function lookup_global_object(key) {
             return object;
         }
     }
-    throw new Error(`Key ${key} not found! ${object}`);
+    console.warn(`Key ${key} not found! ${object}`);
+    return null;
 }
 function send_error(message, exception) {
     console.error(message);
