@@ -1,22 +1,16 @@
 struct SerializationContext
-    message_cache::Dict{String, Any}
+    message_cache::OrderedDict{String, Any}
     session::Session
 end
 
 function SerializationContext(session::Session)
-    return SerializationContext(Dict{String,Any}(), session)
+    return SerializationContext(OrderedDict{String,Any}(), session)
 end
 
 object_identity(retain::Retain) = object_identity(retain.value)
 object_identity(obs::Observable) = obs.id
+object_identity(obj::Any) = string(hash(obj))
 
-function serialize_cached(context::SerializationContext, retain::Retain)
-    return add_cached!(context.session, context.message_cache, retain) do
-        obs = retain.value
-        register_observable!(context.session, obs)
-        return Retain(SerializedObservable(obs.id, serialize_cached(context, obs[])))
-    end
-end
 
 function register_observable!(session::Session, obs::Observable)
     # Always register with root session!
@@ -31,6 +25,15 @@ function register_observable!(session::Session, obs::Observable)
         on(updater, obs)
     end
     return
+end
+
+
+function serialize_cached(context::SerializationContext, retain::Retain)
+    return add_cached!(context.session, context.message_cache, retain) do
+        obs = retain.value
+        register_observable!(context.session, obs)
+        return Retain(SerializedObservable(obs.id, serialize_cached(context, obs[])))
+    end
 end
 
 function serialize_cached(context::SerializationContext, obs::Observable)
@@ -92,7 +95,7 @@ If not cached already, we call `create_cached_object` to create a serialized for
 We return nothing if already cached, or the serialized object if not cached.
 We also handle the part of adding things to the message_cache from the serialization context.
 """
-function add_cached!(create_cached_object::Function, session::Session, send_to_js::Dict{String, Any}, @nospecialize(object))::CacheKey
+function add_cached!(create_cached_object::Function, session::Session, send_to_js::OrderedDict{String, Any}, @nospecialize(object))::CacheKey
     root = root_session(session)
     lock(root.deletion_lock) do
         key = object_identity(object)::String

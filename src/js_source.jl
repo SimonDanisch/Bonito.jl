@@ -3,7 +3,6 @@ function iterate_interpolations(source::String, result=Union{Expr,JSString,Symbo
     isempty(source) && return result
     while true
         c = source[i]
-
         # Attempt to parse + interpolate all "$..." expressions, except for "${ ... }"
         # which is a template literal placeholder in Javascript.
         #
@@ -62,7 +61,7 @@ function Base.show(io::IO, jsc::JSCode)
 end
 
 function print_js_code(io::IO, @nospecialize(object), context::JSSourceContext)
-    id = get!(() -> string(hash(object)), context.objects, object)
+    id = get!(() -> object_identity(object), context.objects, object)
     print(io, "__lookup_interpolated('$(id)')")
     return context
 end
@@ -135,7 +134,7 @@ function print_js_code(io::IO, asset::Union{Asset, BinaryAsset}, context::JSSour
             print(io, "import('$(get_path(asset))')")
         end
     else
-        id = get!(() -> string(hash(asset)), context.objects, asset)
+        id = get!(() -> object_identity(asset), context.objects, asset)
         print(io, "__lookup_interpolated('$(id)')")
     end
     return context

@@ -115,11 +115,12 @@ end
 
 MsgPack.msgpack_type(::Type{SessionCache}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SessionCache)
-    return MsgPack.Extension(SESSION_CACHE_TAG, pack([x.session_id, x.objects, x.session_type]))
+    objects = [[k, v] for (k, v) in x.objects]
+    return MsgPack.Extension(SESSION_CACHE_TAG, pack([x.session_id, objects, x.session_type]))
 end
 
-MsgPack.msgpack_type(::Type{SerializedMessage}) = MsgPack.ExtensionType()
-function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedMessage)
+MsgPack.msgpack_type(::Type{BinaryMessage}) = MsgPack.ExtensionType()
+function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::BinaryMessage)
     return MsgPack.Extension(SERIALIZED_MESSAGE_TAG, x.bytes)
 end
 

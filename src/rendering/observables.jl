@@ -92,7 +92,6 @@ function jsrender(session::Session, obs::Observable)
         end
         return
     end
-
     push!(children(root_node), html)
     return jsrender(session, root_node)
 end

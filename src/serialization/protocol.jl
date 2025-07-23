@@ -119,7 +119,7 @@ function update_subsession_dom!(sub::Session, selector, app::App)
         "replace" => true,
         "dom_node_selector" => selector
     )
-    message = SerializedMessage(sub, session_update)
+    message = BinaryMessage(sub, session_update)
     send(root_session(sub), message)
     mark_displayed!(sub)
     return sub

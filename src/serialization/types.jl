@@ -17,20 +17,6 @@ struct SerializedJSCode
     julia_file::String
 end
 
-struct SessionCache
-    session_id::String
-    objects::Dict{String, Any}
-    session_type::String
-end
-
-function SessionCache(session::Session, objects::Dict{String,Any})
-    return SessionCache(
-        session.id,
-        objects,
-        root_session(session) === session ? "root" : "sub",
-    )
-end
-
 # We want typed arrays to arrive as JS typed arrays
 const JSTypedArrayEltypes = [Int8, UInt8, Int16, UInt16, Int32, UInt32, Float32, Float64]
 const JSTypedNumber = Union{JSTypedArrayEltypes...}

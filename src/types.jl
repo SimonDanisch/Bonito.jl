@@ -75,7 +75,26 @@ mutable struct SubConnection <: FrontendConnection
     isopen::Bool
 end
 
+struct SessionCache
+    session_id::String
+    objects::OrderedDict{String, Any}
+    session_type::String
+end
+
+function SessionCache(session::Session, objects::AbstractDict{String,Any})
+    return SessionCache(
+        session.id,
+        convert(OrderedDict, objects),
+        root_session(session) === session ? "root" : "sub",
+    )
+end
+
 struct SerializedMessage
+    cache::SessionCache
+    data::Any
+end
+
+struct BinaryMessage
     bytes::Vector{UInt8}
 end
 
@@ -174,7 +193,7 @@ mutable struct Session{Connection <: FrontendConnection}
     connection::Connection
     # The way we serve any file asset
     asset_server::AbstractAssetServer
-    message_queue::Vector{SerializedMessage}
+    message_queue::Vector{BinaryMessage}
     # Code that gets evalued last after all other messages, when session gets connected
     on_document_load::Vector{JSCode}
     connection_ready::Channel{Bool}
@@ -206,7 +225,7 @@ mutable struct Session{Connection <: FrontendConnection}
             id::String,
             connection::Connection,
             asset_server::AbstractAssetServer,
-            message_queue::Vector{SerializedMessage},
+            message_queue::Vector{BinaryMessage},
             on_document_load::Vector{JSCode},
             connection_ready::Channel{Bool},
             on_connection_ready::Function,
@@ -299,7 +318,7 @@ end
 function Session(connection=default_connection();
                 id=string(uuid4()),
                 asset_server=default_asset_server(),
-                message_queue=SerializedMessage[],
+                message_queue=BinaryMessage[],
                 on_document_load=JSCode[],
                 connection_ready=Channel{Bool}(1),
                 on_connection_ready=init_session,

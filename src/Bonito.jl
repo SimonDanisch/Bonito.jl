@@ -3,6 +3,7 @@ module Bonito
 import Sockets
 using Sockets: send
 
+using OrderedCollections
 using Dates
 using UUIDs
 using Hyperscript
