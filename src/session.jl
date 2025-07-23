@@ -512,7 +512,6 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
             end
             pushfirst!(children(body), jsrender(session, init_session))
             objects = collect_session_objects!(session)
-            @show objects
             binary = BinaryAsset(MsgPack.pack(objects), "application/octet-stream")
             init_session = js"""
                 Bonito.lock_loading(() => {
@@ -577,7 +576,6 @@ function update_session_dom!(parent::Session, node_uuid::String, app_or_dom; rep
     if isclosed(parent)
         error("Updating the session dom for a closed session")
     end
-    println("RENDERING subsession")
     sub, html = render_subsession(parent, app_or_dom; init=true)
     # We need to manually do the serialization,
     # Since we send it via the parent, but serialization needs to happen
