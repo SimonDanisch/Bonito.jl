@@ -15,7 +15,7 @@ const PingPong = "11";
 const UpdateSession = "12";
 const GetSessionDOM = "13"
 
-const PING_INTERVAL = 5000 
+const PING_INTERVAL = 5000
 
 function clean_stack(stack) {
     return stack.replaceAll(

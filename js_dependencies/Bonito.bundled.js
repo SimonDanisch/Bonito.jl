@@ -3333,9 +3333,6 @@ function lookup_global_object(key) {
             return object;
         }
     }
-    console.log({
-        ...GLOBAL_OBJECT_CACHE
-    });
     console.warn(`Key ${key} not found! ${object}`);
     return null;
 }
@@ -3359,7 +3356,6 @@ function is_still_referenced(id) {
     return false;
 }
 function free_object(id) {
-    console.log(`freeing object ${id}`);
     const data = GLOBAL_OBJECT_CACHE[id];
     if (data) {
         if (data instanceof Promise) {
@@ -3512,6 +3508,7 @@ register_ext(103, (uint_8_array)=>{
 });
 register_ext(104, (uint_8_array)=>{
     const key = unpack(uint_8_array);
+    console.log(`Looking up global object for key: ${key}`);
     return lookup_global_object(key);
 });
 function create_tag(tag, attributes) {
@@ -3671,7 +3668,9 @@ function update_session_cache(session_id, new_jl_objects, session_status) {
                     throw new Error(`Key ${key} only send for tracking, but not already tracked!!!`);
                 }
             } else {
-                if (key in GLOBAL_OBJECT_CACHE) {} else {
+                if (key in GLOBAL_OBJECT_CACHE) {
+                    console.warn(`${key} in session cache and send again!! ${value}`);
+                } else {
                     GLOBAL_OBJECT_CACHE[key] = value;
                 }
             }

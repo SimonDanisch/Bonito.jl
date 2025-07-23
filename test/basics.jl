@@ -8,7 +8,7 @@
     sdom = Bonito.session_dom(session, dom; init=false) # Init false to not inline messages
     msg = Bonito.fused_messages!(session)
     data = Bonito.serialize_cached(session, msg)
-    decoded = Bonito.deserialize(msg[:payload][1]) |> Bonito.decode_extension_and_addbits
+    decoded = Bonito.decode_extension_and_addbits(Bonito.deserialize(msg[:payload][1]))
     mapped = obs1.listeners[1][2].result # we map(render, obs1) when rendering attributes, so only that will be in the session
     @test haskey(session.session_objects, mapped.id)
     # Obs registered correctly

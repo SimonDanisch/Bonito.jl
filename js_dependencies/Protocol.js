@@ -152,6 +152,7 @@ register_ext(RETAIN_TAG, (uint_8_array) => {
 
 register_ext(CACHE_KEY_TAG, (uint_8_array) => {
     const key = unpack(uint_8_array);
+    console.log(`Looking up global object for key: ${key}`);
     return lookup_global_object(key);
 });
 

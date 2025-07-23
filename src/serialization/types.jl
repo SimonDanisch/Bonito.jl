@@ -11,6 +11,14 @@ struct Retain
     value::Union{Observable, SerializedObservable} # For now, restricted to observable!
 end
 
+function SessionCache(session::Session, objects::AbstractDict{String,Any})
+    return SessionCache(
+        session.id,
+        convert(OrderedDict, objects),
+        root_session(session) === session ? "root" : "sub",
+    )
+end
+
 struct SerializedJSCode
     interpolated_objects::Dict{String, Any}
     source::String

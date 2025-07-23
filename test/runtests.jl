@@ -60,6 +60,8 @@ end
 @testset "Bonito" begin
     global edisplay = Bonito.use_electron_display(; devtools=true)
     @testset "Default Connection" begin
+        # Bonito.use_compression!(false)
+        # Bonito.force_connection!(Bonito.WebSocketConnection)
         @testset "websocket-closing" begin
             include("websocket-closing.jl")
         end
@@ -125,3 +127,4 @@ end
         end
     end
 end
+println("DONEEE!!")

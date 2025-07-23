@@ -81,14 +81,6 @@ struct SessionCache
     session_type::String
 end
 
-function SessionCache(session::Session, objects::AbstractDict{String,Any})
-    return SessionCache(
-        session.id,
-        convert(OrderedDict, objects),
-        root_session(session) === session ? "root" : "sub",
-    )
-end
-
 struct SerializedMessage
     cache::SessionCache
     data::Any
@@ -193,7 +185,7 @@ mutable struct Session{Connection <: FrontendConnection}
     connection::Connection
     # The way we serve any file asset
     asset_server::AbstractAssetServer
-    message_queue::Vector{BinaryMessage}
+    message_queue::Vector{SerializedMessage}
     # Code that gets evalued last after all other messages, when session gets connected
     on_document_load::Vector{JSCode}
     connection_ready::Channel{Bool}
@@ -225,7 +217,7 @@ mutable struct Session{Connection <: FrontendConnection}
             id::String,
             connection::Connection,
             asset_server::AbstractAssetServer,
-            message_queue::Vector{BinaryMessage},
+            message_queue::Vector{SerializedMessage},
             on_document_load::Vector{JSCode},
             connection_ready::Channel{Bool},
             on_connection_ready::Function,
@@ -272,6 +264,7 @@ mutable struct Session{Connection <: FrontendConnection}
             inbox,
             Threads.threadid()
         )
+
         task = Task() do
             for message in inbox
                 try
@@ -318,7 +311,7 @@ end
 function Session(connection=default_connection();
                 id=string(uuid4()),
                 asset_server=default_asset_server(),
-                message_queue=BinaryMessage[],
+                message_queue=SerializedMessage[],
                 on_document_load=JSCode[],
                 connection_ready=Channel{Bool}(1),
                 on_connection_ready=init_session,

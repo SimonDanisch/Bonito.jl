@@ -4,7 +4,7 @@
 
 By default, Bonito uses its own WebSocket server to create the connection between Julia and JavaScript. By extending `Bonito.FrontendConnection`, you can create a new type of connection, e.g. using WebRTC to connect Julia and JavaScript.
 
-Your new connection type should support bidirectional messages of binary data. 
+Your new connection type should support bidirectional messages of binary data.
 
 ```@setup 1
 using Bonito
@@ -22,16 +22,17 @@ end
 
 function MyConnection()
     # If you need to do something like start an HTTP server, you can do it here, synchronously.
-    
-    
+
+
     return new(
         true,
         ...
     )
 end
 
-function Base.write(connection::MyConnection, binary)
+function Base.write(connection::MyConnection, msg::SerializedMessage)
     # TODO: send the data to JavaScript
+    binary = Bonito.serialize_binary(msg)
     write(connection.socket, binary)
 end
 
@@ -45,18 +46,18 @@ function setup_connection(session::Session{MyConnection})
     return js"""
     // TODO: create a connection
     create_connection(...).then((conn) => {
-        
+
         // TODO: when your connection receives a message from Julia, relay the message to `Bonito.process_message(msg)`.
         conn.on_msg((msg) => {
             Bonito.process_message(msg)
         });
-        
+
         // TODO: you need to define a JavaScript function that sends a given `binary_data` to Julia. On the Julia side, this should call `Bonito.process_message(connection.parent, binary_data)`.
         const send_to_julia = (binary_data) => conn.send(binary)
-        
+
         // TODO: does your connection use Pako compression on its incoming and outgoing messages?
         const compression_enabled = false
-        
+
         // Register your new connection
         Bonito.on_connection_open(send_to_julia, compression_enabled);
     })
@@ -118,7 +119,7 @@ function my_web_framework_websocket_handler(my_web_framework_request)
     finally
         # TODO: Option 1: Immediately end the session with `close(session)`
         # You will also need to clean up the route/saved session
-        
+
         # TODO: Option 2: Use `soft_close(session)`
         # This may allow for a temporary disconnected client to reconnect
         # You may have to prevent your webframework from trying to close the websocket

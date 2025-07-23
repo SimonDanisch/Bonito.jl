@@ -11,6 +11,16 @@ function serialize_cached(session::Session, data)
     end
 end
 
+SerializedMessage(session::Session, data) = serialize_cached(session, data)
+
+function serialize_binary(sm::SerializedMessage)
+    bytes = MsgPack.pack([sm.cache, sm.data])
+    # if session.compression_enabled
+    #     bytes = transcode(GzipCompressor, bytes)
+    # end
+    return bytes
+end
+
 function BinaryMessage(session::Session, data)
     sm = serialize_cached(session, data)
     bytes = MsgPack.pack([sm.cache, sm.data])

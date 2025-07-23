@@ -70,7 +70,7 @@ function record_values(f, session, widget_ids)
     try
         f()
         yield()
-        messages = BinaryMessage[]
+        messages = SerializedMessage[]
         do_session(session) do s
             append!(messages, s.message_queue)
         end
@@ -172,20 +172,20 @@ function record_states(session::Session, dom::Hyperscript.Node)
     # we need to serialize the message so that all observables etc are registered
     # TODO, this is a bit of a bad design, since we mixed serialization with session resource registration
     # Which makes sense in most parts, but breaks together, e.g. here
-    session_states = Dict{String, BinaryMessage}()
+    session_states = Dict{String, SerializedMessage}()
     do_session(session) do s
-        session_states[s.id] = BinaryMessage(s, fused_messages!(s))
+        session_states[s.id] = SerializedMessage(s, fused_messages!(s))
     end
 
     # Record states for each widget independently
     widget_observables = to_watch.(widgets)
     post_notify_callbacks = post_notify_callback.(post_notify)
-    widget_statemaps = Dict{String, Dict{String, Vector{BinaryMessage}}}()
+    widget_statemaps = Dict{String, Dict{String, Vector{SerializedMessage}}}()
 
     while_disconnected(session) do
         for (widget_idx, (widget, obs)) in enumerate(zip(widgets, widget_observables))
             widget_id = obs.id
-            widget_statemap = Dict{String, Vector{BinaryMessage}}()
+            widget_statemap = Dict{String, Vector{SerializedMessage}}()
             widget_id_set = Set([widget_id])
 
             # Save current states of all widgets
