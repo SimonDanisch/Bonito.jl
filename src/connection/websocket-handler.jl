@@ -5,10 +5,11 @@ using HTTP.WebSockets
 mutable struct WebSocketHandler
     socket::Union{Nothing,WebSocket}
     lock::ReentrantLock
+    queue::Channel{SerializedMessage}
 end
 
-WebSocketHandler(socket) = WebSocketHandler(socket, ReentrantLock())
-WebSocketHandler() = WebSocketHandler(nothing, ReentrantLock())
+WebSocketHandler(socket) = WebSocketHandler(socket, ReentrantLock(), Channel{SerializedMessage}(Inf))
+WebSocketHandler() = WebSocketHandler(nothing, ReentrantLock(), Channel{SerializedMessage}(Inf))
 
 function safe_read(websocket)
     try
@@ -55,7 +56,7 @@ function Base.isopen(ws::WebSocketHandler)
     return true
 end
 
-function Base.write(ws::WebSocketHandler, message::SerializedMessage)
+function _write(ws::WebSocketHandler, message::SerializedMessage)
     if isnothing(ws.socket)
         error("socket closed or not opened yet")
     end
@@ -69,9 +70,14 @@ function Base.write(ws::WebSocketHandler, message::SerializedMessage)
     end
 end
 
+function Base.write(ws::WebSocketHandler, message::SerializedMessage)
+    put!(ws.queue, message)
+end
+
 function Base.close(ws::WebSocketHandler)
     isnothing(ws.socket) && return
     try
+        close(ws.queue)
         socket = ws.socket
         ws.socket = nothing
         isclosed(socket) || close(socket)
@@ -91,6 +97,11 @@ function run_connection_loop(session::Session, handler::WebSocketHandler, websoc
     if session.status == SOFT_CLOSED
         session.status = OPEN
     end
+    task = Threads.@spawn for msg in handler.queue
+        isopen(handler) || break
+        _write(handler, msg)
+    end
+    Base.errormonitor(task)
     while isopen(handler)
         bytes = safe_read(websocket)
         # nothing means the browser closed the connection so we're done
