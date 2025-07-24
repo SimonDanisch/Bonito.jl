@@ -77,13 +77,14 @@ end
 
 struct SessionCache
     session_id::String
-    objects::OrderedDict{String, Any}
+    objects::Dict{String, Any}
     session_type::String
 end
 
 struct SerializedMessage
     cache::SessionCache
     data::Any
+    compression::Bool
 end
 
 struct BinaryMessage

@@ -8,8 +8,8 @@ mutable struct WebSocketHandler
     queue::Channel{SerializedMessage}
 end
 
-WebSocketHandler(socket) = WebSocketHandler(socket, ReentrantLock(), Channel{SerializedMessage}(Inf))
-WebSocketHandler() = WebSocketHandler(nothing, ReentrantLock(), Channel{SerializedMessage}(Inf))
+WebSocketHandler(socket) = WebSocketHandler(socket, ReentrantLock(), Channel{SerializedMessage}(0))
+WebSocketHandler() = WebSocketHandler(nothing, ReentrantLock(), Channel{SerializedMessage}(0))
 
 function safe_read(websocket)
     try

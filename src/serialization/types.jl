@@ -14,7 +14,7 @@ end
 function SessionCache(session::Session, objects::AbstractDict{String,Any})
     return SessionCache(
         session.id,
-        convert(OrderedDict, objects),
+        objects,
         root_session(session) === session ? "root" : "sub",
     )
 end

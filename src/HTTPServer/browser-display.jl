@@ -136,7 +136,7 @@ struct EWindow
 end
 
 function Base.isopen(display::EWindow)
-    return isopen(display.app) && isopen(display.window)
+    return display.app.exists && isopen(display.window)
 end
 
 struct ElectronDisplay <: Base.Multimedia.AbstractDisplay

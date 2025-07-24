@@ -1,10 +1,10 @@
 struct SerializationContext
-    message_cache::OrderedDict{String, Any}
+    message_cache::Dict{String, Any}
     session::Session
 end
 
 function SerializationContext(session::Session)
-    return SerializationContext(OrderedDict{String,Any}(), session)
+    return SerializationContext(Dict{String,Any}(), session)
 end
 
 object_identity(retain::Retain) = object_identity(retain.value)
@@ -95,7 +95,7 @@ If not cached already, we call `create_cached_object` to create a serialized for
 We return nothing if already cached, or the serialized object if not cached.
 We also handle the part of adding things to the message_cache from the serialization context.
 """
-function add_cached!(create_cached_object::Function, session::Session, send_to_js::OrderedDict{String, Any}, @nospecialize(object))::CacheKey
+function add_cached!(create_cached_object::Function, session::Session, send_to_js::Dict{String, Any}, @nospecialize(object))::CacheKey
     root = root_session(session)
     lock(root.deletion_lock) do
         key = object_identity(object)::String

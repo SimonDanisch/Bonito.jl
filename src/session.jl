@@ -516,9 +516,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
             init_session = js"""
                 Bonito.lock_loading(() => {
                     return $(binary).then(binary=> {
-                        console.log("Unpacking session objects for $(session.id)");
                         const observables = Bonito.Protocol.unpack_binary(binary, false)
-                        console.log(observables);
                         observables.forEach(([id, objects, status]) => {
                             Bonito.Sessions.update_session_cache(id, objects, status);
                         });
