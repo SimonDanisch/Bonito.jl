@@ -338,8 +338,12 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
         }catch(e){
             comm.notify({error: e.toString()});
         } finally {
-            // manually free!!
-            Bonito.free_object(comm.id);
+            // manually delete!
+            Bonito.lock_loading(() => {
+                // we need to free the object, since it exists outside of the session lifetime
+                // and we don't want to keep it around forever
+                Bonito.Sessions.force_free_object(comm.id);
+            });
         }
     }
     """
