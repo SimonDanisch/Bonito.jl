@@ -161,8 +161,6 @@ function default_electron_args()
     end
 end
 
-
-
 function EWindow(args...; electron_args=default_electron_args())
     app = Electron().Application(;
         additional_electron_args=electron_args,
@@ -180,19 +178,19 @@ Base.displayable(d::ElectronDisplay, ::MIME{Symbol("text/html")}) = true
 
 Base.isopen(d::ElectronDisplay) = isopen(d.window)
 
-function Base.display(display::ElectronDisplay, app::App)
-    if !isopen(display)
+function Base.display(disp::ElectronDisplay, app::App)
+    if !isopen(disp)
         # Window got closed, fall back to any other display
-        close(display)
+        close(disp)
         return display(app)
     end
-    needs_load = Base.display(display.browserdisplay, app)
-    url = online_url(display.browserdisplay)
+    needs_load = Base.display(disp.browserdisplay, app)
+    url = online_url(disp.browserdisplay)
     if needs_load
-        Electron().load(display.window.window, URI(url))
+        Electron().load(disp.window.window, URI(url))
     end
     wait_for_ready(app)
-    return display
+    return disp
 end
 
 function use_electron_display(; devtools = false, electron_args=default_electron_args())
