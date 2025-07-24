@@ -407,11 +407,11 @@ var l = class extends export_EventEmitter {
     }
 };
 function utf8Count(str) {
-    const strLength = str.length;
-    let byteLength = 0;
-    let pos = 0;
+    var strLength = str.length;
+    var byteLength = 0;
+    var pos = 0;
     while(pos < strLength){
-        let value = str.charCodeAt(pos++);
+        var value = str.charCodeAt(pos++);
         if ((value & 0xffffff80) === 0) {
             byteLength++;
             continue;
@@ -420,7 +420,7 @@ function utf8Count(str) {
         } else {
             if (value >= 0xd800 && value <= 0xdbff) {
                 if (pos < strLength) {
-                    const extra = str.charCodeAt(pos);
+                    var extra = str.charCodeAt(pos);
                     if ((extra & 0xfc00) === 0xdc00) {
                         ++pos;
                         value = ((value & 0x3ff) << 10) + (extra & 0x3ff) + 0x10000;
@@ -437,11 +437,11 @@ function utf8Count(str) {
     return byteLength;
 }
 function utf8EncodeJs(str, output, outputOffset) {
-    const strLength = str.length;
-    let offset = outputOffset;
-    let pos = 0;
+    var strLength = str.length;
+    var offset = outputOffset;
+    var pos = 0;
     while(pos < strLength){
-        let value = str.charCodeAt(pos++);
+        var value = str.charCodeAt(pos++);
         if ((value & 0xffffff80) === 0) {
             output[offset++] = value;
             continue;
@@ -450,7 +450,7 @@ function utf8EncodeJs(str, output, outputOffset) {
         } else {
             if (value >= 0xd800 && value <= 0xdbff) {
                 if (pos < strLength) {
-                    const extra = str.charCodeAt(pos);
+                    var extra = str.charCodeAt(pos);
                     if ((extra & 0xfc00) === 0xdc00) {
                         ++pos;
                         value = ((value & 0x3ff) << 10) + (extra & 0x3ff) + 0x10000;
@@ -469,38 +469,40 @@ function utf8EncodeJs(str, output, outputOffset) {
         output[offset++] = value & 0x3f | 0x80;
     }
 }
-const sharedTextEncoder = new TextEncoder();
+var sharedTextEncoder = new TextEncoder();
+var TEXT_ENCODER_THRESHOLD = 50;
 function utf8EncodeTE(str, output, outputOffset) {
     sharedTextEncoder.encodeInto(str, output.subarray(outputOffset));
 }
 function utf8Encode(str, output, outputOffset) {
-    if (str.length > 50) {
+    if (str.length > TEXT_ENCODER_THRESHOLD) {
         utf8EncodeTE(str, output, outputOffset);
     } else {
         utf8EncodeJs(str, output, outputOffset);
     }
 }
+var CHUNK_SIZE = 4096;
 function utf8DecodeJs(bytes, inputOffset, byteLength) {
-    let offset = inputOffset;
-    const end = offset + byteLength;
-    const units = [];
-    let result = "";
+    var offset = inputOffset;
+    var end = offset + byteLength;
+    var units = [];
+    var result = "";
     while(offset < end){
-        const byte1 = bytes[offset++];
+        var byte1 = bytes[offset++];
         if ((byte1 & 0x80) === 0) {
             units.push(byte1);
         } else if ((byte1 & 0xe0) === 0xc0) {
-            const byte2 = bytes[offset++] & 0x3f;
+            var byte2 = bytes[offset++] & 0x3f;
             units.push((byte1 & 0x1f) << 6 | byte2);
         } else if ((byte1 & 0xf0) === 0xe0) {
-            const byte2 = bytes[offset++] & 0x3f;
-            const byte3 = bytes[offset++] & 0x3f;
+            var byte2 = bytes[offset++] & 0x3f;
+            var byte3 = bytes[offset++] & 0x3f;
             units.push((byte1 & 0x1f) << 12 | byte2 << 6 | byte3);
         } else if ((byte1 & 0xf8) === 0xf0) {
-            const byte2 = bytes[offset++] & 0x3f;
-            const byte3 = bytes[offset++] & 0x3f;
-            const byte4 = bytes[offset++] & 0x3f;
-            let unit = (byte1 & 0x07) << 0x12 | byte2 << 0x0c | byte3 << 0x06 | byte4;
+            var byte2 = bytes[offset++] & 0x3f;
+            var byte3 = bytes[offset++] & 0x3f;
+            var byte4 = bytes[offset++] & 0x3f;
+            var unit = (byte1 & 0x07) << 0x12 | byte2 << 0x0c | byte3 << 0x06 | byte4;
             if (unit > 0xffff) {
                 unit -= 0x10000;
                 units.push(unit >>> 10 & 0x3ff | 0xd800);
@@ -510,101 +512,127 @@ function utf8DecodeJs(bytes, inputOffset, byteLength) {
         } else {
             units.push(byte1);
         }
-        if (units.length >= 4096) {
-            result += String.fromCharCode(...units);
+        if (units.length >= CHUNK_SIZE) {
+            result += String.fromCharCode.apply(String, units);
             units.length = 0;
         }
     }
     if (units.length > 0) {
-        result += String.fromCharCode(...units);
+        result += String.fromCharCode.apply(String, units);
     }
     return result;
 }
-const sharedTextDecoder = new TextDecoder();
+var sharedTextDecoder = new TextDecoder();
+var TEXT_DECODER_THRESHOLD = 200;
 function utf8DecodeTD(bytes, inputOffset, byteLength) {
-    const stringBytes = bytes.subarray(inputOffset, inputOffset + byteLength);
+    var stringBytes = bytes.subarray(inputOffset, inputOffset + byteLength);
     return sharedTextDecoder.decode(stringBytes);
 }
 function utf8Decode(bytes, inputOffset, byteLength) {
-    if (byteLength > 200) {
+    if (byteLength > TEXT_DECODER_THRESHOLD) {
         return utf8DecodeTD(bytes, inputOffset, byteLength);
     } else {
         return utf8DecodeJs(bytes, inputOffset, byteLength);
     }
 }
-class ExtData {
-    constructor(type, data){
+var ExtData = function() {
+    function ExtData(type, data) {
         this.type = type;
         this.data = data;
     }
-}
-class DecodeError extends Error {
-    constructor(message){
-        super(message);
-        const proto = Object.create(DecodeError.prototype);
-        Object.setPrototypeOf(this, proto);
-        Object.defineProperty(this, "name", {
+    return ExtData;
+}();
+var __extends = this && this.__extends || function() {
+    var extendStatics = function(d, b) {
+        extendStatics = Object.setPrototypeOf || ({
+            __proto__: []
+        }) instanceof Array && function(d, b) {
+            d.__proto__ = b;
+        } || function(d, b) {
+            for(var p in b)if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p];
+        };
+        return extendStatics(d, b);
+    };
+    return function(d, b) {
+        if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
+        extendStatics(d, b);
+        function __() {
+            this.constructor = d;
+        }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+}();
+var DecodeError = function(_super) {
+    __extends(DecodeError, _super);
+    function DecodeError(message) {
+        var _this = _super.call(this, message) || this;
+        var proto = Object.create(DecodeError.prototype);
+        Object.setPrototypeOf(_this, proto);
+        Object.defineProperty(_this, "name", {
             configurable: true,
             enumerable: false,
             value: DecodeError.name
         });
+        return _this;
     }
-}
-const UINT32_MAX = 4294967295;
+    return DecodeError;
+}(Error);
+var UINT32_MAX = 4294967295;
 function setUint64(view, offset, value) {
-    const high = value / 4294967296;
-    const low = value;
+    var high = value / 4294967296;
+    var low = value;
     view.setUint32(offset, high);
     view.setUint32(offset + 4, low);
 }
 function setInt64(view, offset, value) {
-    const high = Math.floor(value / 4294967296);
-    const low = value;
+    var high = Math.floor(value / 4294967296);
+    var low = value;
     view.setUint32(offset, high);
     view.setUint32(offset + 4, low);
 }
 function getInt64(view, offset) {
-    const high = view.getInt32(offset);
-    const low = view.getUint32(offset + 4);
+    var high = view.getInt32(offset);
+    var low = view.getUint32(offset + 4);
     return high * 4294967296 + low;
 }
 function getUint64(view, offset) {
-    const high = view.getUint32(offset);
-    const low = view.getUint32(offset + 4);
+    var high = view.getUint32(offset);
+    var low = view.getUint32(offset + 4);
     return high * 4294967296 + low;
 }
-const EXT_TIMESTAMP = -1;
-const TIMESTAMP32_MAX_SEC = 0x100000000 - 1;
-const TIMESTAMP64_MAX_SEC = 0x400000000 - 1;
-function encodeTimeSpecToTimestamp({ sec , nsec  }) {
+var EXT_TIMESTAMP = -1;
+var TIMESTAMP32_MAX_SEC = 0x100000000 - 1;
+var TIMESTAMP64_MAX_SEC = 0x400000000 - 1;
+function encodeTimeSpecToTimestamp(_a) {
+    var sec = _a.sec, nsec = _a.nsec;
     if (sec >= 0 && nsec >= 0 && sec <= TIMESTAMP64_MAX_SEC) {
         if (nsec === 0 && sec <= TIMESTAMP32_MAX_SEC) {
-            const rv = new Uint8Array(4);
-            const view = new DataView(rv.buffer);
+            var rv = new Uint8Array(4);
+            var view = new DataView(rv.buffer);
             view.setUint32(0, sec);
             return rv;
         } else {
-            const secHigh = sec / 0x100000000;
-            const secLow = sec & 0xffffffff;
-            const rv = new Uint8Array(8);
-            const view = new DataView(rv.buffer);
+            var secHigh = sec / 0x100000000;
+            var secLow = sec & 0xffffffff;
+            var rv = new Uint8Array(8);
+            var view = new DataView(rv.buffer);
             view.setUint32(0, nsec << 2 | secHigh & 0x3);
             view.setUint32(4, secLow);
             return rv;
         }
     } else {
-        const rv = new Uint8Array(12);
-        const view = new DataView(rv.buffer);
+        var rv = new Uint8Array(12);
+        var view = new DataView(rv.buffer);
         view.setUint32(0, nsec);
         setInt64(view, 4, sec);
         return rv;
     }
 }
 function encodeDateToTimeSpec(date) {
-    const msec = date.getTime();
-    const sec = Math.floor(msec / 1e3);
-    const nsec = (msec - sec * 1e3) * 1e6;
-    const nsecInSec = Math.floor(nsec / 1e9);
+    var msec = date.getTime();
+    var sec = Math.floor(msec / 1e3);
+    var nsec = (msec - sec * 1e3) * 1e6;
+    var nsecInSec = Math.floor(nsec / 1e9);
     return {
         sec: sec + nsecInSec,
         nsec: nsec - nsecInSec * 1e9
@@ -612,91 +640,93 @@ function encodeDateToTimeSpec(date) {
 }
 function encodeTimestampExtension(object) {
     if (object instanceof Date) {
-        const timeSpec = encodeDateToTimeSpec(object);
+        var timeSpec = encodeDateToTimeSpec(object);
         return encodeTimeSpecToTimestamp(timeSpec);
     } else {
         return null;
     }
 }
 function decodeTimestampToTimeSpec(data) {
-    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+    var view = new DataView(data.buffer, data.byteOffset, data.byteLength);
     switch(data.byteLength){
         case 4:
             {
-                const sec = view.getUint32(0);
+                var sec = view.getUint32(0);
+                var nsec = 0;
                 return {
-                    sec,
-                    nsec: 0
+                    sec: sec,
+                    nsec: nsec
                 };
             }
         case 8:
             {
-                const nsec30AndSecHigh2 = view.getUint32(0);
-                const secLow32 = view.getUint32(4);
-                const sec = (nsec30AndSecHigh2 & 0x3) * 0x100000000 + secLow32;
-                const nsec = nsec30AndSecHigh2 >>> 2;
+                var nsec30AndSecHigh2 = view.getUint32(0);
+                var secLow32 = view.getUint32(4);
+                var sec = (nsec30AndSecHigh2 & 0x3) * 0x100000000 + secLow32;
+                var nsec = nsec30AndSecHigh2 >>> 2;
                 return {
-                    sec,
-                    nsec
+                    sec: sec,
+                    nsec: nsec
                 };
             }
         case 12:
             {
-                const sec = getInt64(view, 4);
-                const nsec = view.getUint32(0);
+                var sec = getInt64(view, 4);
+                var nsec = view.getUint32(0);
                 return {
-                    sec,
-                    nsec
+                    sec: sec,
+                    nsec: nsec
                 };
             }
         default:
-            throw new DecodeError(`Unrecognized data size for timestamp (expected 4, 8, or 12): ${data.length}`);
+            throw new DecodeError("Unrecognized data size for timestamp (expected 4, 8, or 12): ".concat(data.length));
     }
 }
 function decodeTimestampExtension(data) {
-    const timeSpec = decodeTimestampToTimeSpec(data);
+    var timeSpec = decodeTimestampToTimeSpec(data);
     return new Date(timeSpec.sec * 1e3 + timeSpec.nsec / 1e6);
 }
-const timestampExtension = {
+var timestampExtension = {
     type: EXT_TIMESTAMP,
     encode: encodeTimestampExtension,
     decode: decodeTimestampExtension
 };
-class ExtensionCodec {
-    constructor(){
+var ExtensionCodec = function() {
+    function ExtensionCodec() {
         this.builtInEncoders = [];
         this.builtInDecoders = [];
         this.encoders = [];
         this.decoders = [];
         this.register(timestampExtension);
     }
-    register({ type , encode , decode  }) {
+    ExtensionCodec.prototype.register = function(_a) {
+        var type = _a.type, encode = _a.encode, decode = _a.decode;
         if (type >= 0) {
             this.encoders[type] = encode;
             this.decoders[type] = decode;
         } else {
-            const index = -1 - type;
+            var index = 1 + type;
             this.builtInEncoders[index] = encode;
             this.builtInDecoders[index] = decode;
         }
-    }
-    tryToEncode(object, context) {
-        for(let i = 0; i < this.builtInEncoders.length; i++){
-            const encodeExt = this.builtInEncoders[i];
+    };
+    ExtensionCodec.prototype.tryToEncode = function(object, context) {
+        for(var i = 0; i < this.builtInEncoders.length; i++){
+            var encodeExt = this.builtInEncoders[i];
             if (encodeExt != null) {
-                const data = encodeExt(object, context);
+                var data = encodeExt(object, context);
                 if (data != null) {
-                    const type = -1 - i;
+                    var type = -1 - i;
                     return new ExtData(type, data);
                 }
             }
         }
-        for(let i = 0; i < this.encoders.length; i++){
-            const encodeExt = this.encoders[i];
+        for(var i = 0; i < this.encoders.length; i++){
+            var encodeExt = this.encoders[i];
             if (encodeExt != null) {
-                const data = encodeExt(object, context);
+                var data = encodeExt(object, context);
                 if (data != null) {
-                    const type = i;
+                    var type = i;
                     return new ExtData(type, data);
                 }
             }
@@ -705,96 +735,70 @@ class ExtensionCodec {
             return object;
         }
         return null;
-    }
-    decode(data, type, context) {
-        const decodeExt = type < 0 ? this.builtInDecoders[-1 - type] : this.decoders[type];
+    };
+    ExtensionCodec.prototype.decode = function(data, type, context) {
+        var decodeExt = type < 0 ? this.builtInDecoders[-1 - type] : this.decoders[type];
         if (decodeExt) {
             return decodeExt(data, type, context);
         } else {
             return new ExtData(type, data);
         }
-    }
-}
-ExtensionCodec.defaultCodec = new ExtensionCodec();
-function isArrayBufferLike(buffer) {
-    return buffer instanceof ArrayBuffer || typeof SharedArrayBuffer !== "undefined" && buffer instanceof SharedArrayBuffer;
-}
+    };
+    ExtensionCodec.defaultCodec = new ExtensionCodec();
+    return ExtensionCodec;
+}();
 function ensureUint8Array(buffer) {
     if (buffer instanceof Uint8Array) {
         return buffer;
     } else if (ArrayBuffer.isView(buffer)) {
         return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
-    } else if (isArrayBufferLike(buffer)) {
+    } else if (buffer instanceof ArrayBuffer) {
         return new Uint8Array(buffer);
     } else {
         return Uint8Array.from(buffer);
     }
 }
-const DEFAULT_MAX_DEPTH = 100;
-const DEFAULT_INITIAL_BUFFER_SIZE = 2048;
-class Encoder {
-    constructor(options){
-        this.entered = false;
-        this.extensionCodec = options?.extensionCodec ?? ExtensionCodec.defaultCodec;
-        this.context = options?.context;
-        this.useBigInt64 = options?.useBigInt64 ?? false;
-        this.maxDepth = options?.maxDepth ?? DEFAULT_MAX_DEPTH;
-        this.initialBufferSize = options?.initialBufferSize ?? DEFAULT_INITIAL_BUFFER_SIZE;
-        this.sortKeys = options?.sortKeys ?? false;
-        this.forceFloat32 = options?.forceFloat32 ?? false;
-        this.ignoreUndefined = options?.ignoreUndefined ?? false;
-        this.forceIntegerToFloat = options?.forceIntegerToFloat ?? false;
+function createDataView(buffer) {
+    if (buffer instanceof ArrayBuffer) {
+        return new DataView(buffer);
+    }
+    var bufferView = ensureUint8Array(buffer);
+    return new DataView(bufferView.buffer, bufferView.byteOffset, bufferView.byteLength);
+}
+var DEFAULT_MAX_DEPTH = 100;
+var DEFAULT_INITIAL_BUFFER_SIZE = 2048;
+var Encoder = function() {
+    function Encoder(options) {
+        var _a, _b, _c, _d, _e, _f, _g, _h;
+        this.extensionCodec = (_a = options === null || options === void 0 ? void 0 : options.extensionCodec) !== null && _a !== void 0 ? _a : ExtensionCodec.defaultCodec;
+        this.context = options === null || options === void 0 ? void 0 : options.context;
+        this.useBigInt64 = (_b = options === null || options === void 0 ? void 0 : options.useBigInt64) !== null && _b !== void 0 ? _b : false;
+        this.maxDepth = (_c = options === null || options === void 0 ? void 0 : options.maxDepth) !== null && _c !== void 0 ? _c : DEFAULT_MAX_DEPTH;
+        this.initialBufferSize = (_d = options === null || options === void 0 ? void 0 : options.initialBufferSize) !== null && _d !== void 0 ? _d : DEFAULT_INITIAL_BUFFER_SIZE;
+        this.sortKeys = (_e = options === null || options === void 0 ? void 0 : options.sortKeys) !== null && _e !== void 0 ? _e : false;
+        this.forceFloat32 = (_f = options === null || options === void 0 ? void 0 : options.forceFloat32) !== null && _f !== void 0 ? _f : false;
+        this.ignoreUndefined = (_g = options === null || options === void 0 ? void 0 : options.ignoreUndefined) !== null && _g !== void 0 ? _g : false;
+        this.forceIntegerToFloat = (_h = options === null || options === void 0 ? void 0 : options.forceIntegerToFloat) !== null && _h !== void 0 ? _h : false;
         this.pos = 0;
         this.view = new DataView(new ArrayBuffer(this.initialBufferSize));
         this.bytes = new Uint8Array(this.view.buffer);
     }
-    clone() {
-        return new Encoder({
-            extensionCodec: this.extensionCodec,
-            context: this.context,
-            useBigInt64: this.useBigInt64,
-            maxDepth: this.maxDepth,
-            initialBufferSize: this.initialBufferSize,
-            sortKeys: this.sortKeys,
-            forceFloat32: this.forceFloat32,
-            ignoreUndefined: this.ignoreUndefined,
-            forceIntegerToFloat: this.forceIntegerToFloat
-        });
-    }
-    reinitializeState() {
+    Encoder.prototype.reinitializeState = function() {
         this.pos = 0;
-    }
-    encodeSharedRef(object) {
-        if (this.entered) {
-            const instance = this.clone();
-            return instance.encodeSharedRef(object);
-        }
-        try {
-            this.entered = true;
-            this.reinitializeState();
-            this.doEncode(object, 1);
-            return this.bytes.subarray(0, this.pos);
-        } finally{
-            this.entered = false;
-        }
-    }
-    encode(object) {
-        if (this.entered) {
-            const instance = this.clone();
-            return instance.encode(object);
-        }
-        try {
-            this.entered = true;
-            this.reinitializeState();
-            this.doEncode(object, 1);
-            return this.bytes.slice(0, this.pos);
-        } finally{
-            this.entered = false;
-        }
-    }
-    doEncode(object, depth) {
+    };
+    Encoder.prototype.encodeSharedRef = function(object) {
+        this.reinitializeState();
+        this.doEncode(object, 1);
+        return this.bytes.subarray(0, this.pos);
+    };
+    Encoder.prototype.encode = function(object) {
+        this.reinitializeState();
+        this.doEncode(object, 1);
+        return this.bytes.slice(0, this.pos);
+    };
+    Encoder.prototype.doEncode = function(object, depth) {
         if (depth > this.maxDepth) {
-            throw new Error(`Too deep objects in depth ${depth}`);
+            throw new Error("Too deep objects in depth ".concat(depth));
         }
         if (object == null) {
             this.encodeNil();
@@ -813,32 +817,32 @@ class Encoder {
         } else {
             this.encodeObject(object, depth);
         }
-    }
-    ensureBufferSizeToWrite(sizeToWrite) {
-        const requiredSize = this.pos + sizeToWrite;
+    };
+    Encoder.prototype.ensureBufferSizeToWrite = function(sizeToWrite) {
+        var requiredSize = this.pos + sizeToWrite;
         if (this.view.byteLength < requiredSize) {
             this.resizeBuffer(requiredSize * 2);
         }
-    }
-    resizeBuffer(newSize) {
-        const newBuffer = new ArrayBuffer(newSize);
-        const newBytes = new Uint8Array(newBuffer);
-        const newView = new DataView(newBuffer);
+    };
+    Encoder.prototype.resizeBuffer = function(newSize) {
+        var newBuffer = new ArrayBuffer(newSize);
+        var newBytes = new Uint8Array(newBuffer);
+        var newView = new DataView(newBuffer);
         newBytes.set(this.bytes);
         this.view = newView;
         this.bytes = newBytes;
-    }
-    encodeNil() {
+    };
+    Encoder.prototype.encodeNil = function() {
         this.writeU8(0xc0);
-    }
-    encodeBoolean(object) {
+    };
+    Encoder.prototype.encodeBoolean = function(object) {
         if (object === false) {
             this.writeU8(0xc2);
         } else {
             this.writeU8(0xc3);
         }
-    }
-    encodeNumber(object) {
+    };
+    Encoder.prototype.encodeNumber = function(object) {
         if (!this.forceIntegerToFloat && Number.isSafeInteger(object)) {
             if (object >= 0) {
                 if (object < 0x80) {
@@ -880,8 +884,8 @@ class Encoder {
         } else {
             this.encodeNumberAsFloat(object);
         }
-    }
-    encodeNumberAsFloat(object) {
+    };
+    Encoder.prototype.encodeNumberAsFloat = function(object) {
         if (this.forceFloat32) {
             this.writeU8(0xca);
             this.writeF32(object);
@@ -889,8 +893,8 @@ class Encoder {
             this.writeU8(0xcb);
             this.writeF64(object);
         }
-    }
-    encodeBigInt64(object) {
+    };
+    Encoder.prototype.encodeBigInt64 = function(object) {
         if (object >= BigInt(0)) {
             this.writeU8(0xcf);
             this.writeBigUint64(object);
@@ -898,8 +902,8 @@ class Encoder {
             this.writeU8(0xd3);
             this.writeBigInt64(object);
         }
-    }
-    writeStringHeader(byteLength) {
+    };
+    Encoder.prototype.writeStringHeader = function(byteLength) {
         if (byteLength < 32) {
             this.writeU8(0xa0 + byteLength);
         } else if (byteLength < 0x100) {
@@ -912,19 +916,19 @@ class Encoder {
             this.writeU8(0xdb);
             this.writeU32(byteLength);
         } else {
-            throw new Error(`Too long string: ${byteLength} bytes in UTF-8`);
+            throw new Error("Too long string: ".concat(byteLength, " bytes in UTF-8"));
         }
-    }
-    encodeString(object) {
-        const maxHeaderSize = 1 + 4;
-        const byteLength = utf8Count(object);
+    };
+    Encoder.prototype.encodeString = function(object) {
+        var maxHeaderSize = 1 + 4;
+        var byteLength = utf8Count(object);
         this.ensureBufferSizeToWrite(maxHeaderSize + byteLength);
         this.writeStringHeader(byteLength);
         utf8Encode(object, this.bytes, this.pos);
         this.pos += byteLength;
-    }
-    encodeObject(object, depth) {
-        const ext = this.extensionCodec.tryToEncode(object, this.context);
+    };
+    Encoder.prototype.encodeObject = function(object, depth) {
+        var ext = this.extensionCodec.tryToEncode(object, this.context);
         if (ext != null) {
             this.encodeExtension(ext);
         } else if (Array.isArray(object)) {
@@ -934,11 +938,11 @@ class Encoder {
         } else if (typeof object === "object") {
             this.encodeMap(object, depth);
         } else {
-            throw new Error(`Unrecognized object: ${Object.prototype.toString.apply(object)}`);
+            throw new Error("Unrecognized object: ".concat(Object.prototype.toString.apply(object)));
         }
-    }
-    encodeBinary(object) {
-        const size = object.byteLength;
+    };
+    Encoder.prototype.encodeBinary = function(object) {
+        var size = object.byteLength;
         if (size < 0x100) {
             this.writeU8(0xc4);
             this.writeU8(size);
@@ -949,13 +953,13 @@ class Encoder {
             this.writeU8(0xc6);
             this.writeU32(size);
         } else {
-            throw new Error(`Too large binary: ${size}`);
+            throw new Error("Too large binary: ".concat(size));
         }
-        const bytes = ensureUint8Array(object);
+        var bytes = ensureUint8Array(object);
         this.writeU8a(bytes);
-    }
-    encodeArray(object, depth) {
-        const size = object.length;
+    };
+    Encoder.prototype.encodeArray = function(object, depth) {
+        var size = object.length;
         if (size < 16) {
             this.writeU8(0x90 + size);
         } else if (size < 0x10000) {
@@ -965,27 +969,29 @@ class Encoder {
             this.writeU8(0xdd);
             this.writeU32(size);
         } else {
-            throw new Error(`Too large array: ${size}`);
+            throw new Error("Too large array: ".concat(size));
         }
-        for (const item of object){
+        for(var _i = 0, object_1 = object; _i < object_1.length; _i++){
+            var item = object_1[_i];
             this.doEncode(item, depth + 1);
         }
-    }
-    countWithoutUndefined(object, keys) {
-        let count = 0;
-        for (const key of keys){
+    };
+    Encoder.prototype.countWithoutUndefined = function(object, keys) {
+        var count = 0;
+        for(var _i = 0, keys_1 = keys; _i < keys_1.length; _i++){
+            var key = keys_1[_i];
             if (object[key] !== undefined) {
                 count++;
             }
         }
         return count;
-    }
-    encodeMap(object, depth) {
-        const keys = Object.keys(object);
+    };
+    Encoder.prototype.encodeMap = function(object, depth) {
+        var keys = Object.keys(object);
         if (this.sortKeys) {
             keys.sort();
         }
-        const size = this.ignoreUndefined ? this.countWithoutUndefined(object, keys) : keys.length;
+        var size = this.ignoreUndefined ? this.countWithoutUndefined(object, keys) : keys.length;
         if (size < 16) {
             this.writeU8(0x80 + size);
         } else if (size < 0x10000) {
@@ -995,30 +1001,19 @@ class Encoder {
             this.writeU8(0xdf);
             this.writeU32(size);
         } else {
-            throw new Error(`Too large map object: ${size}`);
+            throw new Error("Too large map object: ".concat(size));
         }
-        for (const key of keys){
-            const value = object[key];
+        for(var _i = 0, keys_2 = keys; _i < keys_2.length; _i++){
+            var key = keys_2[_i];
+            var value = object[key];
             if (!(this.ignoreUndefined && value === undefined)) {
                 this.encodeString(key);
                 this.doEncode(value, depth + 1);
             }
         }
-    }
-    encodeExtension(ext) {
-        if (typeof ext.data === "function") {
-            const data = ext.data(this.pos + 6);
-            const size = data.length;
-            if (size >= 0x100000000) {
-                throw new Error(`Too large extension object: ${size}`);
-            }
-            this.writeU8(0xc9);
-            this.writeU32(size);
-            this.writeI8(ext.type);
-            this.writeU8a(data);
-            return;
-        }
-        const size = ext.data.length;
+    };
+    Encoder.prototype.encodeExtension = function(ext) {
+        var size = ext.data.length;
         if (size === 1) {
             this.writeU8(0xd4);
         } else if (size === 2) {
@@ -1039,104 +1034,114 @@ class Encoder {
             this.writeU8(0xc9);
             this.writeU32(size);
         } else {
-            throw new Error(`Too large extension object: ${size}`);
+            throw new Error("Too large extension object: ".concat(size));
         }
         this.writeI8(ext.type);
         this.writeU8a(ext.data);
-    }
-    writeU8(value) {
+    };
+    Encoder.prototype.writeU8 = function(value) {
         this.ensureBufferSizeToWrite(1);
         this.view.setUint8(this.pos, value);
         this.pos++;
-    }
-    writeU8a(values) {
-        const size = values.length;
+    };
+    Encoder.prototype.writeU8a = function(values) {
+        var size = values.length;
         this.ensureBufferSizeToWrite(size);
         this.bytes.set(values, this.pos);
         this.pos += size;
-    }
-    writeI8(value) {
+    };
+    Encoder.prototype.writeI8 = function(value) {
         this.ensureBufferSizeToWrite(1);
         this.view.setInt8(this.pos, value);
         this.pos++;
-    }
-    writeU16(value) {
+    };
+    Encoder.prototype.writeU16 = function(value) {
         this.ensureBufferSizeToWrite(2);
         this.view.setUint16(this.pos, value);
         this.pos += 2;
-    }
-    writeI16(value) {
+    };
+    Encoder.prototype.writeI16 = function(value) {
         this.ensureBufferSizeToWrite(2);
         this.view.setInt16(this.pos, value);
         this.pos += 2;
-    }
-    writeU32(value) {
+    };
+    Encoder.prototype.writeU32 = function(value) {
         this.ensureBufferSizeToWrite(4);
         this.view.setUint32(this.pos, value);
         this.pos += 4;
-    }
-    writeI32(value) {
+    };
+    Encoder.prototype.writeI32 = function(value) {
         this.ensureBufferSizeToWrite(4);
         this.view.setInt32(this.pos, value);
         this.pos += 4;
-    }
-    writeF32(value) {
+    };
+    Encoder.prototype.writeF32 = function(value) {
         this.ensureBufferSizeToWrite(4);
         this.view.setFloat32(this.pos, value);
         this.pos += 4;
-    }
-    writeF64(value) {
+    };
+    Encoder.prototype.writeF64 = function(value) {
         this.ensureBufferSizeToWrite(8);
         this.view.setFloat64(this.pos, value);
         this.pos += 8;
-    }
-    writeU64(value) {
+    };
+    Encoder.prototype.writeU64 = function(value) {
         this.ensureBufferSizeToWrite(8);
         setUint64(this.view, this.pos, value);
         this.pos += 8;
-    }
-    writeI64(value) {
+    };
+    Encoder.prototype.writeI64 = function(value) {
         this.ensureBufferSizeToWrite(8);
         setInt64(this.view, this.pos, value);
         this.pos += 8;
-    }
-    writeBigUint64(value) {
+    };
+    Encoder.prototype.writeBigUint64 = function(value) {
         this.ensureBufferSizeToWrite(8);
         this.view.setBigUint64(this.pos, value);
         this.pos += 8;
-    }
-    writeBigInt64(value) {
+    };
+    Encoder.prototype.writeBigInt64 = function(value) {
         this.ensureBufferSizeToWrite(8);
         this.view.setBigInt64(this.pos, value);
         this.pos += 8;
-    }
-}
+    };
+    return Encoder;
+}();
 function encode(value, options) {
-    const encoder = new Encoder(options);
+    var encoder = new Encoder(options);
     return encoder.encodeSharedRef(value);
 }
 function prettyByte(__byte) {
-    return `${__byte < 0 ? "-" : ""}0x${Math.abs(__byte).toString(16).padStart(2, "0")}`;
+    return "".concat(__byte < 0 ? "-" : "", "0x").concat(Math.abs(__byte).toString(16).padStart(2, "0"));
 }
-class CachedKeyDecoder {
-    constructor(maxKeyLength = 16, maxLengthPerKey = 16){
-        this.hit = 0;
-        this.miss = 0;
+var DEFAULT_MAX_KEY_LENGTH = 16;
+var DEFAULT_MAX_LENGTH_PER_KEY = 16;
+var CachedKeyDecoder = function() {
+    function CachedKeyDecoder(maxKeyLength, maxLengthPerKey) {
+        if (maxKeyLength === void 0) {
+            maxKeyLength = DEFAULT_MAX_KEY_LENGTH;
+        }
+        if (maxLengthPerKey === void 0) {
+            maxLengthPerKey = DEFAULT_MAX_LENGTH_PER_KEY;
+        }
         this.maxKeyLength = maxKeyLength;
         this.maxLengthPerKey = maxLengthPerKey;
+        this.hit = 0;
+        this.miss = 0;
         this.caches = [];
-        for(let i = 0; i < this.maxKeyLength; i++){
+        for(var i = 0; i < this.maxKeyLength; i++){
             this.caches.push([]);
         }
     }
-    canBeCached(byteLength) {
+    CachedKeyDecoder.prototype.canBeCached = function(byteLength) {
         return byteLength > 0 && byteLength <= this.maxKeyLength;
-    }
-    find(bytes, inputOffset, byteLength) {
-        const records = this.caches[byteLength - 1];
-        FIND_CHUNK: for (const record of records){
-            const recordBytes = record.bytes;
-            for(let j = 0; j < byteLength; j++){
+    };
+    CachedKeyDecoder.prototype.find = function(bytes, inputOffset, byteLength) {
+        var records = this.caches[byteLength - 1];
+        FIND_CHUNK: for(var _i = 0, records_1 = records; _i < records_1.length; _i++){
+            var record = records_1[_i];
+            var recordBytes = record.bytes;
+            for(var j = 0; j < byteLength; j++){
                 if (recordBytes[j] !== bytes[inputOffset + j]) {
                     continue FIND_CHUNK;
                 }
@@ -1144,11 +1149,11 @@ class CachedKeyDecoder {
             return record.str;
         }
         return null;
-    }
-    store(bytes, value) {
-        const records = this.caches[bytes.length - 1];
-        const record = {
-            bytes,
+    };
+    CachedKeyDecoder.prototype.store = function(bytes, value) {
+        var records = this.caches[bytes.length - 1];
+        var record = {
+            bytes: bytes,
             str: value
         };
         if (records.length >= this.maxLengthPerKey) {
@@ -1156,99 +1161,215 @@ class CachedKeyDecoder {
         } else {
             records.push(record);
         }
-    }
-    decode(bytes, inputOffset, byteLength) {
-        const cachedValue = this.find(bytes, inputOffset, byteLength);
+    };
+    CachedKeyDecoder.prototype.decode = function(bytes, inputOffset, byteLength) {
+        var cachedValue = this.find(bytes, inputOffset, byteLength);
         if (cachedValue != null) {
             this.hit++;
             return cachedValue;
         }
         this.miss++;
-        const str = utf8DecodeJs(bytes, inputOffset, byteLength);
-        const slicedCopyOfBytes = Uint8Array.prototype.slice.call(bytes, inputOffset, inputOffset + byteLength);
+        var str = utf8DecodeJs(bytes, inputOffset, byteLength);
+        var slicedCopyOfBytes = Uint8Array.prototype.slice.call(bytes, inputOffset, inputOffset + byteLength);
         this.store(slicedCopyOfBytes, str);
         return str;
+    };
+    return CachedKeyDecoder;
+}();
+var __awaiter = this && this.__awaiter || function(thisArg, _arguments, P, generator) {
+    function adopt(value) {
+        return value instanceof P ? value : new P(function(resolve) {
+            resolve(value);
+        });
     }
-}
-const STATE_ARRAY = "array";
-const STATE_MAP_KEY = "map_key";
-const STATE_MAP_VALUE = "map_value";
-const mapKeyConverter = (key)=>{
-    if (typeof key === "string" || typeof key === "number") {
-        return key;
-    }
-    throw new DecodeError("The type of key must be string or number but " + typeof key);
+    return new (P || (P = Promise))(function(resolve, reject) {
+        function fulfilled(value) {
+            try {
+                step(generator.next(value));
+            } catch (e) {
+                reject(e);
+            }
+        }
+        function rejected(value) {
+            try {
+                step(generator["throw"](value));
+            } catch (e) {
+                reject(e);
+            }
+        }
+        function step(result) {
+            result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+        }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
 };
-class StackPool {
-    constructor(){
-        this.stack = [];
-        this.stackHeadPosition = -1;
+var __generator = this && this.__generator || function(thisArg, body) {
+    var _ = {
+        label: 0,
+        sent: function() {
+            if (t[0] & 1) throw t[1];
+            return t[1];
+        },
+        trys: [],
+        ops: []
+    }, f, y, t, g;
+    return g = {
+        next: verb(0),
+        "throw": verb(1),
+        "return": verb(2)
+    }, typeof Symbol === "function" && (g[Symbol.iterator] = function() {
+        return this;
+    }), g;
+    function verb(n) {
+        return function(v) {
+            return step([
+                n,
+                v
+            ]);
+        };
     }
-    get length() {
-        return this.stackHeadPosition + 1;
-    }
-    top() {
-        return this.stack[this.stackHeadPosition];
-    }
-    pushArrayState(size) {
-        const state = this.getUninitializedStateFromPool();
-        state.type = STATE_ARRAY;
-        state.position = 0;
-        state.size = size;
-        state.array = new Array(size);
-    }
-    pushMapState(size) {
-        const state = this.getUninitializedStateFromPool();
-        state.type = STATE_MAP_KEY;
-        state.readCount = 0;
-        state.size = size;
-        state.map = {};
-    }
-    getUninitializedStateFromPool() {
-        this.stackHeadPosition++;
-        if (this.stackHeadPosition === this.stack.length) {
-            const partialState = {
-                type: undefined,
-                size: 0,
-                array: undefined,
-                position: 0,
-                readCount: 0,
-                map: undefined,
-                key: null
-            };
-            this.stack.push(partialState);
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while(g && (g = 0, op[0] && (_ = 0)), _)try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [
+                op[0] & 2,
+                t.value
+            ];
+            switch(op[0]){
+                case 0:
+                case 1:
+                    t = op;
+                    break;
+                case 4:
+                    _.label++;
+                    return {
+                        value: op[1],
+                        done: false
+                    };
+                case 5:
+                    _.label++;
+                    y = op[1];
+                    op = [
+                        0
+                    ];
+                    continue;
+                case 7:
+                    op = _.ops.pop();
+                    _.trys.pop();
+                    continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) {
+                        _ = 0;
+                        continue;
+                    }
+                    if (op[0] === 3 && (!t || op[1] > t[0] && op[1] < t[3])) {
+                        _.label = op[1];
+                        break;
+                    }
+                    if (op[0] === 6 && _.label < t[1]) {
+                        _.label = t[1];
+                        t = op;
+                        break;
+                    }
+                    if (t && _.label < t[2]) {
+                        _.label = t[2];
+                        _.ops.push(op);
+                        break;
+                    }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop();
+                    continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) {
+            op = [
+                6,
+                e
+            ];
+            y = 0;
+        } finally{
+            f = t = 0;
         }
-        return this.stack[this.stackHeadPosition];
+        if (op[0] & 5) throw op[1];
+        return {
+            value: op[0] ? op[1] : void 0,
+            done: true
+        };
     }
-    release(state) {
-        const topStackState = this.stack[this.stackHeadPosition];
-        if (topStackState !== state) {
-            throw new Error("Invalid stack state. Released state is not on top of the stack.");
-        }
-        if (state.type === STATE_ARRAY) {
-            const partialState = state;
-            partialState.size = 0;
-            partialState.array = undefined;
-            partialState.position = 0;
-            partialState.type = undefined;
-        }
-        if (state.type === STATE_MAP_KEY || state.type === STATE_MAP_VALUE) {
-            const partialState = state;
-            partialState.size = 0;
-            partialState.map = undefined;
-            partialState.readCount = 0;
-            partialState.type = undefined;
-        }
-        this.stackHeadPosition--;
+};
+var __asyncValues = this && this.__asyncValues || function(o) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var m = o[Symbol.asyncIterator], i;
+    return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function() {
+        return this;
+    }, i);
+    function verb(n) {
+        i[n] = o[n] && function(v) {
+            return new Promise(function(resolve, reject) {
+                v = o[n](v), settle(resolve, reject, v.done, v.value);
+            });
+        };
     }
-    reset() {
-        this.stack.length = 0;
-        this.stackHeadPosition = -1;
+    function settle(resolve, reject, d, v) {
+        Promise.resolve(v).then(function(v) {
+            resolve({
+                value: v,
+                done: d
+            });
+        }, reject);
     }
-}
-const HEAD_BYTE_REQUIRED = -1;
-const EMPTY_VIEW = new DataView(new ArrayBuffer(0));
-const EMPTY_BYTES = new Uint8Array(EMPTY_VIEW.buffer);
+};
+var __await = this && this.__await || function(v) {
+    return this instanceof __await ? (this.v = v, this) : new __await(v);
+};
+var __asyncGenerator = this && this.__asyncGenerator || function(thisArg, _arguments, generator) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var g = generator.apply(thisArg, _arguments || []), i, q = [];
+    return i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function() {
+        return this;
+    }, i;
+    function verb(n) {
+        if (g[n]) i[n] = function(v) {
+            return new Promise(function(a, b) {
+                q.push([
+                    n,
+                    v,
+                    a,
+                    b
+                ]) > 1 || resume(n, v);
+            });
+        };
+    }
+    function resume(n, v) {
+        try {
+            step(g[n](v));
+        } catch (e) {
+            settle(q[0][3], e);
+        }
+    }
+    function step(r) {
+        r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r);
+    }
+    function fulfill(value) {
+        resume("next", value);
+    }
+    function reject(value) {
+        resume("throw", value);
+    }
+    function settle(f, v) {
+        if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]);
+    }
+};
+var STATE_ARRAY = "array";
+var STATE_MAP_KEY = "map_key";
+var STATE_MAP_VALUE = "map_value";
+var isValidMapKeyType = function(key) {
+    return typeof key === "string" || typeof key === "number";
+};
+var HEAD_BYTE_REQUIRED = -1;
+var EMPTY_VIEW = new DataView(new ArrayBuffer(0));
+var EMPTY_BYTES = new Uint8Array(EMPTY_VIEW.buffer);
 try {
     EMPTY_VIEW.getInt8(0);
 } catch (e) {
@@ -1256,200 +1377,397 @@ try {
         throw new Error("This module is not supported in the current JavaScript engine because DataView does not throw RangeError on out-of-bounds access");
     }
 }
-const MORE_DATA = new RangeError("Insufficient data");
-const sharedCachedKeyDecoder = new CachedKeyDecoder();
-class Decoder {
-    constructor(options){
+var DataViewIndexOutOfBoundsError = RangeError;
+var MORE_DATA = new DataViewIndexOutOfBoundsError("Insufficient data");
+var sharedCachedKeyDecoder = new CachedKeyDecoder();
+var Decoder = function() {
+    function Decoder(options) {
+        var _a, _b, _c, _d, _e, _f, _g;
         this.totalPos = 0;
         this.pos = 0;
         this.view = EMPTY_VIEW;
         this.bytes = EMPTY_BYTES;
         this.headByte = HEAD_BYTE_REQUIRED;
-        this.stack = new StackPool();
-        this.entered = false;
-        this.extensionCodec = options?.extensionCodec ?? ExtensionCodec.defaultCodec;
-        this.context = options?.context;
-        this.useBigInt64 = options?.useBigInt64 ?? false;
-        this.rawStrings = options?.rawStrings ?? false;
-        this.maxStrLength = options?.maxStrLength ?? UINT32_MAX;
-        this.maxBinLength = options?.maxBinLength ?? UINT32_MAX;
-        this.maxArrayLength = options?.maxArrayLength ?? UINT32_MAX;
-        this.maxMapLength = options?.maxMapLength ?? UINT32_MAX;
-        this.maxExtLength = options?.maxExtLength ?? UINT32_MAX;
-        this.keyDecoder = options?.keyDecoder !== undefined ? options.keyDecoder : sharedCachedKeyDecoder;
-        this.mapKeyConverter = options?.mapKeyConverter ?? mapKeyConverter;
+        this.stack = [];
+        this.extensionCodec = (_a = options === null || options === void 0 ? void 0 : options.extensionCodec) !== null && _a !== void 0 ? _a : ExtensionCodec.defaultCodec;
+        this.context = options === null || options === void 0 ? void 0 : options.context;
+        this.useBigInt64 = (_b = options === null || options === void 0 ? void 0 : options.useBigInt64) !== null && _b !== void 0 ? _b : false;
+        this.maxStrLength = (_c = options === null || options === void 0 ? void 0 : options.maxStrLength) !== null && _c !== void 0 ? _c : UINT32_MAX;
+        this.maxBinLength = (_d = options === null || options === void 0 ? void 0 : options.maxBinLength) !== null && _d !== void 0 ? _d : UINT32_MAX;
+        this.maxArrayLength = (_e = options === null || options === void 0 ? void 0 : options.maxArrayLength) !== null && _e !== void 0 ? _e : UINT32_MAX;
+        this.maxMapLength = (_f = options === null || options === void 0 ? void 0 : options.maxMapLength) !== null && _f !== void 0 ? _f : UINT32_MAX;
+        this.maxExtLength = (_g = options === null || options === void 0 ? void 0 : options.maxExtLength) !== null && _g !== void 0 ? _g : UINT32_MAX;
+        this.keyDecoder = (options === null || options === void 0 ? void 0 : options.keyDecoder) !== undefined ? options.keyDecoder : sharedCachedKeyDecoder;
     }
-    clone() {
-        return new Decoder({
-            extensionCodec: this.extensionCodec,
-            context: this.context,
-            useBigInt64: this.useBigInt64,
-            rawStrings: this.rawStrings,
-            maxStrLength: this.maxStrLength,
-            maxBinLength: this.maxBinLength,
-            maxArrayLength: this.maxArrayLength,
-            maxMapLength: this.maxMapLength,
-            maxExtLength: this.maxExtLength,
-            keyDecoder: this.keyDecoder
-        });
-    }
-    reinitializeState() {
+    Decoder.prototype.reinitializeState = function() {
         this.totalPos = 0;
         this.headByte = HEAD_BYTE_REQUIRED;
-        this.stack.reset();
-    }
-    setBuffer(buffer) {
-        const bytes = ensureUint8Array(buffer);
-        this.bytes = bytes;
-        this.view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        this.stack.length = 0;
+    };
+    Decoder.prototype.setBuffer = function(buffer) {
+        this.bytes = ensureUint8Array(buffer);
+        this.view = createDataView(this.bytes);
         this.pos = 0;
-    }
-    appendBuffer(buffer) {
+    };
+    Decoder.prototype.appendBuffer = function(buffer) {
         if (this.headByte === HEAD_BYTE_REQUIRED && !this.hasRemaining(1)) {
             this.setBuffer(buffer);
         } else {
-            const remainingData = this.bytes.subarray(this.pos);
-            const newData = ensureUint8Array(buffer);
-            const newBuffer = new Uint8Array(remainingData.length + newData.length);
+            var remainingData = this.bytes.subarray(this.pos);
+            var newData = ensureUint8Array(buffer);
+            var newBuffer = new Uint8Array(remainingData.length + newData.length);
             newBuffer.set(remainingData);
             newBuffer.set(newData, remainingData.length);
             this.setBuffer(newBuffer);
         }
-    }
-    hasRemaining(size) {
+    };
+    Decoder.prototype.hasRemaining = function(size) {
         return this.view.byteLength - this.pos >= size;
-    }
-    createExtraByteError(posToShow) {
-        const { view , pos  } = this;
-        return new RangeError(`Extra ${view.byteLength - pos} of ${view.byteLength} byte(s) found at buffer[${posToShow}]`);
-    }
-    decode(buffer) {
-        if (this.entered) {
-            const instance = this.clone();
-            return instance.decode(buffer);
+    };
+    Decoder.prototype.createExtraByteError = function(posToShow) {
+        var _a = this, view = _a.view, pos = _a.pos;
+        return new RangeError("Extra ".concat(view.byteLength - pos, " of ").concat(view.byteLength, " byte(s) found at buffer[").concat(posToShow, "]"));
+    };
+    Decoder.prototype.decode = function(buffer) {
+        this.reinitializeState();
+        this.setBuffer(buffer);
+        var object = this.doDecodeSync();
+        if (this.hasRemaining(1)) {
+            throw this.createExtraByteError(this.pos);
         }
-        try {
-            this.entered = true;
-            this.reinitializeState();
-            this.setBuffer(buffer);
-            const object = this.doDecodeSync();
-            if (this.hasRemaining(1)) {
-                throw this.createExtraByteError(this.pos);
+        return object;
+    };
+    Decoder.prototype.decodeMulti = function(buffer) {
+        return __generator(this, function(_a) {
+            switch(_a.label){
+                case 0:
+                    this.reinitializeState();
+                    this.setBuffer(buffer);
+                    _a.label = 1;
+                case 1:
+                    if (!this.hasRemaining(1)) return [
+                        3,
+                        3
+                    ];
+                    return [
+                        4,
+                        this.doDecodeSync()
+                    ];
+                case 2:
+                    _a.sent();
+                    return [
+                        3,
+                        1
+                    ];
+                case 3:
+                    return [
+                        2
+                    ];
             }
-            return object;
-        } finally{
-            this.entered = false;
-        }
-    }
-    *decodeMulti(buffer) {
-        if (this.entered) {
-            const instance = this.clone();
-            yield* instance.decodeMulti(buffer);
-            return;
-        }
-        try {
-            this.entered = true;
-            this.reinitializeState();
-            this.setBuffer(buffer);
-            while(this.hasRemaining(1)){
-                yield this.doDecodeSync();
-            }
-        } finally{
-            this.entered = false;
-        }
-    }
-    async decodeAsync(stream) {
-        if (this.entered) {
-            const instance = this.clone();
-            return instance.decodeAsync(stream);
-        }
-        try {
-            this.entered = true;
-            let decoded = false;
-            let object;
-            for await (const buffer of stream){
-                if (decoded) {
-                    this.entered = false;
-                    throw this.createExtraByteError(this.totalPos);
-                }
-                this.appendBuffer(buffer);
-                try {
-                    object = this.doDecodeSync();
-                    decoded = true;
-                } catch (e) {
-                    if (!(e instanceof RangeError)) {
-                        throw e;
-                    }
-                }
-                this.totalPos += this.pos;
-            }
-            if (decoded) {
-                if (this.hasRemaining(1)) {
-                    throw this.createExtraByteError(this.totalPos);
-                }
-                return object;
-            }
-            const { headByte , pos , totalPos  } = this;
-            throw new RangeError(`Insufficient data in parsing ${prettyByte(headByte)} at ${totalPos} (${pos} in the current buffer)`);
-        } finally{
-            this.entered = false;
-        }
-    }
-    decodeArrayStream(stream) {
-        return this.decodeMultiAsync(stream, true);
-    }
-    decodeStream(stream) {
-        return this.decodeMultiAsync(stream, false);
-    }
-    async *decodeMultiAsync(stream, isArray) {
-        if (this.entered) {
-            const instance = this.clone();
-            yield* instance.decodeMultiAsync(stream, isArray);
-            return;
-        }
-        try {
-            this.entered = true;
-            let isArrayHeaderRequired = isArray;
-            let arrayItemsLeft = -1;
-            for await (const buffer of stream){
-                if (isArray && arrayItemsLeft === 0) {
-                    throw this.createExtraByteError(this.totalPos);
-                }
-                this.appendBuffer(buffer);
-                if (isArrayHeaderRequired) {
-                    arrayItemsLeft = this.readArraySize();
-                    isArrayHeaderRequired = false;
-                    this.complete();
-                }
-                try {
-                    while(true){
-                        yield this.doDecodeSync();
-                        if (--arrayItemsLeft === 0) {
-                            break;
+        });
+    };
+    Decoder.prototype.decodeAsync = function(stream) {
+        var _a, stream_1, stream_1_1;
+        var _b, e_1, _c, _d;
+        return __awaiter(this, void 0, void 0, function() {
+            var decoded, object, buffer, e_1_1, _e, headByte, pos, totalPos;
+            return __generator(this, function(_f) {
+                switch(_f.label){
+                    case 0:
+                        decoded = false;
+                        _f.label = 1;
+                    case 1:
+                        _f.trys.push([
+                            1,
+                            6,
+                            7,
+                            12
+                        ]);
+                        _a = true, stream_1 = __asyncValues(stream);
+                        _f.label = 2;
+                    case 2:
+                        return [
+                            4,
+                            stream_1.next()
+                        ];
+                    case 3:
+                        if (!(stream_1_1 = _f.sent(), _b = stream_1_1.done, !_b)) return [
+                            3,
+                            5
+                        ];
+                        _d = stream_1_1.value;
+                        _a = false;
+                        try {
+                            buffer = _d;
+                            if (decoded) {
+                                throw this.createExtraByteError(this.totalPos);
+                            }
+                            this.appendBuffer(buffer);
+                            try {
+                                object = this.doDecodeSync();
+                                decoded = true;
+                            } catch (e) {
+                                if (!(e instanceof DataViewIndexOutOfBoundsError)) {
+                                    throw e;
+                                }
+                            }
+                            this.totalPos += this.pos;
+                        } finally{
+                            _a = true;
                         }
-                    }
-                } catch (e) {
-                    if (!(e instanceof RangeError)) {
-                        throw e;
-                    }
+                        _f.label = 4;
+                    case 4:
+                        return [
+                            3,
+                            2
+                        ];
+                    case 5:
+                        return [
+                            3,
+                            12
+                        ];
+                    case 6:
+                        e_1_1 = _f.sent();
+                        e_1 = {
+                            error: e_1_1
+                        };
+                        return [
+                            3,
+                            12
+                        ];
+                    case 7:
+                        _f.trys.push([
+                            7,
+                            ,
+                            10,
+                            11
+                        ]);
+                        if (!(!_a && !_b && (_c = stream_1.return))) return [
+                            3,
+                            9
+                        ];
+                        return [
+                            4,
+                            _c.call(stream_1)
+                        ];
+                    case 8:
+                        _f.sent();
+                        _f.label = 9;
+                    case 9:
+                        return [
+                            3,
+                            11
+                        ];
+                    case 10:
+                        if (e_1) throw e_1.error;
+                        return [
+                            7
+                        ];
+                    case 11:
+                        return [
+                            7
+                        ];
+                    case 12:
+                        if (decoded) {
+                            if (this.hasRemaining(1)) {
+                                throw this.createExtraByteError(this.totalPos);
+                            }
+                            return [
+                                2,
+                                object
+                            ];
+                        }
+                        _e = this, headByte = _e.headByte, pos = _e.pos, totalPos = _e.totalPos;
+                        throw new RangeError("Insufficient data in parsing ".concat(prettyByte(headByte), " at ").concat(totalPos, " (").concat(pos, " in the current buffer)"));
                 }
-                this.totalPos += this.pos;
-            }
-        } finally{
-            this.entered = false;
-        }
-    }
-    doDecodeSync() {
+            });
+        });
+    };
+    Decoder.prototype.decodeArrayStream = function(stream) {
+        return this.decodeMultiAsync(stream, true);
+    };
+    Decoder.prototype.decodeStream = function(stream) {
+        return this.decodeMultiAsync(stream, false);
+    };
+    Decoder.prototype.decodeMultiAsync = function(stream, isArray) {
+        return __asyncGenerator(this, arguments, function decodeMultiAsync_1() {
+            var isArrayHeaderRequired, arrayItemsLeft, _a, stream_2, stream_2_1, buffer, e_2, e_3_1;
+            var _b, e_3, _c, _d;
+            return __generator(this, function(_e) {
+                switch(_e.label){
+                    case 0:
+                        isArrayHeaderRequired = isArray;
+                        arrayItemsLeft = -1;
+                        _e.label = 1;
+                    case 1:
+                        _e.trys.push([
+                            1,
+                            15,
+                            16,
+                            21
+                        ]);
+                        _a = true, stream_2 = __asyncValues(stream);
+                        _e.label = 2;
+                    case 2:
+                        return [
+                            4,
+                            __await(stream_2.next())
+                        ];
+                    case 3:
+                        if (!(stream_2_1 = _e.sent(), _b = stream_2_1.done, !_b)) return [
+                            3,
+                            14
+                        ];
+                        _d = stream_2_1.value;
+                        _a = false;
+                        _e.label = 4;
+                    case 4:
+                        _e.trys.push([
+                            4,
+                            ,
+                            12,
+                            13
+                        ]);
+                        buffer = _d;
+                        if (isArray && arrayItemsLeft === 0) {
+                            throw this.createExtraByteError(this.totalPos);
+                        }
+                        this.appendBuffer(buffer);
+                        if (isArrayHeaderRequired) {
+                            arrayItemsLeft = this.readArraySize();
+                            isArrayHeaderRequired = false;
+                            this.complete();
+                        }
+                        _e.label = 5;
+                    case 5:
+                        _e.trys.push([
+                            5,
+                            10,
+                            ,
+                            11
+                        ]);
+                        _e.label = 6;
+                    case 6:
+                        if (!true) return [
+                            3,
+                            9
+                        ];
+                        return [
+                            4,
+                            __await(this.doDecodeSync())
+                        ];
+                    case 7:
+                        return [
+                            4,
+                            _e.sent()
+                        ];
+                    case 8:
+                        _e.sent();
+                        if (--arrayItemsLeft === 0) {
+                            return [
+                                3,
+                                9
+                            ];
+                        }
+                        return [
+                            3,
+                            6
+                        ];
+                    case 9:
+                        return [
+                            3,
+                            11
+                        ];
+                    case 10:
+                        e_2 = _e.sent();
+                        if (!(e_2 instanceof DataViewIndexOutOfBoundsError)) {
+                            throw e_2;
+                        }
+                        return [
+                            3,
+                            11
+                        ];
+                    case 11:
+                        this.totalPos += this.pos;
+                        return [
+                            3,
+                            13
+                        ];
+                    case 12:
+                        _a = true;
+                        return [
+                            7
+                        ];
+                    case 13:
+                        return [
+                            3,
+                            2
+                        ];
+                    case 14:
+                        return [
+                            3,
+                            21
+                        ];
+                    case 15:
+                        e_3_1 = _e.sent();
+                        e_3 = {
+                            error: e_3_1
+                        };
+                        return [
+                            3,
+                            21
+                        ];
+                    case 16:
+                        _e.trys.push([
+                            16,
+                            ,
+                            19,
+                            20
+                        ]);
+                        if (!(!_a && !_b && (_c = stream_2.return))) return [
+                            3,
+                            18
+                        ];
+                        return [
+                            4,
+                            __await(_c.call(stream_2))
+                        ];
+                    case 17:
+                        _e.sent();
+                        _e.label = 18;
+                    case 18:
+                        return [
+                            3,
+                            20
+                        ];
+                    case 19:
+                        if (e_3) throw e_3.error;
+                        return [
+                            7
+                        ];
+                    case 20:
+                        return [
+                            7
+                        ];
+                    case 21:
+                        return [
+                            2
+                        ];
+                }
+            });
+        });
+    };
+    Decoder.prototype.doDecodeSync = function() {
         DECODE: while(true){
-            const headByte = this.readHeadByte();
-            let object;
+            var headByte = this.readHeadByte();
+            var object = void 0;
             if (headByte >= 0xe0) {
                 object = headByte - 0x100;
             } else if (headByte < 0xc0) {
                 if (headByte < 0x80) {
                     object = headByte;
                 } else if (headByte < 0x90) {
-                    const size = headByte - 0x80;
+                    var size = headByte - 0x80;
                     if (size !== 0) {
                         this.pushMapState(size);
                         this.complete();
@@ -1458,7 +1776,7 @@ class Decoder {
                         object = {};
                     }
                 } else if (headByte < 0xa0) {
-                    const size = headByte - 0x90;
+                    var size = headByte - 0x90;
                     if (size !== 0) {
                         this.pushArrayState(size);
                         this.complete();
@@ -1467,8 +1785,8 @@ class Decoder {
                         object = [];
                     }
                 } else {
-                    const byteLength = headByte - 0xa0;
-                    object = this.decodeString(byteLength, 0);
+                    var byteLength = headByte - 0xa0;
+                    object = this.decodeUtf8String(byteLength, 0);
                 }
             } else if (headByte === 0xc0) {
                 object = null;
@@ -1505,16 +1823,16 @@ class Decoder {
                     object = this.readI64();
                 }
             } else if (headByte === 0xd9) {
-                const byteLength = this.lookU8();
-                object = this.decodeString(byteLength, 1);
+                var byteLength = this.lookU8();
+                object = this.decodeUtf8String(byteLength, 1);
             } else if (headByte === 0xda) {
-                const byteLength = this.lookU16();
-                object = this.decodeString(byteLength, 2);
+                var byteLength = this.lookU16();
+                object = this.decodeUtf8String(byteLength, 2);
             } else if (headByte === 0xdb) {
-                const byteLength = this.lookU32();
-                object = this.decodeString(byteLength, 4);
+                var byteLength = this.lookU32();
+                object = this.decodeUtf8String(byteLength, 4);
             } else if (headByte === 0xdc) {
-                const size = this.readU16();
+                var size = this.readU16();
                 if (size !== 0) {
                     this.pushArrayState(size);
                     this.complete();
@@ -1523,7 +1841,7 @@ class Decoder {
                     object = [];
                 }
             } else if (headByte === 0xdd) {
-                const size = this.readU32();
+                var size = this.readU32();
                 if (size !== 0) {
                     this.pushArrayState(size);
                     this.complete();
@@ -1532,7 +1850,7 @@ class Decoder {
                     object = [];
                 }
             } else if (headByte === 0xde) {
-                const size = this.readU16();
+                var size = this.readU16();
                 if (size !== 0) {
                     this.pushMapState(size);
                     this.complete();
@@ -1541,7 +1859,7 @@ class Decoder {
                     object = {};
                 }
             } else if (headByte === 0xdf) {
-                const size = this.readU32();
+                var size = this.readU32();
                 if (size !== 0) {
                     this.pushMapState(size);
                     this.complete();
@@ -1550,13 +1868,13 @@ class Decoder {
                     object = {};
                 }
             } else if (headByte === 0xc4) {
-                const size = this.lookU8();
+                var size = this.lookU8();
                 object = this.decodeBinary(size, 1);
             } else if (headByte === 0xc5) {
-                const size = this.lookU16();
+                var size = this.lookU16();
                 object = this.decodeBinary(size, 2);
             } else if (headByte === 0xc6) {
-                const size = this.lookU32();
+                var size = this.lookU32();
                 object = this.decodeBinary(size, 4);
             } else if (headByte === 0xd4) {
                 object = this.decodeExtension(1, 0);
@@ -1569,43 +1887,46 @@ class Decoder {
             } else if (headByte === 0xd8) {
                 object = this.decodeExtension(16, 0);
             } else if (headByte === 0xc7) {
-                const size = this.lookU8();
+                var size = this.lookU8();
                 object = this.decodeExtension(size, 1);
             } else if (headByte === 0xc8) {
-                const size = this.lookU16();
+                var size = this.lookU16();
                 object = this.decodeExtension(size, 2);
             } else if (headByte === 0xc9) {
-                const size = this.lookU32();
+                var size = this.lookU32();
                 object = this.decodeExtension(size, 4);
             } else {
-                throw new DecodeError(`Unrecognized type byte: ${prettyByte(headByte)}`);
+                throw new DecodeError("Unrecognized type byte: ".concat(prettyByte(headByte)));
             }
             this.complete();
-            const stack = this.stack;
+            var stack = this.stack;
             while(stack.length > 0){
-                const state = stack.top();
+                var state = stack[stack.length - 1];
                 if (state.type === STATE_ARRAY) {
                     state.array[state.position] = object;
                     state.position++;
                     if (state.position === state.size) {
+                        stack.pop();
                         object = state.array;
-                        stack.release(state);
                     } else {
                         continue DECODE;
                     }
                 } else if (state.type === STATE_MAP_KEY) {
+                    if (!isValidMapKeyType(object)) {
+                        throw new DecodeError("The type of key must be string or number but " + typeof object);
+                    }
                     if (object === "__proto__") {
                         throw new DecodeError("The key __proto__ is not allowed");
                     }
-                    state.key = this.mapKeyConverter(object);
+                    state.key = object;
                     state.type = STATE_MAP_VALUE;
                     continue DECODE;
                 } else {
                     state.map[state.key] = object;
                     state.readCount++;
                     if (state.readCount === state.size) {
+                        stack.pop();
                         object = state.map;
-                        stack.release(state);
                     } else {
                         state.key = null;
                         state.type = STATE_MAP_KEY;
@@ -1615,18 +1936,18 @@ class Decoder {
             }
             return object;
         }
-    }
-    readHeadByte() {
+    };
+    Decoder.prototype.readHeadByte = function() {
         if (this.headByte === HEAD_BYTE_REQUIRED) {
             this.headByte = this.readU8();
         }
         return this.headByte;
-    }
-    complete() {
+    };
+    Decoder.prototype.complete = function() {
         this.headByte = HEAD_BYTE_REQUIRED;
-    }
-    readArraySize() {
-        const headByte = this.readHeadByte();
+    };
+    Decoder.prototype.readArraySize = function() {
+        var headByte = this.readHeadByte();
         switch(headByte){
             case 0xdc:
                 return this.readU16();
@@ -1637,147 +1958,412 @@ class Decoder {
                     if (headByte < 0xa0) {
                         return headByte - 0x90;
                     } else {
-                        throw new DecodeError(`Unrecognized array type byte: ${prettyByte(headByte)}`);
+                        throw new DecodeError("Unrecognized array type byte: ".concat(prettyByte(headByte)));
                     }
                 }
         }
-    }
-    pushMapState(size) {
+    };
+    Decoder.prototype.pushMapState = function(size) {
         if (size > this.maxMapLength) {
-            throw new DecodeError(`Max length exceeded: map length (${size}) > maxMapLengthLength (${this.maxMapLength})`);
+            throw new DecodeError("Max length exceeded: map length (".concat(size, ") > maxMapLengthLength (").concat(this.maxMapLength, ")"));
         }
-        this.stack.pushMapState(size);
-    }
-    pushArrayState(size) {
+        this.stack.push({
+            type: STATE_MAP_KEY,
+            size: size,
+            key: null,
+            readCount: 0,
+            map: {}
+        });
+    };
+    Decoder.prototype.pushArrayState = function(size) {
         if (size > this.maxArrayLength) {
-            throw new DecodeError(`Max length exceeded: array length (${size}) > maxArrayLength (${this.maxArrayLength})`);
+            throw new DecodeError("Max length exceeded: array length (".concat(size, ") > maxArrayLength (").concat(this.maxArrayLength, ")"));
         }
-        this.stack.pushArrayState(size);
-    }
-    decodeString(byteLength, headerOffset) {
-        if (!this.rawStrings || this.stateIsMapKey()) {
-            return this.decodeUtf8String(byteLength, headerOffset);
-        }
-        return this.decodeBinary(byteLength, headerOffset);
-    }
-    decodeUtf8String(byteLength, headerOffset) {
+        this.stack.push({
+            type: STATE_ARRAY,
+            size: size,
+            array: new Array(size),
+            position: 0
+        });
+    };
+    Decoder.prototype.decodeUtf8String = function(byteLength, headerOffset) {
+        var _a;
         if (byteLength > this.maxStrLength) {
-            throw new DecodeError(`Max length exceeded: UTF-8 byte length (${byteLength}) > maxStrLength (${this.maxStrLength})`);
+            throw new DecodeError("Max length exceeded: UTF-8 byte length (".concat(byteLength, ") > maxStrLength (").concat(this.maxStrLength, ")"));
         }
         if (this.bytes.byteLength < this.pos + headerOffset + byteLength) {
             throw MORE_DATA;
         }
-        const offset = this.pos + headerOffset;
-        let object;
-        if (this.stateIsMapKey() && this.keyDecoder?.canBeCached(byteLength)) {
+        var offset = this.pos + headerOffset;
+        var object;
+        if (this.stateIsMapKey() && ((_a = this.keyDecoder) === null || _a === void 0 ? void 0 : _a.canBeCached(byteLength))) {
             object = this.keyDecoder.decode(this.bytes, offset, byteLength);
         } else {
             object = utf8Decode(this.bytes, offset, byteLength);
         }
         this.pos += headerOffset + byteLength;
         return object;
-    }
-    stateIsMapKey() {
+    };
+    Decoder.prototype.stateIsMapKey = function() {
         if (this.stack.length > 0) {
-            const state = this.stack.top();
+            var state = this.stack[this.stack.length - 1];
             return state.type === STATE_MAP_KEY;
         }
         return false;
-    }
-    decodeBinary(byteLength, headOffset) {
+    };
+    Decoder.prototype.decodeBinary = function(byteLength, headOffset) {
         if (byteLength > this.maxBinLength) {
-            throw new DecodeError(`Max length exceeded: bin length (${byteLength}) > maxBinLength (${this.maxBinLength})`);
+            throw new DecodeError("Max length exceeded: bin length (".concat(byteLength, ") > maxBinLength (").concat(this.maxBinLength, ")"));
         }
         if (!this.hasRemaining(byteLength + headOffset)) {
             throw MORE_DATA;
         }
-        const offset = this.pos + headOffset;
-        const object = this.bytes.subarray(offset, offset + byteLength);
+        var offset = this.pos + headOffset;
+        var object = this.bytes.subarray(offset, offset + byteLength);
         this.pos += headOffset + byteLength;
         return object;
-    }
-    decodeExtension(size, headOffset) {
+    };
+    Decoder.prototype.decodeExtension = function(size, headOffset) {
         if (size > this.maxExtLength) {
-            throw new DecodeError(`Max length exceeded: ext length (${size}) > maxExtLength (${this.maxExtLength})`);
+            throw new DecodeError("Max length exceeded: ext length (".concat(size, ") > maxExtLength (").concat(this.maxExtLength, ")"));
         }
-        const extType = this.view.getInt8(this.pos + headOffset);
-        const data = this.decodeBinary(size, headOffset + 1);
+        var extType = this.view.getInt8(this.pos + headOffset);
+        var data = this.decodeBinary(size, headOffset + 1);
         return this.extensionCodec.decode(data, extType, this.context);
-    }
-    lookU8() {
+    };
+    Decoder.prototype.lookU8 = function() {
         return this.view.getUint8(this.pos);
-    }
-    lookU16() {
+    };
+    Decoder.prototype.lookU16 = function() {
         return this.view.getUint16(this.pos);
-    }
-    lookU32() {
+    };
+    Decoder.prototype.lookU32 = function() {
         return this.view.getUint32(this.pos);
-    }
-    readU8() {
-        const value = this.view.getUint8(this.pos);
+    };
+    Decoder.prototype.readU8 = function() {
+        var value = this.view.getUint8(this.pos);
         this.pos++;
         return value;
-    }
-    readI8() {
-        const value = this.view.getInt8(this.pos);
+    };
+    Decoder.prototype.readI8 = function() {
+        var value = this.view.getInt8(this.pos);
         this.pos++;
         return value;
-    }
-    readU16() {
-        const value = this.view.getUint16(this.pos);
+    };
+    Decoder.prototype.readU16 = function() {
+        var value = this.view.getUint16(this.pos);
         this.pos += 2;
         return value;
-    }
-    readI16() {
-        const value = this.view.getInt16(this.pos);
+    };
+    Decoder.prototype.readI16 = function() {
+        var value = this.view.getInt16(this.pos);
         this.pos += 2;
         return value;
-    }
-    readU32() {
-        const value = this.view.getUint32(this.pos);
+    };
+    Decoder.prototype.readU32 = function() {
+        var value = this.view.getUint32(this.pos);
         this.pos += 4;
         return value;
-    }
-    readI32() {
-        const value = this.view.getInt32(this.pos);
+    };
+    Decoder.prototype.readI32 = function() {
+        var value = this.view.getInt32(this.pos);
         this.pos += 4;
         return value;
-    }
-    readU64() {
-        const value = getUint64(this.view, this.pos);
+    };
+    Decoder.prototype.readU64 = function() {
+        var value = getUint64(this.view, this.pos);
         this.pos += 8;
         return value;
-    }
-    readI64() {
-        const value = getInt64(this.view, this.pos);
+    };
+    Decoder.prototype.readI64 = function() {
+        var value = getInt64(this.view, this.pos);
         this.pos += 8;
         return value;
-    }
-    readU64AsBigInt() {
-        const value = this.view.getBigUint64(this.pos);
+    };
+    Decoder.prototype.readU64AsBigInt = function() {
+        var value = this.view.getBigUint64(this.pos);
         this.pos += 8;
         return value;
-    }
-    readI64AsBigInt() {
-        const value = this.view.getBigInt64(this.pos);
+    };
+    Decoder.prototype.readI64AsBigInt = function() {
+        var value = this.view.getBigInt64(this.pos);
         this.pos += 8;
         return value;
-    }
-    readF32() {
-        const value = this.view.getFloat32(this.pos);
+    };
+    Decoder.prototype.readF32 = function() {
+        var value = this.view.getFloat32(this.pos);
         this.pos += 4;
         return value;
-    }
-    readF64() {
-        const value = this.view.getFloat64(this.pos);
+    };
+    Decoder.prototype.readF64 = function() {
+        var value = this.view.getFloat64(this.pos);
         this.pos += 8;
         return value;
-    }
-}
+    };
+    return Decoder;
+}();
 function decode(buffer, options) {
-    const decoder = new Decoder(options);
+    var decoder = new Decoder(options);
     return decoder.decode(buffer);
 }
+this && this.__generator || function(thisArg, body) {
+    var _ = {
+        label: 0,
+        sent: function() {
+            if (t[0] & 1) throw t[1];
+            return t[1];
+        },
+        trys: [],
+        ops: []
+    }, f, y, t, g;
+    return g = {
+        next: verb(0),
+        "throw": verb(1),
+        "return": verb(2)
+    }, typeof Symbol === "function" && (g[Symbol.iterator] = function() {
+        return this;
+    }), g;
+    function verb(n) {
+        return function(v) {
+            return step([
+                n,
+                v
+            ]);
+        };
+    }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while(g && (g = 0, op[0] && (_ = 0)), _)try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [
+                op[0] & 2,
+                t.value
+            ];
+            switch(op[0]){
+                case 0:
+                case 1:
+                    t = op;
+                    break;
+                case 4:
+                    _.label++;
+                    return {
+                        value: op[1],
+                        done: false
+                    };
+                case 5:
+                    _.label++;
+                    y = op[1];
+                    op = [
+                        0
+                    ];
+                    continue;
+                case 7:
+                    op = _.ops.pop();
+                    _.trys.pop();
+                    continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) {
+                        _ = 0;
+                        continue;
+                    }
+                    if (op[0] === 3 && (!t || op[1] > t[0] && op[1] < t[3])) {
+                        _.label = op[1];
+                        break;
+                    }
+                    if (op[0] === 6 && _.label < t[1]) {
+                        _.label = t[1];
+                        t = op;
+                        break;
+                    }
+                    if (t && _.label < t[2]) {
+                        _.label = t[2];
+                        _.ops.push(op);
+                        break;
+                    }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop();
+                    continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) {
+            op = [
+                6,
+                e
+            ];
+            y = 0;
+        } finally{
+            f = t = 0;
+        }
+        if (op[0] & 5) throw op[1];
+        return {
+            value: op[0] ? op[1] : void 0,
+            done: true
+        };
+    }
+};
+var __await1 = this && this.__await || function(v) {
+    return this instanceof __await1 ? (this.v = v, this) : new __await1(v);
+};
+this && this.__asyncGenerator || function(thisArg, _arguments, generator) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var g = generator.apply(thisArg, _arguments || []), i, q = [];
+    return i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function() {
+        return this;
+    }, i;
+    function verb(n) {
+        if (g[n]) i[n] = function(v) {
+            return new Promise(function(a, b) {
+                q.push([
+                    n,
+                    v,
+                    a,
+                    b
+                ]) > 1 || resume(n, v);
+            });
+        };
+    }
+    function resume(n, v) {
+        try {
+            step(g[n](v));
+        } catch (e) {
+            settle(q[0][3], e);
+        }
+    }
+    function step(r) {
+        r.value instanceof __await1 ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r);
+    }
+    function fulfill(value) {
+        resume("next", value);
+    }
+    function reject(value) {
+        resume("throw", value);
+    }
+    function settle(f, v) {
+        if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]);
+    }
+};
+this && this.__awaiter || function(thisArg, _arguments, P, generator) {
+    function adopt(value) {
+        return value instanceof P ? value : new P(function(resolve) {
+            resolve(value);
+        });
+    }
+    return new (P || (P = Promise))(function(resolve, reject) {
+        function fulfilled(value) {
+            try {
+                step(generator.next(value));
+            } catch (e) {
+                reject(e);
+            }
+        }
+        function rejected(value) {
+            try {
+                step(generator["throw"](value));
+            } catch (e) {
+                reject(e);
+            }
+        }
+        function step(result) {
+            result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+        }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+this && this.__generator || function(thisArg, body) {
+    var _ = {
+        label: 0,
+        sent: function() {
+            if (t[0] & 1) throw t[1];
+            return t[1];
+        },
+        trys: [],
+        ops: []
+    }, f, y, t, g;
+    return g = {
+        next: verb(0),
+        "throw": verb(1),
+        "return": verb(2)
+    }, typeof Symbol === "function" && (g[Symbol.iterator] = function() {
+        return this;
+    }), g;
+    function verb(n) {
+        return function(v) {
+            return step([
+                n,
+                v
+            ]);
+        };
+    }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while(g && (g = 0, op[0] && (_ = 0)), _)try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [
+                op[0] & 2,
+                t.value
+            ];
+            switch(op[0]){
+                case 0:
+                case 1:
+                    t = op;
+                    break;
+                case 4:
+                    _.label++;
+                    return {
+                        value: op[1],
+                        done: false
+                    };
+                case 5:
+                    _.label++;
+                    y = op[1];
+                    op = [
+                        0
+                    ];
+                    continue;
+                case 7:
+                    op = _.ops.pop();
+                    _.trys.pop();
+                    continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) {
+                        _ = 0;
+                        continue;
+                    }
+                    if (op[0] === 3 && (!t || op[1] > t[0] && op[1] < t[3])) {
+                        _.label = op[1];
+                        break;
+                    }
+                    if (op[0] === 6 && _.label < t[1]) {
+                        _.label = t[1];
+                        t = op;
+                        break;
+                    }
+                    if (t && _.label < t[2]) {
+                        _.label = t[2];
+                        _.ops.push(op);
+                        break;
+                    }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop();
+                    continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) {
+            op = [
+                6,
+                e
+            ];
+            y = 0;
+        } finally{
+            f = t = 0;
+        }
+        if (op[0] & 5) throw op[1];
+        return {
+            value: op[0] ? op[1] : void 0,
+            done: true
+        };
+    }
+};
 function _e(e) {
     let i = e.length;
     for(; --i >= 0;)e[i] = 0;
@@ -3508,7 +4094,6 @@ register_ext(103, (uint_8_array)=>{
 });
 register_ext(104, (uint_8_array)=>{
     const key = unpack(uint_8_array);
-    console.log(`Looking up global object for key: ${key}`);
     return lookup_global_object(key);
 });
 function create_tag(tag, attributes) {
