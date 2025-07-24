@@ -1,7 +1,7 @@
 name = "Bonito"
 uuid = "824d6782-a2ef-11e9-3a09-e5662e0c26f8"
-authors = ["SimonDanisch <sdanisch@gmail.com>"]
 version = "4.0.12"
+authors = ["SimonDanisch <sdanisch@gmail.com>"]
 
 [deps]
 Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
@@ -15,7 +15,6 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Markdown = "d6f4376e-aef5-505a-96c1-9c027394607a"
 MsgPack = "99f44e22-a591-53d1-9472-aa23ef4bd671"
 Observables = "510215fc-4207-5dde-b226-833fc4488ee2"
-OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 RelocatableFolders = "05181044-ff0b-4ac5-8273-598c1e38db00"
 SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
@@ -37,7 +36,6 @@ LinearAlgebra = "1.0, 1.6"
 Markdown = "1.0, 1.6"
 MsgPack = "1.2"
 Observables = "0.5.1"
-OrderedCollections = "1.8.1"
 RelocatableFolders = "0.1, 0.2, 1"
 SHA = "0.7, 1.6, 1.7"
 Sockets = "1.0, 1.6"
