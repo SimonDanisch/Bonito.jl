@@ -179,11 +179,11 @@ Base.displayable(d::ElectronDisplay, ::MIME{Symbol("text/html")}) = true
 Base.isopen(d::ElectronDisplay) = isopen(d.window)
 
 function Base.display(disp::ElectronDisplay, app::App)
-    if !isopen(disp)
-        # Window got closed, fall back to any other display
-        close(disp)
-        return display(app)
-    end
+    # if !isopen(disp)
+    #     # Window got closed, fall back to any other display
+    #     close(disp)
+    #     return display(app)
+    # end
     needs_load = Base.display(disp.browserdisplay, app)
     url = online_url(disp.browserdisplay)
     if needs_load
@@ -195,15 +195,15 @@ end
 
 function use_electron_display(; devtools = false, electron_args=default_electron_args())
     disp = ElectronDisplay(; devtools = devtools, electron_args=electron_args)
-    filter!(Base.Multimedia.displays) do x
-        # remove all other ElectronDisplays
-        if x isa ElectronDisplay
-            close(x)
-            return false
-        else
-            return true
-        end
-    end
+    # filter!(Base.Multimedia.displays) do x
+    #     # remove all other ElectronDisplays
+    #     if x isa ElectronDisplay
+    #         close(x)
+    #         return false
+    #     else
+    #         return true
+    #     end
+    # end
     Base.Multimedia.pushdisplay(disp)
     return disp
 end

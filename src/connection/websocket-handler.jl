@@ -60,13 +60,11 @@ function _write(ws::WebSocketHandler, message::SerializedMessage)
     if isnothing(ws.socket)
         error("socket closed or not opened yet")
     end
-    lock(ws.lock) do
-        binary = serialize_binary(message)
-        written = safe_write(ws.socket, binary)
-        if written != true
-            @debug "couldnt write, closing ws"
-            close(ws)
-        end
+    binary = serialize_binary(message)
+    written = safe_write(ws.socket, binary)
+    if written != true
+        @debug "couldnt write, closing ws"
+        close(ws)
     end
 end
 
@@ -76,16 +74,20 @@ end
 
 function Base.close(ws::WebSocketHandler)
     isnothing(ws.socket) && return
-    try
-        close(ws.queue)
-        socket = ws.socket
-        ws.socket = nothing
-        isclosed(socket) || close(socket)
-    catch e
-        if !WebSockets.isok(e)
-            @warn "error while closing websocket" exception=(e, Base.catch_backtrace())
+    lock(ws.lock) do
+        # wait for all messages to be written before closing
+        try
+            close(ws.queue)
+            socket = ws.socket
+            ws.socket = nothing
+            isclosed(socket) || close(socket)
+        catch e
+            if !WebSockets.isok(e)
+                @warn "error while closing websocket" exception=(e, Base.catch_backtrace())
+            end
         end
     end
+
 end
 
 """
@@ -99,7 +101,10 @@ function run_connection_loop(session::Session, handler::WebSocketHandler, websoc
     end
     task = Threads.@spawn for msg in handler.queue
         isopen(handler) || break
-        _write(handler, msg)
+        lock(handler.lock) do
+            # write the message to the websocket
+            _write(handler, msg)
+        end
     end
     Base.errormonitor(task)
     while isopen(handler)
