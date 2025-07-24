@@ -31,11 +31,14 @@ const {
     lock_loading,
     OBJECT_FREEING_LOCK,
     free_object,
+    force_free_object,
 } = Sessions;
 
 function update_node_attribute(node, attribute, value) {
     if (node) {
-        if (node[attribute] != value) {
+        if (attribute === "class") {
+            node.className = value; // Use className for class attribute
+        } else if (node[attribute] != value) {
             node[attribute] = value;
         }
         return true;
@@ -155,6 +158,8 @@ const Bonito = {
     update_dom_node,
     lookup_global_object,
     update_or_replace,
+    force_free_object,
+
     OBJECT_FREEING_LOCK,
     can_send_to_julia,
     onany,

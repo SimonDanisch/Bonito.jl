@@ -3354,6 +3354,13 @@ function is_still_referenced(id) {
     }
     return false;
 }
+function force_free_object(id) {
+    for(const session_id in SESSIONS){
+        const [tracked_objects, allow_delete] = SESSIONS[session_id];
+        tracked_objects.delete(id);
+    }
+    delete GLOBAL_OBJECT_CACHE[id];
+}
 function free_object(id) {
     const data = GLOBAL_OBJECT_CACHE[id];
     if (data) {
@@ -3692,6 +3699,7 @@ const mod = {
     OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK,
     lock_loading: lock_loading,
     lookup_global_object: lookup_global_object,
+    force_free_object: force_free_object,
     free_object: free_object,
     track_deleted_sessions: track_deleted_sessions,
     done_initializing_session: done_initializing_session,
@@ -3826,10 +3834,12 @@ function onany(observables, f) {
 }
 const { send_error: send_error1 , send_warning: send_warning1 , process_message: process_message1 , on_connection_open: on_connection_open1 , on_connection_close: on_connection_close1 , send_close_session: send_close_session1 , send_pingpong: send_pingpong1 , can_send_to_julia: can_send_to_julia1 , send_to_julia: send_to_julia1  } = mod2;
 const { base64decode: base64decode1 , base64encode: base64encode1 , decode_binary: decode_binary1 , encode_binary: encode_binary1 , decode_base64_message: decode_base64_message1  } = mod1;
-const { init_session: init_session1 , free_session: free_session1 , lookup_global_object: lookup_global_object1 , update_or_replace: update_or_replace1 , lock_loading: lock_loading1 , OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK1 , free_object: free_object1  } = mod;
+const { init_session: init_session1 , free_session: free_session1 , lookup_global_object: lookup_global_object1 , update_or_replace: update_or_replace1 , lock_loading: lock_loading1 , OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK1 , free_object: free_object1 , force_free_object: force_free_object1  } = mod;
 function update_node_attribute(node, attribute, value) {
     if (node) {
-        if (node[attribute] != value) {
+        if (attribute === "class") {
+            node.className = value;
+        } else if (node[attribute] != value) {
             node[attribute] = value;
         }
         return true;
@@ -3914,6 +3924,7 @@ const Bonito = {
     update_dom_node,
     lookup_global_object: lookup_global_object1,
     update_or_replace: update_or_replace1,
+    force_free_object: force_free_object1,
     OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK1,
     can_send_to_julia: can_send_to_julia1,
     onany,

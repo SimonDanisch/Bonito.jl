@@ -49,6 +49,14 @@ function is_still_referenced(id) {
     return false;
 }
 
+export function force_free_object(id) {
+    for (const session_id in SESSIONS) {
+        const [tracked_objects, allow_delete] = SESSIONS[session_id];
+        tracked_objects.delete(id);
+    }
+    delete GLOBAL_OBJECT_CACHE[id];
+}
+
 export function free_object(id) {
     const data = GLOBAL_OBJECT_CACHE[id];
     if (data) {
@@ -270,7 +278,6 @@ export function update_session_cache(session_id, new_jl_objects, session_status)
                 GLOBAL_OBJECT_CACHE[key] = new_object;
             }
         }
-
     }
 
     const session = SESSIONS[session_id];
