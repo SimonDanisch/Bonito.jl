@@ -39,13 +39,18 @@ function get_messages!(session::Session, messages=[])
         push!(messages, SerializedMessage(session, onload))
     end
     empty!(session.on_document_load)
-    empty!(session.message_queue)
+    # empty!(session.message_queue)
     return messages
 end
 
 function fused_messages!(session::Session)
     messages = get_messages!(session)
-    return Dict(:msg_type=>FusedMessage, :payload=>messages)
+    # caches = map(messages) do msg
+    #     cache = deepcopy(msg.cache)
+    #     empty!(cache.objects)
+    #     return cache
+    # end
+    return Dict(:msg_type=>FusedMessage, :caches => [], :payload=>messages)
 end
 
 function init_session(session::Session)
@@ -54,9 +59,9 @@ function init_session(session::Session)
     open!(session.connection)
     @assert isopen(session)
     # We send all queued up messages once the onnection is open
-    if !isempty(session.message_queue) || !isempty(session.on_document_load)
-        send(session, fused_messages!(session))
-    end
+    # if !isempty(session.message_queue) || !isempty(session.on_document_load)
+    #     send(session, fused_messages!(session))
+    # end
     session.status = OPEN
     return
 end
@@ -194,6 +199,7 @@ function Sockets.send(session::Session, message::Dict{Symbol}; large=false)
     collect_message!(message)
     _send(session, SerializedMessage(session, message), large)
 end
+
 
 # Backwards compatibility for connections that dont expect a SerializedMessage but Vector{UInt8}
 Base.write(connection::FrontendConnection, sm::SerializedMessage) = write(connection, serialize_binary(sm))
@@ -422,14 +428,30 @@ function mark_displayed!(session::Session)
     return
 end
 
+function collect_session_objects!(session::Session, objects=Vector{Any}[])
+    ob = []
+    for msg in session.message_queue
+        for (k, v) in msg.cache.objects
+            push!(ob, [k, v])
+        end
+    end
+    typ = root_session(session) === session ? "root" : "sub"
+    push!(objects, [session.id, ob, typ])
+    for (k, child) in session.children
+        collect_session_objects!(child, objects)
+    end
+    return objects
+end
+
 function session_dom(session::Session, dom::Node; init=true, html_document=false, dom_id=isroot(session) ? "root" : "subsession-application-dom")
-    lock(root_session(session).deletion_lock) do
+    root = root_session(session)
+    lock(root.deletion_lock) do
         # the dom we can render may be anything between a
         # dom fragment or a full page with head & body etc.
         # If we have a head & body, we want to append our initialization
         # code and dom nodes to the right places, so we need to extract those
         head, body, dom = find_head_body(dom)
-        session_style = render_stylesheets!(root_session(session), session, session.stylesheets)
+        session_style = render_stylesheets!(root, session, session.stylesheets)
         issubsession = !isroot(session)
 
         # should never request full html_doc for subsession
@@ -489,11 +511,27 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
                 binary = BinaryAsset(session, msgs)
                 init_session = js"""
                     Bonito.lock_loading(() => {
-                        return $(binary).then(msgs=> Bonito.init_session($(session.id), msgs, $(type), $(session.compression_enabled)));
+                        console.log("Initializing session $(session.id) with type $(type)");
+                        return $(binary).then(msgs=> {
+                            Bonito.init_session($(session.id), msgs, $(type), $(session.compression_enabled))
+                        });
                     })
                 """
             end
             pushfirst!(children(body), jsrender(session, init_session))
+            objects = collect_session_objects!(session)
+            binary = BinaryAsset(MsgPack.pack(objects), "application/octet-stream")
+            init_session = js"""
+                Bonito.lock_loading(() => {
+                    return $(binary).then(binary=> {
+                        const observables = Bonito.Protocol.unpack_binary(binary, false)
+                        observables.forEach(([id, objects, status]) => {
+                            Bonito.Sessions.update_session_cache(id, objects, status);
+                        });
+                    });
+                })
+            """
+            pushfirst!(children(head), jsrender(session, init_session))
         end
 
         if !issubsession
@@ -544,7 +582,7 @@ function update_session_dom!(parent::Session, node_uuid::String, app_or_dom; rep
     if isclosed(parent)
         error("Updating the session dom for a closed session")
     end
-    sub, html = render_subsession(parent, app_or_dom; init=false)
+    sub, html = render_subsession(parent, app_or_dom; init=true)
     # We need to manually do the serialization,
     # Since we send it via the parent, but serialization needs to happen
     # for `sub`.
@@ -554,7 +592,7 @@ function update_session_dom!(parent::Session, node_uuid::String, app_or_dom; rep
     session_update = Dict(
         "msg_type" => UpdateSession,
         "session_id" => sub.id,
-        "messages" => fused_messages!(sub),
+        "messages" => Dict(:msg_type=>FusedMessage, :caches => [], :payload=>[]),
         "html" => html,
         "replace" => replace,
         "dom_node_selector" => node_uuid
@@ -573,7 +611,7 @@ function dom_in_js(parent::Session,  new_html, js_func)
     sub, html = render_subsession(parent, new_html; init=true)
     html_obs = Observable(html)
     update_dom = js"""($(js_func))($(html_obs).value)"""
-    message = Bonito.SerializedMessage(
+    message = SerializedMessage(
         sub, Dict(:msg_type => Bonito.EvalJavascript, :payload => update_dom)
     )
     Bonito.send(parent, message)

@@ -250,7 +250,7 @@ export function decode_base64_message(base64_string, compression_enabled) {
 }
 
 export function decode_binary(binary, compression_enabled) {
-    // This should ALWAYS be a `SerializedMessage` from the Julia side
+    // This should ALWAYS be a `BinaryMessage` from the Julia side
     const serialized_message = unpack_binary(binary, compression_enabled);
     const [session_id, message_data] = serialized_message;
     return message_data;

@@ -33,7 +33,6 @@ function (x::JSUpdateObservable)(@nospecialize(value))
     end
 end
 
-
 """
 Update the value of an observable, without sending changes to the JS frontend.
 This will be used to update updates from the forntend.

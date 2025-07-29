@@ -24,6 +24,10 @@ function Base.close(display::BrowserDisplay)
     if !isnothing(display.handler)
         close(display.handler)
     end
+    filter!(Base.Multimedia.displays) do x
+        # remove all BrowserDisplays
+        return x !== display
+    end
     return
 end
 
@@ -131,6 +135,10 @@ struct EWindow
     window
 end
 
+function Base.isopen(display::EWindow)
+    return display.app.exists && isopen(display.window)
+end
+
 struct ElectronDisplay <: Base.Multimedia.AbstractDisplay
     window::EWindow
     browserdisplay::BrowserDisplay
@@ -153,8 +161,6 @@ function default_electron_args()
     end
 end
 
-
-
 function EWindow(args...; electron_args=default_electron_args())
     app = Electron().Application(;
         additional_electron_args=electron_args,
@@ -170,27 +176,34 @@ end
 
 Base.displayable(d::ElectronDisplay, ::MIME{Symbol("text/html")}) = true
 
-function Base.display(display::ElectronDisplay, app::App)
-    needs_load = Base.display(display.browserdisplay, app)
-    url = online_url(display.browserdisplay)
+Base.isopen(d::ElectronDisplay) = isopen(d.window)
+
+function Base.display(disp::ElectronDisplay, app::App)
+    # if !isopen(disp)
+    #     # Window got closed, fall back to any other display
+    #     close(disp)
+    #     return display(app)
+    # end
+    needs_load = Base.display(disp.browserdisplay, app)
+    url = online_url(disp.browserdisplay)
     if needs_load
-        Electron().load(display.window.window, URI(url))
+        Electron().load(disp.window.window, URI(url))
     end
     wait_for_ready(app)
-    return display
+    return disp
 end
 
 function use_electron_display(; devtools = false, electron_args=default_electron_args())
     disp = ElectronDisplay(; devtools = devtools, electron_args=electron_args)
-    filter!(Base.Multimedia.displays) do x
-        # remove all other ElectronDisplays
-        if x isa ElectronDisplay
-            close(x)
-            return false
-        else
-            return true
-        end
-    end
+    # filter!(Base.Multimedia.displays) do x
+    #     # remove all other ElectronDisplays
+    #     if x isa ElectronDisplay
+    #         close(x)
+    #         return false
+    #     else
+    #         return true
+    #     end
+    # end
     Base.Multimedia.pushdisplay(disp)
     return disp
 end
@@ -219,5 +232,9 @@ end
 function Base.close(display::ElectronDisplay)
     close(display.window)
     close(display.browserdisplay)
+    filter!(Base.Multimedia.displays) do x
+        # remove all ElectronDisplays
+        return x !== display
+    end
     return nothing
 end

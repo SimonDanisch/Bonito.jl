@@ -35,7 +35,8 @@ export function lookup_global_object(key) {
             return object;
         }
     }
-    throw new Error(`Key ${key} not found! ${object}`);
+    console.warn(`Key ${key} not found! ${object}`);
+    return null;
 }
 
 function is_still_referenced(id) {
@@ -259,12 +260,9 @@ export function update_session_dom(message) {
 
 export function update_session_cache(session_id, new_jl_objects, session_status) {
     function update_cache(tracked_objects) {
-        for (const key in new_jl_objects) {
-            // always keep track of usage in session
+        for (const [key, value] of new_jl_objects) {
             tracked_objects.add(key);
-            // object can be "tracking-only", which mean we already have it in GLOBAL_OBJECT_CACHE
-            const new_object = new_jl_objects[key];
-            if (new_object == "tracking-only") {
+            if (value == "tracking-only") {
                 if (!(key in GLOBAL_OBJECT_CACHE)) {
                     throw new Error(
                         `Key ${key} only send for tracking, but not already tracked!!!`
@@ -273,10 +271,11 @@ export function update_session_cache(session_id, new_jl_objects, session_status)
             } else {
                 if (key in GLOBAL_OBJECT_CACHE) {
                     console.warn(
-                        `${key} in session cache and send again!! ${new_object}`
+                        `${key} in session cache and send again!! ${value}`
                     );
+                } else {
+                    GLOBAL_OBJECT_CACHE[key] = value;
                 }
-                GLOBAL_OBJECT_CACHE[key] = new_object;
             }
         }
     }
