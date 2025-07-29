@@ -9,14 +9,8 @@ end
 
 object_identity(retain::Retain) = object_identity(retain.value)
 object_identity(obs::Observable) = obs.id
+object_identity(obj::Any) = string(hash(obj))
 
-function serialize_cached(context::SerializationContext, retain::Retain)
-    return add_cached!(context.session, context.message_cache, retain) do
-        obs = retain.value
-        register_observable!(context.session, obs)
-        return Retain(SerializedObservable(obs.id, serialize_cached(context, obs[])))
-    end
-end
 
 function register_observable!(session::Session, obs::Observable)
     # Always register with root session!
@@ -31,6 +25,15 @@ function register_observable!(session::Session, obs::Observable)
         on(updater, obs)
     end
     return
+end
+
+
+function serialize_cached(context::SerializationContext, retain::Retain)
+    return add_cached!(context.session, context.message_cache, retain) do
+        obs = retain.value
+        register_observable!(context.session, obs)
+        return Retain(SerializedObservable(obs.id, serialize_cached(context, obs[])))
+    end
 end
 
 function serialize_cached(context::SerializationContext, obs::Observable)

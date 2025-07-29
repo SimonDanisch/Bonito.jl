@@ -51,7 +51,7 @@ function Base.isopen(ws::WebSocketHandler)
     return true
 end
 
-function Base.write(ws::WebSocketHandler, binary)
+function Base.write(ws::WebSocketHandler, binary::AbstractVector{UInt8})
     if isnothing(ws.socket)
         error("socket closed or not opened yet")
     end

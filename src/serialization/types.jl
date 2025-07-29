@@ -11,24 +11,18 @@ struct Retain
     value::Union{Observable, SerializedObservable} # For now, restricted to observable!
 end
 
-struct SerializedJSCode
-    interpolated_objects::Dict{String, Any}
-    source::String
-    julia_file::String
-end
-
-struct SessionCache
-    session_id::String
-    objects::Dict{String, Any}
-    session_type::String
-end
-
-function SessionCache(session::Session, objects::Dict{String,Any})
+function SessionCache(session::Session, objects::AbstractDict{String,Any})
     return SessionCache(
         session.id,
         objects,
         root_session(session) === session ? "root" : "sub",
     )
+end
+
+struct SerializedJSCode
+    interpolated_objects::Dict{String, Any}
+    source::String
+    julia_file::String
 end
 
 # We want typed arrays to arrive as JS typed arrays
