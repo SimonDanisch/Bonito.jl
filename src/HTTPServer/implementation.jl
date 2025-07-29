@@ -255,7 +255,7 @@ function stream_handler(application::Server, stream::Stream)
     catch e
         # we expect the IOError to happen, if either the page gets closed
         # or we close the server!
-        if !(e isa Base.IOError && (e.msg == "stream is closed or unusable" || e.code == -4081))
+        if !(e isa Base.IOError)
             rethrow(e)
         end
     end

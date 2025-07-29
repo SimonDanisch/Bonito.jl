@@ -40,23 +40,25 @@ function safe_write(websocket, binary)
 end
 
 function Base.isopen(ws::WebSocketHandler)
-    isnothing(ws.socket) && return false
-    # isclosed(ws.socket) returns readclosed && writeclosed
-    # but we consider it closed if either is closed?
-    if ws.socket.readclosed || ws.socket.writeclosed
-        return false
+    lock(ws.lock) do
+        isnothing(ws.socket) && return false
+        # isclosed(ws.socket) returns readclosed && writeclosed
+        # but we consider it closed if either is closed?
+        if ws.socket.readclosed || ws.socket.writeclosed
+            return false
+        end
+        # So, it turns out, ws connection where the tab gets closed
+        # stay open indefinitely, but aren't writable anymore
+        # TODO, figure out how to check for that
+        return true
     end
-    # So, it turns out, ws connection where the tab gets closed
-    # stay open indefinitely, but aren't writable anymore
-    # TODO, figure out how to check for that
-    return true
 end
 
 function Base.write(ws::WebSocketHandler, binary::AbstractVector{UInt8})
-    if isnothing(ws.socket)
-        error("socket closed or not opened yet")
-    end
     lock(ws.lock) do
+        if isnothing(ws.socket)
+            error("socket closed or not opened yet")
+        end
         written = safe_write(ws.socket, binary)
         if written != true
             @debug "couldnt write, closing ws"
@@ -66,13 +68,15 @@ function Base.write(ws::WebSocketHandler, binary::AbstractVector{UInt8})
 end
 
 function Base.close(ws::WebSocketHandler)
-    isnothing(ws.socket) && return
-    try
-        socket = ws.socket
-        ws.socket = nothing
-        isclosed(socket) || close(socket)
-    catch e
-        ws_should_throw(e) && @warn "error while closing websocket" exception=(e, Base.catch_backtrace())
+    lock(ws.lock) do
+        isnothing(ws.socket) && return
+        try
+            socket = ws.socket
+            ws.socket = nothing
+            isclosed(socket) || close(socket)
+        catch e
+            ws_should_throw(e) && @warn "error while closing websocket" exception=e
+        end
     end
 end
 

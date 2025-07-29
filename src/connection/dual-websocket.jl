@@ -64,7 +64,6 @@ function (connection::DualWebsocket)(context, websocket::WebSocket)
     end
 end
 
-
 function setup_connection(session::Session, connection::DualWebsocket)
     connection.session = session
     server = connection.server
