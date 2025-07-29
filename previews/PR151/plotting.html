@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Plotting · JSServe</title><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="index.html">JSServe</a></span></div><form class="docs-search" action="search.html"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li class="is-active"><a class="tocitem" href="plotting.html">Plotting</a></li><li><a class="tocitem" href="widgets.html">Widgets</a></li><li><a class="tocitem" href="deployment.html">Deployment</a></li><li><a class="tocitem" href="assets.html">Assets</a></li><li><a class="tocitem" href="extending.html">Extending</a></li><li><a class="tocitem" href="api.html">Api</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href="plotting.html">Plotting</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="plotting.html">Plotting</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/SimonDanisch/JSServe.jl/blob/master/docs/src/plotting.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Plotting"><a class="docs-heading-anchor" href="#Plotting">Plotting</a><a id="Plotting-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting" title="Permalink"></a></h1><pre><code class="language-julia hljs">using JSServe
+using WGLMakie
+import WGLMakie as W
+import Plots as P
+import PlotlyLight as PL
+import JSServe.TailwindDashboard as D
+Page()
+function makie_plot()
+    N = 60
+    function xy_data(x, y)
+        r = sqrt(x^2 + y^2)
+        r == 0.0 ? 1.0f0 : (sin(r) / r)
+    end
+    l = range(-10, stop=10, length=N)
+    z = Float32[xy_data(x, y) for x in l, y in l]
+    W.surface(
+        -1 .. 1, -1 .. 1, z,
+        colormap=:Spectral,
+        figure=(; resolution=(500, 500))
+    )
+end
+
+# As far as I can tell, PlotlyLight doesn&#39;t handle require inside documenter correctly
+# So we just use JSServe to do it correctly via `Asset`:
+const Plotly = JSServe.Asset(PL.cdn_url)
+function JSServe.jsrender(session::Session, plot::PL.Plot)
+    # Pretty much copied from the PlotlyLight source to create the JS + div for creating the plot:
+    div = DOM.div(DOM.div(id=plot.id, style=&quot;width: 100%; height: 100%&quot;), id=&quot;parent-of-$(plot.id)&quot;; style=&quot;width: 400px; height: 300px&quot;)
+    src = js&quot;&quot;&quot;
+        Plotly.newPlot($(plot.id), $(plot.data), $(plot.layout), $(plot.config))
+    &quot;&quot;&quot;
+    return JSServe.jsrender(session, DOM.div(Plotly, div, src))
+end
+
+App() do
+    p = PL.Plot(x=1:20, y=cumsum(randn(20)), type=&quot;scatter&quot;, mode=&quot;lines+markers&quot;)
+    width = &quot;400px&quot;
+    return D.FlexRow(
+        D.Card(P.scatter(1:4; windowsize=(200, 200)); width),
+        D.Card(p; width),
+        D.Card(makie_plot()); width)
+end</code></pre><div data-jscall-id="61">
+  <div data-jscall-id="35">
+    <script data-jscall-id="36" src="JSServe.bundled.js" type="module"></script>
+    <script data-jscall-id="38" type="module">    JSServe.fetch_binary('11959487071821503229.bin').then(msgs=> JSServe.init_session('277890b5-d6b0-47fa-a425-18e220e956ba', msgs, 'root'));
+</script>
+    <script data-jscall-id="37" type="module">    JSServe.on_connection_open((w)=> null, false)
+</script>
+    <div id="277890b5-d6b0-47fa-a425-18e220e956ba" data-jscall-id="JSServer-application-dom">
+      <span data-jscall-id="33"></span>
+    </div>
+  </div>
+  <div data-jscall-id="58">
+    <script data-jscall-id="60" type="module">    JSServe.fetch_binary('9489321907829024877.bin').then(msgs=> JSServe.init_session('2f9c0077-0bb1-4fa4-ad43-36e3a6fdcf49', msgs, 'sub'));
+</script>
+    <div id="2f9c0077-0bb1-4fa4-ad43-36e3a6fdcf49" data-jscall-id="JSServer-application-dom">
+      <div class="m-2 flex flex-row " data-jscall-id="42" width="400px">
+        <link href="tailwind.min.css" data-jscall-id="43" rel="stylesheet" type="text/css" />
+        <div class="rounded-md p-2 m-2 shadow " style="width: 400px; height: fit-content" data-jscall-id="39">
+          <link href="tailwind.min.css" data-jscall-id="44" rel="stylesheet" type="text/css" /><?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="200" height="200" viewBox="0 0 800 800">
+<defs>
+  <clipPath id="clip300">
+    <rect x="0" y="0" width="800" height="800"/>
+  </clipPath>
+</defs>
+<path clip-path="url(#clip300)" d="M0 800 L800 800 L800 0 L0 0  Z" fill="#ffffff" fill-rule="evenodd" fill-opacity="1"/>
+<defs>
+  <clipPath id="clip301">
+    <rect x="160" y="80" width="561" height="561"/>
+  </clipPath>
+</defs>
+<path clip-path="url(#clip300)" d="M70.9921 729.008 L752.756 729.008 L752.756 47.2441 L70.9921 47.2441  Z" fill="#ffffff" fill-rule="evenodd" fill-opacity="1"/>
+<defs>
+  <clipPath id="clip302">
+    <rect x="70" y="47" width="683" height="683"/>
+  </clipPath>
+</defs>
+<polyline clip-path="url(#clip302)" style="stroke:#000000; stroke-linecap:round; stroke-linejoin:round; stroke-width:2; stroke-opacity:0.1; fill:none" points="90.2873,729.008 90.2873,47.2441 "/>
+<polyline clip-path="url(#clip302)" style="stroke:#000000; stroke-linecap:round; stroke-linejoin:round; stroke-width:2; stroke-opacity:0.1; fill:none" points="304.678,729.008 304.678,47.2441 "/>
+<polyline clip-path="url(#clip302)" style="stroke:#000000; stroke-linecap:round; stroke-linejoin:round; stroke-width:2; stroke-opacity:0.1; fill:none" points="519.07,729.008 519.07,47.2441 "/>
+<polyline clip-path="url(#clip302)" style="stroke:#000000; stroke-linecap:round; stroke-linejoin:round; stroke-width:2; stroke-opacity:0.1; fill:none" points="733.461,729.008 733.461,47.2441 "/>
+<polyline clip-path="url(#clip300)" style="stroke:#000000; stroke-linecap:round; stroke-linejoin:round; stroke-width:4; stroke-opacity:1; fill:none" points="70.9921,729.008 752.756,729.008 "/>
+<polyline clip-path="url(#clip300)" style="stroke:#000000; stroke-linecap:round; stroke-linejoin:round; stroke-width:4; stroke-opacity:1; fill:none" points="90.2873,729.008 90.2873,710.11 "/>
+<polyline clip-path="url(#clip300)" style="stroke:#000000; stroke-linecap:round; stroke-linejoin:round; stroke-width:4; stroke-opacity:1; fill:none" points="304.678,729.008 304.678,710.11 "/>
+<polyline clip-path="url(#clip300)" style="stroke:#000000; stroke-linecap:round; stroke-linejoin:round; stroke-width:4; stroke-opacity:1; fill:none" points="519.07,729.008 519.07,710.11 "/>
+<polyline clip-path="url(#clip300)" style="stroke:#000000; stroke-linecap:round; stroke-linejoin:round; stroke-width:4; stroke-opacity:1; fill:none" points="733.461,729.008 733.461,710.11 "/>
+<path clip-path="url(#clip300)" d="M80.6693 774.673 L88.3082 774.673 L88.3082 748.307 L79.998 749.974 L79.998 745.715 L88.2619 744.048 L92.9378 744.048 L92.9378 774.673 L100.577 774.673 L100.577 778.608 L80.6693 778.608 L80.6693 774.673 Z" fill="#000000" fill-rule="evenodd" fill-opacity="1" /><path clip-path="url(#clip300)" d="M299.331 774.673 L315.651 774.673 L315.651 778.608 L293.706 778.608 L293.706 774.673 Q296.368 771.918 300.952 767.288 Q305.558 762.636 306.739 761.293 Q308.984 758.77 309.864 757.034 Q310.766 755.275 310.766 753.585 Q310.766 750.83 308.822 749.094 Q306.901 747.358 303.799 747.358 Q301.6 747.358 299.146 748.122 Q296.716 748.886 293.938 750.437 L293.938 745.715 Q296.762 744.58 299.216 744.002 Q301.669 743.423 303.706 743.423 Q309.077 743.423 312.271 746.108 Q315.465 748.793 315.465 753.284 Q315.465 755.414 314.655 757.335 Q313.868 759.233 311.762 761.826 Q311.183 762.497 308.081 765.714 Q304.979 768.909 299.331 774.673 Z" fill="#000000" fill-rule="evenodd" fill-opacity="1" /><path clip-path="url(#clip300)" d="M523.317 759.974 Q526.674 760.691 528.549 762.96 Q530.447 765.228 530.447 768.562 Q530.447 773.677 526.928 776.478 Q523.41 779.279 516.928 779.279 Q514.752 779.279 512.438 778.839 Q510.146 778.423 507.692 777.566 L507.692 773.052 Q509.637 774.187 511.952 774.765 Q514.266 775.344 516.789 775.344 Q521.188 775.344 523.479 773.608 Q525.794 771.872 525.794 768.562 Q525.794 765.506 523.641 763.793 Q521.512 762.057 517.692 762.057 L513.665 762.057 L513.665 758.214 L517.877 758.214 Q521.327 758.214 523.155 756.849 Q524.984 755.46 524.984 752.867 Q524.984 750.205 523.086 748.793 Q521.211 747.358 517.692 747.358 Q515.771 747.358 513.572 747.775 Q511.373 748.191 508.734 749.071 L508.734 744.904 Q511.396 744.164 513.711 743.793 Q516.049 743.423 518.109 743.423 Q523.433 743.423 526.535 745.853 Q529.637 748.261 529.637 752.381 Q529.637 755.252 527.993 757.242 Q526.35 759.21 523.317 759.974 Z" fill="#000000" fill-rule="evenodd" fill-opacity="1" /><path clip-path="url(#clip300)" d="M736.47 748.122 L724.664 766.571 L736.47 766.571 L736.47 748.122 M735.243 744.048 L741.123 744.048 L741.123 766.571 L746.053 766.571 L746.053 770.46 L741.123 770.46 L741.123 778.608 L736.47 778.608 L736.47 770.46 L720.868 770.46 L720.868 765.946 L735.243 744.048 Z" fill="#000000" fill-rule="evenodd" fill-opacity="1" /><polyline clip-path="url(#clip302)" style="stroke:#000000; stroke-linecap:round; stroke-linejoin:round; stroke-width:2; stroke-opacity:0.1; fill:none" points="70.9921,709.713 752.756,709.713 "/>
+<polyline clip-path="url(#clip302)" style="stroke:#000000; stroke-linecap:round; stroke-linejoin:round; stroke-width:2; stroke-opacity:0.1; fill:none" points="70.9921,495.322 752.756,495.322 "/>
+<polyline clip-path="url(#clip302)" style="stroke:#000000; stroke-linecap:round; stroke-linejoin:round; stroke-width:2; stroke-opacity:0.1; fill:none" points="70.9921,280.93 752.756,280.93 "/>
+<polyline clip-path="url(#clip302)" style="stroke:#000000; stroke-linecap:round; stroke-linejoin:round; stroke-width:2; stroke-opacity:0.1; fill:none" points="70.9921,66.5393 752.756,66.5393 "/>
+<polyline clip-path="url(#clip300)" style="stroke:#000000; stroke-linecap:round; stroke-linejoin:round; stroke-width:4; stroke-opacity:1; fill:none" points="70.9921,729.008 70.9921,47.2441 "/>
+<polyline clip-path="url(#clip300)" style="stroke:#000000; stroke-linecap:round; stroke-linejoin:round; stroke-width:4; stroke-opacity:1; fill:none" points="70.9921,709.713 89.8898,709.713 "/>
+<polyline clip-path="url(#clip300)" style="stroke:#000000; stroke-linecap:round; stroke-linejoin:round; stroke-width:4; stroke-opacity:1; fill:none" points="70.9921,495.322 89.8898,495.322 "/>
+<polyline clip-path="url(#clip300)" style="stroke:#000000; stroke-linecap:round; stroke-linejoin:round; stroke-width:4; stroke-opacity:1; fill:none" points="70.9921,280.93 89.8898,280.93 "/>
+<polyline clip-path="url(#clip300)" style="stroke:#000000; stroke-linecap:round; stroke-linejoin:round; stroke-width:4; stroke-opacity:1; fill:none" points="70.9921,66.5393 89.8898,66.5393 "/>
+<path clip-path="url(#clip300)" d="M39.0848 723.058 L46.7237 723.058 L46.7237 696.692 L38.4135 698.359 L38.4135 694.099 L46.6774 692.433 L51.3533 692.433 L51.3533 723.058 L58.9921 723.058 L58.9921 726.993 L39.0848 726.993 L39.0848 723.058 Z" fill="#000000" fill-rule="evenodd" fill-opacity="1" /><path clip-path="url(#clip300)" d="M42.6728 508.666 L58.9921 508.666 L58.9921 512.602 L37.0478 512.602 L37.0478 508.666 Q39.7098 505.912 44.2931 501.282 Q48.8996 496.629 50.0801 495.287 Q52.3255 492.764 53.2051 491.028 Q54.1079 489.268 54.1079 487.579 Q54.1079 484.824 52.1635 483.088 Q50.2422 481.352 47.1403 481.352 Q44.9413 481.352 42.4876 482.116 Q40.057 482.879 37.2793 484.43 L37.2793 479.708 Q40.1033 478.574 42.557 477.995 Q45.0107 477.417 47.0477 477.417 Q52.4181 477.417 55.6125 480.102 Q58.8069 482.787 58.8069 487.278 Q58.8069 489.407 57.9968 491.329 Q57.2097 493.227 55.1033 495.819 Q54.5246 496.491 51.4227 499.708 Q48.3209 502.903 42.6728 508.666 Z" fill="#000000" fill-rule="evenodd" fill-opacity="1" /><path clip-path="url(#clip300)" d="M51.8625 279.576 Q55.219 280.294 57.094 282.562 Q58.9921 284.831 58.9921 288.164 Q58.9921 293.28 55.4736 296.081 Q51.9551 298.882 45.4737 298.882 Q43.2978 298.882 40.983 298.442 Q38.6913 298.025 36.2376 297.169 L36.2376 292.655 Q38.1821 293.789 40.4969 294.368 Q42.8117 294.947 45.3348 294.947 Q49.7329 294.947 52.0246 293.21 Q54.3394 291.474 54.3394 288.164 Q54.3394 285.109 52.1866 283.396 Q50.057 281.66 46.2376 281.66 L42.2098 281.66 L42.2098 277.817 L46.4227 277.817 Q49.8718 277.817 51.7005 276.451 Q53.5292 275.062 53.5292 272.47 Q53.5292 269.808 51.6311 268.396 Q49.7561 266.961 46.2376 266.961 Q44.3163 266.961 42.1172 267.377 Q39.9182 267.794 37.2793 268.674 L37.2793 264.507 Q39.9413 263.766 42.2561 263.396 Q44.5941 263.025 46.6542 263.025 Q51.9783 263.025 55.0801 265.456 Q58.1819 267.863 58.1819 271.984 Q58.1819 274.854 56.5384 276.845 Q54.8949 278.812 51.8625 279.576 Z" fill="#000000" fill-rule="evenodd" fill-opacity="1" /><path clip-path="url(#clip300)" d="M49.4088 53.3333 L37.6034 71.7823 L49.4088 71.7823 L49.4088 53.3333 M48.182 49.2593 L54.0616 49.2593 L54.0616 71.7823 L58.9921 71.7823 L58.9921 75.6712 L54.0616 75.6712 L54.0616 83.8193 L49.4088 83.8193 L49.4088 75.6712 L33.8071 75.6712 L33.8071 71.1573 L48.182 49.2593 Z" fill="#000000" fill-rule="evenodd" fill-opacity="1" /><circle clip-path="url(#clip302)" cx="90.2873" cy="709.713" r="14.4" fill="#009af9" fill-rule="evenodd" fill-opacity="1" stroke="#000000" stroke-opacity="1" stroke-width="1.6"/>
+<circle clip-path="url(#clip302)" cx="304.678" cy="495.322" r="14.4" fill="#009af9" fill-rule="evenodd" fill-opacity="1" stroke="#000000" stroke-opacity="1" stroke-width="1.6"/>
+<circle clip-path="url(#clip302)" cx="519.07" cy="280.93" r="14.4" fill="#009af9" fill-rule="evenodd" fill-opacity="1" stroke="#000000" stroke-opacity="1" stroke-width="1.6"/>
+<circle clip-path="url(#clip302)" cx="733.461" cy="66.5393" r="14.4" fill="#009af9" fill-rule="evenodd" fill-opacity="1" stroke="#000000" stroke-opacity="1" stroke-width="1.6"/>
+<path clip-path="url(#clip300)" d="M93.7176 173.65 L214.324 173.65 L214.324 69.9696 L93.7176 69.9696  Z" fill="#ffffff" fill-rule="evenodd" fill-opacity="1"/>
+<polyline clip-path="url(#clip300)" style="stroke:#000000; stroke-linecap:round; stroke-linejoin:round; stroke-width:4; stroke-opacity:1; fill:none" points="93.7176,173.65 214.324,173.65 214.324,69.9696 93.7176,69.9696 93.7176,173.65 "/>
+<circle clip-path="url(#clip300)" cx="124.018" cy="121.81" r="23.04" fill="#009af9" fill-rule="evenodd" fill-opacity="1" stroke="#000000" stroke-opacity="1" stroke-width="2.56"/>
+<path clip-path="url(#clip300)" d="M168.161 141.497 Q166.356 146.127 164.643 147.539 Q162.93 148.951 160.06 148.951 L156.657 148.951 L156.657 145.386 L159.157 145.386 Q160.916 145.386 161.888 144.552 Q162.86 143.719 164.041 140.617 L164.805 138.673 L154.319 113.164 L158.833 113.164 L166.934 133.441 L175.036 113.164 L179.55 113.164 L168.161 141.497 Z" fill="#000000" fill-rule="evenodd" fill-opacity="1" /><path clip-path="url(#clip300)" d="M186.842 135.154 L194.481 135.154 L194.481 108.789 L186.17 110.455 L186.17 106.196 L194.434 104.53 L199.11 104.53 L199.11 135.154 L206.749 135.154 L206.749 139.09 L186.842 139.09 L186.842 135.154 Z" fill="#000000" fill-rule="evenodd" fill-opacity="1" /></svg>
+
+        </div>
+        <div class="rounded-md p-2 m-2 shadow " style="width: 400px; height: fit-content" data-jscall-id="40">
+          <link href="tailwind.min.css" data-jscall-id="45" rel="stylesheet" type="text/css" />
+          <div data-jscall-id="48">
+            <div data-jscall-id="52">
+              <script data-jscall-id="49">    window.__define = window.define;
+    window.__require = window.require;
+    window.define = undefined;
+    window.require = undefined;
+</script>
+              <script data-jscall-id="51" src="https://cdn.plot.ly/plotly-2.16.1.min.js"></script>
+              <script data-jscall-id="50">    window.define = window.__define;
+    window.require = window.__require;
+    window.__define = undefined;
+    window.__require = undefined;
+</script>
+            </div>
+            <div id="parent-of-ccpc9CMPeq" data-jscall-id="47" style="width: 400px; height: 300px">
+              <div id="ccpc9CMPeq" data-jscall-id="46" style="width: 100%; height: 100%"></div>
+            </div>
+            <script data-jscall-id="53" type="module">    // JSCode from plotting.md:32
+    JSServe.fetch_binary('8685454960929894321.bin').then(bin_messages=>{
+        const objects = JSServe.decode_binary(bin_messages, false);
+        const __lookup_interpolated = (id) => objects[id]
+            Plotly.newPlot('ccpc9CMPeq', __lookup_interpolated('2089883456256180351'), __lookup_interpolated('1669411154543485985'), __lookup_interpolated('8327618509071150334'))
+
+    }))
+</script>
+          </div>
+        </div>
+        <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content" data-jscall-id="41">
+          <link href="tailwind.min.css" data-jscall-id="54" rel="stylesheet" type="text/css" />
+          <div data-jscall-id="56">
+            <canvas data-jscall-id="55" tabindex="0"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="index.html">« Home</a><a class="docs-footer-nextpage" href="widgets.html">Widgets »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Thursday 9 February 2023 16:21">Thursday 9 February 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
