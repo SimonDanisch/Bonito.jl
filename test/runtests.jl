@@ -2,7 +2,6 @@
 include("test-bundles.jl")
 using Bonito
 # ENV["JULIA_DEBUG"] = Bonito
-using Deno_jll
 using Hyperscript, Markdown, Test, RelocatableFolders
 using Observables
 using Bonito: Session, evaljs, linkjs, div

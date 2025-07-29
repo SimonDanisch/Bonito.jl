@@ -3556,7 +3556,8 @@ function send_done_loading(session, exception) {
 }
 function done_initializing_session(session_id) {
     if (!(session_id in SESSIONS)) {
-        throw new Error("Session ");
+        console.warn(`Session ${session_id} got deleted before done initializing!`);
+        return;
     }
     send_done_loading(session_id, null);
     if (SESSIONS[session_id][1] != "root") {

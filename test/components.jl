@@ -20,23 +20,23 @@ end
     end
 end
 
-# @testset "Class with observable" begin
-#     app = App() do
-#         class = Observable("no-test")
-#         jss = js"""
-#             $(class).notify("test");
-#         """
-#         DOM.div(DOM.div("HEY HEY"; class=class), jss)
-#     end
-#     display(edisplay, app)
-#     Bonito.wait_for_ready(app)
-#     success = Bonito.wait_for() do
-#         class = evaljs_value(app.session[], js"""(()=>{
-#             const b = document.querySelector(".test");
-#             if (!b) return "no class";
-#             return b.className;
-#         })()""")
-#         return class == "test"
-#     end
-#     @test success == :success
-# end
+@testset "Class with observable" begin
+    app = App() do session
+        class = Observable("no-test")
+        evaljs(session, js"""
+            $(class).notify("test");
+        """)
+        DOM.div(DOM.div("HEY HEY"; class=class))
+    end
+    display(edisplay, app)
+    Bonito.wait_for_ready(app)
+    success = Bonito.wait_for() do
+        class = evaljs_value(app.session[], js"""(()=>{
+            const b = document.querySelector(".test");
+            if (!b) return "no class";
+            return b.className;
+        })()""")
+        return class == "test"
+    end
+    @test success == :success
+end
