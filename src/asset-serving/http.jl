@@ -116,7 +116,7 @@ function (server::HTTPAssetServer)(context)
         _, asset = rf[path]
         if asset isa BinaryAsset
             header = ["Access-Control-Allow-Origin" => "*",
-                "Content-Type" => "application/octet-stream"]
+                "Content-Type" => asset.mime]
             return HTTP.Response(200, header; body=asset.data)
         else
             data = nothing
