@@ -13,6 +13,7 @@ WebSocketHandler() = WebSocketHandler(nothing, ReentrantLock())
 function ws_should_throw(e)
     WebSockets.isok(e) && return false
     e isa Union{Base.IOError,EOFError} && return false
+    e isa ArgumentError && e.msg == "send() requires `!(ws.writeclosed)`" && return false
     return true
 end
 

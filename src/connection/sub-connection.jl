@@ -4,7 +4,11 @@ function SubConnection(parent::Session)
     return SubConnection(parent.connection, false)
 end
 
-function Base.write(connection::SubConnection, binary::Union{SerializedMessage, AbstractVector{UInt8}})
+function Base.write(connection::SubConnection, msg::SerializedMessage)
+    write(connection.connection, msg)
+end
+
+function Base.write(connection::SubConnection, binary::AbstractVector{UInt8})
     write(connection.connection, binary)
 end
 
