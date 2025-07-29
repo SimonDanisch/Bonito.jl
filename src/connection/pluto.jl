@@ -8,7 +8,7 @@ PlutoConnection() = PlutoConnection(WebSocketConnection())
 
 Base.isopen(pluto::PlutoConnection) = isopen(pluto.connection)
 
-function Base.write(ws::PlutoConnection, binary)
+function Base.write(ws::PlutoConnection, binary::AbstractVector{UInt8})
     write(ws.connection, binary)
 end
 

@@ -32,7 +32,7 @@ struct DebugConnection <: Bonito.FrontendConnection
 end
 
 DebugConnection() = DebugConnection(IOBuffer())
-Base.write(connection::DebugConnection, bytes) = write(connection.io, serialize_binary(bytes))
+Base.write(connection::DebugConnection, bytes::AbstractVector{UInt8}) = write(connection.io, bytes)
 Base.isopen(connection::DebugConnection) = isopen(connection.io)
 Base.close(connection::DebugConnection) = close(connection.io)
 setup_connection(session::Session{DebugConnection}) = nothing

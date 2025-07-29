@@ -15,7 +15,7 @@ end
 
 Base.isopen(ws::WebSocketConnection) = isopen(ws.handler)
 
-function Base.write(ws::WebSocketConnection, binary)
+function Base.write(ws::WebSocketConnection, binary::AbstractVector{UInt8})
     write(ws.handler, binary)
 end
 

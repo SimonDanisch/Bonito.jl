@@ -29,12 +29,9 @@ function (x::JSUpdateObservable)(@nospecialize(value))
             send(x.session, msg; large=is_large)
         end
     catch e
-        @error "Error in JSUpdateObservable:" exception=(e, catch_backtrace())
+        @debug "Error while sending update for JSUpdateObservable" exception=e
     end
 end
-
-
-
 
 """
 Update the value of an observable, without sending changes to the JS frontend.

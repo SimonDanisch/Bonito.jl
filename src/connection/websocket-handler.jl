@@ -11,21 +11,23 @@ end
 WebSocketHandler(socket) = WebSocketHandler(socket, ReentrantLock(), Channel{SerializedMessage}(0))
 WebSocketHandler() = WebSocketHandler(nothing, ReentrantLock(), Channel{SerializedMessage}(0))
 
+function ws_should_throw(e)
+    WebSockets.isok(e) && return false
+    e isa Union{Base.IOError,EOFError} && return false
+    e isa ArgumentError && e.msg == "send() requires `!(ws.writeclosed)`" && return false
+    return true
+end
+
 function safe_read(websocket)
     try
         # readavailable is what HTTP overloaded for websockets
         return receive(websocket)
     catch e
-        if WebSockets.isok(e)
-            # it's ok :shrug:
-        elseif e isa Union{Base.IOError, EOFError}
-            @debug("WS connection closed because of IO error")
-            return nothing
-        else
-            rethrow(e)
-        end
+        ws_should_throw(e) && rethrow(e)
+        return nothing
     end
 end
+
 
 function safe_write(websocket, binary)
     try
@@ -33,38 +35,36 @@ function safe_write(websocket, binary)
         send(websocket, binary)
         return true
     catch e
-        if WebSockets.isok(e) || e isa Union{Base.IOError,EOFError}
-            @warn "sending message to a closed websocket" maxlog = 1
-            # it's ok :shrug:
-            return nothing
-        else
-            rethrow(e)
-        end
+        ws_should_throw(e) && rethrow(e)
+        return nothing
     end
 end
 
 function Base.isopen(ws::WebSocketHandler)
-    isnothing(ws.socket) && return false
-    # isclosed(ws.socket) returns readclosed && writeclosed
-    # but we consider it closed if either is closed?
-    if ws.socket.readclosed || ws.socket.writeclosed
-        return false
+    lock(ws.lock) do
+        isnothing(ws.socket) && return false
+        # isclosed(ws.socket) returns readclosed && writeclosed
+        # but we consider it closed if either is closed?
+        if ws.socket.readclosed || ws.socket.writeclosed
+            return false
+        end
+        # So, it turns out, ws connection where the tab gets closed
+        # stay open indefinitely, but aren't writable anymore
+        # TODO, figure out how to check for that
+        return true
     end
-    # So, it turns out, ws connection where the tab gets closed
-    # stay open indefinitely, but aren't writable anymore
-    # TODO, figure out how to check for that
-    return true
 end
 
-function _write(ws::WebSocketHandler, message::SerializedMessage)
-    if isnothing(ws.socket)
-        error("socket closed or not opened yet")
-    end
-    binary = serialize_binary(message)
-    written = safe_write(ws.socket, binary)
-    if written != true
-        @debug "couldnt write, closing ws"
-        close(ws)
+function Base.write(ws::WebSocketHandler, binary::AbstractVector{UInt8})
+    lock(ws.lock) do
+        if isnothing(ws.socket)
+            error("socket closed or not opened yet")
+        end
+        written = safe_write(ws.socket, binary)
+        if written != true
+            @debug "couldnt write, closing ws"
+            close(ws)
+        end
     end
 end
 
@@ -73,18 +73,14 @@ function Base.write(ws::WebSocketHandler, message::SerializedMessage)
 end
 
 function Base.close(ws::WebSocketHandler)
-    isnothing(ws.socket) && return
     lock(ws.lock) do
-        # wait for all messages to be written before closing
+        isnothing(ws.socket) && return
         try
-            close(ws.queue)
             socket = ws.socket
             ws.socket = nothing
             isclosed(socket) || close(socket)
         catch e
-            if !WebSockets.isok(e)
-                @warn "error while closing websocket" exception=(e, Base.catch_backtrace())
-            end
+            ws_should_throw(e) && @warn "error while closing websocket" exception=e
         end
     end
 

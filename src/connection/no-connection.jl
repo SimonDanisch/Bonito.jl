@@ -1,6 +1,6 @@
 struct NoConnection <: FrontendConnection end
 
-function Base.write(connection::NoConnection, data)
+function Base.write(connection::NoConnection, data::AbstractVector{UInt8})
     error("Can't communicate with Frontend with no Connection")
 end
 

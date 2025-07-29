@@ -200,6 +200,10 @@ function Sockets.send(session::Session, message::Dict{Symbol}; large=false)
     _send(session, SerializedMessage(session, message), large)
 end
 
+
+# Backwards compatibility for connections that dont expect a SerializedMessage but Vector{UInt8}
+Base.write(connection::FrontendConnection, sm::SerializedMessage) = write(connection, serialize_binary(sm))
+
 function _send(session::Session, sm::SerializedMessage, large::Bool)
     if isready(session)
         if large
