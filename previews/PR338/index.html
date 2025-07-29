@@ -3,11 +3,11 @@
 app = App() do
     return DOM.div(DOM.h1(&quot;hello world&quot;), js&quot;&quot;&quot;console.log(&#39;hello world&#39;)&quot;&quot;&quot;)
 end</code></pre><div>
-  <div class="bonito-fragment" id="21050e2f-dff5-4d6f-b03b-c32844c783e3" data-jscall-id="root">
+  <div class="bonito-fragment" id="cd671cb2-63e0-44e1-a300-8c760c89a278" data-jscall-id="root">
     <div>
-      <script src="bonito/js/Bonito.bundled953334973819342117.js" type="module"></script>
+      <script src="bonito/js/Bonito.bundled14333955289335236810.js" type="module"></script>
       <script type="module">    Bonito.lock_loading(() => {
-        return Bonito.fetch_binary('bonito/bin/cbfb078bd87689fd84a91228e154f98d127212bf-17806567901627792799.bin').then(binary=> {
+        return Bonito.fetch_binary('bonito/bin/f5d19eb8ca968f4200d8dd2286d471444c5e4dcf-17518110532690325013.bin').then(binary=> {
             const observables = Bonito.Protocol.unpack_binary(binary, false)
             observables.forEach(([id, objects, status]) => {
                 Bonito.Sessions.update_session_cache(id, objects, status);
@@ -18,14 +18,14 @@ end</code></pre><div>
       <style></style>
     </div>
     <div>
-      <script type="module">Bonito.lock_loading(() => Bonito.init_session('21050e2f-dff5-4d6f-b03b-c32844c783e3', null, 'root', false))</script>
+      <script type="module">Bonito.lock_loading(() => Bonito.init_session('cd671cb2-63e0-44e1-a300-8c760c89a278', null, 'root', false))</script>
       <span></span>
     </div>
   </div>
-  <div class="bonito-fragment" id="cff8fc56-1496-4da3-ad83-88651007d8ef" data-jscall-id="subsession-application-dom">
+  <div class="bonito-fragment" id="b7506b6c-ba8e-4893-93d0-5afe3fc72bcf" data-jscall-id="subsession-application-dom">
     <div>
       <script type="module">    Bonito.lock_loading(() => {
-        return Bonito.fetch_binary('bonito/bin/148f6d646801e44bc8ce96d8d6e74ebac34f2a19-7732185078486582753.bin').then(binary=> {
+        return Bonito.fetch_binary('bonito/bin/2d0f3a10789bc7eef83af4d4f58c3ee3730b9fab-3758791614258160591.bin').then(binary=> {
             const observables = Bonito.Protocol.unpack_binary(binary, false)
             observables.forEach(([id, objects, status]) => {
                 Bonito.Sessions.update_session_cache(id, objects, status);
@@ -36,7 +36,7 @@ end</code></pre><div>
       <style></style>
     </div>
     <div>
-      <script type="module">Bonito.lock_loading(() => Bonito.init_session('cff8fc56-1496-4da3-ad83-88651007d8ef', null, 'sub', false))</script>
+      <script type="module">Bonito.lock_loading(() => Bonito.init_session('b7506b6c-ba8e-4893-93d0-5afe3fc72bcf', null, 'sub', false))</script>
       <div data-jscall-id="1">
         <h1 data-jscall-id="2">hello world</h1>
         <script type="module">console.log('hello world')</script>
@@ -68,10 +68,10 @@ route!(server, &quot;/some-app&quot; =&gt; App(DOM.div(&quot;app&quot;)))</code>
         })
         &quot;&quot;&quot;
     )
-end</code></pre><div class="bonito-fragment" id="56c1a264-623d-4183-8ad1-d8247e2dd19e" data-jscall-id="subsession-application-dom">
+end</code></pre><div class="bonito-fragment" id="83b5e170-db7e-4116-94d8-3e25b7d8bf3c" data-jscall-id="subsession-application-dom">
   <div>
     <script type="module">    Bonito.lock_loading(() => {
-        return Bonito.fetch_binary('bonito/bin/44c4566f8a13638acfbb1df08efb962c564c4e9a-7146561688354615855.bin').then(binary=> {
+        return Bonito.fetch_binary('bonito/bin/23787530563fb869d9e56e6d9754505684fcae80-2723899696172258643.bin').then(binary=> {
             const observables = Bonito.Protocol.unpack_binary(binary, false)
             observables.forEach(([id, objects, status]) => {
                 Bonito.Sessions.update_session_cache(id, objects, status);
@@ -83,7 +83,7 @@ end</code></pre><div class="bonito-fragment" id="56c1a264-623d-4183-8ad1-d8247e2
     <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet" type="text/css" />
   </div>
   <div>
-    <script type="module">Bonito.lock_loading(() => Bonito.init_session('56c1a264-623d-4183-8ad1-d8247e2dd19e', null, 'sub', false))</script>
+    <script type="module">Bonito.lock_loading(() => Bonito.init_session('83b5e170-db7e-4116-94d8-3e25b7d8bf3c', null, 'sub', false))</script>
     <div data-jscall-id="3">
       <div id="map" data-jscall-id="4" style="height: 300px; width: 100%"></div>
       <script type="module">import('https://esm.sh/v133/leaflet@1.9.4/es2022/leaflet.mjs').then(L=> {
@@ -93,4 +93,4 @@ end</code></pre><div class="bonito-fragment" id="56c1a264-623d-4183-8ad1-d8247e2
 </script>
     </div>
   </div>
-</div><p>Read more about wrapping libraries in <a href="javascript-libraries.html#Javascript">Javascript</a>.</p><h2 id="Deploying"><a class="docs-heading-anchor" href="#Deploying">Deploying</a><a id="Deploying-1"></a><a class="docs-heading-anchor-permalink" href="#Deploying" title="Permalink"></a></h2><p><code>Bonito.jl</code> wants to run everywhere, from Notebooks, IDEs, Electron, to being directly inserted into existing web pages.</p><p><img src="https://user-images.githubusercontent.com/1010467/214662497-a1a1c8e7-5f4d-4e57-b129-fdcc227253ca.gif" alt="Bonito-wales"/></p><p>Find out more about the different ways to serve your apps in <a href="deployment.html#Deployment">Deployment</a>.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="styling.html">Styling »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Thursday 24 July 2025 19:47">Thursday 24 July 2025</span>. Using Julia version 1.11.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</div><p>Read more about wrapping libraries in <a href="javascript-libraries.html#Javascript">Javascript</a>.</p><h2 id="Deploying"><a class="docs-heading-anchor" href="#Deploying">Deploying</a><a id="Deploying-1"></a><a class="docs-heading-anchor-permalink" href="#Deploying" title="Permalink"></a></h2><p><code>Bonito.jl</code> wants to run everywhere, from Notebooks, IDEs, Electron, to being directly inserted into existing web pages.</p><p><img src="https://user-images.githubusercontent.com/1010467/214662497-a1a1c8e7-5f4d-4e57-b129-fdcc227253ca.gif" alt="Bonito-wales"/></p><p>Find out more about the different ways to serve your apps in <a href="deployment.html#Deployment">Deployment</a>.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="styling.html">Styling »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Tuesday 29 July 2025 18:17">Tuesday 29 July 2025</span>. Using Julia version 1.11.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
