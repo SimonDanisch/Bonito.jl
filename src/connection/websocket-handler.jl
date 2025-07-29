@@ -10,21 +10,22 @@ end
 WebSocketHandler(socket) = WebSocketHandler(socket, ReentrantLock())
 WebSocketHandler() = WebSocketHandler(nothing, ReentrantLock())
 
+function ws_should_throw(e)
+    WebSockets.isok(e) && return false
+    e isa Union{Base.IOError,EOFError} && return false
+    return true
+end
+
 function safe_read(websocket)
     try
         # readavailable is what HTTP overloaded for websockets
         return receive(websocket)
     catch e
-        if WebSockets.isok(e)
-            # it's ok :shrug:
-        elseif e isa Union{Base.IOError, EOFError}
-            @debug("WS connection closed because of IO error")
-            return nothing
-        else
-            rethrow(e)
-        end
+        ws_should_throw(e) && rethrow(e)
+        return nothing
     end
 end
+
 
 function safe_write(websocket, binary)
     try
@@ -32,13 +33,8 @@ function safe_write(websocket, binary)
         send(websocket, binary)
         return true
     catch e
-        if WebSockets.isok(e) || e isa Union{Base.IOError,EOFError}
-            @warn "sending message to a closed websocket" maxlog = 1
-            # it's ok :shrug:
-            return nothing
-        else
-            rethrow(e)
-        end
+        ws_should_throw(e) && rethrow(e)
+        return nothing
     end
 end
 
@@ -75,9 +71,7 @@ function Base.close(ws::WebSocketHandler)
         ws.socket = nothing
         isclosed(socket) || close(socket)
     catch e
-        if !WebSockets.isok(e)
-            @warn "error while closing websocket" exception=(e, Base.catch_backtrace())
-        end
+        ws_should_throw(e) && @warn "error while closing websocket" exception=(e, Base.catch_backtrace())
     end
 end
 
