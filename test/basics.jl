@@ -7,13 +7,13 @@
     dom = App(DOM.div(test=obs1, onload=js"$(TestLib).lol()"))
     sdom = Bonito.session_dom(session, dom; init=false) # Init false to not inline messages
     msg = Bonito.fused_messages!(session)
-    data = Bonito.serialize_cached(session, msg)
-    decoded = Bonito.deserialize(msg[:payload][1]) |> Bonito.decode_extension_and_addbits
+    data = Bonito.SerializedMessage(session, msg)
+    decoded = msg[:payload][1]
     mapped = obs1.listeners[1][2].result # we map(render, obs1) when rendering attributes, so only that will be in the session
     @test haskey(session.session_objects, mapped.id)
     # Obs registered correctly
     @test mapped.listeners[1][2] isa Bonito.JSUpdateObservable
-    session_cache = decoded[1]
+    session_cache = decoded.cache
     @test session_cache isa Bonito.SessionCache
     @test haskey(session_cache.objects, mapped.id)
     @test haskey(session.session_objects, mapped.id)
@@ -21,7 +21,7 @@
     # Will deregisters correctly on session close
     @test length(session.deregister_callbacks) == 1
     @test session.deregister_callbacks[1].observable === obs1
-    @test occursin("Bonito.update_node_attribute", string(decoded[2]["payload"]))
+    @test occursin("Bonito.update_node_attribute", string(decoded.data["payload"]))
     close(session)
     @test isempty(obs1.listeners)
     @test isempty(mapped.listeners)
@@ -32,7 +32,7 @@ struct DebugConnection <: Bonito.FrontendConnection
 end
 
 DebugConnection() = DebugConnection(IOBuffer())
-Base.write(connection::DebugConnection, bytes) = write(connection.io, bytes)
+Base.write(connection::DebugConnection, bytes::AbstractVector{UInt8}) = write(connection.io, bytes)
 Base.isopen(connection::DebugConnection) = isopen(connection.io)
 Base.close(connection::DebugConnection) = close(connection.io)
 setup_connection(session::Session{DebugConnection}) = nothing

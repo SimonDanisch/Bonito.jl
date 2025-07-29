@@ -15,26 +15,24 @@ function Base.show(io::IO, up::JSUpdateObservable)
     print(io, "JSUpdateObservable($(typeof(up.session)), $(repr(up.id)))")
 end
 
-function (x::JSUpdateObservable)(value)
-    try
-        # Sent an update event
-        if !isclosed(x.session)
-            send(x.session, payload=value, id=x.id, msg_type=UpdateObservable)
-        end
-    catch e
-        println("Error in JSUpdateObservable:")
-        Base.showerror(stderr, e)
-    end
-end
-
 struct LargeUpdate
     data::Any
 end
 
-function (x::JSUpdateObservable)(value::LargeUpdate)
-    # Sent an update event
-    return send_large(x.session, Dict(:payload=>value.data, :id=>x.id, :msg_type=>UpdateObservable))
+function (x::JSUpdateObservable)(@nospecialize(value))
+    try
+        # Sent an update event
+        if !isclosed(x.session)
+            is_large = value isa LargeUpdate
+            data = is_large ? value.data : value
+            msg = Dict(:payload=>data, :id=>x.id, :msg_type=>UpdateObservable)
+            send(x.session, msg; large=is_large)
+        end
+    catch e
+        @debug "Error while sending update for JSUpdateObservable" exception=e
+    end
 end
+
 
 """
 Update the value of an observable, without sending changes to the JS frontend.
@@ -92,7 +90,6 @@ function jsrender(session::Session, obs::Observable)
         end
         return
     end
-
     push!(children(root_node), html)
     return jsrender(session, root_node)
 end

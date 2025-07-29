@@ -16,7 +16,7 @@ end
 
 Base.isopen(ws::DualWebsocket) = isopen(ws.low_latency)
 
-function Base.write(ws::DualWebsocket, binary)
+function Base.write(ws::DualWebsocket, binary::AbstractVector{UInt8})
     write(ws.low_latency, binary)
 end
 
@@ -63,7 +63,6 @@ function (connection::DualWebsocket)(context, websocket::WebSocket)
         end
     end
 end
-
 
 function setup_connection(session::Session, connection::DualWebsocket)
     connection.session = session

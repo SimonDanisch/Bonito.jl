@@ -153,61 +153,68 @@ Send values to the frontend via MsgPack for now
 """
 Sockets.send(session::Session; kw...) = send(session, Dict{Symbol, Any}(kw))
 
-function send_large(session::Session, message)
-    serialized = SerializedMessage(session, message)
-    if isready(session)
-        write_large(session.connection, serialize_binary(session, serialized))
-        if COLLECT_MESSAGES[]
-            push!(COLLECTED_MESSAGES, serialized)
-        end
-    else
-        push!(session.message_queue, serialized)
-    end
-end
-
-
-
-function Sockets.send(session::Session, message::Dict{Symbol, Any})
-    serialized = SerializedMessage(session, message)
-    if session.ignore_message[](message)::Bool
-        return
-    end
-    send(session, serialized)
-end
-
 const COLLECT_MESSAGES = Threads.Atomic{Bool}(false)
-const COLLECTED_MESSAGES = SerializedMessage[]
+const COLLECTED_MESSAGES = Dict{Symbol, Any}[]
+const COLLECT_LOCK = Base.ReentrantLock()
+
+function collect_message!(message)
+    COLLECT_MESSAGES[] || return
+    lock(COLLECT_LOCK) do
+        if message isa SerializedMessage
+            msg = decode_extension_and_addbits(deserialize(message))
+        else
+            msg = message
+        end
+        push!(COLLECTED_MESSAGES, (msg))
+    end
+end
 
 function collect_messages(f)
     empty!(COLLECTED_MESSAGES)
     COLLECT_MESSAGES[] = true
     f()
-    len = length(COLLECTED_MESSAGES)
-    total = sum(map(x-> sizeof(x.bytes), COLLECTED_MESSAGES))
+    msgs = copy(COLLECTED_MESSAGES)
+    len = length(msgs)
+    s = Session(NoConnection(); asset_server=NoServer())
+    total = mapreduce(+, msgs) do msg
+        bytes = serialize_binary(s, msg)
+        return sizeof(bytes)
+    end
     msg = "Send $(len) messages with a total size of $(Base.format_bytes(total))"
-    msgs = map(x-> decode_extension_and_addbits(deserialize(x)), COLLECTED_MESSAGES)
     return msgs, msg
 end
 
-const COLLECT_LOCK = Base.ReentrantLock()
-function Sockets.send(session::Session, message::SerializedMessage)
-    if isclosed(session)
-        # We could also make this non fatal, but since `send` shouldn't be user facing,
-        # We should rather make sure that no internal code sends a message to a closed session.
-        error("Trying to send to a closed session")
-    end
+function Sockets.send(session::Session, message::SerializedMessage; large=false)
+    collect_message!(message)
+    _send(session, message, large)
+end
+
+function Sockets.send(session::Session, message::Dict{Symbol}; large=false)
+    session.ignore_message[](message)::Bool && return
+    collect_message!(message)
+    _send(session, SerializedMessage(session, message), large)
+end
+
+# Backwards compatibility for connections that dont expect a SerializedMessage but Vector{UInt8}
+Base.write(connection::FrontendConnection, sm::SerializedMessage) = write(connection, serialize_binary(sm))
+
+function _send(session::Session, sm::SerializedMessage, large::Bool)
     if isready(session)
-        # if connection is open, we should never queue up messages
-        @assert isempty(session.message_queue)
-        write(session.connection, serialize_binary(session, message))
-        lock(COLLECT_LOCK) do
-            if COLLECT_MESSAGES[]
-                push!(COLLECTED_MESSAGES, message)
-            end
+        if large
+            write_large(session.connection, sm)
+        else
+            write(session.connection, sm)
         end
     else
-        push!(session.message_queue, message)
+        push!(session.message_queue, sm)
     end
+end
+
+
+
+function _send(session::Session, message::Dict, large::Bool)
+    sm = SerializedMessage(session, message)
+    _send(session, sm, large)
 end
 
 function HTTP.WebSockets.isclosed(session::Session)

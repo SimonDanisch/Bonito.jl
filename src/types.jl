@@ -75,7 +75,19 @@ mutable struct SubConnection <: FrontendConnection
     isopen::Bool
 end
 
+struct SessionCache
+    session_id::String
+    objects::Dict{String, Any}
+    session_type::String
+end
+
 struct SerializedMessage
+    cache::SessionCache
+    data::Any
+    compression::Bool
+end
+
+struct BinaryMessage
     bytes::Vector{UInt8}
 end
 
@@ -253,6 +265,7 @@ mutable struct Session{Connection <: FrontendConnection}
             inbox,
             Threads.threadid()
         )
+
         task = Task() do
             for message in inbox
                 try
