@@ -152,29 +152,33 @@ function inline_code(::Session, noserver, source::String)
 end
 
 function inline_code(session::Session, asset_server, js::JSCode)
+    evaljs(session, js)
     # Print code while collecting all interpolated objects in an IdDict
-    context = JSSourceContext(session)
-    code = sprint() do io
-        print_js_code(io, js, context)
-    end
-    if isempty(context.objects)
-        src = code
-    else
-        # reverse lookup and serialize elements
-        interpolated_objects = Dict(v => k for (k, v) in context.objects)
-        binary = BinaryAsset(session, interpolated_objects)
-        src = """
-        // JSCode from $(js.file)
-        Bonito.lock_loading(() => {
-            return Bonito.fetch_binary('$(url(session, binary))').then(bin_messages=>{
-                const objects = Bonito.decode_binary(bin_messages, $(session.compression_enabled));
-                const __lookup_interpolated = (id) => objects[id]
-                $code
-            })
-        })
-        """
-    end
-    return inline_code(session, asset_server, src)
+    # context = JSSourceContext(session)
+    # code = sprint() do io
+    #     print_js_code(io, js, context)
+    # end
+    # if isempty(context.objects)
+    #     src = code
+    #     return inline_code(session, asset_server, src)
+    # else
+    #     # reverse lookup and serialize elements
+    #     interpolated_objects = Dict(v => k for (k, v) in context.objects)
+    #     binary = BinaryAsset(session, interpolated_objects)
+    #     src = """
+    #     // JSCode from $(js.file)
+    #     Bonito.lock_loading(() => {
+    #         return Bonito.fetch_binary('$(url(session, binary))').then(bin_messages=>{
+    #             const objects = Bonito.decode_binary(bin_messages, $(session.compression_enabled));
+    #             const __lookup_interpolated = (id) => objects[id]
+    #             $code
+    #         })
+    #     })
+    #     """
+    #     binary = BinaryAsset(session, interpolated_objects)
+    #     evaljs(session, JSCode(src))
+    # end
+    return
 end
 
 function jsrender(session::Session, js::JSCode)
