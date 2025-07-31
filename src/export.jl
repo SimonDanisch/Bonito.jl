@@ -279,6 +279,7 @@ function export_static(html_file::String, app::App;
     open(html_file, "w") do io
         export_static(io, app; session=session)
     end
+    close(session)
 end
 
 function export_static(html_io::IO, app::App;

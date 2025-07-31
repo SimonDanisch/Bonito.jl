@@ -161,28 +161,17 @@ function init_session_from_msgs(session_id, messages) {
     }
 }
 
-export function init_session(session_id, observable_promise, message_promise, session_status, compression) {
+export function init_session(session_id, message_promise, session_status, compression) {
+    SESSIONS[session_id] = [new Set(), session_status];
     track_deleted_sessions(); // no-op if already tracking
     lock_loading(() => {
-        return Promise.resolve(observable_promise).then((binary) => {
-            console.log(binary);
-            if (binary) {
-                const observables = unpack_binary(binary,false);
-                console.log(observables);
-                observables.forEach(([id, objects, status]) => {
-                    update_session_cache(id, objects, status);
-                });
-            }
-            return Promise.resolve(message_promise).then((binary) => {
-                console.log(binary);
-                const messages = binary ? decode_binary(binary, compression) : [];
-                console.log(messages);
-                init_session_from_msgs(session_id, messages);
-            }).catch((error) => {
-                send_done_loading(session_id, error);
-                console.error(error.stack);
-                throw error;
-            });
+        return Promise.resolve(message_promise).then((binary) => {
+            const messages = binary ? decode_binary(binary, compression) : [];
+            init_session_from_msgs(session_id, messages);
+        }).catch((error) => {
+            send_done_loading(session_id, error);
+            console.error(error.stack);
+            throw error;
         });
     });
 }

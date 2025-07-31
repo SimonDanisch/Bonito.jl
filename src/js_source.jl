@@ -108,17 +108,9 @@ function import_in_js(io::IO, session::Session, asset_server, asset::BinaryAsset
 end
 
 function import_in_js(io::IO, session::Session, asset_server, asset::Asset)
-    ref = url(session, asset)
+    ref = import_js(asset_server, asset)
     if asset.es6module
-        # Use absolute paths for es6modules, since they're not relative
-        # To the HTML file they're used in, but instead to the Bonito.js file
-        # TODO, teach Bonito about where the JS files are located,
-        # to make them relativ
-        # Should only be relevant for AssetFolder
-        if startswith(ref, ".")
-            ref = ref[2:end]
-        end
-        print(io, "import('$(ref)')")
+        print(io, "import($(ref))")
     else
         print(io, "Bonito.fetch_binary($(ref))")
     end

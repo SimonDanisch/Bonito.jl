@@ -415,7 +415,7 @@ function get_messages!(session::Session, messages=[])
         push!(messages, SerializedMessage(session, onload))
     end
     empty!(session.on_document_load)
-    # empty!(session.message_queue)
+    empty!(session.message_queue)
     return messages
 end
 
@@ -434,7 +434,6 @@ function collect_session_objects!(session::Session, objects=Vector{Any}[])
     for (k, child) in session.children
         collect_session_objects!(child, objects)
     end
-    @show objects
     return objects
 end
 
@@ -498,14 +497,11 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         push_dependencies!(children(head), session)
 
         if init
-            # observables = collect_session_objects!(session)
-            observables = []
             msgs = get_messages!(session)
             type = issubsession ? "sub" : "root"
             binary = isempty(msgs) ? "null" : "Bonito.fetch_binary('$(url(session, BinaryAsset(session, msgs)))')"
-            obs_binary = isempty(observables) ? "null" : "Bonito.fetch_binary('$(url(session, BinaryAsset(MsgPack.pack(observables), "application/octet-stream")))"
             init_session = """
-            Bonito.init_session($(repr(session.id)), $(obs_binary), $(binary), $(repr(type)), $(session.compression_enabled));
+            Bonito.init_session($(repr(session.id)), $(binary), $(repr(type)), $(session.compression_enabled));
             """
             pushfirst!(children(body), DOM.script(init_session; type="module"))
         end

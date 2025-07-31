@@ -114,3 +114,28 @@ end
     test_cleanup_policy(WebSocketConnection)
     test_cleanup_policy(Bonito.DualWebsocket)
 end
+
+
+@testset "evaljs order" begin
+    rm(Bonito.BonitoLib.bundle_file)
+    app = App() do session
+        obs = Observable(false)
+        on(println, obs)
+        but = DOM.button("CLICK", onclick=js"$(obs).notify(true)")
+
+        jss = js"""
+        $(but).addEventListener("click", () => {
+            console.log("Button clicked!");
+            $(obs).notify(true);
+        });
+        """
+
+        return DOM.div(
+            jss,
+            DOM.h1("Session Test"),
+            but,
+            obs,
+        )
+    end
+    export_static("test.html", app)
+end

@@ -4,6 +4,18 @@ include("asset.jl")
 include("no-server.jl")
 include("http.jl")
 
+function import_js(asset_server::Union{HTTPAssetServer, ChildAssetServer}, asset::Asset)
+    return "'$(url(asset_server, asset))'"
+end
+
+function import_js(asset_server::AbstractAssetServer, asset::Asset)
+    ref = url(asset_server, asset)
+    if startswith(ref, ".")
+        ref = ref[2:end]
+    end
+    return "new URL('../$(ref)', window.location.href).href"
+end
+
 const JS_DEPENDENCIES = joinpath(@__DIR__, "..", "..", "js_dependencies")
 
 """
