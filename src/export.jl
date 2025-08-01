@@ -265,6 +265,20 @@ function export_standalone(app::App, folder::String;
     error("export_standalone is deprecated, please use export_static")
 end
 
+function create_session(connection, asset_server, session::Nothing)
+    actual_connection = connection === nothing ? NoConnection() : connection
+    actual_asset_server = asset_server === nothing ? NoServer() : asset_server
+    return Session(actual_connection; asset_server=actual_asset_server)
+end
+
+create_session(::Nothing, ::Nothing, session::Session) = session
+
+function create_session(connection, asset_server, session::Session)
+    error("If providing a session, you can't provide connection or asset_server!
+        Found: $(typeof(connection)), $(typeof(asset_server))")
+end
+
+
 """
     export_static(html_file::Union{IO, String}, app::App)
     export_static(folder::String, routes::Routes)
@@ -273,33 +287,69 @@ Exports the app defined by `app` with all its assets a single HTML file.
 Or exports all routes defined by `routes` to `folder`.
 """
 function export_static(html_file::String, app::App;
-        asset_server=NoServer(),
-        connection=NoConnection(),
-        session=Session(connection; asset_server=asset_server))
-    open(html_file, "w") do io
-        export_static(io, app; session=session)
+        asset_server=nothing,
+        connection=nothing,
+        session=nothing)
+
+    # Create session if not provided, ignoring asset_server and connection when session is given
+    actual_session = create_session(connection, asset_server, session)
+    try
+        open(html_file, "w") do io
+            export_static(io, app; session=actual_session)
+        end
+    finally
+        # Only close session if we created it ourselves
+        if session === nothing
+            close(actual_session)
+        end
     end
-    close(session)
+    return actual_session
 end
 
 function export_static(html_io::IO, app::App;
-        asset_server=NoServer(),
-        connection=NoConnection(),
-        session=Session(connection; asset_server=asset_server))
+        asset_server=nothing,
+        connection=nothing,
+        session=nothing)
+    # Create session if not provided, ignoring asset_server and connection when session is given
+    actual_session = create_session(connection, asset_server, session)
+    try
+        actual_session.title = app.title
+        page_html(html_io, actual_session, app)
+    finally
+        # Only close session if we created it ourselves and there's an error
+        if session === nothing
+            close(actual_session)
+        end
+    end
 
-    session.title = app.title
-    page_html(html_io, session, app)
-    return session
+    return actual_session
 end
 
-function export_static(folder::String, routes::Routes; connection=NoConnection(), asset_server= AssetFolder(folder, ""))
+function export_static(folder::String, routes::Routes; connection=nothing, asset_server=nothing)
     isdir(folder) || mkpath(folder)
+
+    # Set defaults for routes export
+    actual_connection = connection === nothing ? NoConnection() : connection
+    actual_asset_server = asset_server === nothing ? AssetFolder(folder, "") : asset_server
+
     for (route, app) in routes.routes
         startswith(route, "/") && (route = route[2:end])
         dir = joinpath(folder, route)
         html_file = normpath(joinpath(dir, "index.html"))
         isdir(dirname(html_file)) || mkpath(dirname(html_file))
-        asset_server.current_dir = dir
-        export_static(html_file, app; session=Session(connection; asset_server=asset_server))
+
+        try
+            # Update asset server directory if it's an AssetFolder
+            if actual_asset_server isa AssetFolder
+                actual_asset_server.current_dir = dir
+            end
+
+            # Create session for this route
+            route_session = Session(actual_connection; asset_server=actual_asset_server)
+            export_static(html_file, app; session=route_session)
+        catch e
+            @error "Failed to export route $route" exception=(e, Base.catch_backtrace())
+            continue
+        end
     end
 end
