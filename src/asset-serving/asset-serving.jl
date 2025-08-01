@@ -4,16 +4,29 @@ include("asset.jl")
 include("no-server.jl")
 include("http.jl")
 
+function import_js(asset_server::Nothing, asset::Asset)
+    return "'$(url(asset_server, asset))'"
+end
+
 function import_js(asset_server::Union{HTTPAssetServer, ChildAssetServer}, asset::Asset)
     return "'$(url(asset_server, asset))'"
 end
 
 function import_js(asset_server::AbstractAssetServer, asset::Asset)
     ref = url(asset_server, asset)
-    if startswith(ref, ".")
-        ref = ref[2:end]
+    # Remove leading "./" if present
+    if startswith(ref, "./")
+        ref = ref[3:end]  # Remove "./" (3 characters)
     end
-    return "new URL('../$(ref)', window.location.href).href"
+
+    # Handle absolute vs relative paths differently
+    if startswith(ref, "/")
+        # Absolute path - use as-is relative to origin
+        return "new URL('$(ref)', window.location.origin).href"
+    else
+        # Relative path - use relative to current page location
+        return "new URL('../$(ref)', window.location.href).href"
+    end
 end
 
 const JS_DEPENDENCIES = joinpath(@__DIR__, "..", "..", "js_dependencies")
