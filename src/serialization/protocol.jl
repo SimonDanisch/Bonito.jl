@@ -102,25 +102,3 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         @error "Unrecognized message: $(typ) with type: $(typeof(typ))"
     end
 end
-
-function update_subsession_dom!(sub::Session, selector, app::App)
-    html = session_dom(sub, app; init=false)
-    # We need to manually do the serialization,
-    # Since we send it via the parent, but serialization needs to happen
-    # for `sub`.
-    # sub is not open yet, and only opens if we send the below message for initialization
-    # which is why we need to send it via the parent session
-    UpdateSession = "12" # msg type
-    session_update = Dict(
-        "msg_type" => UpdateSession,
-        "session_id" => sub.id,
-        "messages" => fused_messages!(sub),
-        "html" => html,
-        "replace" => true,
-        "dom_node_selector" => selector
-    )
-    message = SerializedMessage(sub, session_update)
-    send(root_session(sub), message)
-    mark_displayed!(sub)
-    return sub
-end

@@ -3333,7 +3333,8 @@ function lookup_global_object(key) {
             return object;
         }
     }
-    throw new Error(`Key ${key} not found! ${object}`);
+    console.warn(`Key ${key} not found! ${object}`);
+    return null;
 }
 function send_error(message, exception) {
     console.error(message);
@@ -3564,30 +3565,36 @@ function done_initializing_session(session_id) {
         SESSIONS[session_id][1] = "delete";
     }
 }
+function init_session_from_msgs(session_id, messages) {
+    try {
+        messages.forEach(process_message);
+        done_initializing_session(session_id);
+    } catch (error) {
+        send_done_loading(session_id, error);
+        console.error(error.stack);
+        throw error;
+    }
+}
 function decode_binary(binary, compression_enabled) {
     const serialized_message = unpack_binary(binary, compression_enabled);
     const [session_id, message_data] = serialized_message;
     return message_data;
 }
-function init_session(session_id, binary_messages, session_status, compression_enabled) {
+function init_session(session_id, message_promise, session_status, compression) {
+    SESSIONS[session_id] = [
+        new Set(),
+        session_status
+    ];
     track_deleted_sessions();
     lock_loading(()=>{
-        try {
-            SESSIONS[session_id] = [
-                new Set(),
-                session_status
-            ];
-            if (binary_messages) {
-                process_message(decode_binary(binary_messages, compression_enabled));
-            }
-            OBJECT_FREEING_LOCK.onIdle().then(()=>{
-                done_initializing_session(session_id);
-            });
-        } catch (error) {
+        return Promise.resolve(message_promise).then((binary)=>{
+            const messages = binary ? decode_binary(binary, compression) : [];
+            init_session_from_msgs(session_id, messages);
+        }).catch((error)=>{
             send_done_loading(session_id, error);
             console.error(error.stack);
             throw error;
-        }
+        });
     });
 }
 function close_session(session_id) {
@@ -3652,16 +3659,11 @@ function update_or_replace(node, new_html, replace) {
 function update_session_dom(message) {
     lock_loading(()=>{
         const { session_id , messages , html , dom_node_selector , replace  } = message;
-        on_node_available(dom_node_selector, 1).then((dom)=>{
-            try {
-                update_or_replace(dom, html, replace);
-                process_message(messages);
-                done_initializing_session(session_id);
-            } catch (error) {
-                send_done_loading(session_id, error);
-                console.error(error.stack);
-                throw error;
-            }
+        return on_node_available(dom_node_selector, 1).then((dom)=>{
+            update_or_replace(dom, html, replace);
+            init_session_from_msgs(session_id, messages);
+        }).catch((error)=>{
+            send_done_loading(session_id, error);
         });
     });
 }

@@ -1,4 +1,4 @@
-import { Retain, decode_binary } from "./Protocol.js";
+import { Retain, decode_binary, unpack_binary } from "./Protocol.js";
 import PQueue from "https://esm.sh/p-queue";
 
 import {
@@ -35,7 +35,8 @@ export function lookup_global_object(key) {
             return object;
         }
     }
-    throw new Error(`Key ${key} not found! ${object}`);
+    console.warn(`Key ${key} not found! ${object}`);
+    return null;
 }
 
 function is_still_referenced(id) {
@@ -148,26 +149,31 @@ export function done_initializing_session(session_id) {
     // allow delete now!
 }
 
-export function init_session(session_id, binary_messages, session_status, compression_enabled) {
+
+function init_session_from_msgs(session_id, messages) {
+    try {
+        messages.forEach(process_message);
+        done_initializing_session(session_id);
+    } catch (error) {
+        send_done_loading(session_id, error);
+        console.error(error.stack);
+        throw error;
+    }
+}
+
+export function init_session(session_id, message_promise, session_status, compression) {
+    SESSIONS[session_id] = [new Set(), session_status];
     track_deleted_sessions(); // no-op if already tracking
     lock_loading(() => {
-        try {
-            SESSIONS[session_id] = [new Set(), session_status]
-            if (binary_messages) {
-                process_message(
-                    decode_binary(binary_messages, compression_enabled)
-                );
-            }
-            // we need for all tasks to be done before we can send the done loading message
-            OBJECT_FREEING_LOCK.onIdle().then(() => {
-                done_initializing_session(session_id);
-            })
-        } catch (error) {
+        return Promise.resolve(message_promise).then((binary) => {
+            const messages = binary ? decode_binary(binary, compression) : [];
+            init_session_from_msgs(session_id, messages);
+        }).catch((error) => {
             send_done_loading(session_id, error);
             console.error(error.stack);
             throw error;
-        }
-    })
+        });
+    });
 }
 
 /*
@@ -180,8 +186,9 @@ so once it actually arrives in JS, it'd be already gone.
 export function close_session(session_id) {
     const session = SESSIONS[session_id];
     if (!session) {
-        console.warn("double freeing session from JS!")
         // when does this happen...Double close?
+        // I've usually seen it when something errors, so I guess in that case the cleanup isn't done properly
+        console.warn("double freeing session from JS!")
         return
     }
     const [session_objects, status] = session;
@@ -243,16 +250,11 @@ export function update_or_replace(node, new_html, replace) {
 export function update_session_dom(message) {
     lock_loading(() => {
         const { session_id, messages, html, dom_node_selector, replace } = message;
-        on_node_available(dom_node_selector, 1).then((dom) => {
-            try {
-                update_or_replace(dom, html, replace);
-                process_message(messages);
-                done_initializing_session(session_id);
-            } catch (error) {
-                send_done_loading(session_id, error);
-                console.error(error.stack);
-                throw error
-            }
+        return on_node_available(dom_node_selector, 1).then((dom) => {
+            update_or_replace(dom, html, replace);
+            init_session_from_msgs(session_id, messages);
+        }).catch((error) => {
+            send_done_loading(session_id, error);
         });
     });
 }
