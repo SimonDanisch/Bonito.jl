@@ -24,8 +24,8 @@ function import_js(asset_server::AbstractAssetServer, asset::Asset)
         # Absolute path - use as-is relative to origin
         return "new URL('$(ref)', window.location.origin).href"
     else
-        # Relative path - use relative to current page location
-        return "new URL('../$(ref)', window.location.href).href"
+        # Relative path - use relative to current page directory (not parent)
+        return "new URL('$(ref)', window.location.href).href"
     end
 end
 

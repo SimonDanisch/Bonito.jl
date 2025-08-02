@@ -102,7 +102,22 @@ function jsrender(session::Session, obs::Observable{T}) where {T <: Union{Number
         session,
         obs_js,
         js"""(val)=> {
-        $(root_node).innerText = val
-    }""")
+            $(root_node).innerText = val
+        }"""
+    )
+    return root_node
+end
+
+
+function jsrender(session::Session, obs::Observable{<:HTML})
+    root_node = DOM.span(obs[])
+    obs_js = map(string, session, obs)
+    onjs(
+        session,
+        obs_js,
+        js"""(val)=> {
+            $(root_node).innerText = val
+        }"""
+    )
     return root_node
 end
