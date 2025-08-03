@@ -111,12 +111,12 @@ end
 
 function jsrender(session::Session, obs::Observable{<:HTML})
     root_node = DOM.span(obs[])
-    obs_js = map(string, session, obs)
     onjs(
         session,
-        obs_js,
+        obs,
         js"""(val)=> {
-            $(root_node).innerText = val
+            console.log(val);
+            $(root_node).replaceChildren(val);
         }"""
     )
     return root_node
