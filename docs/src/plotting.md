@@ -41,10 +41,7 @@ function Bonito.jsrender(session::Session, plot::PL.Plot)
 end
 
 App() do
-    p = PL.Plot(
-        x=1:20, y=cumsum(randn(20)), type="scatter", mode="lines+markers";
-        layout=PL.Config(margin=PL.Config(l=20, r=20, t=20, b=20))
-    )
+    p = PL.plot(x = 1:20, y = cumsum(randn(20)), type="scatter", mode="lines+markers")
     G.set_default_plot_size(300G.px, 300G.px)
     gp = G.plot([sin, cos], 0, 2pi)
     # The plots already leave lots of white space

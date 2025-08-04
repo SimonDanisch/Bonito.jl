@@ -103,18 +103,6 @@ function print_js_code(io::IO, jsss::AbstractVector{JSCode}, context::JSSourceCo
     return context
 end
 
-function import_in_js(io::IO, session::Session, asset_server, asset::BinaryAsset)
-    print(io, "Bonito.fetch_binary('$(url(session, asset))')")
-end
-
-function import_in_js(io::IO, session::Session, asset_server, asset::Asset)
-    ref = import_js(asset_server, asset)
-    if asset.es6module
-        print(io, "import($(ref))")
-    else
-        print(io, "Bonito.fetch_binary($(ref))")
-    end
-end
 
 function print_js_code(io::IO, asset::Union{Asset, BinaryAsset}, context::JSSourceContext)
     if asset isa BinaryAsset || asset.es6module
@@ -133,6 +121,18 @@ function print_js_code(io::IO, asset::Union{Asset, BinaryAsset}, context::JSSour
     return context
 end
 
+function import_in_js(io::IO, session::Session, asset_server, asset::BinaryAsset)
+    print(io, "Bonito.fetch_binary('$(url(session, asset))')")
+end
+
+function import_in_js(io::IO, session::Session, asset_server, asset::Asset)
+    ref = import_js_url(asset_server, asset)
+    if asset.es6module
+        print(io, "import($(ref))")
+    else
+        print(io, "Bonito.fetch_binary($(ref))")
+    end
+end
 
 # This works better with Pluto, which doesn't allow <script> the script </script>
 # and only allows `<script src=url>  </script>`
