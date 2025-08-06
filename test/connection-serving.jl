@@ -5,10 +5,11 @@ function export_test_app(session, request)
     return DOM.div(
         result,
         js"""
-            const three = await $(THREE)
-            if ('AdditiveAnimationBlendMode' in three) {
-                $(result).innerText = "passed"
-            }
+            $(THREE).then(three=> {
+                if ('AdditiveAnimationBlendMode' in three) {
+                    $(result).innerText = "passed"
+                }
+            });
         """
     )
 end
@@ -28,13 +29,14 @@ Bonito.configure_server!(proxy_url="http://localhost:$(s.port)")
 
 @testset "connection $(c) server: $(s)" for ((c, connection), (s, server)) in Iterators.product(connections, servers)
     app = App(export_test_app)
-    s = server()
-    sess = export_static(path, app; connection=connection(), asset_server=s)
+    session = Session(connection(); asset_server=server())
+    sess = export_static(path, app; session=session)
     # We need to drop a bit lower and cant use `testapp` here, since that uses fixed connection + asset server
     window = Bonito.EWindow(URI("file://" * path))
-    sleep(0.5) # how did this work before without syncronization?
-    result = run(window, "$(query_testid("result")).innerText")
-    @test result == "passed"
+    result = Bonito.wait_for() do
+        run(window, "$(query_testid("result")).innerText") == "passed"
+    end
+    @test result == :success
     close(window)
     close(app)
 end
@@ -113,4 +115,29 @@ end
 @testset "websocket cleanup policy test" begin
     test_cleanup_policy(WebSocketConnection)
     test_cleanup_policy(Bonito.DualWebsocket)
+end
+
+
+@testset "evaljs order" begin
+    rm(Bonito.BonitoLib.bundle_file)
+    app = App() do session
+        obs = Observable(false)
+        on(println, obs)
+        but = DOM.button("CLICK", onclick=js"$(obs).notify(true)")
+
+        jss = js"""
+        $(but).addEventListener("click", () => {
+            console.log("Button clicked!");
+            $(obs).notify(true);
+        });
+        """
+
+        return DOM.div(
+            jss,
+            DOM.h1("Session Test"),
+            but,
+            obs,
+        )
+    end
+    export_static("test.html", app)
 end

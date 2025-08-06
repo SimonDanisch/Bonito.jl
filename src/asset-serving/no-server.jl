@@ -125,7 +125,8 @@ function url(assetfolder::AbstractAssetFolder, asset::Asset)
     target_dir = to_unix_path(dirname(path))
     relative = replace(target_dir, root_dir => "")
     path_to_root = relpath(root_dir, html_dir)
-    return to_unix_path(path_to_root * relative * "/" * basename(path))
+    patherino = to_unix_path(path_to_root * relative * "/" * basename(path))
+    return patherino
 end
 
 folder(folder) = folder.folder
@@ -158,17 +159,4 @@ function url(assetfolder::DocumenterAssets, asset::Asset)
     # TODO, how to properly get the real relative path to assetfolder
     import_path = relpath(path, folder)
     return replace(import_path, "\\" => "/")
-end
-
-function import_in_js(io::IO, session::Session, assetfolder::DocumenterAssets, asset::Asset)
-    if !isempty(asset.online_path)
-        import_in_js(io, session, nothing, asset)
-        return
-    end
-    path = url(assetfolder, asset)
-    # We write all javascript files into the same folder, so imports inside
-    # JSSCode, which get evaled from Bonito.js, should use "./js-dep.js"
-    # since the url is relative to the module that imports
-    # TODO, is this always called from import? and if not, does it still work?
-    print(io, "import('$("./" * basename(path))')")
 end

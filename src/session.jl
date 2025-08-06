@@ -28,26 +28,6 @@ function wait_for_ready(session::Session; timeout=100)
     return success
 end
 
-function get_messages!(session::Session, messages=[])
-    root = root_session(session)
-    if root !== session
-        get_messages!(root, messages)
-    end
-    append!(messages, session.message_queue)
-    for js in session.on_document_load
-        onload = Dict(:msg_type=>EvalJavascript, :payload=>js)
-        push!(messages, SerializedMessage(session, onload))
-    end
-    empty!(session.on_document_load)
-    empty!(session.message_queue)
-    return messages
-end
-
-function fused_messages!(session::Session)
-    messages = get_messages!(session)
-    return Dict(:msg_type=>FusedMessage, :payload=>messages)
-end
-
 function init_session(session::Session)
     put!(session.connection_ready, true)
     # open the connection for e.g. subconnection, which just have an open flag
@@ -422,6 +402,42 @@ function mark_displayed!(session::Session)
     return
 end
 
+
+
+function get_messages!(session::Session, messages=[])
+    root = root_session(session)
+    if root !== session
+        get_messages!(root, messages)
+    end
+    append!(messages, session.message_queue)
+    for js in session.on_document_load
+        onload = Dict(:msg_type=>EvalJavascript, :payload=>js)
+        push!(messages, SerializedMessage(session, onload))
+    end
+    empty!(session.on_document_load)
+    empty!(session.message_queue)
+    return messages
+end
+
+fused_messages!(session::Session) = Dict(:msg_type=>FusedMessage, :payload=>get_messages!(session))
+
+function collect_session_objects!(session::Session, objects=Vector{Any}[])
+    ob = []
+    for msg in session.message_queue
+        for (k, v) in msg.cache.objects
+            push!(ob, [k, v])
+        end
+        empty!(msg.cache.objects)
+    end
+    typ = root_session(session) === session ? "root" : "sub"
+    push!(objects, [session.id, ob, typ])
+    for (k, child) in session.children
+        collect_session_objects!(child, objects)
+    end
+    return objects
+end
+
+
 function session_dom(session::Session, dom::Node; init=true, html_document=false, dom_id=isroot(session) ? "root" : "subsession-application-dom")
     lock(root_session(session).deletion_lock) do
         # the dom we can render may be anything between a
@@ -481,19 +497,13 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         push_dependencies!(children(head), session)
 
         if init
-            msgs = fused_messages!(session)
+            msgs = get_messages!(session)
             type = issubsession ? "sub" : "root"
-            if isempty(msgs[:payload])
-                init_session = js"""Bonito.lock_loading(() => Bonito.init_session($(session.id), null, $(type), $(session.compression_enabled)))"""
-            else
-                binary = BinaryAsset(session, msgs)
-                init_session = js"""
-                    Bonito.lock_loading(() => {
-                        return $(binary).then(msgs=> Bonito.init_session($(session.id), msgs, $(type), $(session.compression_enabled)));
-                    })
-                """
-            end
-            pushfirst!(children(body), jsrender(session, init_session))
+            binary = isempty(msgs) ? "null" : "Bonito.fetch_binary('$(url(session, BinaryAsset(session, msgs)))')"
+            init_session = """
+            Bonito.init_session($(repr(session.id)), $(binary), $(repr(type)), $(session.compression_enabled));
+            """
+            pushfirst!(children(body), DOM.script(init_session; type="module"))
         end
 
         if !issubsession
@@ -554,7 +564,7 @@ function update_session_dom!(parent::Session, node_uuid::String, app_or_dom; rep
     session_update = Dict(
         "msg_type" => UpdateSession,
         "session_id" => sub.id,
-        "messages" => fused_messages!(sub),
+        "messages" => get_messages!(sub),
         "html" => html,
         "replace" => replace,
         "dom_node_selector" => node_uuid
@@ -587,4 +597,26 @@ function append_child(parent::Session, parent_node::HTMLElement, new_html)
     return dom_in_js(parent, new_html, js"""(elem) => {
         $(parent_node).appendChild(elem);
     }""")
+end
+
+function update_subsession_dom!(sub::Session, selector, app::App)
+    html = session_dom(sub, app; init=false)
+    # We need to manually do the serialization,
+    # Since we send it via the parent, but serialization needs to happen
+    # for `sub`.
+    # sub is not open yet, and only opens if we send the below message for initialization
+    # which is why we need to send it via the parent session
+    UpdateSession = "12" # msg type
+    session_update = Dict(
+        "msg_type" => UpdateSession,
+        "session_id" => sub.id,
+        "messages" => get_messages!(sub),
+        "html" => html,
+        "replace" => true,
+        "dom_node_selector" => selector
+    )
+    message = SerializedMessage(sub, session_update)
+    send(root_session(sub), message)
+    mark_displayed!(sub)
+    return sub
 end

@@ -103,26 +103,6 @@ function print_js_code(io::IO, jsss::AbstractVector{JSCode}, context::JSSourceCo
     return context
 end
 
-function import_in_js(io::IO, session::Session, asset_server, asset::BinaryAsset)
-    print(io, "Bonito.fetch_binary('$(url(session, asset))')")
-end
-
-function import_in_js(io::IO, session::Session, asset_server, asset::Asset)
-    ref = url(session, asset)
-    if asset.es6module
-        # Use absolute paths for es6modules, since they're not relative
-        # To the HTML file they're used in, but instead to the Bonito.js file
-        # TODO, teach Bonito about where the JS files are located,
-        # to make them relativ
-        # Should only be relevant for AssetFolder
-        if startswith(ref, ".")
-            ref = ref[2:end]
-        end
-        print(io, "import('$(ref)')")
-    else
-        print(io, "Bonito.fetch_binary($(ref))")
-    end
-end
 
 function print_js_code(io::IO, asset::Union{Asset, BinaryAsset}, context::JSSourceContext)
     if asset isa BinaryAsset || asset.es6module
@@ -141,6 +121,18 @@ function print_js_code(io::IO, asset::Union{Asset, BinaryAsset}, context::JSSour
     return context
 end
 
+function import_in_js(io::IO, session::Session, asset_server, asset::BinaryAsset)
+    print(io, "Bonito.fetch_binary('$(url(session, asset))')")
+end
+
+function import_in_js(io::IO, session::Session, asset_server, asset::Asset)
+    ref = import_js_url(asset_server, asset)
+    if asset.es6module
+        print(io, "import($(ref))")
+    else
+        print(io, "Bonito.fetch_binary($(ref))")
+    end
+end
 
 # This works better with Pluto, which doesn't allow <script> the script </script>
 # and only allows `<script src=url>  </script>`
@@ -152,29 +144,33 @@ function inline_code(::Session, noserver, source::String)
 end
 
 function inline_code(session::Session, asset_server, js::JSCode)
+    evaljs(session, js)
     # Print code while collecting all interpolated objects in an IdDict
-    context = JSSourceContext(session)
-    code = sprint() do io
-        print_js_code(io, js, context)
-    end
-    if isempty(context.objects)
-        src = code
-    else
-        # reverse lookup and serialize elements
-        interpolated_objects = Dict(v => k for (k, v) in context.objects)
-        binary = BinaryAsset(session, interpolated_objects)
-        src = """
-        // JSCode from $(js.file)
-        Bonito.lock_loading(() => {
-            return Bonito.fetch_binary('$(url(session, binary))').then(bin_messages=>{
-                const objects = Bonito.decode_binary(bin_messages, $(session.compression_enabled));
-                const __lookup_interpolated = (id) => objects[id]
-                $code
-            })
-        })
-        """
-    end
-    return inline_code(session, asset_server, src)
+    # context = JSSourceContext(session)
+    # code = sprint() do io
+    #     print_js_code(io, js, context)
+    # end
+    # if isempty(context.objects)
+    #     src = code
+    #     return inline_code(session, asset_server, src)
+    # else
+    #     # reverse lookup and serialize elements
+    #     interpolated_objects = Dict(v => k for (k, v) in context.objects)
+    #     binary = BinaryAsset(session, interpolated_objects)
+    #     src = """
+    #     // JSCode from $(js.file)
+    #     Bonito.lock_loading(() => {
+    #         return Bonito.fetch_binary('$(url(session, binary))').then(bin_messages=>{
+    #             const objects = Bonito.decode_binary(bin_messages, $(session.compression_enabled));
+    #             const __lookup_interpolated = (id) => objects[id]
+    #             $code
+    #         })
+    #     })
+    #     """
+    #     binary = BinaryAsset(session, interpolated_objects)
+    #     evaljs(session, JSCode(src))
+    # end
+    return
 end
 
 function jsrender(session::Session, js::JSCode)
