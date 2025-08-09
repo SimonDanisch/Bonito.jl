@@ -25,6 +25,15 @@ function render_mime(session::Session, m::Union{MIME"image/png", MIME"image/jpeg
     return DOM.img(src=url(session, bindeps))
 end
 
+function render_mime(session::Session, m::MIME"text/latex", @nospecialize(value))
+    tex_str = sprint() do io
+        ctx = session.io_context[]
+        render_io = isnothing(ctx) ? io : IOContext(io, ctx)
+        show(render_io, m, value)
+    end
+    return jsrender(session, MathJax(tex_str))
+end
+
 function render_mime(session::Session, m::MIME"text/plain", @nospecialize(value))
     val = Base.invokelatest(repr, m, value; context=session.io_context[])
     return jsrender(session, DOM.pre(val))
