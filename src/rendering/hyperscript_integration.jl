@@ -24,7 +24,7 @@ for node in [:a, :abbr, :address, :area, :article, :aside, :audio, :b,
     # This is really bad for DOM.div(some_array) for displaying it nicely
     # To make this less breaking, we leave the behaviour for String[], but any other array in Bonito
     # Will not get flattened.
-    @eval $(node)(arg::AbstractVector{<:AbstractString}; kw...) = m($(node_name), arg; kw...)
+    @eval $(node)(arg::AbstractVector{<:Union{Hyperscript.Node, AbstractString}}; kw...) = m($(node_name), arg; kw...)
     @eval function $(node)(arg::AbstractArray; kw...)
         tag = $(node_name)
         ctx = Hyperscript.NOESCAPE_HTMLSVG_CONTEXT

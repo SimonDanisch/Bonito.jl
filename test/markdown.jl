@@ -64,6 +64,8 @@ function test_handler(session, req)
     return DOM.div(dom)
 end
 
+# App(test_handler)
+
 function test_current_session(app)
     dom = children(app.dom)[1]
     @test evaljs(app, js"document.querySelectorAll('button').length") == 1
