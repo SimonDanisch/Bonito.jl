@@ -600,9 +600,30 @@ function MathJax(source::String)
 end
 
 const MathJaxJS = Asset("https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js")
+
 function jsrender(session::Session, md::MathJax)
-    elem = DOM.span_unesc("\$" * md.source * "\$")
-    typeset = js"""MathJax.typeset([$(elem)]);"""
+    converted_source = replace(md.source, r"\$([^\$]+)\$" => s"\\(\1\\)")
+    elem = DOM.span_unesc(converted_source)
+    typeset = js"""
+        const elem = $(elem);
+        const run = ()=> {
+            MathJax.typeset([elem]);
+        }
+        let tries = 0;
+        const try_typeset = () => {
+            tries += 1;
+            if (tries > 10) {
+                console.warn("MathJax typesetting failed after 10 attempts.");
+                return;
+            };
+            if (window.MathJax) {
+                run();
+            } else {
+                setTimeout(try_typeset, 100);
+            }
+        };
+        try_typeset();
+    """
     dom = DOM.span(MathJaxJS, elem, typeset; class="mathjax-container")
     return jsrender(session, dom)
 end

@@ -7,7 +7,7 @@ To enable putting YourType into a dom element/div.
 You can also overload it to take a session as first argument, to register
 messages with the current web session (e.g. via onjs).
 """
-jsrender(::Session, value::Union{AbstractString,Symbol,Number}) = string(value)
+jsrender(::Session, value::Union{String,Symbol,Number}) = string(value)
 jsrender(::Nothing) = DOM.span()
 jsrender(@nospecialize(x)) = x
 
@@ -35,7 +35,15 @@ function render_mime(session::Session, m::MIME"text/latex", @nospecialize(value)
 end
 
 function render_mime(session::Session, m::MIME"text/plain", @nospecialize(value))
-    val = Base.invokelatest(repr, m, value; context=session.io_context[])
+    if value isa AbstractString
+        return DOM.pre(value)
+    end
+    if session.io_context[] isa Nothing
+        ctx = IOContext(Base.stdout, :limit => true)
+    else
+        ctx = session.io_context[]
+    end
+    val = Base.invokelatest(repr, m, value; context=ctx)
     return jsrender(session, DOM.pre(val))
 end
 
@@ -47,4 +55,18 @@ function jsrender(session::Session, @nospecialize(value))
     else
         return rendered
     end
+end
+
+struct Show
+    value::Any
+    mime::MIME
+end
+
+function Show(value::Any)
+    mime = richest_mime(value)
+    return Show(value, mime)
+end
+
+function jsrender(session::Session, s::Show)
+    return render_mime(session, s.mime, s.value)
 end

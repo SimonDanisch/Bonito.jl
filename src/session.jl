@@ -385,6 +385,7 @@ function push_dependencies!(childs, session::Session)
         assets = setdiff(session.imports, root_session(session).imports)
         union!(root_session(session).imports, session.imports)
     end
+
     assets_rendered = render_asset.(Ref(session), Ref(session.asset_server), assets)
     if any(x-> mediatype(x) == :js && !x.es6module, assets)
         # if a js non es6module is included, we may need to hack require... because JS! :(
