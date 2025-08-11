@@ -615,7 +615,7 @@ function jsrender(session::Session, katex::KaTeX)
     const source = $(Observable(katex.source)).value;
     const displayMode = $(katex.display);
     $(KaTeXJS).then(Katex=> {
-            Katex.default.render(source, elem);
+            Katex.default.render(source, elem, {displayMode: displayMode});
     }).catch(e => {
         console.warn("KaTeX loading error:", e);
         elem.textContent = source; // Fallback to plain text

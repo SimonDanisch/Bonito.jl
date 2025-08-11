@@ -139,7 +139,19 @@ end
 function default_electron_args()
     # Not an exhaustive check, but we can add if needed
     if haskey(ENV, "GITHUB_ACTIONS")
-        return [
+        args = [
+            # Security warning suppressions
+            "--disable-web-security",
+            "--allow-running-insecure-content",
+            "--disable-features=VizDisplayCompositor",
+            "--ignore-certificate-errors",
+            "--ignore-ssl-errors",
+            "--ignore-certificate-errors-spki-list",
+            "--disable-extensions-http-throttling",
+            # Logging suppression
+            "--log-level=3",  # Only fatal errors
+            "--disable-logging",
+            "--silent-debugger-extension-api",
             "--no-sandbox",
             "--enable-logging",
             "--user-data-dir=$(mktempdir())",
@@ -148,9 +160,9 @@ function default_electron_args()
             "--use-gl=swiftshader",               # ← explicitly request software GL
             "--disable-gpu",                      # ← disable GPU to avoid GPU errors
         ]
-    else
-        return []
     end
+
+    return []
 end
 
 
