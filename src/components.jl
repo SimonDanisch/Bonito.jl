@@ -602,8 +602,7 @@ end
 const MathJaxJS = Asset("https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js")
 
 function jsrender(session::Session, md::MathJax)
-    converted_source = replace(md.source, r"\$([^\$]+)\$" => s"\\(\1\\)")
-    elem = DOM.span_unesc(converted_source)
+    elem = DOM.span_unesc(md.source)
     typeset = js"""
         const elem = $(elem);
         const run = ()=> {

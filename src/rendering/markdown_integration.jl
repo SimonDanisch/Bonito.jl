@@ -53,7 +53,7 @@ end
 
 function md_html(code::Markdown.Code)
     if code.language == "latex"
-        return [MathJax(code.code)]
+        return [MathJax("\\(" * code.code * "\\)")]
     end
     maybe_lang = !isempty(code.language) ? Any[:class=>"language-$(code.language)"] : []
     return [DOM.m("pre", DOM.m("code", code.code; maybe_lang...))]
@@ -142,7 +142,7 @@ function htmlinline(link::Markdown.Link)
 end
 
 function htmlinline(latex::Markdown.LaTeX)
-    return [MathJax("\$" * latex.formula * "\$")]
+    return [MathJax("\\(" * latex.formula * "\\)")]
 end
 
 
