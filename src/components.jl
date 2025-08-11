@@ -590,39 +590,37 @@ function RippleSpinner(; width=64, height=width, stroke=4, duration=1)
     return DOM.div(styles, DOM.div(), DOM.div(); class="lds-ripple")
 end
 
-struct MathJax
+struct KaTeX
     source::String
-    config::Dict{String, Any}
+    display::Bool
 end
 
-function MathJax(source::String)
-    return MathJax(source, Dict{String, Any}())
+function KaTeX(source::String; display::Bool = false)
+    # Normalize LaTeX delimiters for KaTeX
+    source = replace(source, r"\$([\s\S]*?)\$" => s"\1")
+    source = replace(source, r"\\\[([\s\S]*?)\\\]" => s"\1")
+    return KaTeX(source, display)
 end
 
-const MathJaxJS = Asset("https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js")
+@deprecate MathJax(source::String, config=Dict()) KaTeX(source)
 
-function jsrender(session::Session, md::MathJax)
-    elem = DOM.span_unesc(md.source)
-    typeset = js"""
-        const elem = $(elem);
-        const run = ()=> {
-            MathJax.typeset([elem]);
-        }
-        let tries = 0;
-        const try_typeset = () => {
-            tries += 1;
-            if (tries > 10) {
-                console.warn("MathJax typesetting failed after 10 attempts.");
-                return;
-            };
-            if (window.MathJax) {
-                run();
-            } else {
-                setTimeout(try_typeset, 100);
-            }
-        };
-        try_typeset();
+const KaTeXCSS = Asset("https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css")
+const KaTeXJS = ES6Module("https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.mjs")
+
+function jsrender(session::Session, katex::KaTeX)
+    elem = DOM.span()
+    render_script = js"""
+    const elem = $(elem);
+    // uh, observable has better escaping for strings instead of interpolating it directly
+    const source = $(Observable(katex.source)).value;
+    const displayMode = $(katex.display);
+    $(KaTeXJS).then(Katex=> {
+            Katex.default.render(source, elem);
+    }).catch(e => {
+        console.warn("KaTeX loading error:", e);
+        elem.textContent = source; // Fallback to plain text
+    });
     """
-    dom = DOM.span(MathJaxJS, elem, typeset; class="mathjax-container")
+    dom = DOM.span(KaTeXCSS, elem, render_script; class="katex-container")
     return jsrender(session, dom)
 end

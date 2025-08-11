@@ -31,7 +31,7 @@ function render_mime(session::Session, m::MIME"text/latex", @nospecialize(value)
         render_io = isnothing(ctx) ? io : IOContext(io, ctx)
         show(render_io, m, value)
     end
-    return jsrender(session, MathJax(tex_str))
+    return jsrender(session, KaTeX(tex_str))
 end
 
 function render_mime(session::Session, m::MIME"text/plain", @nospecialize(value))
