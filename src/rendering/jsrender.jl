@@ -56,17 +56,3 @@ function jsrender(session::Session, @nospecialize(value))
         return rendered
     end
 end
-
-struct Show
-    value::Any
-    mime::MIME
-end
-
-function Show(value::Any)
-    mime = richest_mime(value)
-    return Show(value, mime)
-end
-
-function jsrender(session::Session, s::Show)
-    return render_mime(session, s.mime, s.value)
-end
