@@ -172,3 +172,7 @@ function wait_for_ready(app::App; timeout=100)
         isready(app.session[]) || isclosed(app.session[])
     end
 end
+
+function jsrender(session::Session, app::App)
+    return rendered_dom(session, app.handler)
+end

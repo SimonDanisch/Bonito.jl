@@ -190,7 +190,7 @@ function start(testsession::TestSession; timeout=300)
             start(testsession.server)
         end
         if !isdefined(testsession, :window) || !testsession.window.window.exists
-            testsession.window = Bonito.EWindow()
+            testsession.window = TestWindow()
         end
         reload!(testsession; timeout=timeout)
     catch e

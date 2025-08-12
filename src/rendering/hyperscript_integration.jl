@@ -20,17 +20,6 @@ for node in [:a, :abbr, :address, :area, :article, :aside, :audio, :b,
     node_name = string(node)
     unesc = Symbol(node_name * "_unesc")
     @eval $(node)(args...; kw...) = m($(node_name), args...; kw...)
-    # Hyperscript.div(...) flattens all vectors recursively so DOM.div([[1,2], [3,4]]) becomes DOM.div(1,2,3,4)
-    # This is really bad for DOM.div(some_array) for displaying it nicely
-    # To make this less breaking, we leave the behaviour for String[], but any other array in Bonito
-    # Will not get flattened.
-    @eval $(node)(arg::AbstractVector{<:Union{Hyperscript.Node, AbstractString}}; kw...) = m($(node_name), arg; kw...)
-    @eval function $(node)(arg::AbstractArray; kw...)
-        tag = $(node_name)
-        ctx = Hyperscript.NOESCAPE_HTMLSVG_CONTEXT
-        attr = Hyperscript.processattrs(ctx, tag, kw)
-        return Hyperscript.Node(ctx, tag, Any[arg], attr)
-    end
     @eval $(unesc)(args...; kw...) = m(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, $(node_name), args...; kw...)
 end
 

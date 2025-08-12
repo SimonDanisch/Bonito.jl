@@ -140,6 +140,18 @@ function default_electron_args()
     # Not an exhaustive check, but we can add if needed
     if haskey(ENV, "GITHUB_ACTIONS")
         return [
+            # Security warning suppressions
+            "--disable-web-security",
+            "--allow-running-insecure-content",
+            "--disable-features=VizDisplayCompositor",
+            "--ignore-certificate-errors",
+            "--ignore-ssl-errors",
+            "--ignore-certificate-errors-spki-list",
+            "--disable-extensions-http-throttling",
+            # Logging suppression
+            "--log-level=3",  # Only fatal errors
+            "--disable-logging",
+            "--silent-debugger-extension-api",
             "--no-sandbox",
             "--enable-logging",
             "--user-data-dir=$(mktempdir())",
@@ -153,17 +165,19 @@ function default_electron_args()
     end
 end
 
-
-
-function EWindow(args...; electron_args=default_electron_args())
+function EWindow(args...; options=Dict{String, Any}(), electron_args=default_electron_args())
     app = Electron().Application(;
         additional_electron_args=electron_args,
     )
-    return EWindow(app, Electron().Window(app, args...))
+    if isempty(args)
+        return EWindow(app, Electron().Window(app, options))
+    else
+        return EWindow(app, Electron().Window(app, args...; options=options))
+    end
 end
 
-function ElectronDisplay(; devtools = false, electron_args=default_electron_args())
-    w = EWindow(; electron_args=electron_args)
+function ElectronDisplay(; options=Dict{String, Any}(), devtools = false, electron_args=default_electron_args())
+    w = EWindow(; electron_args=electron_args, options=options)
     devtools && Electron().toggle_devtools(w.window)
     return ElectronDisplay(w, BrowserDisplay(; open_browser=false))
 end
@@ -180,8 +194,8 @@ function Base.display(display::ElectronDisplay, app::App)
     return display
 end
 
-function use_electron_display(; devtools = false, electron_args=default_electron_args())
-    disp = ElectronDisplay(; devtools = devtools, electron_args=electron_args)
+function use_electron_display(; options=Dict{String, Any}(), devtools = false, electron_args=default_electron_args())
+    disp = ElectronDisplay(; devtools = devtools, options=options, electron_args=electron_args)
     filter!(Base.Multimedia.displays) do x
         # remove all other ElectronDisplays
         if x isa ElectronDisplay
