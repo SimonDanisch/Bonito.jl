@@ -83,7 +83,7 @@ end
     @isdefined(app) && close(app)
     app = Bonito.Server(handler, "0.0.0.0", 8558)
     try
-        window = Bonito.EWindow()
+        window = TestWindow()
         try
             @test obs[] == 0
             @test counter[] == 0

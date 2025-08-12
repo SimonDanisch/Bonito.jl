@@ -32,7 +32,7 @@ Bonito.configure_server!(proxy_url="http://localhost:$(s.port)")
     session = Session(connection(); asset_server=server())
     sess = export_static(path, app; session=session)
     # We need to drop a bit lower and cant use `testapp` here, since that uses fixed connection + asset server
-    window = Bonito.EWindow(URI("file://" * path))
+    window = TestWindow(URI("file://" * path))
     result = Bonito.wait_for() do
         run(window, "$(query_testid("result")).innerText") == "passed"
     end
@@ -116,7 +116,6 @@ end
     test_cleanup_policy(WebSocketConnection)
     test_cleanup_policy(Bonito.DualWebsocket)
 end
-
 
 @testset "evaljs order" begin
     rm(Bonito.BonitoLib.bundle_file)

@@ -62,7 +62,7 @@ end
 Bonito.set_cleanup_time!(30/60/60)
 
 # Re-Create edisplay for other tests
-edisplay = Bonito.use_electron_display(devtools=true)
+edisplay = Bonito.use_electron_display(devtools=true, options=ELECTRON_OPTIONS)
 
 @testset "subsession & freing" begin
     server = Server("0.0.0.0", 9433)

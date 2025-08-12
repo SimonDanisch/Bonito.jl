@@ -56,8 +56,17 @@ function OfflineSession()
     return Session(NoConnection(); asset_server=NoServer())
 end
 
+global ELECTRON_OPTIONS = Dict{String, Any}(
+    "show" => false,  # Don't show the window immediately
+    "focusOnWebView" => false,  # Don't focus the webview
+)
+
+function TestWindow(args...)
+    return Bonito.EWindow(args...; options=ELECTRON_OPTIONS)
+end
+
 @testset "Bonito" begin
-    global edisplay = Bonito.use_electron_display(; devtools=true)
+    global edisplay = Bonito.use_electron_display(; options=ELECTRON_OPTIONS, devtools=true)
     @testset "Default Connection" begin
         @testset "websocket-closing" begin
             include("websocket-closing.jl")
@@ -95,7 +104,7 @@ end
         end
     end
     close(edisplay)
-    global edisplay = Bonito.use_electron_display(; devtools=true)
+    global edisplay = Bonito.use_electron_display(; options=ELECTRON_OPTIONS, devtools=true)
     @testset "Compression true + DualWebsocket" begin
         @testset "Compression + DualWebsocket" begin
             Bonito.use_compression!(true)

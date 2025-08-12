@@ -66,8 +66,13 @@ Bonito.set_cleanup_time!(0.0)
     nwindows = 4
     all_windows = Channel{Bonito.EWindow}(nwindows)
     created_windows = Bonito.EWindow[]
+    # Create window options
+    options = Dict{String, Any}(
+        "show" => false,  # Don't show the window immediately
+        "focusOnWebView" => false,  # Don't focus the webview
+    )
     for i in 1:nwindows
-        win = Bonito.EWindow()
+        win = TestWindow()
         Electron.toggle_devtools(win.window)
         put!(all_windows, win)
         push!(created_windows, win)

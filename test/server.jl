@@ -11,7 +11,7 @@ Bonito.set_cleanup_time!(0.0)
     end
     server = Server(app, "0.0.0.0", 8898)
 
-    window = Bonito.EWindow()
+    window = TestWindow()
     url = URI(online_url(server, "/"))
     @testset for i in 1:10
         load(window.window, url)

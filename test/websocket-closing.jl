@@ -34,11 +34,12 @@
         end
 
         # Close the websocket directly
-        run(edisplay.window, "window.WEBSOCKET.close()")
-
+        wsopen = run(edisplay.window, """
+            window.WEBSOCKET.close();
+            window.WEBSOCKET.isopen();
+        """)
         # Check that websocket is closed after direct close
-        is_open_after = run(edisplay.window, "window.WEBSOCKET.isopen()")
-        @test is_open_after == false
+        @test false == wsopen
         success = Bonito.wait_for(timeout=5) do
             # Test reconnect!
             return run(edisplay.window, "window.WEBSOCKET.isopen()")
