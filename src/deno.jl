@@ -34,6 +34,8 @@ function deno_bundle(path_to_js::AbstractString, output_file::String)
         err_str = String(take!(err))
         return false, err_str
     end
+    dir = dirname(output_file)
+    !isdir(dir) && mkpath(dir)
     write(output_file, seekstart(stdout))
     return true, ""
 end
