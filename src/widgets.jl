@@ -404,8 +404,6 @@ end
 
 render_row_value(x) = x
 render_row_value(x::Missing) = "n/a"
-render_row_value(x::AbstractString) = string(x)
-render_row_value(x::String) = x
 
 function Table(table; class="", row_renderer=render_row_value)
     return Table(table, class, row_renderer)
@@ -413,15 +411,14 @@ end
 
 function jsrender(session::Session, table::Table)
     names = string.(Tables.schema(table.table).names)
-    header = DOM.thead(DOM.tr(DOM.th.(names)...))
+    header = DOM.thead(DOM.tr(DOM.th.(names)))
     rows = []
     for row in Tables.rows(table.table)
-        push!(rows, DOM.tr(DOM.td.(table.row_renderer.(values(row)))...))
+        push!(rows, DOM.tr(DOM.td.(table.row_renderer.(values(row)))))
     end
-    body = DOM.tbody(rows...)
+    body = DOM.tbody(rows)
 
     return DOM.div(
-        jsrender(session, Asset(dependency_path("table.css"))),
         DOM.table(header, body; class=table.class),
     )
 end
