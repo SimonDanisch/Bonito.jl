@@ -447,6 +447,9 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         # code and dom nodes to the right places, so we need to extract those
         head, body, dom = find_head_body(dom)
         session_style = render_stylesheets!(root_session(session), session, session.stylesheets)
+        global_styles = map(session.global_stylesheets.items) do styles
+            DOM.style(to_string(session, styles))
+        end
         issubsession = !isroot(session)
 
         # should never request full html_doc for subsession
@@ -469,13 +472,13 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
                     ),
                     Hyperscript.m("meta"; charset="UTF-8"),
                     Hyperscript.m("title", session.title),
-                    session_style
+                    session_style, global_styles...
                 )
                 body = Hyperscript.m("body", body_dom)
                 dom = Hyperscript.m("html", head, body; class="bonito-fragment")
             else
                 # Emit a "fragment"
-                head = DOM.div(session_style)
+                head = DOM.div(session_style, global_styles...)
                 body = DOM.div(dom)
                 dom = DOM.div(
                     head, body; id=session.id, class="bonito-fragment", dataJscallId=dom_id
@@ -483,6 +486,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
             end
         else
             push!(children(head), session_style)
+            append!(children(head), global_styles)
         end
         # first render BonitoLib
         Bonito_import = DOM.script(src=url(session, BonitoLib), type="module")

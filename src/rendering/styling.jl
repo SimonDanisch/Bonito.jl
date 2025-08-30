@@ -18,11 +18,16 @@ function attribute_render(session::Session, parent, attribute::String, styles::S
 end
 
 function jsrender(session::Session, style::Styles)
+    push!(session.global_stylesheets, style)
+    return nothing
+end
+
+function to_string(session::Session, style::Styles)
     io = IOBuffer()
     for (_, css) in style.styles
         render_style(io, session, "", css)
     end
-    return DOM.style(String(take!(io)))
+    return String(take!(io))
 end
 
 convert_css_attribute(asset::Asset) = asset
