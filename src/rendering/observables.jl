@@ -115,6 +115,7 @@ function jsrender(session::Session, obs::Observable{<:HTML})
         session,
         obs,
         js"""(val)=> {
+            console.log(val);
             $(root_node).replaceChildren(val);
         }"""
     )

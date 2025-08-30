@@ -203,7 +203,6 @@ mutable struct Session{Connection <: FrontendConnection}
     style_counter::Int
     ignore_message::RefValue{Function}
     imports::OrderedSet{Asset}
-    global_stylesheets::OrderedSet{Styles}
     title::String
     compression_enabled::Bool
     deletion_lock::Base.ReentrantLock
@@ -257,7 +256,6 @@ mutable struct Session{Connection <: FrontendConnection}
             1,
             ignore_message,
             imports,
-            OrderedSet{Styles}(),
             title,
             compression_enabled,
             Base.ReentrantLock(),

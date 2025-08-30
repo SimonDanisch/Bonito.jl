@@ -54,8 +54,7 @@ function bind_global(session::Session, var::AbstractObservable{T}) where T
     return result
 end
 
-# Enable route!(server, "/" => app)
-function HTTPServer.apply_handler(app::App, context)
+function serve_app(app, context)
     @debug "Serving from thread: $(Threads.threadid())"
     server = context.application
     session = HTTPSession(server)
@@ -66,6 +65,16 @@ function HTTPServer.apply_handler(app::App, context)
     end
     mark_displayed!(session)
     return html(html_str)
+end
+
+# Enable route!(server, "/" => app)
+function HTTPServer.apply_handler(app::App, context)
+    if app.threaded
+        task = ThreadPools.spawnbg(() -> serve_app(app, context))
+        return fetch(task)
+    else
+        return serve_app(app, context)
+    end
 end
 
 function Base.close(app::App)

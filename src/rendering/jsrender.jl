@@ -36,7 +36,7 @@ end
 
 function render_mime(session::Session, m::MIME"text/plain", @nospecialize(value))
     if value isa AbstractString
-        return DOM.span(convert(String, value))
+        return DOM.pre(value)
     end
     if session.io_context[] isa Nothing
         ctx = IOContext(Base.stdout, :limit => true)
@@ -44,7 +44,7 @@ function render_mime(session::Session, m::MIME"text/plain", @nospecialize(value)
         ctx = session.io_context[]
     end
     val = Base.invokelatest(repr, m, value; context=ctx)
-    return DOM.span(val; style="white-space: pre-wrap", class="text-plain")
+    return jsrender(session, DOM.pre(val))
 end
 
 function jsrender(session::Session, @nospecialize(value))
