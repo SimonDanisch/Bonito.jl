@@ -1,4 +1,4 @@
-using Bonito, HTTP, URIs, BonitoBook
+using Bonito, HTTP, URIs
 
 """
     FolderServer(folder::String)
