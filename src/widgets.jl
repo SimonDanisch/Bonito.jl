@@ -534,6 +534,242 @@ function jsrender(session::Session, editor::CodeEditor)
     return jsrender(session, DOM.div(ace, editor.element))
 end
 
+
+# Hierarchical Menu Widget
+abstract type AbstractHierarchicalMenuItem end
+
+struct HierarchicalMenuItem <: AbstractHierarchicalMenuItem
+    label::String
+    value::Any
+    icon::Union{String, Nothing}
+    enabled::Bool
+end
+
+HierarchicalMenuItem(label::String, value=label; icon=nothing, enabled=true) = HierarchicalMenuItem(label, value, icon, enabled)
+
+struct HierarchicalSubMenu <: AbstractHierarchicalMenuItem
+    label::String
+    items::Vector{AbstractHierarchicalMenuItem}
+    icon::Union{String, Nothing}
+    expanded::Bool
+end
+
+HierarchicalSubMenu(label::String, items::Vector{<:AbstractHierarchicalMenuItem}=AbstractHierarchicalMenuItem[]; icon=nothing, expanded=false) = HierarchicalSubMenu(label, items, icon, expanded)
+
+struct HierarchicalMenu
+    items::Observable{Vector{AbstractHierarchicalMenuItem}}
+    selected_value::Observable{Any}
+    style::Styles
+    attributes::Dict{Symbol,Any}
+end
+
+const HIERARCHICAL_MENU_EXAMPLE = """
+App() do
+    menu_items = [
+        HierarchicalMenuItem("Home", "home"; icon="🏠"),
+        HierarchicalSubMenu("File", [
+            HierarchicalMenuItem("New", "file_new"; icon="📄"),
+            HierarchicalMenuItem("Open", "file_open"; icon="📂"),
+            HierarchicalMenuItem("Save", "file_save"; icon="💾"),
+            HierarchicalSubMenu("Recent", [
+                HierarchicalMenuItem("Document 1", "recent_doc1"),
+                HierarchicalMenuItem("Document 2", "recent_doc2")
+            ])
+        ]; icon="📁"),
+        HierarchicalSubMenu("Edit", [
+            HierarchicalMenuItem("Cut", "edit_cut"; icon="✂️"),
+            HierarchicalMenuItem("Copy", "edit_copy"; icon="📋"),
+            HierarchicalMenuItem("Paste", "edit_paste"; icon="📌")
+        ]; icon="✏️"),
+        HierarchicalMenuItem("Settings", "settings"; icon="⚙️")
+    ]
+
+    menu = HierarchicalMenu(menu_items)
+    on(menu.selected_value) do value
+        @info "Selected: \$value"
+    end
+    return menu
+end
+"""
+
+"""
+    HierarchicalMenu(items; style=Styles(), attributes...)
+
+A hierarchical menu widget that supports nested menu items and submenus.
+
+### Menu Items
+- `MenuItem(label, value; icon=nothing, enabled=true)`: A clickable menu item
+- `SubMenu(label, items; icon=nothing, expanded=false)`: A submenu containing other items
+
+### Example
+
+```julia
+$(HIERARCHICAL_MENU_EXAMPLE)
+```
+"""
+
+function HierarchicalMenu(items; style=Styles(), attributes...)
+    items_obs = convert(Observable{Vector{AbstractHierarchicalMenuItem}}, items)
+    selected_value = Observable{Any}(nothing)
+    css = Styles(style, MENU_STYLES)
+    return HierarchicalMenu(items_obs, selected_value, css, Dict{Symbol,Any}(attributes))
+end
+
+const MENU_STYLE = Styles(
+    CSS(
+        ".hierarchical-menu",
+        "font-family" => "system-ui, -apple-system, sans-serif",
+        "border" => "1px solid #e1e5e9",
+        "border-radius" => "6px",
+        "background-color" => "#ffffff",
+        "box-shadow" => "0 2px 8px rgba(0,0,0,0.1)",
+        "overflow" => "hidden",
+        "min-width" => "200px"
+    ),
+    CSS(
+        ".menu-item",
+        "display" => "flex",
+        "align-items" => "center",
+        "padding" => "8px 12px",
+        "cursor" => "pointer",
+        "border-bottom" => "1px solid #f6f8fa",
+        "transition" => "background-color 0.2s",
+        "user-select" => "none"
+    ),
+    CSS(
+        ".menu-item:hover",
+        "background-color" => "#f6f8fa"
+    ),
+    CSS(
+        ".menu-item:last-child",
+        "border-bottom" => "none"
+    ),
+    CSS(
+        ".menu-item.disabled",
+        "opacity" => "0.5",
+        "cursor" => "not-allowed"
+    ),
+    CSS(
+        ".menu-item.disabled:hover",
+        "background-color" => "transparent"
+    ),
+    CSS(
+        ".submenu-header",
+        "display" => "flex",
+        "align-items" => "center",
+        "padding" => "8px 12px",
+        "cursor" => "pointer",
+        "border-bottom" => "1px solid #f6f8fa",
+        "background-color" => "#f6f8fa",
+        "font-weight" => "500",
+        "transition" => "background-color 0.2s",
+        "user-select" => "none"
+    ),
+    CSS(
+        ".submenu-header:hover",
+        "background-color" => "#eaeef2"
+    ),
+    CSS(
+        ".submenu-content",
+        "border-left" => "3px solid #e1e5e9",
+        "background-color" => "#fafbfc"
+    ),
+    CSS(
+        ".submenu-content .menu-item",
+        "padding-left" => "20px"
+    ),
+    CSS(
+        ".menu-icon",
+        "margin-right" => "8px",
+        "font-size" => "14px",
+        "width" => "16px",
+        "text-align" => "center"
+    ),
+    CSS(
+        ".submenu-arrow",
+        "margin-left" => "auto",
+        "font-size" => "12px",
+        "transition" => "transform 0.2s",
+        "color" => "#656d76"
+    ),
+    CSS(
+        ".submenu-arrow.expanded",
+        "transform" => "rotate(90deg)"
+    )
+)
+
+function render_menu_item(session::Session, item::HierarchicalMenuItem, menu::HierarchicalMenu, depth::Int=0)
+    icon_span = item.icon !== nothing ? DOM.span(item.icon; class="menu-icon") : DOM.span(""; class="menu-icon")
+
+    item_div = DOM.div(
+        icon_span,
+        DOM.span(item.label);
+        class=item.enabled ? "menu-item" : "menu-item disabled",
+        onclick=item.enabled ? js"event => {
+            event.stopPropagation();
+            $(menu.selected_value).notify($(item.value));
+        }" : js"event => event.stopPropagation()"
+    )
+
+    return item_div
+end
+
+function render_menu_item(session::Session, submenu::HierarchicalSubMenu, menu::HierarchicalMenu, depth::Int=0)
+    icon_span = submenu.icon !== nothing ? DOM.span(submenu.icon; class="menu-icon") : DOM.span(""; class="menu-icon")
+    arrow_span = DOM.span("▶"; class=submenu.expanded ? "submenu-arrow expanded" : "submenu-arrow")
+
+    header_div = DOM.div(
+        icon_span,
+        DOM.span(submenu.label),
+        arrow_span;
+        class="submenu-header"
+    )
+
+    content_items = [render_menu_item(session, child_item, menu, depth + 1) for child_item in submenu.items]
+    content_div = DOM.div(
+        content_items...;
+        class="submenu-content",
+        style=submenu.expanded ? "display: block;" : "display: none;"
+    )
+
+    submenu_div = DOM.div(header_div, content_div)
+
+    # Add click handler to toggle submenu
+    onload(session, header_div, js"""
+    function(header) {
+        header.addEventListener('click', function(event) {
+            event.stopPropagation();
+            const arrow = header.querySelector('.submenu-arrow');
+            const content = header.nextElementSibling;
+
+            if (content.style.display === 'none' || content.style.display === '') {
+                content.style.display = 'block';
+                arrow.classList.add('expanded');
+            } else {
+                content.style.display = 'none';
+                arrow.classList.remove('expanded');
+            }
+        });
+    }
+    """)
+
+    return submenu_div
+end
+
+
+function jsrender(session::Session, menu::HierarchicalMenu)
+    # Render all menu items
+    rendered_items = [render_menu_item(session, item, menu) for item in menu.items[]]
+    menu_div = DOM.div(
+        menu.style,
+        rendered_items...;
+        class="hierarchical-menu",
+        style=menu.style,
+        menu.attributes...
+    )
+    return jsrender(session, menu_div)
+end
+
 # Ok, this is bad piracy, but I donno how else to make the display nice for now!
 function Base.show(io::IO, m::MIME"text/html", widget::WidgetsBase.AbstractWidget)
     return show(io, m, App(widget))
