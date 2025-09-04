@@ -69,7 +69,7 @@ include("interactive.jl")
 
 # Core functionality
 export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset, CSS
-export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor
+export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor, HierarchicalMenu, HierarchicalMenuItem, HierarchicalSubMenu
 export browser_display, configure_server!, Server, show_html, html, route!, online_url, use_electron_display
 export Observable, on, onany, bind_global
 export linkjs, evaljs, evaljs_value, onjs
