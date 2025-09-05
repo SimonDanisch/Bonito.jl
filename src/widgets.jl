@@ -631,7 +631,7 @@ Base.@kwdef struct ChoicesJSParams
     itemSelectText::String = "Press to select"
     placeholder::Bool = true
     placeholderValue::String = ""
-    removeItemButton::Bool = true
+    removeItemButton::Bool = false
     renderChoiceLimit::Int = -1
     searchEnabled::Bool = true
     searchPlaceholderValue::String = ""
@@ -693,7 +693,7 @@ $(CHOICESBOX_EXAMPLE)
 """
 struct ChoicesBox
     options::Observable{Vector{String}}
-    value::Observable{String}
+    value::Observable{Union{Nothing,String}}
     choicejsparams::ChoicesJSParams
     attributes::Dict{Symbol, Any}
 end
@@ -701,7 +701,7 @@ end
 
 function ChoicesBox(options; choicejsparams = ChoicesJSParams(), attributes...)
     options = convert(Observable{Vector{String}}, options)
-    value = Observable("")
+    value = Observable{Union{Nothing,String}}(nothing)
 
     return ChoicesBox(
         convert(Observable{Vector{String}}, options),
@@ -723,7 +723,7 @@ function jsrender(session::Session, choicesbox::ChoicesBox)
         function initChoices(selectElement) {
             // Wait for Choices.js to load
             if (typeof Choices === 'undefined') {
-                console.log("Wait for Choices.js to load")
+                // console.log("Wait for Choices.js to load")
                 setTimeout(() => initChoices(selectElement), 100);
                 return;
             }
@@ -733,25 +733,25 @@ function jsrender(session::Session, choicesbox::ChoicesBox)
             selectElement.addEventListener('change', function(event) {
                             console.log(choices.choices)
 
-                console.log("Handle value changes", event.detail.value || event.target.value)
+                // console.log("Handle value changes", event.detail.value || event.target.value)
                 $(choicesbox.value).notify(event.detail.value || event.target.value);
             });
 
 
             // Update choices when options change
             $(choicesbox.options).on(function(newOptions) {
-                console.log("Update choices when options change", newOptions)
+                // console.log("Update choices when options change", newOptions)
                 choices.clearStore();
                 newOptions.forEach(option => {
                     choices.setChoices([{value: option, label: option}], 'value', 'label', false);
                 });
+                $(choicesbox.value).notify(null);
             });
 
             // Update value when observable changes
             $(choicesbox.value).on(function(newValue) {
-                console.log("Update value when observable changes", newValue)
+                // console.log("Update value when observable changes", newValue)
                 if (choices.getValue(true) !== newValue) {
-                    console.log("  choices.getValue(true)", choices.getValue(true))
                     choices.setChoiceByValue(newValue);
                 }
             });

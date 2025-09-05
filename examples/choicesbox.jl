@@ -13,6 +13,8 @@ const params = ChoicesJSParams(
     shouldSort=false,
     searchResultLimit=3,
     renderChoiceLimit=10,
+    placeholder = true,
+    placeholderValue = "--"
 )
 const choicesbox = ChoicesBox(fruits; choicejsparams=params)
 
@@ -36,3 +38,5 @@ App() do
         )
     )
 end
+
+##
