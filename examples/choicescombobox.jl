@@ -1,15 +1,20 @@
 using Bonito
 using Observables
 # Example usage function
-options = Observable(["Banana", "Apple", "Cherry", "Date", "Elderberry", "Fig", "Grape"])
 
 App() do
     # Create a combo box with some sample options
-    combobox = ChoicesComboBox(options;
-        #initial_value="not set...",
-        allow_search=true,
-        itemSelectText = "selectme"
+    fruits = ["Apple", "Banana", "Cherry", "Date", "Elderberry", "Fig", "Grape"]
+
+    # Configure Choices.js parameters
+    params = ChoicesJSParams(
+        searchPlaceholderValue="Type to search fruits...",
+        itemSelectText= "Press this fruit to select",
+        searchEnabled=true,
+        shouldSort=true,
+        searchResultLimit=5
     )
+    combobox = ChoicesComboBox(fruits; choicejsparams=params)
 
     # Display selected value
     selected_display = map(combobox.value) do value
