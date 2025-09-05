@@ -561,9 +561,9 @@ function Bonito.jsrender(session::Session, fi::FileInput)
     return DOM.input(; type="file", onchange=onchange, multiple=fi.multiple)
 end
 
-# ChoicesComboBox
+# ChoicesBox
 
-const CHOICESCOMBOBOX_EXAMPLE = """
+const CHOICESBOX_EXAMPLE = """
 App() do
     # Create a combo box with some sample options
     fruits = ["Apple", "Banana", "Cherry", "Date", "Elderberry", "Fig", "Grape"]
@@ -575,7 +575,7 @@ App() do
         shouldSort=true,
         searchResultLimit=5
     )
-    combobox = ChoicesComboBox(fruits;
+    combobox = ChoicesBox(fruits;
         initial_value="Apple",
         choicejsparams=params
     )
@@ -631,49 +631,12 @@ Base.@kwdef struct ChoicesJSParams
     itemSelectText::String = "Press to select"
     placeholder::Bool = true
     placeholderValue::String = ""
-    removeItemButton::Bool = false
+    removeItemButton::Bool = true
     renderChoiceLimit::Int = -1
     searchEnabled::Bool = true
     searchPlaceholderValue::String = ""
     searchResultLimit::Int = 4
     shouldSort::Bool = true
-    ## TODO: consider adding and teststing `Choices` params below described in link in struct docstring.
-    #addChoices::Bool = false
-    #addItemFilter::Union{Nothing, Regex, JSCode} = nothing
-    #addItemText::JSCode = js"""(value, rawValue) => {return `Press Enter to add <b>"\${value}"</b>`;}"""
-    #allowHTML::Bool = false
-    #allowHtmlUserInput::Bool = false
-    #appendGroupInSearch::Bool = false
-    #appendValue::Union{Nothing, String} = nothing
-    #choices::Vector{Any} = []
-    #closeDropdownOnSelect::String = "auto"
-    #customAddItemText::String = "Only values matching specific conditions can be added"
-    #delimiter::String = ","
-    #duplicateItemsAllowed::Bool = true
-    #editItems::Bool = false
-    #items::Vector{Any} = []
-    #loadingText::String = "Loading..."
-    #maxItemCount::Int = -1
-    #maxItemText::JSCode = js"(maxItemCount) => {return `Only ${maxItemCount} values can be added`;}"
-    #noChoicesText::String = "No choices to choose from"
-    #noResultsText::String = "No results found"
-    #paste::Bool = true
-    #position::String = "auto"
-    #prependValue::Union{Nothing, String} = nothing
-    #removeItemButtonAlignLeft::Bool = false
-    #removeItems::Bool = true
-    #renderSelectedChoices::String = "auto"
-    #resetScrollPosition::Bool = true
-    #searchChoices::Bool = true
-    #searchFields::Vector{String} = ["label", "value"]
-    #searchFloor::Int = 1
-    #shouldSortItems::Bool = false
-    #silent::Bool = false
-    #singleModeForMultiSelect::Bool = false # singleModeForMultiSelect: false,
-    #sorter::JSCode = js"sortByAlpha" # sorter: () => {...},
-    #uniqueItemText::String = "Only unique values can be added"
-    #valueComparer::JSCode = js"(value1, value2) => {return value1 === value2;}" # valueComparer: (value1, value2) => {return value1 === value2;},
-
 end
 
 function (c::ChoicesJSParams)()
@@ -688,49 +651,30 @@ function (c::ChoicesJSParams)()
         searchEnabled: $(c.searchEnabled),
         searchPlaceholderValue: $(c.searchPlaceholderValue),
         searchResultLimit: $(c.searchResultLimit),
-        shouldSort: $(c.shouldSort)
+        shouldSort: $(c.shouldSort),
+        // fixed params
+        items: [],
+        choices: []
+
     }
     """
 end
 
 """
-    ChoicesComboBox(options; initial_value="", choicejsparams=ChoicesJSParams(...), attributes...)
+    ChoicesBox(options; initial_value="", choicejsparams=ChoicesJSParams(...), attributes...)
 
 A combo box widget using the Choices.js library that allows both text input and selection from predefined options.
 Users can either select from the dropdown list or type their own custom values.
 
-# Arguments
-- `options`: Vector of string options to display in the dropdown
-- `initial_value`: Initial selected value (default: "")
-- `choicejsparams::ChoicesJSParams`: Configuration parameters for Choices.js behavior
-- `attributes...`: Additional DOM attributes to apply to the element
-
 # Fields
 - `options::Observable{Vector{String}}`: Available dropdown options
 - `value::Observable{String}`: Current selected or typed value
-- `attributes::Dict{Symbol, Any}`: DOM attributes applied to the element
-- `element::Bonito.HTMLElement`: The underlying HTML select element
 - `choicejsparams::ChoicesJSParams`: Choices.js configuration parameters
+- `attributes::Dict{Symbol, Any}`: DOM attributes applied to the element
 
-### Example
+    ChoicesBox(options; initial_value="", choicejsparams=ChoicesJSParams(...), attributes...)
 
-```julia
-$(CHOICESCOMBOBOX_EXAMPLE)
-```
-"""
-struct ChoicesComboBox
-    options::Observable{Vector{String}}
-    value::Observable{String}
-    attributes::Dict{Symbol, Any}
-    element::Bonito.HTMLElement
-    choicejsparams::ChoicesJSParams
-end
-
-
-"""
-    ChoicesComboBox(options; initial_value="", choicejsparams=ChoicesJSParams(...), attributes...)
-
-Constructor for creating a ChoicesComboBox widget.
+Constructor for creating a ChoicesBox widget.
 
 # Arguments
 - `options`: Vector or Observable of string options for the dropdown
@@ -739,79 +683,64 @@ Constructor for creating a ChoicesComboBox widget.
 - `attributes...`: Additional DOM attributes
 
 # Returns
-- `ChoicesComboBox`: A configured combo box widget instance
-"""
-function ChoicesComboBox(
-        options;
-        initial_value = "",
-        choicejsparams = ChoicesJSParams(searchPlaceholderValue = "Type here..."),
-        attributes...
-    )
-    options_obs = convert(Observable{Vector{String}}, options)
-    value_obs = Observable{String}(string(initial_value))
+- `ChoicesBox`: A configured combo box widget instance
 
-    # Create select element that Choices.js will enhance
-    select_elem = DOM.select(
-        class = "choices-combobox",
-        placeholder = choicejsparams.searchPlaceholderValue
-    )
-    return ChoicesComboBox(
-        options_obs,
-        value_obs,
-        Dict{Symbol, Any}(merge(Dict(:placeholder => choicejsparams.searchPlaceholderValue), attributes)),
-        select_elem,
-        choicejsparams
+# Example
+
+```julia
+$(CHOICESBOX_EXAMPLE)
+```
+"""
+struct ChoicesBox
+    options::Observable{Vector{String}}
+    value::Observable{String}
+    choicejsparams::ChoicesJSParams
+    attributes::Dict{Symbol, Any}
+end
+
+
+function ChoicesBox(options; choicejsparams = ChoicesJSParams(), attributes...)
+    options = convert(Observable{Vector{String}}, options)
+    value = Observable("")
+
+    return ChoicesBox(
+        convert(Observable{Vector{String}}, options),
+        value,
+        choicejsparams,
+        attributes
     )
 end
 
-function jsrender(session::Session, combobox::ChoicesComboBox)
+function jsrender(session::Session, choicesbox::ChoicesBox)
     # Map options to option elements
-    option_elements = map(combobox.options) do options
-        option_divs = []
-        for option in options
-            push!(option_divs, DOM.option(option, value = option))
-        end
-        return option_divs
+    option_elements = map(choicesbox.options) do options
+        return map(o->DOM.option(o, value = o), options)
     end
-
-    # Update select element with current options
-    select_with_options = map(option_elements) do opts
-        DOM.select(
-            opts...,
-            class = "choices-combobox",
-            placeholder = get(combobox.attributes, :placeholder, "Choose or type...")
-        )
-    end[]
+    selectDOM = map(opts->DOM.select(opts..., class = "choicesbox"), option_elements)[]
 
     # Choices.js initialization and event handling
     choices_script = js"""
         function initChoices(selectElement) {
             // Wait for Choices.js to load
             if (typeof Choices === 'undefined') {
+                console.log("Wait for Choices.js to load")
                 setTimeout(() => initChoices(selectElement), 100);
                 return;
             }
-
-            const choices = new Choices(selectElement,  $(combobox.choicejsparams()));
+            const choices = new Choices(selectElement, $(choicesbox.choicejsparams()));
 
             // Handle value changes
             selectElement.addEventListener('change', function(event) {
-                $(combobox.value).notify(event.detail.value || event.target.value);
+                            console.log(choices.choices)
+
+                console.log("Handle value changes", event.detail.value || event.target.value)
+                $(choicesbox.value).notify(event.detail.value || event.target.value);
             });
 
-            // Handle custom item addition (when user types new text)
-            selectElement.addEventListener('addItem', function(event) {
-                $(combobox.value).notify(event.detail.value);
-            });
-
-            // Set initial value if provided
-            const initialValue = $(combobox.value).value;
-            if (initialValue) {
-                choices.setChoiceByValue(initialValue);
-            }
 
             // Update choices when options change
-            $(combobox.options).on(function(newOptions) {
+            $(choicesbox.options).on(function(newOptions) {
+                console.log("Update choices when options change", newOptions)
                 choices.clearStore();
                 newOptions.forEach(option => {
                     choices.setChoices([{value: option, label: option}], 'value', 'label', false);
@@ -819,22 +748,18 @@ function jsrender(session::Session, combobox::ChoicesComboBox)
             });
 
             // Update value when observable changes
-            $(combobox.value).on(function(newValue) {
+            $(choicesbox.value).on(function(newValue) {
+                console.log("Update value when observable changes", newValue)
                 if (choices.getValue(true) !== newValue) {
+                    console.log("  choices.getValue(true)", choices.getValue(true))
                     choices.setChoiceByValue(newValue);
                 }
             });
+
+
         }
 
-        initChoices($(select_with_options));
+        initChoices($(selectDOM));
     """
-
-    return Bonito.jsrender(
-        session, DOM.div(
-            ChoicesJS,
-            ChoicesCSS,
-            select_with_options,
-            choices_script
-        )
-    )
+    return Bonito.jsrender(session, DOM.div(ChoicesJS, ChoicesCSS, selectDOM, choices_script))
 end

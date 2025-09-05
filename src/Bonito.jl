@@ -79,7 +79,7 @@ export export_static, Routes, interactive_server
 export Card, Grid, FileInput, Dropdown, Styles, Col, Row
 export Labeled, StylableSlider, Centered
 export interactive_server
-export ChoicesComboBox, ChoicesJSParams
+export ChoicesBox, ChoicesJSParams
 
 function has_html_display()
     for display in Base.Multimedia.displays
