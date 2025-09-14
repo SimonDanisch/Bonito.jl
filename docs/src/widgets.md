@@ -69,7 +69,6 @@ data = [
 
 # Basic table
 basic_table = Table(data)
-basic_table
 ```
 
 ### Custom Cell Styling
@@ -103,7 +102,6 @@ end
 styled_table = Table(data;
                     class_callback=score_class_callback,
                     style_callback=score_style_callback)
-styled_table
 ```
 
 ### Sorting Options
@@ -120,8 +118,6 @@ column_sort_table = Table(data;
 no_sort_table = Table(data;
                      allow_row_sorting=false,
                      allow_column_sorting=false)
-
-column_sort_table
 ```
 
 ### Working with DataFrames
@@ -149,7 +145,6 @@ function product_class_callback(table, row, col, val)
 end
 
 product_table = Table(df; class_callback=product_class_callback)
-product_table
 ```
 
 ### Advanced Example: Financial Data
@@ -189,7 +184,6 @@ financial_table = Table(financial_data;
                        class_callback=financial_class_callback,
                        style_callback=financial_style_callback,
                        class="financial-data")
-financial_table
 ```
 
 
