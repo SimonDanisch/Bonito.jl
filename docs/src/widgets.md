@@ -100,7 +100,7 @@ function score_style_callback(table, row, col, val)
     return ""
 end
 
-styled_table = Table(data;
+styled_table = Bonito.Table(data;
                     class_callback=score_class_callback,
                     style_callback=score_style_callback)
 ```
