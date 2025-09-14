@@ -50,6 +50,148 @@ StylableSlider
 include_string(@__MODULE__, Bonito.STYLABLE_SLIDER_EXAMPLE) # hide
 ```
 
+```@docs; canonical=false
+Table
+```
+
+The `Table` widget provides an interactive way to display tabular data that conforms to the Tables.jl interface.
+It supports custom styling, interactive sorting, and flexible cell rendering.
+
+### Basic Usage
+
+```@example 1
+# Create sample data using named tuples
+data = [
+    (name="Alice", age=25, score=95.5),
+    (name="Bob", age=30, score=87.2),
+    (name="Charlie", age=22, score=92.8)
+]
+
+# Basic table
+basic_table = Table(data)
+basic_table
+```
+
+### Custom Cell Styling
+
+You can provide custom class and style callbacks to control the appearance of individual cells:
+
+```@example 1
+# Color coding function based on values
+function score_class_callback(table, row, col, val)
+    # Color the score column based on value
+    if col == 3 && isa(val, Number)  # Score column
+        if val >= 90
+            return "cell-good"
+        elseif val >= 80
+            return "cell-neutral"
+        else
+            return "cell-bad"
+        end
+    end
+    return "cell-default"
+end
+
+# Style callback for additional formatting
+function score_style_callback(table, row, col, val)
+    if col == 3 && isa(val, Number)  # Score column
+        return "font-weight: bold;"
+    end
+    return ""
+end
+
+styled_table = Table(data;
+                    class_callback=score_class_callback,
+                    style_callback=score_style_callback)
+styled_table
+```
+
+### Sorting Options
+
+Tables support interactive sorting by clicking on headers (column sorting) or first cells (row sorting):
+
+```@example 1
+# Table with only column sorting enabled
+column_sort_table = Table(data;
+                         allow_row_sorting=false,
+                         allow_column_sorting=true)
+
+# Table with all sorting disabled
+no_sort_table = Table(data;
+                     allow_row_sorting=false,
+                     allow_column_sorting=false)
+
+column_sort_table
+```
+
+### Working with DataFrames
+
+The Table widget works seamlessly with DataFrames and other Tables.jl-compatible structures:
+
+```@example 1
+using DataFrames
+
+df = DataFrame(
+    Product = ["Laptop", "Mouse", "Keyboard", "Monitor"],
+    Price = [999.99, 29.99, 79.99, 299.99],
+    Stock = [15, 120, 45, 8],
+    Available = [true, true, false, true]
+)
+
+# Custom formatter for currency and boolean values
+function product_class_callback(table, row, col, val)
+    if col == 2  # Price column
+        return val > 100 ? "cell-neutral" : "cell-good"
+    elseif col == 4  # Available column
+        return val ? "cell-good" : "cell-bad"
+    end
+    return "cell-default"
+end
+
+product_table = Table(df; class_callback=product_class_callback)
+product_table
+```
+
+### Advanced Example: Financial Data
+
+```@example 1
+# Financial data with multiple metrics
+financial_data = [
+    (company="TechCorp", revenue=1.2e6, profit_margin=0.15, employees=150),
+    (company="DataInc", revenue=2.8e6, profit_margin=0.08, employees=300),
+    (company="CloudSys", revenue=0.9e6, profit_margin=0.22, employees=85),
+    (company="WebFlow", revenue=1.8e6, profit_margin=0.12, employees=220)
+]
+
+function financial_class_callback(table, row, col, val)
+    if col == 2  # Revenue column
+        return val > 1.5e6 ? "cell-good" : "cell-neutral"
+    elseif col == 3  # Profit margin column
+        if val > 0.15
+            return "cell-good"
+        elseif val > 0.10
+            return "cell-neutral"
+        else
+            return "cell-bad"
+        end
+    end
+    return "cell-default"
+end
+
+function financial_style_callback(table, row, col, val)
+    if col == 3  # Profit margin column
+        return "font-family: monospace;"
+    end
+    return ""
+end
+
+financial_table = Table(financial_data;
+                       class_callback=financial_class_callback,
+                       style_callback=financial_style_callback,
+                       class="financial-data")
+financial_table
+```
+
 
 ## Widgets in Layouts
 
