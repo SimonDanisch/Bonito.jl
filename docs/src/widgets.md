@@ -60,6 +60,7 @@ It supports custom styling, interactive sorting, and flexible cell rendering.
 ### Basic Usage
 
 ```@example 1
+
 # Create sample data using named tuples
 data = [
     (name="Alice", age=25, score=95.5),
@@ -68,7 +69,7 @@ data = [
 ]
 
 # Basic table
-basic_table = Table(data)
+basic_table = Bonito.Table(data)
 ```
 
 ### Custom Cell Styling
@@ -110,12 +111,12 @@ Tables support interactive sorting by clicking on headers (column sorting) or fi
 
 ```@example 1
 # Table with only column sorting enabled
-column_sort_table = Table(data;
+column_sort_table = Bonito.Table(data;
                          allow_row_sorting=false,
                          allow_column_sorting=true)
 
 # Table with all sorting disabled
-no_sort_table = Table(data;
+no_sort_table = Bonito.Table(data;
                      allow_row_sorting=false,
                      allow_column_sorting=false)
 ```
@@ -144,7 +145,7 @@ function product_class_callback(table, row, col, val)
     return "cell-default"
 end
 
-product_table = Table(df; class_callback=product_class_callback)
+product_table = Bonito.Table(df; class_callback=product_class_callback)
 ```
 
 ### Advanced Example: Financial Data
@@ -180,7 +181,7 @@ function financial_style_callback(table, row, col, val)
     return ""
 end
 
-financial_table = Table(financial_data;
+financial_table = Bonito.Table(financial_data;
                        class_callback=financial_class_callback,
                        style_callback=financial_style_callback,
                        class="financial-data")
