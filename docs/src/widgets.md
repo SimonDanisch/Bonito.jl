@@ -51,7 +51,7 @@ include_string(@__MODULE__, Bonito.STYLABLE_SLIDER_EXAMPLE) # hide
 ```
 
 ```@docs; canonical=false
-Table
+Bonito.Table
 ```
 
 The `Table` widget provides an interactive way to display tabular data that conforms to the Tables.jl interface.
