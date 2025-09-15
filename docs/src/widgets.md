@@ -70,6 +70,7 @@ data = [
 
 # Basic table
 basic_table = Bonito.Table(data)
+App(basic_table)
 ```
 
 ### Custom Cell Styling
@@ -103,6 +104,7 @@ end
 styled_table = Bonito.Table(data;
                     class_callback=score_class_callback,
                     style_callback=score_style_callback)
+App(styled_table)
 ```
 
 ### Sorting Options
@@ -119,6 +121,9 @@ column_sort_table = Bonito.Table(data;
 no_sort_table = Bonito.Table(data;
                      allow_row_sorting=false,
                      allow_column_sorting=false)
+App() do
+    DOM.div(column_sort_table, no_sort_table)
+end
 ```
 
 ### Working with DataFrames
@@ -146,6 +151,7 @@ function product_class_callback(table, row, col, val)
 end
 
 product_table = Bonito.Table(df; class_callback=product_class_callback)
+App(product_table)
 ```
 
 ### Advanced Example: Financial Data
@@ -185,6 +191,7 @@ financial_table = Bonito.Table(financial_data;
                        class_callback=financial_class_callback,
                        style_callback=financial_style_callback,
                        class="financial-data")
+App(financial_table)
 ```
 
 
