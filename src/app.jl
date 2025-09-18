@@ -40,7 +40,7 @@ function rendered_dom(session::Session, app::App, target=HTTP.Request())
     session.current_app[] = app
     try
         dom = Base.invokelatest(app.handler, session, target)
-        return jsrender(session, dom)
+        return Base.invokelatest(jsrender, session, dom)
     catch err
         html = HTTPServer.err_to_html(err, Base.catch_backtrace())
         return jsrender(session, html)
