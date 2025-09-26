@@ -821,3 +821,206 @@ function Bonito.jsrender(session::Session, fi::FileInput)
     }"""
     return DOM.input(; type="file", onchange=onchange, multiple=fi.multiple)
 end
+
+# ChoicesBox
+
+const CHOICESBOX_EXAMPLE = """
+App() do
+    # Create a combo box with some sample options
+    fruits = ["Apple", "Banana", "Cherry", "Date", "Elderberry", "Fig", "Grape"]
+
+    # Configure Choices.js parameters
+    params = ChoicesJSParams(
+        searchPlaceholderValue="Type to search fruits...",
+        searchEnabled=true,
+        shouldSort=true,
+        searchResultLimit=5
+    )
+    combobox = ChoicesBox(fruits;
+        initial_value="Apple",
+        choicejsparams=params
+    )
+
+    # Display selected value
+    selected_display = map(combobox.value) do value
+        isempty(value) ? "No selection" : "Selected: \$value"
+    end
+
+    # Handle value changes
+    on(combobox.value) do value
+        @info "ComboBox value changed to: \$value"
+    end
+
+    return DOM.div(
+        DOM.h2("Choices.js ComboBox Example"),
+        DOM.p("This combo box allows you to select from predefined options or type your own:"),
+        combobox,
+        DOM.p(selected_display, style="margin-top: 20px; font-weight: bold;")
+    )
+end
+
+"""
+
+# External JavaScript library assets
+# https://github.com/Choices-js/Choices/blob/main/README.md
+const ChoicesJS = ES6Module("https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js")
+const ChoicesCSS = Asset("https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css")
+
+"""
+    ChoicesJSParams(; kwargs...)
+
+Wrapper struct for parameters to the ChoicesJS `Choices` constructor.
+
+Parameters include search functionality, rendering options, and behavior settings
+for the Choices.js library. See the official documentation for complete parameter
+reference: https://github.com/Choices-js/Choices/blob/main/README.md
+
+# Fields
+- `addItems::Bool`: Allow adding of items (default: true)
+- `itemSelectText::String`: Text shown when hovering over selectable items
+- `placeholder::Bool`: Show placeholder text (default: true)
+- `placeholderValue::String`: Placeholder text to display
+- `removeItemButton::Bool`: Show remove button on items (default: false)
+- `renderChoiceLimit::Int`: Limit choices rendered (-1 for no limit)
+- `searchEnabled::Bool`: Enable search functionality (default: true)
+- `searchPlaceholderValue::String`: Search input placeholder text
+- `searchResultLimit::Int`: Limit search results (default: 4)
+- `shouldSort::Bool`: Sort choices alphabetically (default: true)
+"""
+Base.@kwdef struct ChoicesJSParams
+    addItems::Bool = true
+    itemSelectText::String = "Press to select"
+    placeholder::Bool = true
+    placeholderValue::String = ""
+    removeItemButton::Bool = false
+    renderChoiceLimit::Int = -1
+    searchEnabled::Bool = true
+    searchPlaceholderValue::String = ""
+    searchResultLimit::Int = 4
+    shouldSort::Bool = true
+end
+
+function (c::ChoicesJSParams)()
+    return js"""
+    {
+        addItems: $(c.addItems),
+        itemSelectText: $(c.itemSelectText),
+        placeholder: $(c.placeholder),
+        placeholderValue: $(c.placeholderValue),
+        removeItemButton: $(c.removeItemButton),
+        renderChoiceLimit: $(c.renderChoiceLimit),
+        searchEnabled: $(c.searchEnabled),
+        searchPlaceholderValue: $(c.searchPlaceholderValue),
+        searchResultLimit: $(c.searchResultLimit),
+        shouldSort: $(c.shouldSort),
+        // fixed params
+        items: [],
+        choices: []
+
+    }
+    """
+end
+
+"""
+    ChoicesBox(options; initial_value="", choicejsparams=ChoicesJSParams(...), attributes...)
+
+A combo box widget using the Choices.js library that allows both text input and selection from predefined options.
+Users can either select from the dropdown list or type their own custom values.
+
+# Fields
+- `options::Observable{Vector{String}}`: Available dropdown options
+- `value::Observable{String}`: Current selected or typed value
+- `choicejsparams::ChoicesJSParams`: Choices.js configuration parameters
+- `attributes::Dict{Symbol, Any}`: DOM attributes applied to the element
+
+    ChoicesBox(options; initial_value="", choicejsparams=ChoicesJSParams(...), attributes...)
+
+Constructor for creating a ChoicesBox widget.
+
+# Arguments
+- `options`: Vector or Observable of string options for the dropdown
+- `initial_value=""`: Initial selected value
+- `choicejsparams=ChoicesJSParams(searchPlaceholderValue="Type here...")`: Choices.js configuration
+- `attributes...`: Additional DOM attributes
+
+# Returns
+- `ChoicesBox`: A configured combo box widget instance
+
+# Example
+
+```julia
+$(CHOICESBOX_EXAMPLE)
+```
+"""
+struct ChoicesBox
+    options::Observable{Vector{String}}
+    value::Observable{Union{Nothing,String}}
+    choicejsparams::ChoicesJSParams
+    attributes::Dict{Symbol, Any}
+end
+
+
+function ChoicesBox(options; choicejsparams = ChoicesJSParams(), attributes...)
+    options = convert(Observable{Vector{String}}, options)
+    value = Observable{Union{Nothing,String}}(nothing)
+
+    return ChoicesBox(
+        convert(Observable{Vector{String}}, options),
+        value,
+        choicejsparams,
+        attributes
+    )
+end
+
+function jsrender(session::Session, choicesbox::ChoicesBox)
+    # Map options to option elements
+    option_elements = map(choicesbox.options) do options
+        return map(o->DOM.option(o, value = o), options)
+    end
+    selectDOM = map(opts->DOM.select(opts..., class = "choicesbox"), option_elements)[]
+
+    # Choices.js initialization and event handling
+    choices_script = js"""
+        function initChoices(selectElement) {
+            // Wait for Choices.js to load
+            if (typeof Choices === 'undefined') {
+                // console.log("Wait for Choices.js to load")
+                setTimeout(() => initChoices(selectElement), 100);
+                return;
+            }
+            const choices = new Choices(selectElement, $(choicesbox.choicejsparams()));
+
+            // Handle value changes
+            selectElement.addEventListener('change', function(event) {
+                            console.log(choices.choices)
+
+                // console.log("Handle value changes", event.detail.value || event.target.value)
+                $(choicesbox.value).notify(event.detail.value || event.target.value);
+            });
+
+
+            // Update choices when options change
+            $(choicesbox.options).on(function(newOptions) {
+                // console.log("Update choices when options change", newOptions)
+                choices.clearStore();
+                newOptions.forEach(option => {
+                    choices.setChoices([{value: option, label: option}], 'value', 'label', false);
+                });
+                $(choicesbox.value).notify(null);
+            });
+
+            // Update value when observable changes
+            $(choicesbox.value).on(function(newValue) {
+                // console.log("Update value when observable changes", newValue)
+                if (choices.getValue(true) !== newValue) {
+                    choices.setChoiceByValue(newValue);
+                }
+            });
+
+
+        }
+
+        initChoices($(selectDOM));
+    """
+    return Bonito.jsrender(session, DOM.div(ChoicesJS, ChoicesCSS, selectDOM, choices_script))
+end
