@@ -406,7 +406,11 @@ which gets rendered nicely!
 struct Table
     table
     class::String
-    row_renderer::Function
+    row_renderer::Function  # For backwards compatibility - kept but deprecated
+    class_callback::Function
+    style_callback::Function
+    allow_row_sorting::Bool
+    allow_column_sorting::Bool
 end
 
 render_row_value(x) = x
@@ -414,23 +418,273 @@ render_row_value(x::Missing) = "n/a"
 render_row_value(x::AbstractString) = string(x)
 render_row_value(x::String) = x
 
-function Table(table; class="", row_renderer=render_row_value)
-    return Table(table, class, row_renderer)
+# Default color callback - returns neutral for all cells
+default_class_callback(table, row, col, val) = "table-cell cell-neutral"
+
+function Table(table;
+               class="",
+               row_renderer=render_row_value,  # Kept for backwards compatibility
+               class_callback=(args...) -> "cell-default",
+               style_callback=(args...) -> "",
+               allow_row_sorting=true,
+               allow_column_sorting=true)
+    return Table(table, class, row_renderer, class_callback, style_callback, allow_row_sorting, allow_column_sorting)
 end
 
-function jsrender(session::Session, table::Table)
-    names = string.(Tables.schema(table.table).names)
-    header = DOM.thead(DOM.tr(DOM.th.(names)...))
-    rows = []
-    for row in Tables.rows(table.table)
-        push!(rows, DOM.tr(DOM.td.(table.row_renderer.(values(row)))...))
-    end
-    body = DOM.tbody(rows...)
+const TableStyles = Styles(
+    CSS(
+        ".comparison-table",
+        "border-collapse" => "collapse",
+        "width" => "100%",
+        "font-family" => "Arial, sans-serif",
+    ),
+    CSS(
+        ".table-header",
+        "background-color" => "#f5f5f5",
+        "border" => "1px solid #ddd",
+        "padding" => "8px",
+        "text-align" => "left",
+        "font-weight" => "bold",
+        "cursor" => "pointer",
+        "user-select" => "none",
+    ),
+    CSS(
+        ".table-header:hover",
+        "background-color" => "#e9e9e9",
+    ),
+    CSS(
+        ".table-cell",
+        "border" => "1px solid #ddd",
+        "padding" => "8px",
+        "text-align" => "left",
+    ),
+    CSS(
+        ".table-row:hover .table-cell",
+        "background-color" => "#f9f9f9",
+    ),
+    CSS(
+        ".cell-good",
+        "background-color" => "#d4edda",
+        "color" => "#155724",
+    ),
+    CSS(
+        ".cell-bad",
+        "background-color" => "#f8d7da",
+        "color" => "#721c24",
+    ),
+    CSS(
+        ".cell-neutral",
+        "background-color" => "#fff3cd",
+        "color" => "#856404",
+    ),
+    CSS(
+        ".cell-default",
+        "background-color" => "white",
+        "color" => "black",
+    ),
+    CSS(
+        ".table-container",
+        "overflow-x" => "auto",
+    ),
+)
 
-    return DOM.div(
-        jsrender(session, Asset(dependency_path("table.css"))),
-        DOM.table(header, body; class=table.class),
+function jsrender(session::Session, table::Table)
+    # Get table structure
+    schema = Tables.schema(table.table)
+    rows_data = collect(Tables.rows(table.table))
+
+    # Get column names - handle case when schema is nothing
+    column_names = if schema !== nothing && schema.names !== nothing
+        schema.names
+    elseif !isempty(rows_data)
+        keys(first(rows_data))
+    else
+        ()  # Empty table
+    end
+
+    # Create header row with optional click handlers for column sorting
+    header_cells = []
+    for (col_idx, col_name) in enumerate(column_names)
+        push!(header_cells, DOM.th(col_name; class = "table-header", dataColumn = col_idx - 1))
+    end
+    header_row = DOM.tr(header_cells...)
+
+    # Create data rows
+    data_rows = []
+    for (row_idx, row) in enumerate(rows_data)
+        cells = []
+        for (col_idx, val) in enumerate(values(row))
+            # Apply formatter callback (preferred) or fall back to row_renderer for backwards compatibility
+            formatted_val = table.row_renderer(val)
+            # Determine cell class using color callback
+            cell_class = table.class_callback(table.table, row_idx, col_idx, val)
+            style = table.style_callback(table.table, row_idx, col_idx, val)
+            push!(cells, DOM.td(formatted_val; class = "table-cell $cell_class", dataValue = val, style=style))
+        end
+        push!(data_rows, DOM.tr(cells...; dataRow = row_idx-1, class="table-row"))
+    end
+
+    # Create the complete table
+    table_dom = DOM.table(
+        DOM.thead(header_row),
+        DOM.tbody(data_rows...),
+        class="comparison-table $(table.class)"
     )
+
+    table_container = DOM.div(
+        TableStyles,
+        table_dom,
+        class="table-container"
+    )
+
+    # JavaScript for interactive sorting
+    sort_script = if table.allow_row_sorting || table.allow_column_sorting
+        js"""
+        (function() {
+            const container = $(table_container);
+            let sort_directions = {};
+            const table = container.querySelector('.comparison-table');
+            const tbody = table.querySelector('tbody');
+            const thead = table.querySelector('thead');
+
+            function sort_table_by_column(column_index) {
+                if (!$(table.allow_column_sorting)) return;
+
+                const current_direction = sort_directions['col_' + column_index] || 'asc';
+                const new_direction = current_direction === 'asc' ? 'desc' : 'asc';
+                sort_directions['col_' + column_index] = new_direction;
+
+                const rows = Array.from(tbody.children);
+                rows.sort((a, b) => {
+                    const a_value = a.children[column_index].getAttribute('data-value');
+                    const b_value = b.children[column_index].getAttribute('data-value');
+
+                    if (!a_value || a_value === '') return 1;
+                    if (!b_value || b_value === '') return -1;
+
+                    const a_num = parseFloat(a_value);
+                    const b_num = parseFloat(b_value);
+
+                    let comparison = 0;
+                    if (!isNaN(a_num) && !isNaN(b_num)) {
+                        comparison = a_num - b_num;
+                    } else {
+                        comparison = a_value.localeCompare(b_value);
+                    }
+
+                    return new_direction === 'asc' ? comparison : -comparison;
+                });
+
+                tbody.innerHTML = '';
+                rows.forEach(row => tbody.appendChild(row));
+            }
+
+            function sort_row_by_values(row_index) {
+                if (!$(table.allow_row_sorting)) return;
+
+                const current_direction = sort_directions['row_' + row_index] || 'asc';
+                const new_direction = current_direction === 'asc' ? 'desc' : 'asc';
+                sort_directions['row_' + row_index] = new_direction;
+
+                const data_row = tbody.children[row_index];
+                const header_row = thead.querySelector('tr');
+
+                const cells = Array.from(data_row.children);
+                const attribute_cell = cells[0];
+                const data_cells = cells.slice(1);
+
+                const header_cells = Array.from(header_row.children);
+                const attribute_header = header_cells[0];
+                const data_headers = header_cells.slice(1);
+
+                const cell_header_pairs = data_cells.map((cell, idx) => ({
+                    cell: cell,
+                    header: data_headers[idx],
+                    value: cell.getAttribute('data-value')
+                }));
+
+                cell_header_pairs.sort((a, b) => {
+                    const a_value = a.value;
+                    const b_value = b.value;
+
+                    if (!a_value || a_value === '') return 1;
+                    if (!b_value || b_value === '') return -1;
+
+                    const a_num = parseFloat(a_value);
+                    const b_num = parseFloat(b_value);
+
+                    let comparison = 0;
+                    if (!isNaN(a_num) && !isNaN(b_num)) {
+                        comparison = a_num - b_num;
+                    } else {
+                        comparison = a_value.localeCompare(b_value);
+                    }
+
+                    return new_direction === 'asc' ? comparison : -comparison;
+                });
+
+                data_row.innerHTML = '';
+                header_row.innerHTML = '';
+
+                data_row.appendChild(attribute_cell);
+                header_row.appendChild(attribute_header);
+
+                cell_header_pairs.forEach(pair => {
+                    data_row.appendChild(pair.cell);
+                    header_row.appendChild(pair.header);
+                });
+
+                // Update all other rows to match the new column order
+                Array.from(tbody.children).forEach((row, idx) => {
+                    if (idx !== row_index) {
+                        const row_cells = Array.from(row.children);
+                        const row_attribute_cell = row_cells[0];
+                        const row_data_cells = row_cells.slice(1);
+
+                        const reordered_cells = cell_header_pairs.map(pair => {
+                            const original_index = data_cells.indexOf(pair.cell);
+                            return row_data_cells[original_index];
+                        });
+
+                        row.innerHTML = '';
+                        row.appendChild(row_attribute_cell);
+                        reordered_cells.forEach(cell => row.appendChild(cell));
+                    }
+                });
+            }
+
+            // Add column header click listeners
+            if ($(table.allow_column_sorting)) {
+                Array.from(thead.querySelectorAll('.table-header')).forEach((header, index) => {
+                    header.addEventListener('click', function() {
+                        sort_table_by_column(index);
+                    });
+                });
+            }
+
+            // Add row sorting listeners (first cell of each row)
+            if ($(table.allow_row_sorting)) {
+                Array.from(tbody.children).forEach((row, row_index) => {
+                    const first_cell = row.children[0];
+                    if (first_cell) {
+                        first_cell.style.cursor = 'pointer';
+                        first_cell.style.userSelect = 'none';
+                        first_cell.addEventListener('click', function() {
+                            sort_row_by_values(row_index);
+                        });
+                    }
+                });
+            }
+        })();
+        """
+    else
+        nothing
+    end
+
+    return jsrender(session, DOM.div(
+        table_container,
+        sort_script
+    ))
 end
 
 struct CodeEditor

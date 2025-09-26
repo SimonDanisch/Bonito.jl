@@ -1,13 +1,14 @@
 [deps]
+Bonito = "824d6782-a2ef-11e9-3a09-e5662e0c26f8"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Deno_jll = "04572ae6-984a-583e-9378-9577a1c2574d"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 Gadfly = "c91e804a-d5a3-530f-b6f0-dfbca275c004"
 Hyperscript = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
-Bonito = "824d6782-a2ef-11e9-3a09-e5662e0c26f8"
 Observables = "510215fc-4207-5dde-b226-833fc4488ee2"
 PlotlyLight = "ca7969ec-10b3-423e-8d99-40f33abb42bf"
 WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
 
 [compat]
-PlotlyLight = "0.13"
 Gadfly = "1.4"
+PlotlyLight = "0.13"
