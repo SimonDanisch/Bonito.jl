@@ -48,7 +48,8 @@ end
 """
     Button(name; style=Styles(), dom_attributes...)
 
-A simple button, which can be styled a `style::Styles`.
+A simple button, which can be styled a `style::Styles`. Set kwarg `style=nothing` to turn
+off the default Bonito styling.
 
 ### Example
 
@@ -59,7 +60,8 @@ $(BUTTON_EXAMPLE)
 Button
 
 function jsrender(session::Session, button::Button)
-    css = Styles(get(button.attributes, :style, Styles()), BUTTON_STYLE)
+    style = get(button.attributes, :style, Styles())
+    css = isnothing(style) ? Styles() : Styles(style, BUTTON_STYLE)
     button_dom = DOM.button(
         button.content[];
         onclick=js"event=> $(button.value).notify(true);",
@@ -89,7 +91,8 @@ end
 """
     TextField(default_text; style=Styles(), dom_attributes...)
 
-A simple TextField, which can be styled via the `style::Styles` attribute.
+A simple TextField, which can be styled via the `style::Styles` attribute, `style=nothing`
+turns off the default Bonito styling.
 
 ### Example
 
@@ -100,7 +103,8 @@ $(TEXTFIELD_EXAMPLE)
 TextField
 
 function jsrender(session::Session, tf::TextField)
-    css = Styles(get(tf.attributes, :style, Styles()), BUTTON_STYLE)
+    style = get(tf.attributes, :style, Styles())
+    css = isnothing(style) ? Styles() : Styles(style, BUTTON_STYLE)
     return jsrender(
         session,
         DOM.input(;
@@ -131,7 +135,8 @@ end
 """
     NumberInput(default_value; style=Styles(), dom_attributes...)
 
-A simple NumberInput, which can be styled via the `style::Styles` attribute.
+A simple NumberInput, which can be styled via the `style::Styles` attribute, `style=nothing`
+turns off the default Bonito styling.
 
 ### Example
 
@@ -142,7 +147,8 @@ $(NUMBERINPUT_EXAMPLE)
 NumberInput
 
 function jsrender(session::Session, ni::NumberInput)
-    css = Styles(get(ni.attributes, :style, Styles()), BUTTON_STYLE)
+    style = get(ni.attributes, :style, Styles())
+    css = isnothing(style) ? Styles() : Styles(style, BUTTON_STYLE)
     return jsrender(
         session,
         DOM.input(;
@@ -178,7 +184,8 @@ end
 """
     Dropdown(options; index=1, option_to_string=string, style=Styles(), dom_attributes...)
 
-A simple Dropdown, which can be styled via the `style::Styles` attribute.
+A simple Dropdown, which can be styled via the `style::Styles` attribute, `style=nothing`
+turns off the default Bonito styling.
 
 ### Example
 
@@ -203,7 +210,7 @@ function Dropdown(options; index=1, option_to_string=string, style=Styles(), att
         option[] = options[index]
         return nothing
     end
-    css = Styles(style, BUTTON_STYLE)
+    css = isnothing(style) ? Styles() : Styles(style, BUTTON_STYLE)
     return Dropdown(
         options, option, option_to_string, option_index, Dict{Symbol,Any}(attributes), css
     )
