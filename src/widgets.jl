@@ -48,7 +48,8 @@ end
 """
     Button(name; style=Styles(), dom_attributes...)
 
-A simple button, which can be styled a `style::Styles`.
+A simple button, which can be styled a `style::Styles`. Set kwarg `style=nothing` to turn
+off the default Bonito styling.
 
 ### Example
 
@@ -59,7 +60,8 @@ $(BUTTON_EXAMPLE)
 Button
 
 function jsrender(session::Session, button::Button)
-    css = Styles(get(button.attributes, :style, Styles()), BUTTON_STYLE)
+    style = get(button.attributes, :style, Styles())
+    css = isnothing(style) ? Styles() : Styles(style, BUTTON_STYLE)
     button_dom = DOM.button(
         button.content[];
         onclick=js"event=> $(button.value).notify(true);",
