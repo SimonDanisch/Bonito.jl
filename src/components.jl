@@ -604,8 +604,8 @@ end
 
 @deprecate MathJax(source::String, config=Dict()) KaTeX(source)
 
-const KaTeXCSS = Asset("https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css")
-const KaTeXJS = ES6Module("https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.mjs")
+const KaTeXCSS = Asset(dependency_path("katex.min.css"))
+const KaTeXJS = ES6Module(dependency_path("katex.mjs"))
 
 function jsrender(session::Session, katex::KaTeX)
     elem = DOM.span()
