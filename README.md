@@ -16,17 +16,11 @@ Bonito.jl enables you to create rich, reactive web applications using Julia's Ob
 - **Javascript When You Need It**: Easy ES6 module integration and Javascript execution
 - **Pure Julia Development**: Write your entire application in Julia, with optional Javascript for client side rendering
 
-## What You Can Build
+## Examples Built with Bonito
 
-📊 **Data Dashboards**: Real-time visualization dashboards with plots, widgets, and custom UI elements
-
-🔬 **Interactive Applications**: [BonitoBook.jl](https://bonitobook.org/)—a Jupyter-like notebook environment built entirely with Bonito
-
-📚 **Static Site Export**: Generate static websites like [makie.org](https://makie.org/) from Bonito applications
-
-🌐 **Web Applications**: Full-featured web apps with reactive UI, all written in Julia
-
-💡 **Note**: WGLMakie itself is implemented using Bonito, providing WebGL-accelerated plotting in the browser
+- **[BonitoBook.jl](https://bonitobook.org/)**: A Jupyter-like notebook environment
+- **[makie.org](https://makie.org/)**: The Makie website is using Bonito's static site generator
+- **WGLMakie**: Interactive WebGL-accelerated plotting library
 
 ## Quick Example
 
@@ -36,14 +30,21 @@ using Bonito
 # Create a reactive counter app
 app = App() do session
     count = Observable(0)
-    button = Button("Click me!"); on(button) do click
+    button = Button("Click me!")
+    on(button) do click
         count[] += 1
     end
     return DOM.div(button, DOM.h1("Count: ", count))
 end
 
-# Serve it
+display(app) # display it in browser or plotpane
+export_static("app.html", app) # generated self contained HTML file from App
+export_static("folder", Routes("/" => app)) # Export static site (without Julia connection)
+# Or serve it on a server
 server = Server(app, "127.0.0.1", 8888)
+# add it as different route
+# regex, and even custom matchers are possible for routes, read more in the docs!
+route!(app, "/my-route" => app)
 ```
 
 Have a look at the [examples](https://github.com/SimonDanisch/Bonito.jl/tree/master/examples), or check out the most outstanding ones:
