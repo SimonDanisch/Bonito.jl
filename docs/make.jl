@@ -23,6 +23,7 @@ makedocs(
             "Assets" => "assets.md",
             "Extending" => "extending.md",
         ],
+        "Handlers" => "handlers.md",
         "Deployment" => "deployment.md",
         "Static Sites" => "static.md",
         "Api" => "api.md",

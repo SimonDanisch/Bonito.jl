@@ -56,7 +56,6 @@ end
 
 # Enable route!(server, "/" => app)
 function HTTPServer.apply_handler(app::App, context)
-    @debug "Serving from thread: $(Threads.threadid())"
     server = context.application
     session = HTTPSession(server)
     session.title = app.title
