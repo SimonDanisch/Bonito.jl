@@ -1,12 +1,53 @@
-# Bonito
+# Bonito.jl
 
 ![CI](https://github.com/SimonDanisch/Bonito.jl/workflows/CI/badge.svg) [![Codecov](https://codecov.io/gh/SimonDanisch/Bonito.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/SimonDanisch/Bonito.jl)
 [![Docs - stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://simondanisch.github.io/Bonito.jl/stable/)
 
-Easy way of building interactive applications from Julia.
-Uses Hyperscript to create HTML descriptions, and allows to execute Javascript & building of widgets. It also supports an offline mode, that exports your interactive app to a folder, and optionally records a statemap for all UI elements, so that a running Julia process isn't necessary anymore.
+**Build interactive web applications, dashboards, and visualizations entirely in Julia.**
+
+Bonito.jl enables you to create rich, reactive web applications using Julia's Observables for state management and a simple HTML/DOM API. It bridges Julia with the browser via WebSockets, allowing you to build anything from data exploration dashboards to interactive documentation—all without being locked into a specific frontend framework.
+
+## Key Features
+
+- **Reactive & Interactive**: Built on Observables.jl for automatic UI updates when data changes
+- **Rich Component Library**: Buttons, sliders, tables, code editors, and custom widgets
+- **Seamless Plotting**: Deeply integrated with WGLMakie, plus support for Plotly, Gadfly, and more
+- **Deploy Anywhere**: Works in VSCode, Jupyter, Pluto, web servers, or export to static HTML
+- **Javascript When You Need It**: Easy ES6 module integration and Javascript execution
+- **Pure Julia Development**: Write your entire application in Julia, with optional Javascript for client side rendering
+
+## What You Can Build
+
+📊 **Data Dashboards**: Real-time visualization dashboards with plots, widgets, and custom UI elements
+
+🔬 **Interactive Applications**: [BonitoBook.jl](https://bonitobook.org/)—a Jupyter-like notebook environment built entirely with Bonito
+
+📚 **Static Site Export**: Generate static websites like [makie.org](https://makie.org/) from Bonito applications
+
+🌐 **Web Applications**: Full-featured web apps with reactive UI, all written in Julia
+
+💡 **Note**: WGLMakie itself is implemented using Bonito, providing WebGL-accelerated plotting in the browser
+
+## Quick Example
+
+```julia
+using Bonito
+
+# Create a reactive counter app
+app = App() do session
+    count = Observable(0)
+    button = Button("Click me!"); on(button) do click
+        count[] += 1
+    end
+    return DOM.div(button, DOM.h1("Count: ", count))
+end
+
+# Serve it
+server = Server(app, "127.0.0.1", 8888)
+```
 
 Have a look at the [examples](https://github.com/SimonDanisch/Bonito.jl/tree/master/examples), or check out the most outstanding ones:
+
 ## Markdown support
 https://github.com/SimonDanisch/Bonito.jl/blob/master/examples/markdown.jl
 ![markdown_vol](https://user-images.githubusercontent.com/1010467/88916397-48513480-d266-11ea-8741-c5246f7f2395.gif)

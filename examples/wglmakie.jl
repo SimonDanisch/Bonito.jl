@@ -5,7 +5,7 @@ using Bonito: @js_str, onjs, App, Slider
 using Bonito.DOM
 Bonito.browser_display()
 
-set_theme!(resolution=(1200, 800))
+set_theme!(size=(1200, 800))
 
 hbox(args...) = DOM.div(args...)
 vbox(args...) = DOM.div(args...)
@@ -26,7 +26,7 @@ app = App() do
             scatter(1:4, markersize=20),
             scatter(1:4, markersize=20, markerspace=:pixel),
             scatter(1:4, markersize=LinRange(20, 60, 4), markerspace=:pixel),
-            scatter(1:4, marker='▲', markersize=0.3, markerspace=:data, rotations=LinRange(0, pi, 4)),
+            scatter(1:4, marker='▲', markersize=0.3, markerspace=:data, rotation=LinRange(0, pi, 4)),
         )
     )
 end
@@ -117,20 +117,6 @@ app = App() do
     ))
 end
 
-function n_times(f, n=10, interval=0.5)
-    obs = Observable(f(1))
-    @async for i in 2:n
-        try
-            obs[] = f(i)
-            sleep(interval)
-        catch e
-            @warn "Error!" exception=CapturedException(e, Base.catch_backtrace())
-        end
-    end
-    return obs
-end
-
-
 function n_times(f, n=10, interval=1)
     obs = Observable(f(1))
     @async for i in 2:n
@@ -145,9 +131,9 @@ function n_times(f, n=10, interval=1)
 end
 
 app = App() do
-    s1 = annotations(n_times(i-> map(j-> ("$j", Point2f(j*30, 0)), 1:i)), textsize=20,
+    s1 = text(n_times(i-> map(j-> ("$j", Point2f(j*30, 0)), 1:i)), fontsize=20,
                       axis=(;limits=(30, 320, -5, 5)))
-    s2 = scatter(n_times(i-> Point2f.((1:i).*30, 0)), markersize=20px,
+    s2 = scatter(n_times(i-> Point2f.((1:i).*30, 0)), markersize=20,
                   axis=(;limits=(30, 320, -5, 5)))
     s3 = linesegments(n_times(i-> Point2f.((2:2:2i).*30, 0)), axis=(;limits=(30, 620, -5, 5)))
     s4 = lines(n_times(i-> Point2f.((2:2:2i).*30, 0)), axis=(;limits=(30, 620, -5, 5)))
@@ -164,7 +150,7 @@ app = App() do
     xx = 0:0.2:4pi
     line1 = lines!(ax1, sin.(xx), xx, color=:red)
     scat1 = scatter!(ax1, sin.(xx) .+ 0.2 .* randn.(), xx,
-        color=(:red, 0.5), markersize=15px, marker='■')
+        color=(:red, 0.5), markersize=15, marker='■')
     return fig
 end
 
@@ -176,7 +162,7 @@ app = App() do
     tex1 = map(x->map(j-> ("$(chars[rand(1:length(chars))])", Point2f(j*30, 0)), 1:36), sl)
     on(println, tex1)
     tex2 = map(x->map(j-> ("$(char2[rand(1:length(char2))])", Point2f(j*30, 1)), 1:36), sl)
-    fig, ax, pl = text(tex1, textsize=20)
-    text!(ax, tex2, textsize=20)
+    fig, ax, pl = text(tex1, fontsize=20)
+    text!(ax, tex2; fontsize=20)
     return DOM.div(sl, fig)
 end
