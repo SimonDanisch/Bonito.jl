@@ -32,7 +32,7 @@ app = App() do
 
     fig = Figure()
 
-    vol = volume(fig[1,1], signal; algorithm=map(Symbol, algorithm), ambient=Vec3f(0.8), isovalue=iso_value)
+    vol = volume(fig[1,1], signal; algorithm=map(Symbol, algorithm), isovalue=iso_value.value)
 
     colormaps = collect(Makie.all_gradient_names)
     cmap = map(cmap_button) do click
@@ -79,6 +79,18 @@ app = App() do
     [![Codecov](https://codecov.io/gh/SimonDanisch/Bonito.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/SimonDanisch/Bonito.jl)
     [![Build Status](https://travis-ci.com/SimonDanisch/Bonito.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/Bonito.jl)
 
+    ## LaTeX support via KaTex
+
+    ```latex
+    \int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+
+    \mathbf{A} = \begin{pmatrix}
+    a_{11} & a_{12} \\
+    a_{21} & a_{22}
+    \end{pmatrix}
+    ```
+
+    # Tables
 
     | Tables        | Are           | Cool  |
     | ------------- |:-------------:| -----:|
@@ -103,7 +115,7 @@ app = App() do
 
     ---
 
-    $(fig.scene)
+    $(fig)
 
     ---
     """
