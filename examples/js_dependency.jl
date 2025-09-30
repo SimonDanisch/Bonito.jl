@@ -1,5 +1,5 @@
 using Bonito
-using Bonito: onload, @js_str, Session
+using Bonito: onload, @js_str, Session, App
 using Bonito.DOM
 
 using Deno_jll # If you create your own javascript module, you need to include deno!

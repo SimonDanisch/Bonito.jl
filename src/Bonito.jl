@@ -34,6 +34,8 @@ function wait_for_ready end
 include("deno.jl")
 include("types.jl")
 include("HTTPServer/HTTPServer.jl")
+include("HTTPServer/folderserver.jl")
+include("HTTPServer/protectedroute.jl")
 include("app.jl")
 
 function HTTPServer.route!(server::HTTPServer.Server, routes::Routes)
@@ -80,6 +82,7 @@ export Card, Grid, FileInput, Dropdown, Styles, Col, Row
 export Labeled, StylableSlider, Centered
 export interactive_server
 export ChoicesBox, ChoicesJSParams
+export ProtectedRoute, User, SingleUser, AbstractPasswordStore, FolderServer
 
 function has_html_display()
     for display in Base.Multimedia.displays

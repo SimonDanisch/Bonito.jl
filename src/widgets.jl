@@ -415,8 +415,6 @@ end
 
 render_row_value(x) = x
 render_row_value(x::Missing) = "n/a"
-render_row_value(x::AbstractString) = string(x)
-render_row_value(x::String) = x
 
 # Default color callback - returns neutral for all cells
 default_class_callback(table, row, col, val) = "table-cell cell-neutral"

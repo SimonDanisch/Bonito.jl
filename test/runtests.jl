@@ -102,6 +102,9 @@ end
         @testset "basics" begin
             include("basics.jl")
         end
+        @testset "handlers" begin
+            include("handlers.jl")
+        end
     end
     close(edisplay)
     global edisplay = Bonito.use_electron_display(; options=ELECTRON_OPTIONS, devtools=true)
