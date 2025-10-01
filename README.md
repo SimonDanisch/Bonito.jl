@@ -36,7 +36,7 @@ export_static("folder", Routes("/" => app)) # Export static site (without Julia 
 server = Server(app, "127.0.0.1", 8888)
 # add it as different route
 # regex, and even custom matchers are possible for routes, read more in the docs!
-route!(app, "/my-route" => app)
+route!(server, "/my-route" => app)
 ```
 
 ## Examples Built with Bonito
