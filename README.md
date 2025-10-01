@@ -11,7 +11,7 @@ Observables can communicate with the Frontend via a performance optimized WebSoc
 ## Key Features
 
 - **Reactive & Interactive**: Built on Observables.jl for automatic UI updates when data changes, only sending the minimal amount of data possible via a fast binary serialization protocol
-- **Rich Component Library**: Buttons, sliders, tables, code editors, and custom widgets
+- **Rich Component Library**: Buttons, sliders, tables, code editors, and easy to build custom widgets
 - **Seamless Plotting**: Deeply integrated with WGLMakie, plus support for Plotly, Gadfly, and more
 - **Deploy Anywhere**: Works in VSCode, Jupyter, Pluto, web servers, or export to static HTML
 - **Javascript When You Need It**: Easy ES6 module integration and Javascript execution
