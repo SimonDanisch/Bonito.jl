@@ -17,6 +17,7 @@ Observables can communicate with the Frontend via a performance optimized WebSoc
 - **Javascript When You Need It**: Easy ES6 module integration and Javascript execution
 - **Pure Julia Development**: Write your entire application in Julia, with optional Javascript for client side rendering
 - **Extensible Handlers**: Wrap and compose handlers for authentication, logging, static files, and custom middleware
+- **Use Any Existing JS/CSS/HTML**: Bonito provides no opinionated styling by default. Combined with straightforward external dependency integration, this gives you complete access to the entire JS/CSS/HTML ecosystem from within Julia.
 
 ## Quick Example
 
