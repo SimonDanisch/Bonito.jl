@@ -446,7 +446,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         # code and dom nodes to the right places, so we need to extract those
         head, body, dom = find_head_body(dom)
         session_style = render_stylesheets!(root_session(session), session, session.stylesheets)
-        global_styles = map(session.global_stylesheets.items) do styles
+        global_styles = map(collect(session.global_stylesheets)) do styles
             DOM.style(to_string(session, styles))
         end
         issubsession = !isroot(session)

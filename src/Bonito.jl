@@ -3,6 +3,7 @@ module Bonito
 import Sockets
 using Sockets: send
 
+using OrderedCollections
 using Dates
 using UUIDs
 using Hyperscript
@@ -21,7 +22,6 @@ using LinearAlgebra
 using CodecZlib
 using RelocatableFolders: @path, Path, getroot
 using URIs
-using ThreadPools
 
 using Base: RefValue
 

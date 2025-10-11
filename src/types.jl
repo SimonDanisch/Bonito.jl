@@ -93,27 +93,6 @@ end
 
 @enum SessionStatus UNINITIALIZED RENDERED DISPLAYED OPEN CLOSED SOFT_CLOSED
 
-# Very simple and lazy ordered set
-# (Don't want to depend on OrderedCollections for something so simple)
-struct OrderedSet{T} <: AbstractSet{T}
-    items::Vector{T}
-end
-Base.length(set::OrderedSet) = length(set.items)
-Base.iterate(set::OrderedSet) = iterate(set.items)
-Base.iterate(set::OrderedSet, state) = iterate(set.items, state)
-OrderedSet{T}() where {T} = OrderedSet{T}(T[])
-function Base.push!(set::OrderedSet, item)
-    (item in set.items) || push!(set.items, item)
-end
-
-function Base.setdiff(set1::OrderedSet{T}, set2) where {T}
-    OrderedSet{T}(setdiff(set1.items, set2))
-end
-
-function Base.union!(set1::OrderedSet, set2)
-    union!(set1.items, set2)
-end
-
 struct CSS
     selector::String
     # TODO use some kind of immutable Dict
@@ -166,8 +145,8 @@ All Bonito components are stylable this way.
 
 """
 struct Styles
-    # Dict(selector => CSS)
-    styles::Dict{String, CSS}
+    # OrderedDict(selector => CSS) - preserves insertion order for media queries
+    styles::OrderedDict{String, CSS}
 end
 
 const HTMLElement = Node{Hyperscript.HTMLSVG}

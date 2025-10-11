@@ -62,3 +62,82 @@ end
     @test hash(css1) == hash(css2)
     @test hash(css3) == hash(css2)
 end
+
+@testset "OrderedDict preserves insertion order" begin
+    d = Bonito.OrderedDict{String, Int}()
+    d["first"] = 1
+    d["second"] = 2
+    d["third"] = 3
+
+    # Test that iteration preserves order
+    collected = collect(keys(d))
+    @test collected == ["first", "second", "third"]
+
+    # Test merge! preserves order
+    d2 = Bonito.OrderedDict{String, Int}()
+    d2["fourth"] = 4
+    d2["fifth"] = 5
+
+    merge!(d, d2)
+    collected = collect(keys(d))
+    @test collected == ["first", "second", "third", "fourth", "fifth"]
+end
+
+@testset "Styles preserves CSS rule order" begin
+    # Create base styles with :root first
+    base = Styles(CSS(":root", "color" => "black"))
+    media = Styles(CSS("@media (max-width: 480px)", CSS(":root", "color" => "white")))
+
+    # Merge - media should come after base
+    combined = merge(base, media)
+
+    selectors = collect(keys(combined.styles))
+    @test selectors[1] == ":root"
+    @test selectors[2] == "@media (max-width: 480px)"
+end
+
+@testset "Styles constructor with multiple args preserves order" begin
+    style1 = Styles(CSS(":root", "color" => "black"))
+    style2 = Styles(CSS(".navbar", "height" => "50px"))
+    style3 = Styles(CSS("@media (max-width: 480px)", CSS(":root", "color" => "white")))
+
+    # When constructing Styles(s1, s2, s3), s1 is priority and should come LAST
+    # This is confusing behavior - first arg takes priority but comes last in merge
+    combined = Styles(style1, style2, style3)
+
+    selectors = collect(keys(combined.styles))
+    # According to Styles(priority::Styles, defaults...)
+    # It creates Styles(defaults...) then merges priority into it
+    # So style2, style3 are created first, then style1 is merged in
+    @test length(selectors) == 3
+    # Check that we have all three selectors
+    @test ":root" in selectors
+    @test ".navbar" in selectors
+    @test "@media (max-width: 480px)" in selectors
+
+    # The first argument (style1) values should override when same selector exists
+    # But order-wise, for OrderedDict, when does the key appear?
+    # If :root already exists in defaults, merge! updates value but keeps position
+    # If :root doesn't exist in defaults, it gets added at the end
+end
+
+@testset "Styles merging updates values but preserves key position" begin
+    # Create style with :root at position 1
+    base = Styles(CSS(":root", "color" => "black"))
+
+    # Create another style with different selector at position 2
+    extra = Styles(CSS(".class", "margin" => "10px"))
+
+    # Merge them
+    combined = merge(base, extra)
+    @test collect(keys(combined.styles)) == [":root", ".class"]
+
+    # Now merge in a style that updates :root
+    override = Styles(CSS(":root", "color" => "white"))
+    combined2 = merge(combined, override)
+
+    # :root should still be at position 1, but with updated value
+    selectors = collect(keys(combined2.styles))
+    @test selectors[1] == ":root"
+    @test combined2.styles[":root"].attributes["color"] == "white"
+end

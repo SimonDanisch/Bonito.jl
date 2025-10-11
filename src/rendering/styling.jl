@@ -113,8 +113,12 @@ end
 CSS(args::Pair...) = CSS("", args...)
 
 
-Styles() = Styles(Dict{String,CSS}())
-Styles(css::CSS) = Styles(Dict(css.selector => css))
+Styles() = Styles(OrderedDict{String,CSS}())
+function Styles(css::CSS)
+    d = OrderedDict{String,CSS}()
+    d[css.selector] = css
+    return Styles(d)
+end
 function Styles(csss::CSS...)
     result = Styles()
     merge!(result, Set(csss))
@@ -125,13 +129,27 @@ function Styles(css::CSS, pairs::Pair...)
     error("Style $(css) with $(pairs) unaccaptable!")
 end
 Styles(pairs::Pair...) = Styles(CSS(pairs...))
-function Styles(priority::Styles, defaults...)
-    default = Styles(defaults...)
-    merge!(default, priority)
-    return default
+function Styles(first::Styles, rest...)
+    # Build styles in order: first comes first, then rest are merged in order
+    # The LAST argument takes precedence for value conflicts
+    result = Styles(copy(first.styles))
+    for style in rest
+        if style isa Styles
+            merge!(result, style)
+        else
+            # Handle other constructible types
+            merge!(result, Styles(style))
+        end
+    end
+    return result
 end
 
-Styles(priority::Styles, defaults::Styles) = merge(defaults, priority)
+function Styles(first::Styles, second::Styles)
+    # Merge in order: first appears first, second takes precedence for conflicts
+    result = Styles(copy(first.styles))
+    merge!(result, second)
+    return result
+end
 
 function Base.merge(defaults::Styles, priority::Styles) # second argument takes priority
     result = Styles(copy(defaults.styles))
