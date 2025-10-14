@@ -37,6 +37,7 @@ include("HTTPServer/HTTPServer.jl")
 include("HTTPServer/folderserver.jl")
 include("HTTPServer/protectedroute.jl")
 include("app.jl")
+include("folder.jl")
 
 function HTTPServer.route!(server::HTTPServer.Server, routes::Routes)
     for (key, app) in routes.routes
