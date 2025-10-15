@@ -861,8 +861,8 @@ end
 
 # External JavaScript library assets
 # https://github.com/Choices-js/Choices/blob/main/README.md
-const ChoicesJS = ES6Module("https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js")
-const ChoicesCSS = Asset("https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css")
+const ChoicesJS = ES6Module(dependency_path("choices.min.js"))
+const ChoicesCSS = Asset(dependency_path("choices.min.css"))
 
 """
     ChoicesJSParams(; kwargs...)

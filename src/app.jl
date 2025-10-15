@@ -35,12 +35,16 @@ function update_app!(parent::Session, new_app::App)
 end
 
 
-function rendered_dom(session::Session, app::App, target=HTTP.Request())
+function rendered_dom(session::Session, app::App, target=HTTP.Request(); apply_jsrender=true)
     app.session[] = session
     session.current_app[] = app
     try
         dom = Base.invokelatest(app.handler, session, target)
-        return Base.invokelatest(jsrender, session, dom)
+        if apply_jsrender
+            return Base.invokelatest(jsrender, session, dom)
+        else
+            return dom
+        end
     catch err
         html = HTTPServer.err_to_html(err, Base.catch_backtrace())
         return jsrender(session, html)
@@ -164,5 +168,5 @@ function wait_for_ready(app::App; timeout=100)
 end
 
 function jsrender(session::Session, app::App)
-    return rendered_dom(session, app.handler)
+    return rendered_dom(session, app; apply_jsrender=false)
 end
