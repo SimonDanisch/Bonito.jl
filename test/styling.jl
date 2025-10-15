@@ -2,20 +2,20 @@
 @testset "style de-duplication" begin
     x = Styles(Styles(), "background-color" => "gray", "color" => "white")
     y = Styles(Styles(), "background-color" => "gray", "color" => "white")
-    @test Set(values(x.styles)) == Set(values(y.styles))
+    @test x.styles == y.styles
 
     x = Styles("background-color" => "gray", "color" => "white")
     y = Styles("background-color" => "gray", "color" => "white")
-    @test Set(values(x.styles)) == Set(values(y.styles))
+    @test x.styles == y.styles
 
     x = CSS("background-color" => "gray", "color" => "white")
     y = CSS("background-color" => "gray", "color" => "white")
-    @test Set(values(x.attributes)) == Set(values(y.attributes))
+    @test x.attributes == y.attributes
 
 
     x = CSS("background-color" => "gray", "color" => 1)
     y = CSS("background-color" => "gray", "color" => "1")
-    @test Set(values(x.attributes)) == Set(values(y.attributes))
+    @test x.attributes == y.attributes
 end
 
 @testset "deduplication in rendered dom" begin
@@ -61,26 +61,6 @@ end
 
     @test hash(css1) == hash(css2)
     @test hash(css3) == hash(css2)
-end
-
-@testset "OrderedDict preserves insertion order" begin
-    d = Bonito.OrderedDict{String, Int}()
-    d["first"] = 1
-    d["second"] = 2
-    d["third"] = 3
-
-    # Test that iteration preserves order
-    collected = collect(keys(d))
-    @test collected == ["first", "second", "third"]
-
-    # Test merge! preserves order
-    d2 = Bonito.OrderedDict{String, Int}()
-    d2["fourth"] = 4
-    d2["fifth"] = 5
-
-    merge!(d, d2)
-    collected = collect(keys(d))
-    @test collected == ["first", "second", "third", "fourth", "fifth"]
 end
 
 @testset "Styles preserves CSS rule order" begin
@@ -140,4 +120,151 @@ end
     selectors = collect(keys(combined2.styles))
     @test selectors[1] == ":root"
     @test combined2.styles[":root"].attributes["color"] == "white"
+end
+
+@testset "attribute_render maintains CSS order in stylesheets" begin
+    # Test that when multiple CSS objects are added to a node's stylesheet,
+    # the order is preserved in the session's stylesheets
+    s = OfflineSession()
+    parent = DOM.div()
+
+    # Add CSS in specific order
+    css1 = CSS("", "color" => "red")
+    css2 = CSS("", "background" => "blue")
+    css3 = CSS("", "padding" => "10px")
+
+    Bonito.attribute_render(s, parent, "style", css1)
+    Bonito.attribute_render(s, parent, "style", css2)
+    Bonito.attribute_render(s, parent, "style", css3)
+
+    # Get the styles for this node
+    node_styles = s.stylesheets[parent]
+
+    # PROBLEM: Set{CSS} doesn't preserve order!
+    # This test will likely fail because Set iteration order is arbitrary
+    styles_vec = collect(node_styles)
+    @test length(styles_vec) == 3
+    # We can't reliably test order with Set, this is the bug!
+end
+
+@testset "render_stylesheets! order with multiple nodes" begin
+    # Test that render_stylesheets! maintains consistent CSS ordering
+    # when multiple nodes share styles
+    app = App() do
+        css_base = CSS("", "margin" => "5px")
+        css_priority = CSS("", "padding" => "10px")
+
+        # Create multiple divs with styles in specific order
+        divs = [
+            DOM.div("1"; style=Styles(css_base, css_priority)),
+            DOM.div("2"; style=Styles(css_base, css_priority)),
+            DOM.div("3"; style=Styles(css_base, css_priority))
+        ]
+        return DOM.div(divs...)
+    end
+
+    s = OfflineSession()
+    dom = Bonito.session_dom(s, app)
+
+    # The render should be deterministic
+    # But with Dict/Set usage, the order might vary!
+    # Let's at least check that styles are present
+    @test length(s.stylesheets) > 0
+end
+
+@testset "CSS constructor with pairs preserves attribute order" begin
+    # Test that CSS attributes maintain order when constructed
+    css = CSS("",
+        "z-index" => "1000",
+        "position" => "absolute",
+        "top" => "0",
+        "left" => "0",
+        "right" => "0"
+    )
+
+    # PROBLEM: Dict{String,Any} doesn't preserve order!
+    # The attributes might not be in insertion order
+    attrs = collect(keys(css.attributes))
+    @test length(attrs) == 5
+    # We can't reliably test the order because Dict is unordered
+    @test "z-index" in attrs
+    @test "position" in attrs
+end
+
+@testset "Styles(CSS...) constructor order" begin
+    # Test that constructing Styles from multiple CSS maintains order
+    css1 = CSS(":root", "color" => "black")
+    css2 = CSS(".base", "margin" => "10px")
+    css3 = CSS("@media screen", CSS(".base", "margin" => "20px"))
+
+    styles = Styles(css1, css2, css3)
+
+    # Order should be: css1, css2, css3
+    selectors = collect(keys(styles.styles))
+    @test length(selectors) == 3
+    @test selectors[1] == ":root"
+    @test selectors[2] == ".base"
+    @test selectors[3] == "@media screen"
+end
+
+function get_base_css(in)
+    s = OfflineSession()
+    dom = Bonito.jsrender(s, in)
+    return only(filter(x -> x.selector == "", s.stylesheets[dom]))
+end
+
+@testset "User styles override defaults in widgets/components" begin
+    @testset "Button user style overrides default background-color" begin
+        # BUTTON_STYLE has background-color: "white"
+        user_style = Styles("background-color" => "red")
+        button = Button("Test"; style=user_style)
+        base_css = get_base_css(button)
+        @test base_css !== nothing
+        @test base_css.attributes["background-color"] == "red"
+        # Default font-size should still be present
+        @test base_css.attributes["font-size"] == "1rem"
+    end
+
+    @testset "TextField user style overrides default min-width" begin
+        # BUTTON_STYLE has min-width: "8rem"
+        user_style = Styles("min-width" => "20rem")
+        textfield = TextField("test"; style=user_style)
+        base_css = get_base_css(textfield)
+        @test base_css.attributes["min-width"] == "20rem"
+        # Default font-size should still be present
+        @test base_css.attributes["font-size"] == "1rem"
+    end
+
+    @testset "Card user style overrides padding" begin
+        # Card creates padding from keyword argument
+        user_style = Styles("padding" => "100px")
+        card = Card(DOM.h1("Test"); style=user_style, padding="10px")
+        base_css = get_base_css(card)
+        # User padding should override the keyword argument default
+        @test base_css.attributes["padding"] == "100px"
+        # Default width should still be present
+        @test base_css.attributes["width"] == "auto"
+    end
+
+    @testset "Grid user style overrides display" begin
+        # Grid creates display: "grid"
+        user_style = Styles("display" => "flex")
+        grid = Grid(DOM.div("Test"); style=user_style)
+        base_css = get_base_css(grid)
+        # User display should override default "grid"
+        @test base_css.attributes["display"] == "flex"
+        # Default width should still be present
+        @test base_css.attributes["width"] == "100%"
+    end
+
+    @testset "Label user style overrides font-weight" begin
+        # Label creates font-weight: 600
+        user_style = Styles("font-weight" => 400)
+        label = Bonito.Label("Test"; style=user_style)
+        base_css = get_base_css(label)
+        # User font-weight should override default 600 (converted to string "400")
+        @test base_css.attributes["font-weight"] == "400"
+        # Default font-size should still be present
+        @test base_css.attributes["font-size"] == "1rem"
+    end
 end

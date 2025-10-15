@@ -161,7 +161,7 @@ function default_electron_args()
             "--disable-gpu",                      # ← disable GPU to avoid GPU errors
         ]
     else
-        return []
+        return ["--user-data-dir=$(mktempdir())"]
     end
 end
 

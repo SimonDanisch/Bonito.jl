@@ -61,7 +61,7 @@ Button
 
 function jsrender(session::Session, button::Button)
     style = get(button.attributes, :style, Styles())
-    css = isnothing(style) ? Styles() : Styles(style, BUTTON_STYLE)
+    css = isnothing(style) ? Styles() : Styles(BUTTON_STYLE, style)
     button_dom = DOM.button(
         button.content[];
         onclick=js"event=> $(button.value).notify(true);",
@@ -104,7 +104,7 @@ TextField
 
 function jsrender(session::Session, tf::TextField)
     style = get(tf.attributes, :style, Styles())
-    css = isnothing(style) ? Styles() : Styles(style, BUTTON_STYLE)
+    css = isnothing(style) ? Styles() : Styles(BUTTON_STYLE, style)
     return jsrender(
         session,
         DOM.input(;
@@ -148,7 +148,7 @@ NumberInput
 
 function jsrender(session::Session, ni::NumberInput)
     style = get(ni.attributes, :style, Styles())
-    css = isnothing(style) ? Styles() : Styles(style, BUTTON_STYLE)
+    css = isnothing(style) ? Styles() : Styles(BUTTON_STYLE, style)
     return jsrender(
         session,
         DOM.input(;
@@ -210,7 +210,7 @@ function Dropdown(options; index=1, option_to_string=string, style=Styles(), att
         option[] = options[index]
         return nothing
     end
-    css = isnothing(style) ? Styles() : Styles(style, BUTTON_STYLE)
+    css = isnothing(style) ? Styles() : Styles(BUTTON_STYLE, style)
     return Dropdown(
         options, option, option_to_string, option_index, Dict{Symbol,Any}(attributes), css
     )
@@ -342,8 +342,8 @@ A simple Checkbox, which can be styled via the `style::Styles` attribute.
 Checkbox
 
 function jsrender(session::Session, tb::Checkbox)
-    style = Styles(Styles("min-width" => "auto", "transform" => "scale(1.5)"), BUTTON_STYLE)
-    css = Styles(get(tb.attributes, :style, Styles()), style)
+    default_style = Styles(Styles("min-width" => "auto", "transform" => "scale(1.5)"), BUTTON_STYLE)
+    css = Styles(default_style, get(tb.attributes, :style, Styles()))
     return jsrender(
         session,
         DOM.input(;
@@ -740,9 +740,10 @@ function CodeEditor(
     user_opts = Dict{String,Any}(string(k) => v for (k, v) in editor_options)
     options = Dict{String,Any}(merge(defaults, user_opts))
     onchange = Observable(initial_source)
-    style = Styles(style,
+    style = Styles(
         "position" => "relative",
         "height" => "$(height)px",
+        style,
     )
     element = DOM.div(""; style=style)
     return CodeEditor(theme, language, options, onchange, element)

@@ -188,7 +188,7 @@ mutable struct Session{Connection <: FrontendConnection}
     deletion_lock::Base.ReentrantLock
     current_app::RefValue{Any}
     io_context::RefValue{Union{Nothing, IOContext}}
-    stylesheets::Dict{HTMLElement, Set{CSS}}
+    stylesheets::OrderedDict{HTMLElement, OrderedSet{CSS}}
     inbox::Channel{Vector{UInt8}}
     threadid::Int
 
@@ -242,7 +242,7 @@ mutable struct Session{Connection <: FrontendConnection}
             Base.ReentrantLock(),
             RefValue{Any}(nothing),
             RefValue{Union{Nothing,IOContext}}(nothing),
-            Dict{HTMLElement,Set{CSS}}(),
+            OrderedDict{HTMLElement,OrderedSet{CSS}}(),
             inbox,
             Threads.threadid()
         )
