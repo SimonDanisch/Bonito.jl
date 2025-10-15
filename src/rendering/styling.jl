@@ -3,7 +3,7 @@ function attribute_render(session::Session, parent, attribute::String, css::CSS)
     if attribute != "style"
         error("`CSS(...)` can only be used for the style attribute! Found: $(attribute) with css:\n $(css)")
     end
-    node_styles = get!(session.stylesheets, parent, Set{CSS}())
+    node_styles = get!(session.stylesheets, parent, OrderedSet{CSS}())
     push!(node_styles, css)
     return ""
 end
@@ -12,7 +12,7 @@ function attribute_render(session::Session, parent, attribute::String, styles::S
     if attribute != "style"
         error("`Styles(...)` can only be used for the style attribute! Found: $(attribute) with css:\n $(css)")
     end
-    node_styles = get!(session.stylesheets, parent, Set{CSS}())
+    node_styles = get!(session.stylesheets, parent, OrderedSet{CSS}())
     union!(node_styles, values(styles.styles))
     return ""
 end
@@ -77,8 +77,8 @@ function Base.show(io::IO, ::MIME"text/plain", styles::Styles)
     end
 end
 
-function render_stylesheets!(root_session, session, stylesheets::Dict{HTMLElement, Set{CSS}})
-    combined = Dict{CSS,Set{HTMLElement}}()
+function render_stylesheets!(root_session, session, stylesheets::OrderedDict{HTMLElement, OrderedSet{CSS}})
+    combined = OrderedDict{CSS,Set{HTMLElement}}()
     for (node, styles) in stylesheets
         for css in styles
             if haskey(combined, css)
@@ -119,9 +119,17 @@ function Styles(css::CSS)
     d[css.selector] = css
     return Styles(d)
 end
+
 function Styles(csss::CSS...)
     result = Styles()
-    merge!(result, Set(csss))
+    for css in csss
+        selector = css.selector
+        if haskey(result.styles, selector)
+            result.styles[selector] = merge(result.styles[selector], css)
+        else
+            result.styles[selector] = css
+        end
+    end
     return result
 end
 
@@ -144,28 +152,12 @@ function Styles(first::Styles, rest...)
     return result
 end
 
-function Styles(first::Styles, second::Styles)
-    # Merge in order: first appears first, second takes precedence for conflicts
-    result = Styles(copy(first.styles))
-    merge!(result, second)
-    return result
-end
+Styles(first::Styles, second::Styles) = merge(first, second)
 
 function Base.merge(defaults::Styles, priority::Styles) # second argument takes priority
     result = Styles(copy(defaults.styles))
     merge!(result, priority)
     return result
-end
-
-function Base.merge!(target::Styles, styles::Set{CSS})
-    for css in styles
-        selector = css.selector
-        if haskey(target.styles, selector)
-            target.styles[selector] = merge(target.styles[selector], css)
-        else
-            target.styles[selector] = css
-        end
-    end
 end
 
 function Base.merge!(defaults::Styles, priority::Styles)

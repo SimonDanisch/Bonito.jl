@@ -56,8 +56,7 @@ function Card(
     div_attributes...,
 )
     color = convert_css_attribute(shadow_color)
-    css = Styles(
-        style,
+    default_style = Styles(
         "width" => width,
         "height" => height,
         "padding" => padding,
@@ -66,6 +65,7 @@ function Card(
         "border-radius" => border_radius,
         "box-shadow" => "$(shadow_size) $(color)",
     )
+    css = Styles(default_style, style)
     return DOM.div(content; style=css, div_attributes...)
 end
 
@@ -105,8 +105,7 @@ function Grid(
     style::Styles=Styles(),
     div_attributes...,
 )
-    css = Styles(
-        style,
+    default_style = Styles(
         "display" => "grid",
         "grid-template-columns" => columns,
         "grid-template-rows" => rows,
@@ -119,6 +118,7 @@ function Grid(
         "width" => width,
         "height" => height,
     )
+    css = Styles(default_style, style)
     return DOM.div(elems...; style=css, div_attributes...)
 end
 
@@ -247,8 +247,7 @@ function StylableSlider(
 ) where {T}
     half_thumb_width = thumb_width / 2
 
-    style = Styles(
-        style,
+    default_style = Styles(
         "display" => "grid",
         "grid-template-columns" => "1fr",
         "grid-template-rows" => "$(slider_height)px",
@@ -259,9 +258,9 @@ function StylableSlider(
         "padding-left" => "$(2 + half_thumb_width)px",
         "background-color" => backgroundcolor,
     )
+    style = Styles(default_style, style)
 
-    track_style = Styles(
-        track_style,
+    default_track_style = Styles(
         "position" => "absolute",
         "width" => "100%",
         "height" => "$(track_height)px",
@@ -269,9 +268,9 @@ function StylableSlider(
         "border-radius" => "3px",
         "border" => "1px solid #ccc",
     )
+    track_style = Styles(default_track_style, track_style)
 
-    track_active_style = Styles(
-        track_active_style,
+    default_track_active_style = Styles(
         "position" => "absolute",
         "width" => "0px",
         "height" => "$(track_active_height)px",
@@ -279,9 +278,9 @@ function StylableSlider(
         "border-radius" => "3px",
         "border" => "1px solid #ccc",
     )
+    track_active_style = Styles(default_track_active_style, track_active_style)
 
-    thumb_style = Styles(
-        thumb_style,
+    default_thumb_style = Styles(
         "width" => "$(thumb_width)px",
         "height" => "$(thumb_height)px",
         "background-color" => "white",
@@ -292,6 +291,7 @@ function StylableSlider(
         "left" => "$(-half_thumb_width)px",
         "background-color" => thumb_color,
     )
+    thumb_style = Styles(default_thumb_style, thumb_style)
     if !isnothing(value) && !isnothing(index)
         error("Values for value=$(value) and index=$(index) given, please only set one.")
     end
@@ -408,8 +408,9 @@ end
 A Label is a simple text element, with a bold font and a font size of 1rem.
 """
 function Label(value; style=Styles(), attributes...)
-    styled = Styles(style, "font-size" => "1rem", "font-weight" => 600)
-    return DOM.span(value; style=styled)
+    default_style = Styles("font-size" => "1rem", "font-weight" => 600)
+    styled = Styles(default_style, style)
+    return DOM.span(value; style=styled, attributes...)
 end
 
 
