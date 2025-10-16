@@ -346,18 +346,21 @@ mutable struct App
     handler::Function
     session::Base.RefValue{Union{Session,Nothing}}
     title::String
-    threaded::Bool
     function App(handler::Function;
-            title::AbstractString="Bonito App", threaded=false)
+            title::AbstractString="Bonito App", threaded=nothing)
+
+        if threaded isa Bool
+            @warn "The `threaded` argument is deprecated and has no effect. Each App is run in a thread created by HTTP.jl."
+        end
         session = Base.RefValue{Union{Session, Nothing}}(nothing)
         if hasmethod(handler, Tuple{Session, HTTP.Request})
-            app = new(handler, session, title, threaded)
+            app = new(handler, session, title)
         elseif hasmethod(handler, Tuple{Session})
-            app = new((session, request) -> handler(session), session, title, threaded)
+            app = new((session, request) -> handler(session), session, title)
         elseif hasmethod(handler, Tuple{HTTP.Request})
-            app = new((session, request) -> handler(request), session, title, threaded)
+            app = new((session, request) -> handler(request), session, title)
         elseif hasmethod(handler, Tuple{})
-            app = new((session, request) -> handler(), session, title, threaded)
+            app = new((session, request) -> handler(), session, title)
         else
             error("""
             Handler function must have the following signature:
@@ -370,9 +373,12 @@ mutable struct App
         finalizer(close, app)
         return app
     end
-    function App(dom_object; title="Bonito App", threaded=false)
+    function App(dom_object; title="Bonito App", threaded=nothing)
+        if threaded isa Bool
+            @warn "The `threaded` argument is deprecated and has no effect. Each App is run in a thread created by HTTP.jl."
+        end
         session = Base.RefValue{Union{Session,Nothing}}(nothing)
-        app = new((s, r) -> dom_object, session, title, threaded)
+        app = new((s, r) -> dom_object, session, title)
         finalizer(close, app)
         return app
     end
