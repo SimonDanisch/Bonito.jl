@@ -1,0 +1,48 @@
+’Ç,j“Ù$7cb13656-278a-460d-865a-53bff14361ea€£sub‚§payload•È1k’Èáj“Ù$7cb13656-278a-460d-865a-53bff14361ea‚³6878541122269576758Çe’³6878541122269576758Â³9881997050014588727Èpe’³9881997050014588727ÚX(() => {
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext('2d');
+    const width = 500
+    const height = 400
+    canvas.width = width;
+    canvas.height = height;
+    const gradient = context.createRadialGradient(200, 200, 0, 200, 200, 200);
+    gradient.addColorStop("0", "magenta");
+    gradient.addColorStop(".25", "blue");
+    gradient.addColorStop(".50", "green");
+    gradient.addColorStop(".75", "yellow");
+    gradient.addColorStop("1.0", "red");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, height);
+    return canvas;
+})();
+£subƒ£obsÇh³6878541122269576758§payloadÈf“´11296899928226379825Çh³9881997050014588727ÚØreturn function (click){
+    const js_src = __lookup_interpolated('11296899928226379825').value;
+    const result = new Function("return " + (js_src))()
+    let dom;
+    if (typeof result === 'object' && result.nodeName) {
+        dom = result
+    } else {
+        const span = document.createElement("span")
+        span.innerText = result;
+        dom = span
+    }
+    JSServe.update_or_replace(document.querySelector('[data-jscall-id="35"]'), dom, false);
+    return
+}
+®widgets.md:112¨msg_type¡1Èk’Ç_j“Ù$7cb13656-278a-460d-865a-53bff14361ea´14919775701651038206Çe’´14919775701651038206¤eval£subƒ£obsÇh´14919775701651038206§payloadÇ†f“€ÙHreturn x=> document.querySelector('[data-jscall-id="37"]').innerText = xÙ8/home/runner/work/JSServe.jl/JSServe.jl/src/widgets.jl:9¨msg_type¡1È×k’Ç,j“Ù$7cb13656-278a-460d-865a-53bff14361ea€£sub‚§payloadÈf“‚´11296899928226379825Çh³9881997050014588727²415926532742338132‰µwrapBehavioursEnabledÃ¯showLineNumbersÂ«useSoftTabsÃ¤wrapP±enableMultiselectÃ¯mergeUndoDeltas¦always¨fontSize¶copyWithEmptySelectionÃ¸autoScrollEditorIntoViewÃÚm(    function (element){
+        const editor = ace.edit(element, {
+            mode: 'ace/mode/javascript'
+        });
+        editor.setTheme('ace/theme/chrome');
+        editor.resize();
+        // use setOptions method to set several options at once
+        editor.setOptions(__lookup_interpolated('415926532742338132'));
+
+        editor.session.on('change', function(delta) {
+            __lookup_interpolated('11296899928226379825').notify(editor.getValue());
+        });
+        editor.session.setValue(__lookup_interpolated('11296899928226379825').value);
+    }
+)(document.querySelector('[data-jscall-id="39"]'));Ù:/home/runner/work/JSServe.jl/JSServe.jl/src/widgets.jl:228¨msg_type¡2ÈKk’Ç,j“Ù$7cb13656-278a-460d-865a-53bff14361ea€£sub‚§payloadÈf“³9920621801330621881Çh³6878541122269576758Ùš((node) => {
+    node['onclick'] = event=> __lookup_interpolated('9920621801330621881').notify(true);
+})(document.querySelector('[data-jscall-id="37"]'));Ù8/home/runner/work/JSServe.jl/JSServe.jl/src/widgets.jl:6¨msg_type¡2Ç]k’Ç-j“Ù$1a780eba-9738-45f1-9271-a3fd09cf8bd9€¤rootƒ§payloadÂ¢id³6878541122269576758¨msg_type¡0¨msg_type¡9
