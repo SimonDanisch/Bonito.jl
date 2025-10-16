@@ -87,23 +87,24 @@ function load_script(url, global_name) {
 
     return new Promise((resolve, reject) => {
         // Helper to wait for and return the global after script loads
-        // The setTimeout(..., 0) defers execution until the next event loop tick.
-        // This is necessary because some libraries (like ACE) may assign their
-        // global variable asynchronously after the script's main code executes.
-        // By yielding control back to the event loop, we give the library time
-        // to complete its initialization before checking for the global.
-        const waitForGlobal = () => {
+        // Some libraries (like ACE) may assign their global variable asynchronously
+        // after the script's main code executes. We retry with exponential backoff
+        // to handle various initialization timing scenarios.
+        const waitForGlobal = (retries = 0, maxRetries = 10, delay = 10) => {
             setTimeout(() => {
                 if (window[global_name]) {
                     resolve(window[global_name]);
+                } else if (retries < maxRetries) {
+                    // Retry with exponential backoff: 10ms, 20ms, 40ms, 80ms, etc.
+                    waitForGlobal(retries + 1, maxRetries, delay * 2);
                 } else {
                     reject(
                         new Error(
-                            `Global '${global_name}' not found after loading ${url}`
+                            `Global '${global_name}' not found after loading ${url} (tried ${maxRetries + 1} times)`
                         )
                     );
                 }
-            }, 0);
+            }, delay);
         };
 
         script.addEventListener("load", () => {

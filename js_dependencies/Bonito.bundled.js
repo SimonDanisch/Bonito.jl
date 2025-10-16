@@ -4459,14 +4459,16 @@ function load_script(url, global_name) {
     const existing_script = document.querySelector(`script[src="${url}"]`);
     const script = existing_script || document.createElement("script");
     return new Promise((resolve, reject)=>{
-        const waitForGlobal = ()=>{
+        const waitForGlobal = (retries = 0, maxRetries = 10, delay = 10)=>{
             setTimeout(()=>{
                 if (window[global_name]) {
                     resolve(window[global_name]);
+                } else if (retries < maxRetries) {
+                    waitForGlobal(retries + 1, maxRetries, delay * 2);
                 } else {
-                    reject(new Error(`Global '${global_name}' not found after loading ${url}`));
+                    reject(new Error(`Global '${global_name}' not found after loading ${url} (tried ${maxRetries + 1} times)`));
                 }
-            }, 0);
+            }, delay);
         };
         script.addEventListener("load", ()=>{
             script.dataset.loaded = "true";
