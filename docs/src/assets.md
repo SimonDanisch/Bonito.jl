@@ -15,14 +15,22 @@ Page()
 using Bonito
 
 # Load a local image
-dashi_logo = Asset(joinpath(@__DIR__, "dashi.svg"))
+dashi_logo = Asset(joinpath(@__DIR__, "dashi.png"))
 
 # Create an app that displays the image
 app = App() do
+    # Use CSS class selector to style child images of this specific container
+    img_styles = Styles(CSS(".asset-container > img", "width" => "400px"))
     DOM.div(
-        DOM.h2("Asset Example"),
-        dashi_logo,  # Assets render automatically - this becomes DOM.img(src=url_to_asset)
-        DOM.p("The image asset is automatically converted to an img tag with the correct URL")
+        img_styles,
+        DOM.div(
+            DOM.h2("Asset Example"),
+            DOM.p("Assets render automatically as the appropriate DOM element:"),
+            dashi_logo,  # Automatically becomes DOM.img(src=url_to_asset)
+            DOM.p("Or use assets as src attributes for more control:"),
+            DOM.img(src=dashi_logo; width="400px");  # Asset URL is inserted as src
+            class="asset-container"
+        )
     )
 end
 ```
