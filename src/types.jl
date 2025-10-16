@@ -26,8 +26,71 @@ JSCode(source) = JSCode(source, "")
 abstract type AbstractAsset end
 
 """
-Represent an asset stored at an URL.
-We try to always have online & local files for assets
+    Asset(path_or_url; name=nothing, es6module=false, check_isfile=false, bundle_dir=nothing, mediatype=:inferred)
+
+Represent an asset (JavaScript, CSS, image, etc.) that can be included in a Bonito DOM.
+
+# Arguments
+- `path_or_url`: Local file path or URL to the asset
+- `name`: Optional name for the asset. For JS assets, this becomes the global variable name when loaded.
+          Defaults to the filename without extension for JS files (e.g., "ace.js" → "ace")
+- `es6module`: Whether this is an ES6 module that needs bundling (default: false)
+- `check_isfile`: Verify that local files exist (default: false)
+- `bundle_dir`: Directory for bundled ES6 modules (default: inferred)
+- `mediatype`: Media type symbol (:js, :css, :png, etc.). Auto-detected from extension if not specified
+
+# JavaScript Asset Loading
+
+## Non-module scripts (es6module=false)
+
+For non-module JavaScript assets, interpolating the asset in JS code creates a Promise
+that resolves with the global object:
+
+```julia
+ace_asset = Asset("https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js")
+# name defaults to "ace" (inferred from filename)
+
+js\"""
+    \$(ace_asset).then(ace => {
+        // ace object is now available
+        const editor = ace.edit(element);
+    });
+\"""
+```
+
+To override the global name:
+```julia
+Asset("https://example.com/mylibrary.js"; name="MyLib")
+```
+
+## ES6 modules (es6module=true)
+
+For ES6 modules, use the `ES6Module(path)` constructor which automatically sets `es6module=true` and
+bundles the module with its dependencies. ES6 modules also support the `.then()` syntax:
+
+```julia
+mod = ES6Module("path/to/module.js")  # name defaults to "module"
+
+js\"""
+    \$(mod).then(exports => {
+        // ES6 module exports are now available
+        exports.someFunction();
+    });
+\"""
+```
+
+# Fields
+- `name::Union{Nothing, String}`: Asset name (used as global variable name for JS assets)
+- `es6module::Bool`: Whether this is an ES6 module
+- `media_type::Symbol`: Type of asset (:js, :css, :png, etc.)
+- `online_path::String`: URL if asset is hosted online
+- `local_path::Union{String, Path}`: Local file system path
+- `bundle_file::Union{String, Path}`: Path to bundled file (ES6 modules only)
+- `bundle_data::Vector{UInt8}`: Bundled file contents (ES6 modules only)
+- `content_hash::RefValue{String}`: Hash of bundled content (ES6 modules only)
+
+# See Also
+- `ES6Module(path)`: Convenience constructor for ES6 modules with automatic bundling
 """
 struct Asset <: AbstractAsset
     name::Union{Nothing, String}

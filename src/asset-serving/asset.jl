@@ -37,7 +37,6 @@ end
 url(session::Session, asset::AbstractAsset) = url(session.asset_server, asset)
 function url(::Nothing, asset::Asset)
     # Allow to use nothing for specifying an online url
-    @assert !isempty(asset.online_path)
     return asset.online_path
 end
 
@@ -170,6 +169,12 @@ function Asset(path_or_url::Union{String,Path}; name=nothing, es6module=false, c
     else
         local_path = normalize_path(path_or_url; check_isfile=check_isfile)
     end
+
+    # For JS assets, default name to filename without extension (for global name inference)
+    if isnothing(name)
+        name = String(splitext(basename(path_or_url))[1])
+    end
+
      if es6module
         path = bundle_folder(bundle_dir, local_path, name, mediatype)
         # We may need to bundle immediately, since otherwise the dependencies for bunddling may be gone!

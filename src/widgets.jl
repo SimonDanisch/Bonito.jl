@@ -377,24 +377,22 @@ function jsrender(session::Session, slider::RangeSlider)
         )
     end
     rangediv = DOM.div()
+
     create_slider = js"""
     function create_slider(style){
         const range = $(rangediv);
         range.noUiSlider.updateOptions(style, true);
     }"""
-    onload(
-        session,
-        rangediv,
-        js"""function onload(range){
-    const style = $(style[]);
-    $(noUiSlider).then(NUS=> {
-        NUS.create(range, style);
-        range.noUiSlider.on('update', function (values, handle, unencoded, tap, positions){
-            $(slider.value).notify([parseFloat(values[0]), parseFloat(values[1])]);
-        });
-    })
-}""",
-    )
+    on_range = js"""function onload(range){
+        const style = $(style[]);
+        $(noUiSlider).then(NUS=> {
+            NUS.create(range, style);
+            range.noUiSlider.on('update', function (values, handle, unencoded, tap, positions){
+                $(slider.value).notify([parseFloat(values[0]), parseFloat(values[1])]);
+            });
+        })
+    }"""
+    onload(session, rangediv, on_range)
     onjs(session, style, create_slider)
     return DOM.div(jsrender(session, noUiSliderCSS), rangediv)
 end
@@ -754,46 +752,32 @@ end
 function jsrender(session::Session, editor::CodeEditor)
     theme = "ace/theme/$(editor.theme)"
     language = "ace/mode/$(editor.language)"
-    ace_url = "https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"
-    onload(
-        session,
-        editor.element,
-        js"""
-            function (element){
-                // sadly I cant find a way to use ace as an ES6 module, which means
-                // we need to use more primitive methods, to make sure ace is loaded
-                const onload_callback = () =>{
-                    const editor = ace.edit(element, {
-                        mode: $(language)
-                    });
-                    editor.setTheme($theme);
-                    editor.getSession().setUseWrapMode(true)
-                    // use setOptions method to set several options at once
-                    editor.setOptions($(editor.options));
+    ace = Asset("https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js")
+    setup = js"""
+        $(ace).then((ace) => {
+            const element = $(editor.element);
+            const editor = ace.edit(element, {
+                mode: $(language)
+            });
+            editor.setTheme($theme);
+            editor.getSession().setUseWrapMode(true)
+            // use setOptions method to set several options at once
+            editor.setOptions($(editor.options));
 
-                    editor.session.on('change', function(delta) {
-                        $(editor.onchange).notify(editor.getValue());
-                    });
-                    editor.session.setValue($(editor.onchange).value);
-                    function resizeEditor() {
-                        const height = editor.getSession().getScreenLength() *
-                            (editor.renderer.lineHeight + editor.renderer.scrollBar.getWidth());
-                        editor.container.style.height = `${height}px`;
-                    }
-                    // Resize the editor initially
-                    resizeEditor();
-                }
-                // Create script tag in JS and attach to head
-                const ace_script = document.createElement('script');
-                // we need to first set the onload callback and set the src afterwards!
-                // I wish we could just make ACE an ES6 module, but haven't found a way yet
-                ace_script.onload = onload_callback;
-                ace_script.src = $(ace_url);
-                document.head.appendChild(ace_script);
+            editor.session.on('change', function(delta) {
+                $(editor.onchange).notify(editor.getValue());
+            });
+            editor.session.setValue($(editor.onchange).value);
+            function resizeEditor() {
+                const height = editor.getSession().getScreenLength() *
+                    (editor.renderer.lineHeight + editor.renderer.scrollBar.getWidth());
+                editor.container.style.height = `${height}px`;
             }
-        """,
-    )
-    return jsrender(session, editor.element)
+            // Resize the editor initially
+            resizeEditor();
+        });
+    """
+    return jsrender(session, DOM.div(editor.element, setup))
 end
 
 # Ok, this is bad piracy, but I donno how else to make the display nice for now!

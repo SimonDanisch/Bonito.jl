@@ -69,6 +69,61 @@ function fetch_binary(url) {
     });
 }
 
+/**
+ * Load a JavaScript library dynamically and return a promise that resolves with the global object
+ * @param {string} url - The URL of the script to load
+ * @param {string} global_name - The name of the global variable that will be created
+ * @returns {Promise} A promise that resolves with the loaded global object
+ */
+function load_script(url, global_name) {
+    // Script already loaded, return the global immediately
+    if (window[global_name]) {
+        return Promise.resolve(window[global_name]);
+    }
+
+    // Check if script is already in document
+    const existing_script = document.querySelector(`script[src="${url}"]`);
+    const script = existing_script || document.createElement("script");
+
+    return new Promise((resolve, reject) => {
+        // Helper to wait for and return the global after script loads
+        // The setTimeout(..., 0) defers execution until the next event loop tick.
+        // This is necessary because some libraries (like ACE) may assign their
+        // global variable asynchronously after the script's main code executes.
+        // By yielding control back to the event loop, we give the library time
+        // to complete its initialization before checking for the global.
+        const waitForGlobal = () => {
+            setTimeout(() => {
+                if (window[global_name]) {
+                    resolve(window[global_name]);
+                } else {
+                    reject(
+                        new Error(
+                            `Global '${global_name}' not found after loading ${url}`
+                        )
+                    );
+                }
+            }, 0);
+        };
+
+        script.addEventListener("load", () => {
+            script.dataset.loaded = "true";
+            waitForGlobal();
+        });
+
+        script.addEventListener("error", () => {
+            reject(new Error(`Failed to load script: ${url}`));
+        });
+
+        // Only set src and append if this is a new script
+        if (!existing_script) {
+            script.src = url;
+            script.dataset.loaded = "false";
+            document.head.appendChild(script);
+        }
+    });
+}
+
 // from: https://www.geeksforgeeks.org/javascript-throttling/
 function throttle_function(func, delay) {
     // Previously called time of the function
@@ -139,6 +194,7 @@ const Bonito = {
     encode_binary,
     decode_base64_message,
     fetch_binary,
+    load_script,
 
     Connection,
     send_error,
@@ -180,6 +236,8 @@ export {
     decode_binary,
     encode_binary,
     decode_base64_message,
+    fetch_binary,
+    load_script,
     Connection,
     send_error,
     send_warning,
