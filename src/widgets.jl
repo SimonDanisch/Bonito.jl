@@ -752,11 +752,9 @@ function CodeEditor(
 end
 
 function jsrender(session::Session, editor::CodeEditor)
-
     theme = "ace/theme/$(editor.theme)"
     language = "ace/mode/$(editor.language)"
     ace_url = "https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"
-    ace = DOM.script()
     onload(
         session,
         editor.element,
@@ -785,15 +783,17 @@ function jsrender(session::Session, editor::CodeEditor)
                     // Resize the editor initially
                     resizeEditor();
                 }
-                const ace_script = $(ace)
+                // Create script tag in JS and attach to head
+                const ace_script = document.createElement('script');
                 // we need to first set the onload callback and set the src afterwards!
                 // I wish we could just make ACE an ES6 module, but haven't found a way yet
                 ace_script.onload = onload_callback;
                 ace_script.src = $(ace_url);
+                document.head.appendChild(ace_script);
             }
         """,
     )
-    return jsrender(session, DOM.div(ace, editor.element))
+    return jsrender(session, editor.element)
 end
 
 # Ok, this is bad piracy, but I donno how else to make the display nice for now!
