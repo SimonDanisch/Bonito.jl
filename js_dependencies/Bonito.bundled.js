@@ -4452,6 +4452,38 @@ function fetch_binary(url) {
         return response.arrayBuffer();
     });
 }
+function load_script(url, global_name) {
+    if (window[global_name]) {
+        return Promise.resolve(window[global_name]);
+    }
+    const existing_script = document.querySelector(`script[src="${url}"]`);
+    const script = existing_script || document.createElement("script");
+    return new Promise((resolve, reject)=>{
+        const waitForGlobal = (retries = 0, maxRetries = 10, delay = 10)=>{
+            setTimeout(()=>{
+                if (window[global_name]) {
+                    resolve(window[global_name]);
+                } else if (retries < maxRetries) {
+                    waitForGlobal(retries + 1, maxRetries, delay * 2);
+                } else {
+                    reject(new Error(`Global '${global_name}' not found after loading ${url} (tried ${maxRetries + 1} times)`));
+                }
+            }, delay);
+        };
+        script.addEventListener("load", ()=>{
+            script.dataset.loaded = "true";
+            waitForGlobal();
+        });
+        script.addEventListener("error", ()=>{
+            reject(new Error(`Failed to load script: ${url}`));
+        });
+        if (!existing_script) {
+            script.src = url;
+            script.dataset.loaded = "false";
+            document.head.appendChild(script);
+        }
+    });
+}
 function throttle_function(func, delay) {
     let prev = 0;
     let future_id = undefined;
@@ -4497,6 +4529,7 @@ const Bonito = {
     encode_binary: encode_binary1,
     decode_base64_message: decode_base64_message1,
     fetch_binary,
+    load_script,
     Connection: mod2,
     send_error: send_error1,
     send_warning: send_warning1,
@@ -4523,6 +4556,6 @@ const Bonito = {
     generate_state_key
 };
 window.Bonito = Bonito;
-export { mod1 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, mod2 as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, mod as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany, OBJECT_FREEING_LOCK1 as OBJECT_FREEING_LOCK, can_send_to_julia1 as can_send_to_julia, free_object1 as free_object, send_to_julia1 as send_to_julia, throttle_function as throttle_function };
+export { mod1 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, fetch_binary as fetch_binary, load_script as load_script, mod2 as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, mod as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany, OBJECT_FREEING_LOCK1 as OBJECT_FREEING_LOCK, can_send_to_julia1 as can_send_to_julia, free_object1 as free_object, send_to_julia1 as send_to_julia, throttle_function as throttle_function };
 export { generate_state_key as generate_state_key };
 

@@ -69,6 +69,62 @@ function fetch_binary(url) {
     });
 }
 
+/**
+ * Load a JavaScript library dynamically and return a promise that resolves with the global object
+ * @param {string} url - The URL of the script to load
+ * @param {string} global_name - The name of the global variable that will be created
+ * @returns {Promise} A promise that resolves with the loaded global object
+ */
+function load_script(url, global_name) {
+    // Script already loaded, return the global immediately
+    if (window[global_name]) {
+        return Promise.resolve(window[global_name]);
+    }
+
+    // Check if script is already in document
+    const existing_script = document.querySelector(`script[src="${url}"]`);
+    const script = existing_script || document.createElement("script");
+
+    return new Promise((resolve, reject) => {
+        // Helper to wait for and return the global after script loads
+        // Some libraries (like ACE) may assign their global variable asynchronously
+        // after the script's main code executes. We retry with exponential backoff
+        // to handle various initialization timing scenarios.
+        const waitForGlobal = (retries = 0, maxRetries = 10, delay = 10) => {
+            setTimeout(() => {
+                if (window[global_name]) {
+                    resolve(window[global_name]);
+                } else if (retries < maxRetries) {
+                    // Retry with exponential backoff: 10ms, 20ms, 40ms, 80ms, etc.
+                    waitForGlobal(retries + 1, maxRetries, delay * 2);
+                } else {
+                    reject(
+                        new Error(
+                            `Global '${global_name}' not found after loading ${url} (tried ${maxRetries + 1} times)`
+                        )
+                    );
+                }
+            }, delay);
+        };
+
+        script.addEventListener("load", () => {
+            script.dataset.loaded = "true";
+            waitForGlobal();
+        });
+
+        script.addEventListener("error", () => {
+            reject(new Error(`Failed to load script: ${url}`));
+        });
+
+        // Only set src and append if this is a new script
+        if (!existing_script) {
+            script.src = url;
+            script.dataset.loaded = "false";
+            document.head.appendChild(script);
+        }
+    });
+}
+
 // from: https://www.geeksforgeeks.org/javascript-throttling/
 function throttle_function(func, delay) {
     // Previously called time of the function
@@ -139,6 +195,7 @@ const Bonito = {
     encode_binary,
     decode_base64_message,
     fetch_binary,
+    load_script,
 
     Connection,
     send_error,
@@ -180,6 +237,8 @@ export {
     decode_binary,
     encode_binary,
     decode_base64_message,
+    fetch_binary,
+    load_script,
     Connection,
     send_error,
     send_warning,

@@ -1,7 +1,6 @@
 using Bonito
 using Observables
 using Hyperscript
-Bonito.browser_display()
 
 app = App() do session::Session
     editor = CodeEditor("julia"; initial_source="""1 + 1""")
