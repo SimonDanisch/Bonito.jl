@@ -309,7 +309,6 @@ function range_slider(orientation)
 end
 
 App() do
-
     button = D.Button("click")
     textfield = D.TextField("type in your text")
     numberinput = D.NumberInput(0.0)

@@ -741,8 +741,10 @@ function CodeEditor(
     options = Dict{String,Any}(merge(defaults, user_opts))
     onchange = Observable(initial_source)
     style = Styles(
-        "position" => "relative",
-        "height" => "$(height)px",
+        Styles(
+            "position" => "relative",
+            "height" => "$(height)px",
+        ),
         style,
     )
     element = DOM.div(""; style=style)
