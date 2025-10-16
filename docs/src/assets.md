@@ -1,42 +1,90 @@
 # Assets
 
-```julia
-some_file = Asset("path/to/local/file")
-# ES6Module creates an Asset with the flags set appropriately to
-# treat it as a module
-jsmodule = ES6Module("path/to/local/es6module.js")::Asset
+Assets in Bonito represent external resources like JavaScript libraries, CSS files, images, and other files. They handle loading, bundling, and serving these resources efficiently across different deployment ways (Server/Plotpane/Notebooks/Static Site/Documenter).
 
-# These assets can be interpolated into DOM elements and js strings:
-js"""
-// this will result in importing jsmodule
-// Doing this in many places will only import jsmodule once
-$(jsmodule).then(jsmodule=> {
-    // Do something with the module :)
-})
-// This will give you the raw bytes as a Uint8Array
-$(some_file).then(raw_bytes => {
-    // do something with bytes
-})
-"""
+## Basic Usage
 
-# This will resolve to a valid URL depending on the used asset server
-DOM.img(src=some_file)
-
-# This will also resolve to a valid URL and load jsmodule as an es6 module
-DOM.script(src=jsmodule, type="module")
-
-# Assets also work with online sources.
-# Usage is exactly the same as when using local files
-THREE = ES6Module("https://unpkg.com/three@0.136.0/build/three.js")
-# Also offer an easy way to use packages from a CDN (currently esm.sh):
-THREE = CDNSource("three"; version="0.137.5")
-```
-
+Assets can reference local files or remote URLs and are automatically served with the appropriate URLs:
 
 ```@setup 1
 using Bonito
 Page()
 ```
+
+```@example 1
+using Bonito
+
+# Load a local image
+dashi_logo = Asset(joinpath(@__DIR__, "dashi.svg"))
+
+# Create an app that displays the image
+app = App() do
+    DOM.div(
+        DOM.h2("Asset Example"),
+        dashi_logo,  # Assets render automatically - this becomes DOM.img(src=url_to_asset)
+        DOM.p("The image asset is automatically converted to an img tag with the correct URL")
+    )
+end
+```
+
+## JavaScript Assets
+
+JavaScript assets come in two flavors: ES6 modules and traditional scripts.
+
+### ES6 Modules
+
+ES6 modules are bundled with their dependencies and loaded as modules:
+
+```julia
+# ES6Module creates an Asset with es6module=true
+jsmodule = ES6Module("path/to/local/module.js")
+
+# Interpolating in JS code returns a Promise with the module exports
+js"""
+$(jsmodule).then(module => {
+    module.someFunction();
+})
+"""
+# Works with CDN sources too
+THREE = ES6Module("https://unpkg.com/three@0.136.0/build/three.js")
+# Convenient CDN helper (uses esm.sh):
+THREE = CDNSource("three"; version="0.137.5")
+```
+
+### Traditional Scripts (Non-module)
+
+For traditional JavaScript libraries that expose global variables (like jQuery, ACE editor, etc.):
+
+```julia
+# The Asset automatically infers the global name from the filename
+ace = Asset("https://cdn.jsdelivr.net/ace-builds/src-min/ace.js")
+# name is automatically set to "ace"
+
+# Interpolating returns a Promise that resolves with the global object
+js"""
+$(ace).then(ace => {
+    const editor = ace.edit(element);
+})
+"""
+# Override the global name if needed
+custom = Asset("https://example.com/library.js"; name="MyLib")
+```
+
+### Binary Assets
+
+Non-JavaScript assets are loaded as raw bytes when interpolated into javascript:
+
+```julia
+image = Asset("path/to/image.png")
+
+js"""
+$(image).then(bytes => {
+    // bytes is a Uint8Array
+})
+"""
+```
+
+Full ES6Module example creating a THREEJS visualization:
 
 ```@example 1
 # Javascript & CSS dependencies can be declared locally and
