@@ -312,7 +312,7 @@ mutable struct Session{Connection <: FrontendConnection}
 
         task = Task() do
             for message in inbox
-                try
+                @async try
                     process_message(session, message)
                 catch e
                     @warn "error while processing received msg" exception = (
