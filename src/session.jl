@@ -507,7 +507,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
             init_session = """
             Bonito.init_session($(repr(session.id)), $(binary), $(repr(type)), $(session.compression_enabled));
             """
-            pushfirst!(children(body), DOM.script(init_session; type="module"))
+            pushfirst!(children(body), inline_code(session, session.asset_server, init_session))
         end
 
         if !issubsession
