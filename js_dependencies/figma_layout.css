@@ -1,0 +1,66 @@
+/* figma2html reset.css */
+.h-scale, .v-scale {
+  align-self: stretch;
+}
+
+.scale, .top {
+  top: 0;
+}
+
+.bottom, .scale, .v-scale {
+  bottom: 0;
+}
+
+a {
+  text-decoration: initial;
+}
+
+.component, .frame {
+  position: absolute;
+}
+
+.component *, .frame * {
+  position: absolute;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.right {
+  right: 0;
+  left: auto;
+}
+
+.left {
+  left: 0;
+  right: auto;
+}
+
+.h-scale, .left_right, .scale {
+  left: 0;
+  right: 0;
+}
+
+.h-scale {
+  flex-direction: column;
+}
+
+.v-scale {
+  top: 0;
+  flex-direction: row;
+}
+
+.button {
+  cursor: pointer;
+}
+
+.clip {
+  overflow: hidden;
+}
+
+.text span {
+  align-self: flex-start;
+}
+.base {
+  overflow: hidden;
+}
