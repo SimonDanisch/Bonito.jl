@@ -342,7 +342,9 @@ A simple Checkbox, which can be styled via the `style::Styles` attribute.
 Checkbox
 
 function jsrender(session::Session, tb::Checkbox)
-    default_style = Styles(Styles("min-width" => "auto", "transform" => "scale(1.5)"), BUTTON_STYLE)
+    default_style = Styles(
+        BUTTON_STYLE, Styles("min-width" => "auto", "transform" => "scale(1.5)")
+    )
     css = Styles(default_style, get(tb.attributes, :style, Styles()))
     return jsrender(
         session,
@@ -828,7 +830,7 @@ App() do
 
     # Display selected value
     selected_display = map(combobox.value) do value
-        isempty(value) ? "No selection" : "Selected: \$value"
+        isnothing(value) ? "No selection" : "Selected: \$value"
     end
 
     # Handle value changes
@@ -977,12 +979,9 @@ function jsrender(session::Session, choicesbox::ChoicesBox)
 
             // Handle value changes
             selectElement.addEventListener('change', function(event) {
-                            console.log(choices.choices)
-
                 // console.log("Handle value changes", event.detail.value || event.target.value)
                 $(choicesbox.value).notify(event.detail.value || event.target.value);
             });
-
 
             // Update choices when options change
             $(choicesbox.options).on(function(newOptions) {
@@ -1002,10 +1001,12 @@ function jsrender(session::Session, choicesbox::ChoicesBox)
                 }
             });
 
-
         }
 
         initChoices($(selectDOM));
     """
-    return Bonito.jsrender(session, DOM.div(ChoicesJS, ChoicesCSS, selectDOM, choices_script))
+    return Bonito.jsrender(
+        session,
+        DOM.div(ChoicesJS, ChoicesCSS, selectDOM, choices_script; choicesbox.attributes...),
+    )
 end
