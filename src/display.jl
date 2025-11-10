@@ -87,7 +87,7 @@ function show_html(io::IO, app::App; parent=CURRENT_SESSION[])
             dom = session_dom(session, app)
         end
     end
-    show(io, Hyperscript.Pretty(dom))
+    show(io, dom)
     mark_displayed!(sub)
     isnothing(session) || mark_displayed!(session)
     return sub
@@ -100,7 +100,7 @@ end
 function print_as_page(io::IO, dom::Node)
     println(io, "<!doctype html>")
     # use Hyperscript directly to avoid the additional Bonito attributes
-    show(io, MIME"text/html"(), Hyperscript.Pretty(dom))
+    show(io, MIME"text/html"(), dom)
     return
 end
 
@@ -145,7 +145,7 @@ function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
             return DOM.div(request, dom_node)
         end
         dom = session_dom(session, fetch_app)
-        show(io, Hyperscript.Pretty(dom))
+        show(io, dom)
         mark_displayed!(session)
         mark_displayed!(sub)
     end
