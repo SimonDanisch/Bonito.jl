@@ -56,7 +56,7 @@ function md_html(code::Markdown.Code)
         return [KaTeX(code.code)]
     end
     maybe_lang = !isempty(code.language) ? Any[:class=>"language-$(code.language)"] : []
-    return [DOM.m("pre", DOM.m("code", code.code; maybe_lang...))]
+    return [DOM.m("code", code.code; maybe_lang...)]
 end
 
 function md_html(md::Markdown.Paragraph)
