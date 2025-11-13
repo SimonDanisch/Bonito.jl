@@ -409,21 +409,22 @@ mutable struct App
     handler::Function
     session::Base.RefValue{Union{Session,Nothing}}
     title::String
+    loading_content::Any
     function App(handler::Function;
-            title::AbstractString="Bonito App", threaded=nothing)
+            title::AbstractString="Bonito App", threaded=nothing, loading_content=RippleSpinner())
 
         if threaded isa Bool
             @warn "The `threaded` argument is deprecated and has no effect. Each App is run in a thread created by HTTP.jl."
         end
         session = Base.RefValue{Union{Session, Nothing}}(nothing)
         if hasmethod(handler, Tuple{Session, HTTP.Request})
-            app = new(handler, session, title)
+            app = new(handler, session, title, loading_content)
         elseif hasmethod(handler, Tuple{Session})
-            app = new((session, request) -> handler(session), session, title)
+            app = new((session, request) -> handler(session), session, title, loading_content)
         elseif hasmethod(handler, Tuple{HTTP.Request})
-            app = new((session, request) -> handler(request), session, title)
+            app = new((session, request) -> handler(request), session, title, loading_content)
         elseif hasmethod(handler, Tuple{})
-            app = new((session, request) -> handler(), session, title)
+            app = new((session, request) -> handler(), session, title, loading_content)
         else
             error("""
             Handler function must have the following signature:
@@ -436,12 +437,12 @@ mutable struct App
         finalizer(close, app)
         return app
     end
-    function App(dom_object; title="Bonito App", threaded=nothing)
+    function App(dom_object; title="Bonito App", threaded=nothing, loading_content=RippleSpinner())
         if threaded isa Bool
             @warn "The `threaded` argument is deprecated and has no effect. Each App is run in a thread created by HTTP.jl."
         end
         session = Base.RefValue{Union{Session,Nothing}}(nothing)
-        app = new((s, r) -> dom_object, session, title)
+        app = new((s, r) -> dom_object, session, title, loading_content)
         finalizer(close, app)
         return app
     end

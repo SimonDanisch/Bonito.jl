@@ -61,13 +61,65 @@ end
 # Enable route!(server, "/" => app)
 function HTTPServer.apply_handler(app::App, context)
     server = context.application
-    session = HTTPSession(server)
-    session.title = app.title
-    html_dom = rendered_dom(session, app, context.request)
-    html_str = sprint() do io
-        page_html(io, session, html_dom)
+    parent = HTTPSession(server)
+    parent.title = app.title
+
+    # If no loading_content, render app normally
+    if isnothing(app.loading_content)
+        html_dom = rendered_dom(parent, app, context.request)
+        html_str = sprint() do io
+            page_html(io, parent, html_dom)
+        end
+        mark_displayed!(parent)
+        return html(html_str)
     end
-    mark_displayed!(session)
+
+    # Strategy: Follow DisplayHandler pattern with subsession
+    # Root session contains empty app, subsession contains spinner -> real app
+    sub = Session(parent)
+
+    # Create parent DOM with empty app (sets up connection infrastructure)
+    parent_dom = session_dom(parent, App(nothing); html_document=true)
+
+    # Create spinner app with centered wrapper
+    centered_spinner = DOM.div(
+        app.loading_content;
+        style = """
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+        """
+    )
+    spinner_app = App((s, r) -> centered_spinner; title=app.title, loading_content=nothing)
+    sub_dom = session_dom(sub, spinner_app)
+
+    _, parent_body, _ = find_head_body(parent_dom)
+    push!(children(parent_body), sub_dom)
+
+    html_str = sprint(io -> print_as_page(io, parent_dom))
+    mark_displayed!(parent)
+    mark_displayed!(sub)
+
+    # Load real app async and update subsession
+    Base.errormonitor(@async begin
+        try
+            wait_for_ready(sub)
+            update_app!(parent, app)
+        catch e
+            @error "Error loading app asynchronously" exception=(e, catch_backtrace())
+            # Try to show error in the UI
+            try
+                error_html = HTTPServer.err_to_html(e, Base.catch_backtrace())
+                error_app = App((s, r) -> error_html; title="Error", loading_content=nothing)
+                update_app!(parent, error_app)
+            catch
+                @error "Failed to display error in UI"
+            end
+        end
+    end)
+
     return html(html_str)
 end
 
