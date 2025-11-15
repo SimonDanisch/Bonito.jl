@@ -56,6 +56,8 @@ include("rendering/rendering.jl")
 include("asset-serving/asset-serving.jl")
 include("connection/connection.jl")
 include("registry.jl")
+
+using JSON
 include("server-defaults.jl")
 
 include("serialization/serialization.jl")
