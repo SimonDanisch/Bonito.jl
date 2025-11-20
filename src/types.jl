@@ -411,7 +411,7 @@ mutable struct App
     title::String
     loading_content::Any
     function App(handler::Function;
-            title::AbstractString="Bonito App", threaded=nothing, loading_content=RippleSpinner())
+            title::AbstractString="Bonito App", threaded=nothing, loading_content=LoadingPage())
 
         if threaded isa Bool
             @warn "The `threaded` argument is deprecated and has no effect. Each App is run in a thread created by HTTP.jl."
@@ -437,7 +437,7 @@ mutable struct App
         finalizer(close, app)
         return app
     end
-    function App(dom_object; title="Bonito App", threaded=nothing, loading_content=RippleSpinner())
+    function App(dom_object; title="Bonito App", threaded=nothing, loading_content=LoadingPage())
         if threaded isa Bool
             @warn "The `threaded` argument is deprecated and has no effect. Each App is run in a thread created by HTTP.jl."
         end

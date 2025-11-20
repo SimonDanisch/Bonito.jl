@@ -81,19 +81,9 @@ function HTTPServer.apply_handler(app::App, context)
     # Create parent DOM with empty app (sets up connection infrastructure)
     parent_dom = session_dom(parent, App(nothing); html_document=true)
 
-    # Create spinner app with centered wrapper
-    centered_spinner = DOM.div(
-        app.loading_content;
-        style = """
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 1000;
-        """
-    )
-    spinner_app = App((s, r) -> centered_spinner; title=app.title, loading_content=nothing)
-    sub_dom = session_dom(sub, spinner_app)
+    # Create loading app - loading_content handles all styling
+    loading_app = App((s, r) -> app.loading_content; title=app.title, loading_content=nothing)
+    sub_dom = session_dom(sub, loading_app)
 
     _, parent_body, _ = find_head_body(parent_dom)
     push!(children(parent_body), sub_dom)

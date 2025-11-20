@@ -41,6 +41,7 @@ function browser_display()
     # if browserdisplay is anywhere not at the last position
     # remove it!
     filter!(x-> !(x isa BrowserDisplay), displays)
+    filter!(x-> !(x isa ElectronDisplay), displays)
     # add it to end!
     Base.pushdisplay(BrowserDisplay())
     return
