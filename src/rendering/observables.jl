@@ -95,7 +95,7 @@ function jsrender(session::Session, obs::Observable)
 end
 
 # Fast path for simple types
-function jsrender(session::Session, obs::Observable{T}) where {T <: Union{Number, String, Symbol}}
+function jsrender(session::Session, obs::Observable{T}) where {T <: Union{Real, String, Symbol}}
     root_node = DOM.span(string(obs[]))
     obs_js = map(string, session, obs)
     onjs(
