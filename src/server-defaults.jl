@@ -13,25 +13,45 @@ const SERVER_CONFIGURATION = (
     verbose=Ref(-1)
 )
 
-# Should only be called if IJulia is loaded!\
+# Should only be called if IJulia is loaded!
+
+function find_jupyter_executable()
+    # First try IJulia's configured jupyter
+    jupyter = IJulia().JUPYTER
+    if isfile(jupyter)
+        return jupyter
+    end
+    # Fallback: try to find jupyter in PATH (handles case where IJulia points to non-existent conda env)
+    jupyter_from_path = Sys.which("jupyter")
+    if !isnothing(jupyter_from_path)
+        return jupyter_from_path
+    end
+    # Give up - return original path, will fail with clear error message
+    return jupyter
+end
 
 function jupyter_running_servers()
-    jupyter = IJulia().JUPYTER
+    jupyter = find_jupyter_executable()
     # Man, whats up with jupyter??
     # They switched between versions from stdout to stderr, and also don't produce valid json as output -.-
-    run_cmd(std, err) = run(pipeline(`$jupyter lab list --json`; stderr=err, stdout=std))
-    json = sprint(io -> run_cmd(io, IOBuffer()))
-    if isempty(json)
-        json = sprint(io -> run_cmd(IOBuffer(), io))
+    try
+        run_cmd(std, err) = run(pipeline(`$jupyter lab list --json`; stderr=err, stdout=std))
+        json = sprint(io -> run_cmd(io, IOBuffer()))
         if isempty(json)
-            # give up -.-
-            return nothing
+            json = sprint(io -> run_cmd(IOBuffer(), io))
+            if isempty(json)
+                # give up -.-
+                return nothing
+            end
         end
+        json = replace(json, "[JupyterServerListApp] " => "")
+        json = replace(json, r"[\r\n]+" => "\n")
+        configs = JSON.parse.(split(json, "\n"; keepempty=false))
+        return configs
+    catch e
+        @warn "Could not query jupyter servers" exception=(e, catch_backtrace())
+        return nothing
     end
-    json = replace(json, "[JupyterServerListApp] " => "")
-    json = replace(json, r"[\r\n]+" => "\n")
-    configs = JSON.parse.(split(json, "\n"; keepempty=false))
-    return configs
 end
 
 function jupyterlab_proxy_url(port)
@@ -45,9 +65,11 @@ function jupyterlab_proxy_url(port)
         hostname = config[1]["hostname"]
         # TODO, this seems very fragile
         if haskey(ENV, "BONITO_JUPYTER_REMOTE_HOST")
-            return string(ENV["BONITO_JUPYTER_REMOTE_HOST"], config[1]["base_url"], "proxy/", port)
+            # Note: jupyter-server-proxy mounts at /proxy/ on server root, not under base_url
+            return string(ENV["BONITO_JUPYTER_REMOTE_HOST"], "proxy/", port)
         elseif hostname == "0.0.0.0" || hostname == "localhost"
-            return string("http://", IJulia().profile["ip"], ":", config[1]["port"], config[1]["base_url"], "proxy/", port)
+            # Note: jupyter-server-proxy mounts at /proxy/ on server root, not under base_url
+            return string("http://", IJulia().profile["ip"], ":", config[1]["port"], "/proxy/", port)
         else
             return ""
         end
