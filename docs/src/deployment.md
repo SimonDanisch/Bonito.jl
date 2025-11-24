@@ -188,11 +188,35 @@ If this doesn't happen for some reason (it has been reported to not always work)
 
 Most common notebook systems should work out of the box.
 
-### IJulia
+### IJulia (Classic Notebook)
 ![](ijulia.png)
 
-### Jupyterlab
+Classic Jupyter Notebook works out of the box using Jupyter's comm protocol.
+
+### JupyterLab
+
 ![](jupyterlab.png)
+
+JupyterLab requires the `jupyter-server-proxy` extension to be installed. This extension allows the browser to connect to Bonito's WebSocket server through JupyterLab's proxy.
+
+**Installation:**
+```bash
+pip install jupyter-server-proxy
+```
+
+Then restart JupyterLab. Bonito will automatically detect and use the proxy.
+
+!!! tip
+    Many JupyterLab distributions (JupyterHub, Binder, Google Colab) already include `jupyter-server-proxy`. You may not need to install it manually.
+
+**Troubleshooting:**
+
+If you're having connection issues in JupyterLab:
+
+1. Verify `jupyter-server-proxy` is installed: `jupyter server extension list`
+2. Look for `jupyter_server_proxy` in the output
+3. If missing, install it and restart JupyterLab
+4. For remote JupyterLab setups, you may need to set `BONITO_JUPYTER_REMOTE_HOST` environment variable
 
 ### Pluto
 ![](pluto.png)
