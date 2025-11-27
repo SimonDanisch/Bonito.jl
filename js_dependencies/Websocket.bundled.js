@@ -189,7 +189,6 @@ function websocket_url(session_id, proxy_url) {
 function setup_connection({ proxy_url , session_id , compression_enabled , query , main_connection  }) {
     if (BroadcastChannel) {
         const channel = new BroadcastChannel(`bonito_session_${session_id}`);
-        console.log("New BroadcastChannel for session:", session_id);
         channel.onmessage = (event)=>{
             console.log("BroadcastChannel message received:", event.data);
             if (event.data === "session_in_use") {

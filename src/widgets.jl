@@ -105,6 +105,7 @@ TextField
 function jsrender(session::Session, tf::TextField)
     style = get(tf.attributes, :style, Styles())
     css = isnothing(style) ? Styles() : Styles(BUTTON_STYLE, style)
+    autocomplete = get(tf.attributes, :autocomplete, "off")
     return jsrender(
         session,
         DOM.input(;
@@ -112,7 +113,8 @@ function jsrender(session::Session, tf::TextField)
             value=tf.value,
             onchange=js"event => $(tf.value).notify(event.srcElement.value);",
             tf.attributes...,
-            style=css
+            style=css,
+            autocomplete=autocomplete,
         ),
     )
 end
@@ -149,6 +151,7 @@ NumberInput
 function jsrender(session::Session, ni::NumberInput)
     style = get(ni.attributes, :style, Styles())
     css = isnothing(style) ? Styles() : Styles(BUTTON_STYLE, style)
+    autocomplete = get(ni.attributes, :autocomplete, "off")
     return jsrender(
         session,
         DOM.input(;
@@ -162,6 +165,7 @@ function jsrender(session::Session, ni::NumberInput)
             }",
             ni.attributes...,
             style=css,
+            autocomplete=autocomplete,
         ),
     )
 end
@@ -246,7 +250,8 @@ function jsrender(session::Session, dropdown::Dropdown)
     option2div(x) = DOM.option(x)
     dom = map(options -> map(option2div, options), session, string_options)[]
 
-    select = DOM.select(dom; style=dropdown.style, dropdown.attributes...)
+    autocomplete = get(dropdown.attributes, :autocomplete, "off")
+    select = DOM.select(dom; style=dropdown.style, dropdown.attributes..., autocomplete=autocomplete)
     Bonito.onload(session, select, onchange)
     return jsrender(session, select)
 end
@@ -283,6 +288,7 @@ function jsrender(session::Session, slider::Slider)
         """,
     )
 
+    autocomplete = get(slider.attributes, :autocomplete, "off")
     return jsrender(
         session,
         DOM.input(;
@@ -299,6 +305,7 @@ function jsrender(session::Session, slider::Slider)
             }""",
             style=styles,
             slider.attributes...,
+            autocomplete=autocomplete,
         ),
     )
 end
@@ -346,6 +353,7 @@ function jsrender(session::Session, tb::Checkbox)
         BUTTON_STYLE, Styles("min-width" => "auto", "transform" => "scale(1.5)")
     )
     css = Styles(default_style, get(tb.attributes, :style, Styles()))
+    autocomplete = get(tb.attributes, :autocomplete, "off")
     return jsrender(
         session,
         DOM.input(;
@@ -353,7 +361,8 @@ function jsrender(session::Session, tb::Checkbox)
             checked=tb.value,
             onchange=js"""event=> $(tb.value).notify(event.srcElement.checked);""",
             tb.attributes...,
-            style=css
+            style=css,
+            autocomplete=autocomplete,
         ),
     )
 end
