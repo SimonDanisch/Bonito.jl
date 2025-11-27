@@ -187,6 +187,21 @@ function websocket_url(session_id, proxy_url) {
     return ws_url + session_id;
 }
 function setup_connection({ proxy_url , session_id , compression_enabled , query , main_connection  }) {
+    if (BroadcastChannel) {
+        const channel = new BroadcastChannel(`bonito_session_${session_id}`);
+        console.log("New BroadcastChannel for session:", session_id);
+        channel.onmessage = (event)=>{
+            console.log("BroadcastChannel message received:", event.data);
+            if (event.data === "session_in_use") {
+                console.log("Detected duplicated tab (another tab owns this session), reloading...");
+                channel.close();
+                window.location.reload();
+            } else if (event.data === "who_owns_session") {
+                channel.postMessage("session_in_use");
+            }
+        };
+        channel.postMessage("who_owns_session");
+    }
     const url = websocket_url(session_id, proxy_url);
     console.log(`connecting : ${url + query}`);
     const ws = new Websocket(url + query, compression_enabled);
