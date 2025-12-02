@@ -476,42 +476,68 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
                 body = Hyperscript.m("body", body_dom)
                 dom = Hyperscript.m("html", head, body; class="bonito-fragment")
             else
-                # Emit a "fragment"
-                head = DOM.div(session_style, global_styles...)
-                body = DOM.div(dom)
-                dom = DOM.div(
-                    head, body; id=session.id, class="bonito-fragment", dataJscallId=dom_id
-                )
+                # Emit a "fragment" - keep user's DOM as vanilla as possible
+                # Only wrap if we have styles or need initialization
+                has_styles = !isnothing(session_style) || !isempty(global_styles)
+
+                if !init && !has_styles && issubsession
+                    # Pure vanilla: no init, no styles, subsession
+                    # Just add minimal tracking to user's dom
+                    Hyperscript.attrs(dom)["data-jscall-id"] = dom_id
+                    head = body = nothing
+                else
+                    # Need wrapper for styles/init
+                    Hyperscript.attrs(dom)["id"] = session.id
+                    Hyperscript.attrs(dom)["data-jscall-id"] = dom_id
+                    # Prepend styles as children
+                    style_nodes = filter(!isnothing, [session_style, global_styles...])
+                    if !isempty(style_nodes)
+                        prepend!(children(dom), style_nodes)
+                    end
+                    head = body = nothing
+                end
             end
         else
             push!(children(head), session_style)
             append!(children(head), global_styles)
         end
-        # first render BonitoLib
+        # Handle initialization - add to head/body if they exist, otherwise prepend to dom
         Bonito_import = DOM.script(src=url(session, BonitoLib), type="module")
         init_server = setup_asset_server(session.asset_server)
-        if !isnothing(init_server)
-            pushfirst!(children(body), jsrender(session, init_server))
-        end
         init_connection = setup_connection(session)
-        if !isnothing(init_connection)
-            pushfirst!(children(body), jsrender(session, init_connection))
-        end
 
-        push_dependencies!(children(head), session)
-
+        # Collect body nodes (initialization, connection, asset server setup)
+        body_nodes = []
         if init
             msgs = get_messages!(session)
             type = issubsession ? "sub" : "root"
             binary = isempty(msgs) ? "null" : "Bonito.fetch_binary('$(url(session, BinaryAsset(session, msgs)))')"
-            init_session = """
+            init_session_code = """
             Bonito.init_session($(repr(session.id)), $(binary), $(repr(type)), $(session.compression_enabled));
             """
-            pushfirst!(children(body), inline_code(session, session.asset_server, init_session))
+            pushfirst!(body_nodes, inline_code(session, session.asset_server, init_session_code))
+        end
+        !isnothing(init_connection) && pushfirst!(body_nodes, jsrender(session, init_connection))
+        !isnothing(init_server) && pushfirst!(body_nodes, jsrender(session, init_server))
+
+        # Add nodes to appropriate location
+        if !isnothing(body)
+            prepend!(children(body), body_nodes)
+        elseif !isempty(body_nodes)
+            # No body element, prepend to dom itself
+            prepend!(children(dom), body_nodes)
         end
 
-        if !issubsession
-            pushfirst!(children(head), Bonito_import)
+        # Handle head nodes (dependencies, Bonito import)
+        if !isnothing(head)
+            push_dependencies!(children(head), session)
+            !issubsession && pushfirst!(children(head), Bonito_import)
+        else
+            # No head element, add dependencies to dom
+            head_nodes = []
+            !issubsession && push!(head_nodes, Bonito_import)
+            push_dependencies!(head_nodes, session)
+            prepend!(children(dom), head_nodes)
         end
         session.status = RENDERED
         return dom
@@ -558,7 +584,11 @@ function update_session_dom!(parent::Session, node_uuid::String, app_or_dom; rep
     if isclosed(parent)
         error("Updating the session dom for a closed session")
     end
-    sub, html = render_subsession(parent, app_or_dom; init=false)
+    sub, html_dom = render_subsession(parent, app_or_dom; init=false)
+
+    # Render DOM to HTML string for fast innerHTML updates on JS side
+    html_str = sprint(io -> print(io, html_dom))
+
     # We need to manually do the serialization,
     # Since we send it via the parent, but serialization needs to happen
     # for `sub`.
@@ -569,7 +599,7 @@ function update_session_dom!(parent::Session, node_uuid::String, app_or_dom; rep
         "msg_type" => UpdateSession,
         "session_id" => sub.id,
         "messages" => get_messages!(sub),
-        "html" => html,
+        "html" => html_str,  # Send as HTML string for fast innerHTML updates
         "replace" => replace,
         "dom_node_selector" => node_uuid
     )
@@ -604,7 +634,11 @@ function append_child(parent::Session, parent_node::HTMLElement, new_html)
 end
 
 function update_subsession_dom!(sub::Session, selector, app::App)
-    html = session_dom(sub, app; init=false)
+    html_dom = session_dom(sub, app; init=false)
+
+    # Render DOM to HTML string for fast innerHTML updates on JS side
+    html_str = sprint(io -> print(io, html_dom))
+
     # We need to manually do the serialization,
     # Since we send it via the parent, but serialization needs to happen
     # for `sub`.
@@ -615,7 +649,7 @@ function update_subsession_dom!(sub::Session, selector, app::App)
         "msg_type" => UpdateSession,
         "session_id" => sub.id,
         "messages" => get_messages!(sub),
-        "html" => html,
+        "html" => html_str,  # Send as HTML string for fast innerHTML updates
         "replace" => true,
         "dom_node_selector" => selector
     )

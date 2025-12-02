@@ -251,9 +251,8 @@ mutable struct Session{Connection <: FrontendConnection}
     deletion_lock::Base.ReentrantLock
     current_app::RefValue{Any}
     io_context::RefValue{Union{Nothing, IOContext}}
-    stylesheets::OrderedDict{HTMLElement, OrderedSet{CSS}}
+    stylesheets::OrderedDict{String, OrderedSet{CSS}}
     inbox::Channel{Vector{UInt8}}
-    threadid::Int
 
     function Session(
             parent::Union{Session, Nothing},
@@ -305,9 +304,8 @@ mutable struct Session{Connection <: FrontendConnection}
             Base.ReentrantLock(),
             RefValue{Any}(nothing),
             RefValue{Union{Nothing,IOContext}}(nothing),
-            OrderedDict{HTMLElement,OrderedSet{CSS}}(),
+            OrderedDict{String,OrderedSet{CSS}}(),
             inbox,
-            Threads.threadid()
         )
 
         task = Task() do

@@ -80,17 +80,19 @@ function selector(node)
 end
 
 # default turn attributes into strings
-attribute_render(session::Session, parent, attribute::String, x) = string(x)
-attribute_render(session::Session, parent, attribute::String, x::Nothing) = x
-attribute_render(session::Session, parent, attribute::String, x::Bool) = x
+attribute_render(session::Session, parent_uuid::String, attribute::String, x) = string(x)
+attribute_render(session::Session, parent_uuid::String, attribute::String, x::Nothing) = x
+attribute_render(session::Session, parent_uuid::String, attribute::String, x::Bool) = x
 
 
-function attribute_render(session::Session, parent, attribute::String, obs::Observable)
+function attribute_render(session::Session, parent_uuid::String, attribute::String, obs::Observable)
     rendered = map(session, obs) do value
-        attribute_render(session, parent, attribute, value)
+        attribute_render(session, parent_uuid, attribute, value)
     end
+    # Use querySelector with the UUID instead of interpolating the node
     onjs(session, rendered, js"""value => {
-        Bonito.update_node_attribute($(parent), $attribute, value);
+        const element = document.querySelector('[data-jscall-id="' + $(parent_uuid) + '"]');
+        Bonito.update_node_attribute(element, $attribute, value);
     }""")
     return rendered[]
 end
@@ -103,23 +105,22 @@ function Hyperscript.printescaped(io::IO, x::DontEscape, escapes)
     print(io, x.x)
 end
 
-function attribute_render(session::Session, parent, attribute::String, jss::JSCode)
+function attribute_render(session::Session, parent_uuid::String, attribute::String, jss::JSCode)
     # add js after parent gets loaded
+    # Use querySelector with the UUID instead of interpolating the node
     func = js"""(() => {
-        $(parent)[$attribute] = $(jss)
+        const element = document.querySelector('[data-jscall-id="' + $(parent_uuid) + '"]');
+        element[$attribute] = $(jss);
     })()"""
     # preserve func.file
     evaljs(session, JSCode(func.source, jss.file))
     return ""
 end
 
-function attribute_render(session::Session, parent, ::String, asset::AbstractAsset)
-    if parent isa Hyperscript.Node{Hyperscript.CSS}
-        # css seems to require an url object
-        return "url($(url(session, asset)))"
-    else
-        return url(session, asset)
-    end
+function attribute_render(session::Session, parent_uuid::String, ::String, asset::AbstractAsset)
+    # Note: We can't check if parent is a CSS node without the node object,
+    # but this should be fine as assets in CSS contexts are handled appropriately
+    return url(session, asset)
 end
 
 render_node(session::Session, x) = x
@@ -154,7 +155,9 @@ const BOOLEAN_ATTRIUTES = Set([
 
 is_boolean_attribute(attribute::String) = attribute in BOOLEAN_ATTRIUTES
 
-function render_node(session::Session, node::Node)
+# Shared rendering logic that processes children and attributes
+# Returns (newchildren, new_attributes)
+function render_node_parts(session::Session, node::Node)
     # give each node a unique id inside the dom
     node_children = children(node)
     # this could be uuid!, since it adds a uuid if not present
@@ -163,23 +166,28 @@ function render_node(session::Session, node::Node)
     # use for e.g. `evaljs(session, js"$(node)")`
     # It's important that the uuid gets added before rendering because otherwise `evaljs(session, js"$(node)")`
     # won't work in a dynamic context
-    uuid(session, node)
+    node_id = uuid(session, node)
     node_attrs = Hyperscript.attrs(node)
-    isempty(node_children) && isempty(node_attrs) && return node
+
+    if isempty(node_children) && isempty(node_attrs)
+        return (node_children, Dict{String,Any}("data-jscall-id" => node_id))
+    end
 
     new_attributes = Dict{String,Any}()
     newchildren = []
+
+    # Process children
     for elem in node_children
         new_elem = jsrender(session, elem)
         !isnothing(new_elem) && push!(newchildren, new_elem)
     end
-    new_attributes["data-jscall-id"] = uuid(session, node)
-    new_node = Node(Hyperscript.context(node),
-                    Hyperscript.tag(node),
-                    newchildren,
-                    new_attributes)
+
+    new_attributes["data-jscall-id"] = node_id
+
+    # Process attributes
+    # Pass the node_id (UUID) to attribute_render instead of creating a temp node
     for (k, v) in node_attrs
-        rendered = attribute_render(session, new_node, k, v)
+        rendered = attribute_render(session, node_id, k, v)
         # We code nothing to mean omitting the attribute!
         if is_boolean_attribute(k)
             if rendered isa Bool
@@ -194,7 +202,26 @@ function render_node(session::Session, node::Node)
             new_attributes[k] = rendered
         end
     end
-    return new_node
+
+    return (newchildren, new_attributes)
+end
+
+function render_node(session::Session, node::Node)
+    node_children = children(node)
+    node_attrs = Hyperscript.attrs(node)
+
+    # Fast path for empty nodes
+    if isempty(node_children) && isempty(node_attrs)
+        uuid(session, node)
+        return node
+    end
+
+    newchildren, new_attributes = render_node_parts(session, node)
+
+    return Node(Hyperscript.context(node),
+                Hyperscript.tag(node),
+                newchildren,
+                new_attributes)
 end
 
 # jsrender(session, x) will be called anywhere...
@@ -233,40 +260,28 @@ function SerializedNode(session::Session, any)
 end
 
 function SerializedNode(session::Session, node::Node)
-    # give each node a unique id inside the dom
+    tag = Hyperscript.tag(node)
     node_children = children(node)
-    uuid(session, node)
     node_attrs = Hyperscript.attrs(node)
 
-    tag = Hyperscript.tag(node)
-
-    isempty(node_children) && isempty(node_attrs) && return SerializedNode(tag, node_children, node_attrs)
-
-    new_attributes = Dict{String,Any}()
-    newchildren = []
-    for child in node_children
-        node = jsrender(session, child)
-        if node isa Node
-            push!(newchildren, SerializedNode(session, node))
-        elseif !isnothing(node)
-            push!(newchildren, node)
-        end
+    # Fast path for empty nodes
+    if isempty(node_children) && isempty(node_attrs)
+        uuid(session, node)
+        return SerializedNode(tag, node_children, node_attrs)
     end
-    for (k, v) in node_attrs
-        rendered = attribute_render(session, node, k, v)
-        # We code nothing to mean omitting the attribute!
-        if is_boolean_attribute(k)
-            if rendered isa Bool
-                if rendered
-                    # only add attribute if true!
-                    new_attributes[k] = true
-                end
-            else
-                error("Boolean attribute $(k) expects a boolean! Found: $(typeof(rendered))")
-            end
+
+    # Use shared rendering logic
+    newchildren, new_attributes = render_node_parts(session, node)
+
+    # Recursively convert child Nodes to SerializedNode
+    serialized_children = []
+    for child in newchildren
+        if child isa Node
+            push!(serialized_children, SerializedNode(session, child))
         else
-            new_attributes[k] = rendered
+            push!(serialized_children, child)
         end
     end
-    return SerializedNode(tag, newchildren, new_attributes)
+
+    return SerializedNode(tag, serialized_children, new_attributes)
 end

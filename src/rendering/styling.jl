@@ -1,18 +1,20 @@
 # For Hyperscript integration
-function attribute_render(session::Session, parent, attribute::String, css::CSS)
+function attribute_render(session::Session, parent_uuid::String, attribute::String, css::CSS)
     if attribute != "style"
         error("`CSS(...)` can only be used for the style attribute! Found: $(attribute) with css:\n $(css)")
     end
-    node_styles = get!(session.stylesheets, parent, OrderedSet{CSS}())
+    # Use the parent's UUID as the key
+    node_styles = get!(session.stylesheets, parent_uuid, OrderedSet{CSS}())
     push!(node_styles, css)
     return ""
 end
 
-function attribute_render(session::Session, parent, attribute::String, styles::Styles)
+function attribute_render(session::Session, parent_uuid::String, attribute::String, styles::Styles)
     if attribute != "style"
         error("`Styles(...)` can only be used for the style attribute! Found: $(attribute) with css:\n $(css)")
     end
-    node_styles = get!(session.stylesheets, parent, OrderedSet{CSS}())
+    # Use the parent's UUID as the key
+    node_styles = get!(session.stylesheets, parent_uuid, OrderedSet{CSS}())
     union!(node_styles, values(styles.styles))
     return ""
 end
@@ -77,27 +79,23 @@ function Base.show(io::IO, ::MIME"text/plain", styles::Styles)
     end
 end
 
-function render_stylesheets!(root_session, session, stylesheets::OrderedDict{HTMLElement, OrderedSet{CSS}})
-    combined = OrderedDict{CSS,Set{HTMLElement}}()
-    for (node, styles) in stylesheets
+function render_stylesheets!(root_session, session, stylesheets::OrderedDict{String, OrderedSet{CSS}})
+    combined = OrderedDict{CSS,Set{String}}()
+    for (node_uuid, styles) in stylesheets
         for css in styles
             if haskey(combined, css)
-                push!(combined[css], node)
+                push!(combined[css], node_uuid)
             else
-                combined[css] = Set([node])
+                combined[css] = Set([node_uuid])
             end
         end
     end
     io = IOBuffer()
-    for (css, nodes) in combined
-        idx = root_session.style_counter += 1
-        root_session.style_counter
-        id = string("style_", idx)
-        render_style(io, session, "." * id, css)
-        for node in nodes
-            attr = Hyperscript.attrs(node)
-            attr["class"] = get!(attr, "class", "") * " " * id
-        end
+    for (css, node_uuids) in combined
+        # Generate selector for all nodes with these UUIDs
+        # Use attribute selector: [data-jscall-id="uuid1"], [data-jscall-id="uuid2"], ...
+        selectors = join(["[data-jscall-id=\"$uuid\"]" for uuid in node_uuids], ", ")
+        render_style(io, session, selectors, css)
     end
     stylesheet = String(take!(io))
     return DOM.style(stylesheet)

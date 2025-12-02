@@ -238,12 +238,11 @@ export function on_node_available(node_id, timeout) {
 
 export function update_or_replace(node, new_html, replace) {
     if (replace) {
-        node.parentNode.replaceChild(new_html, node);
+        // Replace the entire node with new HTML
+        node.outerHTML = new_html;
     } else {
-        while (node.childElementCount > 0) {
-            node.removeChild(node.firstChild);
-        }
-        node.append(new_html);
+        // Replace children with new HTML
+        node.innerHTML = new_html;
     }
 }
 
