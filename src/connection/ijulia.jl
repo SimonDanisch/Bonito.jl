@@ -20,16 +20,10 @@ mutable struct IJuliaConnection <: FrontendConnection
 end
 
 function IJuliaConnection()
-    # This ENV var gets inserted only for jupyterlab, so we should be on `notebook`
-    # Which we can use the IJulia connection for!
-    if !haskey(ENV, "JPY_SESSION_NAME")
-        # If empty, we can use the IJulia Connection
-        return IJuliaConnection(nothing)
-    else
-        # we fall back to create a websocket connection via a proxy url, figured out in `server-defaults.jl`
-        ws_conn = WebSocketConnection()
-        return IJuliaConnection(ws_conn)
-    end
+    # Always use WebSocket - more reliable across all Jupyter environments
+    # (CommManager approach fails in some notebook configurations)
+    ws_conn = WebSocketConnection()
+    return IJuliaConnection(ws_conn)
 end
 
 _write(connection::WebSocketConnection, bytes) = Base.write(connection, bytes)

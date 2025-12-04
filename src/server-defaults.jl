@@ -88,11 +88,8 @@ function find_proxy_in_environment()
     elseif haskey(ENV, "BINDER_SERVICE_HOST")
         # binder
         return port -> ENV["BINDER_SERVICE_HOST"] * "proxy/$port"
-    elseif haskey(ENV, "JPY_SESSION_NAME") && haskey(Base.loaded_modules, IJULIA_PKG_ID)
-        # Jupyterhub works differently!
-        # TODO, is JPY_SESSION_NAME reliably in the env for Jupyterlab? So far it seems so!
-        # It definitely isn't there without Jupyterlab
-        # jupyterlab
+    elseif haskey(Base.loaded_modules, IJULIA_PKG_ID)
+        # IJulia environment - use jupyter proxy for WebSocket connection
         return jupyterlab_proxy_url
     elseif haskey(ENV, "VSCODE_PROXY_URI")
         # If VSCode is proxying ports, default to using that, so that we can
