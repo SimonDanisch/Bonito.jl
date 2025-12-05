@@ -113,8 +113,24 @@ function wait_for_idle_kernel(win; timeout=30)
     false
 end
 
-function run_cell!(win)
+"""
+Get the cell execution prompt state (e.g., "[ ]:", "[*]:", "[1]:").
+"""
+function get_cell_prompt(win)
     result = run_js(win, """
+        (function() {
+            const prompt = document.querySelector('.jp-InputPrompt');
+            return prompt ? prompt.textContent.trim() : '';
+        })()
+    """)
+    return something(result, "")
+end
+
+"""
+Execute the cell run action (focus cell, click run button, send Shift+Enter).
+"""
+function trigger_cell_run!(win)
+    run_js(win, """
         (function() {
             // First, click on a cell to ensure it's focused
             const cell = document.querySelector('.jp-Cell');
@@ -125,7 +141,6 @@ function run_cell!(win)
 
             // Method 1: Try button click with MouseEvent dispatch
             const el = document.querySelector('[title*="Run this cell"]');
-            let buttonClicked = false;
             if (el) {
                 const btn = el.querySelector('button') || el;
                 const rect = btn.getBoundingClientRect();
@@ -137,7 +152,6 @@ function run_cell!(win)
                     }));
                 });
                 btn.click();
-                buttonClicked = true;
             }
 
             // Method 2: Try Shift+Enter keyboard shortcut on the notebook panel
@@ -148,11 +162,35 @@ function run_cell!(win)
                     shiftKey: true, bubbles: true, cancelable: true
                 }));
             }
-
-            return {buttonClicked: buttonClicked, cellFocused: !!cell, notebookFound: !!notebook};
         })()
     """)
-    @info "run_cell! result: $result"
+end
+
+"""
+Run cell with retry loop and DOM change detection.
+Returns true if cell execution was detected (prompt changed from [ ]: to [*]: or [N]:).
+"""
+function run_cell!(win; max_retries=5, retry_delay=2)
+    before = get_cell_prompt(win)
+    @info "Cell prompt before: '$before'"
+
+    for attempt in 1:max_retries
+        @info "Run cell attempt $attempt/$max_retries"
+        trigger_cell_run!(win)
+        sleep(retry_delay)
+
+        after = get_cell_prompt(win)
+        @info "Cell prompt after: '$after'"
+
+        # Success if prompt changed to [*]: (running) or [N]: (executed)
+        if occursin(r"\[\*\]:", after) || occursin(r"\[\d+\]:", after)
+            @info "Cell execution detected! Prompt: '$after'"
+            return true
+        end
+    end
+
+    @warn "Cell execution not detected after $max_retries attempts"
+    return false
 end
 
 function wait_for_output(win, token)
@@ -234,8 +272,10 @@ function run_test(jupyter)
         @info "JupyterLab API check: $api_check"
 
         @info "Running cell..."
-        run_cell!(win)
-        sleep(3)
+        cell_started = run_cell!(win)
+        if !cell_started
+            @warn "Cell may not have started, but checking for output anyway..."
+        end
 
         if wait_for_output(win, token)
             @info "PASSED"
