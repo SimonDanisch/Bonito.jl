@@ -14,12 +14,12 @@ using IJulia, HTTP, Electron, URIs
 # ─────────────────────────────────────────────────────────────────────────────
 
 const PORT = 8888
-const TIMEOUT = 60
 const POLL_INTERVAL = 5
 const MAX_POLLS = 12
 
 const TEST_DIR = @__DIR__
 const NOTEBOOK_NAME = "bonito_test.ipynb"
+const JULIA_VERSION_STR = "$(VERSION.major).$(VERSION.minor)"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Infrastructure
@@ -112,8 +112,9 @@ function handle_kernel_dialog!(win)
     sleep(2)
 
     if has_text(win, "Select Kernel")
-        @info "Selecting Julia kernel..."
-        select_option_containing(win, ".jp-Dialog select", "Julia")
+        @info "Selecting Julia $JULIA_VERSION_STR kernel..."
+        # Select kernel matching current Julia version (e.g., "Julia 1.12")
+        select_option_containing(win, ".jp-Dialog select", JULIA_VERSION_STR)
         sleep(0.5)
         click_selector(win, ".jp-Dialog button.jp-mod-accept")
         sleep(2)
