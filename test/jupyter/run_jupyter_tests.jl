@@ -9,7 +9,7 @@ using IJulia, HTTP, Electron, URIs, Random
 
 const PORT = 8888
 const POLL_INTERVAL = 5
-const MAX_POLLS = 12
+const MAX_POLLS = 24  # 24 * 5s = 120s max wait for output
 const TEST_DIR = @__DIR__
 const NOTEBOOK_NAME = "bonito_test.ipynb"
 const TOKEN_FILE = joinpath(TEST_DIR, "test_token.txt")
@@ -193,22 +193,97 @@ function run_cell!(win; max_retries=5, retry_delay=2)
     return false
 end
 
+"""
+Search for marker text in various places (body, outputs, iframes).
+"""
+function find_marker(win, marker)
+    result = run_js(win, """
+        (function() {
+            const marker = '$marker';
+
+            // Check main body
+            if (document.body.innerText.includes(marker)) {
+                return {found: true, location: 'body'};
+            }
+
+            // Check output areas specifically
+            const outputs = document.querySelectorAll('.jp-OutputArea-output');
+            for (const out of outputs) {
+                if (out.innerText && out.innerText.includes(marker)) {
+                    return {found: true, location: 'output-area'};
+                }
+                // Check inside iframes in output
+                const iframes = out.querySelectorAll('iframe');
+                for (const iframe of iframes) {
+                    try {
+                        const iframeText = iframe.contentDocument?.body?.innerText || '';
+                        if (iframeText.includes(marker)) {
+                            return {found: true, location: 'iframe'};
+                        }
+                    } catch(e) {}
+                }
+            }
+
+            // Check all iframes
+            const allIframes = document.querySelectorAll('iframe');
+            for (const iframe of allIframes) {
+                try {
+                    const iframeText = iframe.contentDocument?.body?.innerText || '';
+                    if (iframeText.includes(marker)) {
+                        return {found: true, location: 'iframe-global'};
+                    }
+                } catch(e) {}
+            }
+
+            return {found: false};
+        })()
+    """)
+    return result
+end
+
 function wait_for_output(win, token)
     marker = "BONITO_TEST_SUCCESS_$token"
     for i in 1:MAX_POLLS
-        has_text(win, marker) && return true
-        @info "Waiting for output... ($i/$MAX_POLLS)"
-        # On last poll, dump page info for debugging
+        # Check cell prompt to see if still running
+        prompt = get_cell_prompt(win)
+
+        # Look for marker in various places
+        result = find_marker(win, marker)
+        # Handle JSON.Object or Dict return types
+        found = false
+        location = "unknown"
+        if !isnothing(result)
+            found = get(result, "found", false) === true
+            location = get(result, "location", "unknown")
+        end
+        if found
+            @info "Found marker in: $location"
+            return true
+        end
+
+        # Log status
+        if occursin("[*]:", prompt)
+            @info "Waiting for output... ($i/$MAX_POLLS) [cell still running]"
+        elseif occursin(r"\[\d+\]:", prompt)
+            @info "Waiting for output... ($i/$MAX_POLLS) [cell finished: $prompt]"
+        else
+            @info "Waiting for output... ($i/$MAX_POLLS) [prompt: $prompt]"
+        end
+
+        # On last poll, dump detailed debug info
         if i == MAX_POLLS
             debug_info = run_js(win, """
                 (function() {
                     const cells = document.querySelectorAll('.jp-Cell');
                     const outputs = document.querySelectorAll('.jp-OutputArea-output');
-                    const body = document.body.innerText.substring(0, 500);
+                    const iframes = document.querySelectorAll('iframe');
+                    const outputTexts = Array.from(outputs).map(o => o.innerText?.substring(0, 200) || '').slice(0, 3);
                     return {
                         cellCount: cells.length,
                         outputCount: outputs.length,
-                        bodyPreview: body
+                        iframeCount: iframes.length,
+                        outputTexts: outputTexts,
+                        bodyPreview: document.body.innerText.substring(0, 800)
                     };
                 })()
             """)
