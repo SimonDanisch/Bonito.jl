@@ -13,3 +13,4 @@ docs/build
 docs/Manifest.toml
 test/three.bundled.js
 .ipynb_checkpoints/
+test/jupyter/test_token.txt
