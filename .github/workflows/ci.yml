@@ -60,8 +60,7 @@ jobs:
           '
       - name: Run headless test
         uses: GabrielBB/xvfb-action@v1
+        env:
+          PATH: /home/runner/.julia/conda/3/x86_64/bin:${{ env.PATH }}
         with:
-          run: |
-            # Add Conda bin to PATH so Bonito can find jupyter inside the kernel
-            export PATH="$HOME/.julia/conda/3/x86_64/bin:$PATH"
-            julia --project=@. -e "using Pkg; Pkg.test(coverage=true)"
+          run: julia --project=@. -e "using Pkg; Pkg.test(coverage=true)"
