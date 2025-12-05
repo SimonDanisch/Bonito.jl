@@ -116,18 +116,40 @@ end
 function run_cell!(win)
     result = run_js(win, """
         (function() {
+            // First, click on a cell to ensure it's focused
+            const cell = document.querySelector('.jp-Cell');
+            if (cell) {
+                cell.click();
+                cell.focus();
+            }
+
+            // Method 1: Try button click with MouseEvent dispatch
             const el = document.querySelector('[title*="Run this cell"]');
-            if (!el) return {found: false, error: 'Run button not found'};
-            const btn = el.querySelector('button') || el;
-            const rect = btn.getBoundingClientRect();
-            ['mousedown', 'mouseup', 'click'].forEach(type => {
-                btn.dispatchEvent(new MouseEvent(type, {
-                    bubbles: true, cancelable: true, view: window,
-                    clientX: rect.left + rect.width/2,
-                    clientY: rect.top + rect.height/2
+            let buttonClicked = false;
+            if (el) {
+                const btn = el.querySelector('button') || el;
+                const rect = btn.getBoundingClientRect();
+                ['mousedown', 'mouseup', 'click'].forEach(type => {
+                    btn.dispatchEvent(new MouseEvent(type, {
+                        bubbles: true, cancelable: true, view: window,
+                        clientX: rect.left + rect.width/2,
+                        clientY: rect.top + rect.height/2
+                    }));
+                });
+                btn.click();
+                buttonClicked = true;
+            }
+
+            // Method 2: Try Shift+Enter keyboard shortcut on the notebook panel
+            const notebook = document.querySelector('.jp-Notebook');
+            if (notebook) {
+                notebook.dispatchEvent(new KeyboardEvent('keydown', {
+                    key: 'Enter', code: 'Enter', keyCode: 13,
+                    shiftKey: true, bubbles: true, cancelable: true
                 }));
-            });
-            return {found: true, clicked: true, rect: {x: rect.x, y: rect.y, w: rect.width, h: rect.height}};
+            }
+
+            return {buttonClicked: buttonClicked, cellFocused: !!cell, notebookFound: !!notebook};
         })()
     """)
     @info "run_cell! result: $result"
@@ -196,6 +218,20 @@ function run_test(jupyter)
 
         handle_kernel_dialog!(win)
         wait_for_idle_kernel(win) || @warn "Kernel not idle, continuing..."
+
+        # Check what JupyterLab APIs are available
+        api_check = run_js(win, """
+            (function() {
+                const jl = window._JUPYTERLAB;
+                return {
+                    _JUPYTERLAB: !!jl,
+                    keys: jl ? Object.keys(jl).slice(0, 10) : [],
+                    hasApp: jl && !!jl.app,
+                    hasCommands: jl && jl.app && !!jl.app.commands
+                };
+            })()
+        """)
+        @info "JupyterLab API check: $api_check"
 
         @info "Running cell..."
         run_cell!(win)
