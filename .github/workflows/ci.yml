@@ -58,9 +58,9 @@ jobs:
             using IJulia
             IJulia.installkernel("Julia")
           '
+      - name: Add Conda to PATH
+        run: echo "$HOME/.julia/conda/3/x86_64/bin" >> $GITHUB_PATH
       - name: Run headless test
         uses: GabrielBB/xvfb-action@v1
-        env:
-          PATH: /home/runner/.julia/conda/3/x86_64/bin:${{ env.PATH }}
         with:
           run: julia --project=@. -e "using Pkg; Pkg.test(coverage=true)"
