@@ -43,57 +43,21 @@ jobs:
           version: ${{ matrix.version }}
           arch: x64
       - uses: julia-actions/cache@v1
+      - name: Install Jupyter test dependencies
+        run: |
+          julia --project=@. -e '
+            using Pkg
+            Pkg.add(["IJulia", "Conda"])
+            using Conda
+            Conda.pip_interop(true)
+            Conda.pip("install", "playwright")
+            using IJulia
+            IJulia.installkernel("Julia")
+            using PyCall
+            run(`$(PyCall.pyprogramname) -m playwright install chromium`)
+          '
       - name: Run headless test
         uses: GabrielBB/xvfb-action@v1
         with:
           run: |
             julia --project=@. -e "using Pkg; Pkg.test(coverage=true)"
-
-  jupyter-smoke-test:
-    name: Jupyter Smoke Test
-    runs-on: ubuntu-latest
-    env:
-      DISPLAY: ":99"
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Setup Julia
-        uses: julia-actions/setup-julia@v1
-        with:
-          version: '1'
-          arch: x64
-
-      - uses: julia-actions/cache@v1
-
-      - name: Install system dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y xvfb
-
-      - name: Install Julia packages and Playwright
-        run: |
-          julia --project=@. -e '
-            using Pkg
-            Pkg.instantiate()
-            Pkg.add(["IJulia", "PyCall", "Conda"])
-
-            # Install Playwright via Conda/pip
-            using Conda
-            Conda.pip_interop(true)
-            Conda.pip("install", "playwright")
-
-            # Install IJulia kernel
-            using IJulia
-            IJulia.installkernel("Julia")
-
-            # Install Chromium browser for Playwright
-            using PyCall
-            run(`$(PyCall.pyprogramname) -m playwright install chromium`)
-          '
-
-      - name: Run Jupyter smoke tests
-        uses: GabrielBB/xvfb-action@v1
-        with:
-          run: |
-            julia --project=@. test/jupyter/run_jupyter_tests.jl
