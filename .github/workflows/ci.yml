@@ -48,6 +48,10 @@ jobs:
           julia --project=@. -e '
             using Pkg
             Pkg.add(["IJulia", "Conda"])
+            using Conda
+            # Install jupyter via conda
+            Conda.add("jupyterlab")
+            Conda.add("notebook")
             using IJulia
             IJulia.installkernel("Julia")
             using PyCall
