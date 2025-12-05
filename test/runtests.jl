@@ -135,4 +135,9 @@ end
             end
         end
     end
+
+    @testset "Jupyter" begin
+        include("jupyter/run_jupyter_tests.jl")
+        @test run_jupyter_tests()
+    end
 end

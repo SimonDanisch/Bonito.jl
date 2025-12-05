@@ -1,5 +1,6 @@
 name: CI
 on:
+  workflow_dispatch:
   pull_request:
     branches:
       - master
@@ -42,8 +43,24 @@ jobs:
           version: ${{ matrix.version }}
           arch: x64
       - uses: julia-actions/cache@v1
+      - name: Install Jupyter test dependencies
+        run: |
+          julia --project=@. -e '
+            using Pkg
+            Pkg.add(["IJulia", "Conda"])
+            using Conda
+            Conda.add("jupyterlab")
+            Conda.add("notebook")
+          '
+          # Add Conda bin to PATH before installing kernel so it's captured in kernel.json
+          export PATH="$HOME/.julia/conda/3/x86_64/bin:$PATH"
+          julia --project=@. -e '
+            using IJulia
+            IJulia.installkernel("Julia")
+          '
+      - name: Add Conda to PATH
+        run: echo "$HOME/.julia/conda/3/x86_64/bin" >> $GITHUB_PATH
       - name: Run headless test
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: |
-            julia --project=@. -e "using Pkg; Pkg.test(coverage=true)"
+          run: julia --project=@. -e "using Pkg; Pkg.test(coverage=true)"
