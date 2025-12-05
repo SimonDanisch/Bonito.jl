@@ -114,10 +114,10 @@ function wait_for_idle_kernel(win; timeout=30)
 end
 
 function run_cell!(win)
-    run_js(win, """
+    result = run_js(win, """
         (function() {
             const el = document.querySelector('[title*="Run this cell"]');
-            if (!el) return false;
+            if (!el) return {found: false, error: 'Run button not found'};
             const btn = el.querySelector('button') || el;
             const rect = btn.getBoundingClientRect();
             ['mousedown', 'mouseup', 'click'].forEach(type => {
@@ -127,9 +127,10 @@ function run_cell!(win)
                     clientY: rect.top + rect.height/2
                 }));
             });
-            return true;
+            return {found: true, clicked: true, rect: {x: rect.x, y: rect.y, w: rect.width, h: rect.height}};
         })()
     """)
+    @info "run_cell! result: $result"
 end
 
 function wait_for_output(win, token)
@@ -137,6 +138,22 @@ function wait_for_output(win, token)
     for i in 1:MAX_POLLS
         has_text(win, marker) && return true
         @info "Waiting for output... ($i/$MAX_POLLS)"
+        # On last poll, dump page info for debugging
+        if i == MAX_POLLS
+            debug_info = run_js(win, """
+                (function() {
+                    const cells = document.querySelectorAll('.jp-Cell');
+                    const outputs = document.querySelectorAll('.jp-OutputArea-output');
+                    const body = document.body.innerText.substring(0, 500);
+                    return {
+                        cellCount: cells.length,
+                        outputCount: outputs.length,
+                        bodyPreview: body
+                    };
+                })()
+            """)
+            @warn "Debug info on failure: $debug_info"
+        end
         sleep(POLL_INTERVAL)
     end
     false
