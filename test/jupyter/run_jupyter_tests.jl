@@ -9,7 +9,7 @@ using IJulia, HTTP, Electron, URIs, Random
 
 const PORT = 8888
 const POLL_INTERVAL = 5
-const MAX_POLLS = 24  # 24 * 5s = 120s max wait for output
+const MAX_POLLS = 12  # 12 * 5s = 60s max wait for output
 const TEST_DIR = @__DIR__
 const NOTEBOOK_NAME = "bonito_test.ipynb"
 const TOKEN_FILE = joinpath(TEST_DIR, "test_token.txt")

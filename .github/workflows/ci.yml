@@ -51,6 +51,10 @@ jobs:
             using Conda
             Conda.add("jupyterlab")
             Conda.add("notebook")
+          '
+          # Add Conda bin to PATH before installing kernel so it's captured in kernel.json
+          export PATH="$HOME/.julia/conda/3/x86_64/bin:$PATH"
+          julia --project=@. -e '
             using IJulia
             IJulia.installkernel("Julia")
           '
@@ -58,4 +62,6 @@ jobs:
         uses: GabrielBB/xvfb-action@v1
         with:
           run: |
+            # Add Conda bin to PATH so Bonito can find jupyter inside the kernel
+            export PATH="$HOME/.julia/conda/3/x86_64/bin:$PATH"
             julia --project=@. -e "using Pkg; Pkg.test(coverage=true)"
