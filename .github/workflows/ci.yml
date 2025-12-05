@@ -48,12 +48,11 @@ jobs:
           julia --project=@. -e '
             using Pkg
             Pkg.add(["IJulia", "Conda"])
-            using Conda
-            Conda.pip_interop(true)
-            Conda.pip("install", "playwright")
             using IJulia
             IJulia.installkernel("Julia")
             using PyCall
+            # Install playwright via pip directly
+            run(`$(PyCall.pyprogramname) -m pip install playwright`)
             run(`$(PyCall.pyprogramname) -m playwright install chromium`)
           '
       - name: Run headless test
