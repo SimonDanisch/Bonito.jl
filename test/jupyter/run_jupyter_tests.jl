@@ -154,12 +154,22 @@ if !@isdefined(ELECTRON_OPTIONS)
     )
 end
 
+# Additional Electron flags for CI headless environments
+const CI_ELECTRON_FLAGS = [
+    "--no-sandbox",
+    "--disable-gpu",
+    "--disable-dev-shm-usage",
+    "--disable-software-rasterizer",
+]
+
 function run_test(jupyter)
     token = randstring(12)
     write(TOKEN_FILE, token)
     @info "Test token: $token"
 
-    app = Electron.Application()
+    # Add CI flags if running in CI environment
+    electron_args = haskey(ENV, "CI") ? CI_ELECTRON_FLAGS : String[]
+    app = Electron.Application(; additional_electron_args=electron_args)
     proc = start_server(jupyter)
 
     try
