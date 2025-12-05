@@ -143,8 +143,8 @@ function test_jupyterlab(pw)
         if page.get_by_text("Select Kernel").count() > 0
             handle_kernel_dialogs!(page)
         else
-            # Launcher button has duplicated kernel name: "Julia 1.12 Julia 1.12"
-            page.get_by_role("button", name="$JULIA_KERNEL $JULIA_KERNEL").click()
+            # Launcher has Notebook and Console buttons with same name - use .first for Notebook
+            page.get_by_role("button", name="$JULIA_KERNEL $JULIA_KERNEL").first.click()
             sleep(2)
             handle_kernel_dialogs!(page)  # May still get error dialog
         end
