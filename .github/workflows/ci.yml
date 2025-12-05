@@ -49,15 +49,10 @@ jobs:
             using Pkg
             Pkg.add(["IJulia", "Conda"])
             using Conda
-            # Install jupyter via conda
             Conda.add("jupyterlab")
             Conda.add("notebook")
             using IJulia
             IJulia.installkernel("Julia")
-            using PyCall
-            # Install playwright via pip directly
-            run(`$(PyCall.pyprogramname) -m pip install playwright`)
-            run(`$(PyCall.pyprogramname) -m playwright install chromium`)
           '
       - name: Run headless test
         uses: GabrielBB/xvfb-action@v1

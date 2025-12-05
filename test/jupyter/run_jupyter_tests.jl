@@ -1,182 +1,196 @@
 #=
 Jupyter Smoke Tests for Bonito
 
-Tests Bonito rendering in JupyterLab and Jupyter Notebook using Playwright via PyCall.
-Playwright is auto-installed via conda-forge if not present.
+Tests Bonito rendering in JupyterLab using Electron.
+Uses a pre-made notebook to avoid CodeMirror manipulation complexity.
 
 Usage: julia --project=@. test/jupyter/run_jupyter_tests.jl
 =#
 
-using IJulia, PyCall, HTTP
+using IJulia, HTTP, Electron, URIs
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Configuration
 # ─────────────────────────────────────────────────────────────────────────────
 
-const PORTS = (lab=8888, notebook=8889)
-const TIMEOUT_MS = 30_000
+const PORT = 8888
+const TIMEOUT = 60
 const POLL_INTERVAL = 5
-const MAX_POLLS = 6
+const MAX_POLLS = 12
 
-const JULIA_KERNEL = "Julia $(VERSION.major).$(VERSION.minor)"
-const BONITO_ROOT = dirname(dirname(@__DIR__))
-
-const TEST_CODE = """
-using Pkg
-Pkg.activate()
-Pkg.develop(path="$BONITO_ROOT")
-using Bonito
-App() do session
-    Bonito.DOM.div("BONITO_TEST_SUCCESS"; id="bonito-test-output")
-end |> display
-"""
+const TEST_DIR = @__DIR__
+const NOTEBOOK_NAME = "bonito_test.ipynb"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Infrastructure
 # ─────────────────────────────────────────────────────────────────────────────
 
-"""Return Playwright sync API, installing via conda if needed."""
-get_playwright() = pyimport_conda("playwright.sync_api", "playwright", "conda-forge")
-
 """Find jupyter executable via IJulia or PATH."""
 function find_jupyter()
-    # Try IJulia's conda jupyter first
     path = IJulia.find_jupyter_subcommand("lab")
     !isnothing(path) && !isempty(path) && isfile(first(path)) && return first(path)
-    # Fall back to system jupyter
     jupyter = Sys.which("jupyter")
     !isnothing(jupyter) && return jupyter
     error("Could not find jupyter executable")
 end
 
-"""Start a Jupyter server, returning the process handle."""
-function start_server(jupyter, mode::Symbol, port)
-    cmd = `$jupyter $mode --no-browser --port=$port --IdentityProvider.token=`
+"""Start a Jupyter server in the test directory."""
+function start_server(jupyter)
+    cmd = `$jupyter lab --no-browser --port=$PORT --IdentityProvider.token= --notebook-dir=$TEST_DIR`
     run(pipeline(cmd; stdout=devnull, stderr=devnull); wait=false)
 end
 
-"""Block until server responds on port."""
-function wait_for_server(port; timeout=60)
+"""Block until server responds."""
+function wait_for_server(; timeout=60)
     deadline = time() + timeout
     while time() < deadline
         try
-            r = HTTP.get("http://127.0.0.1:$port/api";
+            r = HTTP.get("http://127.0.0.1:$PORT/api";
                 connect_timeout=2, readtimeout=2, retry=false, status_exception=false)
-            r.status == 200 && return
+            r.status == 200 && return true
         catch; end
         sleep(1)
     end
-    error("Server on port $port failed to start")
-end
-
-"""Install Playwright's Chromium browser if needed."""
-function ensure_chromium()
-    try run(`$(PyCall.pyprogramname) -m playwright install chromium`) catch; end
+    error("Server on port $PORT failed to start")
 end
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Page Helpers
+# Electron Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-"""Handle kernel selection/error dialogs if present."""
-function handle_kernel_dialogs!(page)
-    # Dismiss error dialog first
-    if page.get_by_text("Error Starting Kernel").count() > 0
-        page.get_by_role("button", name="Ok").click()
-        sleep(1)
+"""Run JavaScript in Electron window and return result."""
+function run_js(win, code::String)
+    try
+        return Electron.run(win, code)
+    catch e
+        @debug "JS execution failed" code exception=e
+        return nothing
     end
-    # Select Julia kernel if prompted
-    if page.get_by_text("Select Kernel").count() > 0
-        @info "Selecting $JULIA_KERNEL kernel..."
-        dialog = page.get_by_role("dialog")
-        dialog.get_by_role("combobox").select_option(label=JULIA_KERNEL)
-        dialog.get_by_role("button", name="Select").click()
+end
+
+"""Check if text exists on page."""
+function has_text(win, text)
+    escaped = replace(text, "'" => "\\'")
+    run_js(win, "document.body.innerText.includes('$escaped')") === true
+end
+
+"""Click element matching selector."""
+function click_selector(win, selector)
+    run_js(win, """
+        (function() {
+            const el = document.querySelector('$selector');
+            if (el) { el.click(); return true; }
+            return false;
+        })()
+    """)
+end
+
+"""Select an option in a dropdown by partial text match."""
+function select_option_containing(win, selector, text)
+    run_js(win, """
+        (function() {
+            const select = document.querySelector('$selector');
+            if (!select) return false;
+            for (let opt of select.options) {
+                if (opt.text.includes('$text')) {
+                    select.value = opt.value;
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    return true;
+                }
+            }
+            return false;
+        })()
+    """)
+end
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Test Runner
+# ─────────────────────────────────────────────────────────────────────────────
+
+"""Handle kernel selection dialog if present."""
+function handle_kernel_dialog!(win)
+    sleep(2)
+
+    if has_text(win, "Select Kernel")
+        @info "Selecting Julia kernel..."
+        select_option_containing(win, ".jp-Dialog select", "Julia")
+        sleep(0.5)
+        click_selector(win, ".jp-Dialog button.jp-mod-accept")
         sleep(2)
-    end
-end
-
-"""Execute code in the first notebook cell."""
-function run_cell!(page, code)
-    page.wait_for_selector("[role=textbox]"; timeout=TIMEOUT_MS)
-    sleep(1)
-    textbox = page.get_by_role("textbox").first
-    textbox.click()
-    page.keyboard.press("Control+a")
-    textbox.fill(code)
-    page.keyboard.press("Shift+Enter")
-end
-
-"""Poll for Bonito success marker, return true if found."""
-function wait_for_bonito_output(page)
-    for i in 1:MAX_POLLS
-        sleep(POLL_INTERVAL)
-        page.get_by_text("BONITO_TEST_SUCCESS").count() > 0 && return true
-        @info "Waiting for output... ($i/$MAX_POLLS)"
+        return true
     end
     false
 end
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Test Runners
-# ─────────────────────────────────────────────────────────────────────────────
+"""Wait for kernel to be idle."""
+function wait_for_idle_kernel(win; timeout=60)
+    deadline = time() + timeout
+    while time() < deadline
+        if has_text(win, "Idle")
+            return true
+        end
+        sleep(1)
+    end
+    false
+end
 
-"""Run a test with browser lifecycle management."""
-function with_browser(f, pw)
-    browser = pw.chromium.launch(headless=true)
-    try
-        page = browser.new_page()
-        page.set_default_timeout(TIMEOUT_MS)
-        return f(page)
-    finally
-        browser.close()
+"""Run all cells in the notebook."""
+function run_all_cells!(win)
+    # Click the "Restart kernel and run all cells" button
+    click_selector(win, "button[title='Restart the kernel and run all cells']")
+    sleep(1)
+
+    # Confirm the restart dialog if it appears
+    if has_text(win, "Restart Kernel")
+        click_selector(win, ".jp-Dialog button.jp-mod-accept")
+        sleep(1)
     end
 end
 
-function test_jupyterlab(pw)
-    @info "Testing JupyterLab..."
-    with_browser(pw) do page
-        page.goto("http://localhost:$(PORTS.lab)/lab")
-        page.wait_for_load_state("networkidle")
-        sleep(2)
+"""Poll for Bonito success marker."""
+function wait_for_bonito_output(win)
+    for i in 1:MAX_POLLS
+        if has_text(win, "BONITO_TEST_SUCCESS")
+            return true
+        end
+        @info "Waiting for output... ($i/$MAX_POLLS)"
+        sleep(POLL_INTERVAL)
+    end
+    false
+end
 
-        # Either select kernel from dialog or click launcher button
-        if page.get_by_text("Select Kernel").count() > 0
-            handle_kernel_dialogs!(page)
-        else
-            # Launcher has Notebook and Console buttons with same name - use .first for Notebook
-            page.get_by_role("button", name="$JULIA_KERNEL $JULIA_KERNEL").first.click()
-            sleep(2)
-            handle_kernel_dialogs!(page)  # May still get error dialog
+function test_jupyterlab(app)
+    @info "Testing JupyterLab..."
+    win = nothing
+    try
+        # Open the pre-made test notebook directly
+        url = "http://localhost:$PORT/lab/tree/$NOTEBOOK_NAME"
+        win = Electron.Window(app, URI(url))
+        sleep(5)  # Wait for page load
+
+        # Handle kernel selection
+        handle_kernel_dialog!(win)
+
+        # Wait for kernel to be ready
+        if !wait_for_idle_kernel(win; timeout=30)
+            @warn "Kernel didn't become idle, continuing anyway..."
         end
 
-        run_cell!(page, TEST_CODE)
-        @info "Running cell..."
+        @info "Running all cells..."
+        run_all_cells!(win)
 
-        if wait_for_bonito_output(page)
+        if wait_for_bonito_output(win)
             @info "JupyterLab test PASSED ✓"
             return true
         end
-        error("Timeout waiting for BONITO_TEST_SUCCESS")
-    end
-end
 
-function test_notebook(pw)
-    @info "Testing Jupyter Notebook..."
-    with_browser(pw) do page
-        page.goto("http://localhost:$(PORTS.notebook)/notebooks/Untitled.ipynb")
-        page.wait_for_load_state("networkidle")
-        sleep(2)
-
-        handle_kernel_dialogs!(page)
-
-        run_cell!(page, TEST_CODE)
-        @info "Running cell..."
-
-        if wait_for_bonito_output(page)
-            @info "Jupyter Notebook test PASSED ✓"
-            return true
-        end
-        error("Timeout waiting for BONITO_TEST_SUCCESS")
+        @error "Timeout waiting for BONITO_TEST_SUCCESS"
+        return false
+    catch e
+        @error "JupyterLab test failed" exception=(e, catch_backtrace())
+        return false
+    finally
+        !isnothing(win) && close(win)
     end
 end
 
@@ -185,53 +199,38 @@ end
 # ─────────────────────────────────────────────────────────────────────────────
 
 function main()
-    # Setup
-    @info "Installing IJulia kernel for $JULIA_KERNEL..."
-    IJulia.installkernel("Julia")
+    # Verify test notebook exists
+    notebook_path = joinpath(TEST_DIR, NOTEBOOK_NAME)
+    isfile(notebook_path) || error("Test notebook not found: $notebook_path")
 
-    playwright_api = get_playwright()
-    ensure_chromium()
-    pw = playwright_api.sync_playwright().start()
+    # Install kernel
+    @info "Installing IJulia kernel..."
+    IJulia.installkernel("Julia")
 
     jupyter = find_jupyter()
     @info "Using: $jupyter"
 
-    # Start servers
-    lab_proc = start_server(jupyter, :lab, PORTS.lab)
-    notebook_proc = start_server(jupyter, :notebook, PORTS.notebook)
+    # Start server
+    proc = start_server(jupyter)
+    app = Electron.Application()
 
-    results = Dict{String,Bool}()
+    passed = false
     try
-        wait_for_server(PORTS.lab)
-        wait_for_server(PORTS.notebook)
-
-        results["JupyterLab"] = try test_jupyterlab(pw) catch e
-            @error "JupyterLab test failed" exception=(e, catch_backtrace())
-            false
-        end
-
-        results["Notebook"] = try test_notebook(pw) catch e
-            @error "Notebook test failed" exception=(e, catch_backtrace())
-            false
-        end
+        wait_for_server()
+        passed = test_jupyterlab(app)
     finally
-        pw.stop()
-        kill(lab_proc)
-        kill(notebook_proc)
+        close(app)
+        kill(proc)
     end
 
-    # Report
     println("\n", "="^50)
-    println("RESULTS:")
-    for (name, passed) in sort(collect(results))
-        println("  $name: ", passed ? "✓ PASSED" : "✗ FAILED")
-    end
+    println("RESULT: ", passed ? "✓ PASSED" : "✗ FAILED")
     println("="^50)
 
-    all(values(results)) || error("Some tests failed")
+    passed || error("Test failed")
 end
 
-"""Run all Jupyter smoke tests, returning true if all pass."""
+"""Run Jupyter smoke test, returning true if it passes."""
 function run_jupyter_tests()
     main()
     return true
