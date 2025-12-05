@@ -18,6 +18,7 @@ MbedTLS = "739be429-bea8-5141-9913-cc70e7f3736d"
 MsgPack = "99f44e22-a591-53d1-9472-aa23ef4bd671"
 Observables = "510215fc-4207-5dde-b226-833fc4488ee2"
 OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
+PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 RelocatableFolders = "05181044-ff0b-4ac5-8273-598c1e38db00"
 SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
@@ -43,6 +44,7 @@ MbedTLS = "1.1.9"
 MsgPack = "1.2"
 Observables = "0.5.1"
 OrderedCollections = "1.8.1"
+PyCall = "1.96.4"
 Random = "1"
 RelocatableFolders = "0.1, 0.2, 1"
 SHA = "0.7, 1.6, 1.7"
@@ -56,9 +58,10 @@ julia = "1.6"
 
 [extras]
 Electron = "a1bb12fb-d4d1-54b4-b10a-ee7951ef7ad3"
+IJulia = "7073ff75-c697-5162-941a-fcdaad2a7d2a"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Pkg", "Electron", "Random", "Test"]
+test = ["Pkg", "Electron", "IJulia", "Random", "Test"]
