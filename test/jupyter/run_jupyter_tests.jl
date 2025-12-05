@@ -146,6 +146,14 @@ end
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Use ELECTRON_OPTIONS from runtests.jl if available, otherwise define our own
+if !@isdefined(ELECTRON_OPTIONS)
+    const ELECTRON_OPTIONS = Dict{String, Any}(
+        "show" => false,
+        "focusOnWebView" => false,
+    )
+end
+
 function run_test(jupyter)
     token = randstring(12)
     write(TOKEN_FILE, token)
@@ -156,7 +164,7 @@ function run_test(jupyter)
 
     try
         wait_for_server()
-        win = Electron.Window(app, URI("http://localhost:$PORT/lab/tree/$NOTEBOOK_NAME"))
+        win = Electron.Window(app, URI("http://localhost:$PORT/lab/tree/$NOTEBOOK_NAME"); options=ELECTRON_OPTIONS)
         sleep(5)
 
         handle_kernel_dialog!(win)
@@ -179,7 +187,13 @@ function run_test(jupyter)
     end
 end
 
-function main()
+"""
+    run_jupyter_tests()
+
+Entry point for running Jupyter tests.
+Returns true if tests pass, false otherwise.
+"""
+function run_jupyter_tests()
     isfile(joinpath(TEST_DIR, NOTEBOOK_NAME)) || error("Test notebook not found")
 
     @info "Installing IJulia kernel..."
@@ -188,7 +202,11 @@ function main()
     jupyter = find_jupyter()
     @info "Using: $jupyter"
 
-    passed = run_test(jupyter)
+    return run_test(jupyter)
+end
+
+function main()
+    passed = run_jupyter_tests()
     println("\n", "="^40)
     println("RESULT: ", passed ? "PASSED" : "FAILED")
     println("="^40)
