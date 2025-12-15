@@ -76,6 +76,7 @@ const DOM_NODE_TAG = Int8(105)
 const SESSION_CACHE_TAG = Int8(106)
 const SERIALIZED_MESSAGE_TAG = Int8(107)
 const RAW_HTML_TAG = Int8(108)
+const TRACKING_ONLY_TAG = Int8(109)
 
 MsgPack.msgpack_type(::Type{<: SerializedObservable}) = MsgPack.ExtensionType()
 
@@ -103,6 +104,11 @@ function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::CacheKey)
     return MsgPack.Extension(CACHE_KEY_TAG, pack(x.key))
 end
 
+MsgPack.msgpack_type(::Type{TrackingOnly}) = MsgPack.ExtensionType()
+function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::TrackingOnly)
+    return MsgPack.Extension(TRACKING_ONLY_TAG, pack(x.key))
+end
+
 MsgPack.msgpack_type(::Type{SerializedNode}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedNode)
     return MsgPack.Extension(DOM_NODE_TAG, pack([x.tag, x.children, x.attributes]))
@@ -115,7 +121,10 @@ end
 
 MsgPack.msgpack_type(::Type{SessionCache}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SessionCache)
-    return MsgPack.Extension(SESSION_CACHE_TAG, pack([x.session_id, x.objects, x.session_type]))
+    # Pack: [session_id, session_status, pack(objects)]
+    # This lets JS extract session info first, create context, then decode objects
+    objects_array = [v for (k, v) in x.objects]
+    return MsgPack.Extension(SESSION_CACHE_TAG, pack([x.session_id, x.session_type, pack(objects_array)]))
 end
 
 MsgPack.msgpack_type(::Type{BinaryMessage}) = MsgPack.ExtensionType()
@@ -125,7 +134,12 @@ end
 
 MsgPack.msgpack_type(::Type{SerializedMessage}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedMessage)
-    return MsgPack.Extension(SERIALIZED_MESSAGE_TAG, pack([x.cache, x.data]))
+    # Pack: [session_id, session_status, pack(cache), pack(data)]
+    # Session info is extracted first to create context, then cache and data are decoded.
+    # Cache must be decoded before data so observables are registered.
+    session_id = x.cache.session_id
+    session_status = x.cache.session_type
+    return MsgPack.Extension(SERIALIZED_MESSAGE_TAG, pack([session_id, session_status, pack(x.cache), pack(x.data)]))
 end
 
 
