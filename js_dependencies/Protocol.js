@@ -2,7 +2,13 @@
 import * as MsgPack from "https://cdn.jsdelivr.net/npm/@msgpack/msgpack/mod.ts";
 import * as Pako from "https://cdn.esm.sh/v66/pako@2.0.4/es2021/pako.js";
 import { Observable } from "./Observables.js";
-import { register_in_session_cache, track_in_session, lookup_global_object } from "./Sessions.js";
+import {
+    register_in_session_cache,
+    track_in_session,
+    lookup_global_object,
+    ensure_session_exists,
+    GLOBAL_OBJECT_CACHE,
+} from "./Sessions.js";
 
 export class Retain {
     constructor(value) {
@@ -165,7 +171,9 @@ register_ext(JSCODE_TAG, (uint_8_array, context) => {
 
 register_ext(RETAIN_TAG, (uint_8_array, context) => {
     const real_value = unpack(uint_8_array, context);
-    return new Retain(real_value);
+    const retain = new Retain(real_value);
+    GLOBAL_OBJECT_CACHE[real_value.id] = retain;
+    return retain;
 });
 
 register_ext(CACHE_KEY_TAG, (uint_8_array, context) => {
@@ -220,6 +228,8 @@ register_ext(SESSION_CACHE_TAG, (uint_8_array, context) => {
     // Structure: [session_id, session_status, packed_objects_ext]
     // packed_objects_ext is Extension(18) containing the packed bytes
     const [session_id, session_status, packed_objects_ext] = MsgPack.decode(uint_8_array);
+    // Ensure session exists even if there are no objects (apps without observables)
+    ensure_session_exists(session_id, session_status);
     const ctx = new UnpackContext(session_id, session_status);
     // Extract .data from Extension(18) to get raw bytes, then decode with our codec
     unpack(packed_objects_ext.data, ctx);
@@ -231,6 +241,7 @@ register_ext(SERIALIZED_MESSAGE_TAG, (uint_8_array, context) => {
     // Both packed_*_ext are Extension(18) containing packed bytes
     const [session_id, session_status, packed_cache_ext, packed_data_ext] = MsgPack.decode(uint_8_array);
     const ctx = new UnpackContext(session_id, session_status);
+    ensure_session_exists(session_id, session_status);
     // Extract .data from Extension(18) and decode with our codec
     // Cache must be decoded first so observables are registered before data references them
     unpack(packed_cache_ext.data, ctx);

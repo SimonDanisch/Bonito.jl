@@ -3343,6 +3343,12 @@ function lookup_global_object(key) {
     console.warn(`Key ${key} not found! ${object}`);
     return null;
 }
+function send_pingpong() {
+    send_to_julia({
+        msg_type: PingPong
+    });
+}
+let timeout = null;
 function is_still_referenced(id) {
     for(const session_id in SESSIONS){
         const [tracked_objects, allow_delete] = SESSIONS[session_id];
@@ -3419,12 +3425,6 @@ function track_deleted_sessions() {
         DELETE_OBSERVER = observer;
     }
 }
-function send_pingpong() {
-    send_to_julia({
-        msg_type: PingPong
-    });
-}
-let timeout = null;
 function send_pings() {
     clearTimeout(timeout);
     if (!can_send_to_julia()) {
@@ -3443,6 +3443,58 @@ function send_error(message, exception) {
         stacktrace: exception === null ? "" : clean_stack(exception.stack)
     });
 }
+function send_done_loading(session, exception) {
+    send_to_julia({
+        msg_type: JSDoneLoading,
+        session,
+        message: "",
+        exception: exception === null ? "nothing" : String(exception),
+        stacktrace: exception === null ? "" : clean_stack(exception.stack)
+    });
+}
+function done_initializing_session(session_id) {
+    if (!(session_id in SESSIONS)) {
+        console.warn(`Session ${session_id} got deleted before done initializing!`);
+        send_done_loading(session_id, new Error("Session deleted before initialization completed"));
+        return;
+    }
+    send_done_loading(session_id, null);
+    if (SESSIONS[session_id][1] != "root") {
+        SESSIONS[session_id][1] = "delete";
+    }
+}
+function init_session_from_msgs(session_id, messages) {
+    try {
+        messages.forEach(process_message);
+        done_initializing_session(session_id);
+    } catch (error) {
+        send_done_loading(session_id, error);
+        console.error(error.stack);
+        throw error;
+    }
+}
+register_ext(102, (uint_8_array, context)=>{
+    const [interpolated_objects, source, julia_file] = unpack(uint_8_array, context);
+    const lookup_interpolated = (id)=>interpolated_objects[id];
+    try {
+        const eval_func = new Function("__lookup_interpolated", "Bonito", source);
+        return ()=>{
+            try {
+                return eval_func(lookup_interpolated, window.Bonito);
+            } catch (err) {
+                console.log(`error in closure from: ${julia_file}`);
+                console.log(`Source:`);
+                console.log(source);
+                throw err;
+            }
+        };
+    } catch (err) {
+        console.log(`error in closure from: ${julia_file}`);
+        console.log(`Source:`);
+        console.log(source);
+        throw err;
+    }
+});
 function encode_binary(data, compression_enabled) {
     if (compression_enabled) {
         return ml(pack(data));
@@ -3490,65 +3542,6 @@ class Observable {
         this.#callbacks.push(callback);
     }
 }
-function send_done_loading(session, exception) {
-    send_to_julia({
-        msg_type: JSDoneLoading,
-        session,
-        message: "",
-        exception: exception === null ? "nothing" : String(exception),
-        stacktrace: exception === null ? "" : clean_stack(exception.stack)
-    });
-}
-function done_initializing_session(session_id) {
-    if (!(session_id in SESSIONS)) {
-        console.warn(`Session ${session_id} got deleted before done initializing!`);
-        return;
-    }
-    send_done_loading(session_id, null);
-    if (SESSIONS[session_id][1] != "root") {
-        SESSIONS[session_id][1] = "delete";
-    }
-}
-function init_session_from_msgs(session_id, messages) {
-    try {
-        messages.forEach(process_message);
-        done_initializing_session(session_id);
-    } catch (error) {
-        send_done_loading(session_id, error);
-        console.error(error.stack);
-        throw error;
-    }
-}
-register_ext(102, (uint_8_array, context)=>{
-    const [interpolated_objects, source, julia_file] = unpack(uint_8_array, context);
-    const lookup_interpolated = (id)=>interpolated_objects[id];
-    try {
-        const eval_func = new Function("__lookup_interpolated", "Bonito", source);
-        return ()=>{
-            try {
-                return eval_func(lookup_interpolated, window.Bonito);
-            } catch (err) {
-                console.log(`error in closure from: ${julia_file}`);
-                console.log(`Source:`);
-                console.log(source);
-                throw err;
-            }
-        };
-    } catch (err) {
-        console.log(`error in closure from: ${julia_file}`);
-        console.log(`Source:`);
-        console.log(source);
-        throw err;
-    }
-});
-register_ext(103, (uint_8_array, context)=>{
-    const real_value = unpack(uint_8_array, context);
-    return new Retain(real_value);
-});
-register_ext(104, (uint_8_array, context)=>{
-    const key = unpack(uint_8_array, context);
-    return lookup_global_object(key);
-});
 function close_session(session_id) {
     const session = SESSIONS[session_id];
     if (!session) {
@@ -3570,22 +3563,6 @@ function close_session(session_id) {
     }
     return;
 }
-function track_in_session(session_id, key, session_status) {
-    let session = SESSIONS[session_id];
-    if (!session) {
-        const tracked_items = new Set();
-        SESSIONS[session_id] = [
-            tracked_items,
-            session_status
-        ];
-        session = SESSIONS[session_id];
-    }
-    const tracked_objects = session[0];
-    tracked_objects.add(key);
-    if (!(key in GLOBAL_OBJECT_CACHE)) {
-        console.warn(`TrackingOnly: Key ${key} not found in GLOBAL_OBJECT_CACHE`);
-    }
-}
 function free_session(session_id) {
     lock_loading(()=>{
         const session = SESSIONS[session_id];
@@ -3599,15 +3576,20 @@ function free_session(session_id) {
         tracked_objects.clear();
     });
 }
-function on_node_available(node_id, timeout) {
-    return new Promise((resolve)=>{
-        function test_node(timeout) {
+function on_node_available(node_id, timeout, max_timeout = 30000) {
+    return new Promise((resolve, reject)=>{
+        let elapsed = 0;
+        function test_node(current_timeout) {
             const node = document.querySelector(`[data-jscall-id='${node_id}']`);
             if (node) {
                 resolve(node);
             } else {
-                const new_timeout = 2 * timeout;
-                console.log(new_timeout);
+                elapsed += current_timeout;
+                if (elapsed > max_timeout) {
+                    reject(new Error(`Timeout waiting for DOM node with data-jscall-id='${node_id}' after ${max_timeout}ms`));
+                    return;
+                }
+                const new_timeout = Math.min(current_timeout * 2, 1000);
                 setTimeout(test_node, new_timeout, new_timeout);
             }
         }
@@ -3624,9 +3606,18 @@ function update_or_replace(node, new_html, replace) {
         node.append(new_html);
     }
 }
+function ensure_session_exists(session_id, session_status) {
+    if (!(session_id in SESSIONS)) {
+        SESSIONS[session_id] = [
+            new Set(),
+            session_status
+        ];
+    }
+}
 function update_session_dom(message) {
     lock_loading(()=>{
-        const { session_id , messages , html , dom_node_selector , replace  } = message;
+        const { session_id , session_status , messages , html , dom_node_selector , replace  } = message;
+        ensure_session_exists(session_id, session_status || "sub");
         return on_node_available(dom_node_selector, 1).then((dom)=>{
             update_or_replace(dom, html, replace);
             init_session_from_msgs(session_id, messages);
@@ -3635,22 +3626,59 @@ function update_session_dom(message) {
         });
     });
 }
-function register_in_session_cache(session_id, key, object, session_status) {
-    let session = SESSIONS[session_id];
-    if (!session) {
-        const tracked_items = new Set();
-        SESSIONS[session_id] = [
-            tracked_items,
-            session_status
-        ];
-        session = SESSIONS[session_id];
+function track_in_session(session_id, key, session_status) {
+    ensure_session_exists(session_id, session_status);
+    const tracked_objects = SESSIONS[session_id][0];
+    tracked_objects.add(key);
+    if (!(key in GLOBAL_OBJECT_CACHE)) {
+        console.warn(`TrackingOnly: Key ${key} not found in GLOBAL_OBJECT_CACHE`);
     }
-    const tracked_objects = session[0];
+}
+function register_in_session_cache(session_id, key, object, session_status) {
+    ensure_session_exists(session_id, session_status);
+    const tracked_objects = SESSIONS[session_id][0];
     tracked_objects.add(key);
     if (!(key in GLOBAL_OBJECT_CACHE)) {
         GLOBAL_OBJECT_CACHE[key] = object;
     }
 }
+function update_session_cache(session_id, new_jl_objects, session_status) {
+    function update_cache(tracked_objects) {
+        for (const [key, new_object] of new_jl_objects){
+            tracked_objects.add(key);
+            if (!(key in GLOBAL_OBJECT_CACHE)) {
+                GLOBAL_OBJECT_CACHE[key] = new_object;
+            }
+        }
+    }
+    const session = SESSIONS[session_id];
+    if (session) {
+        update_cache(session[0]);
+    } else {
+        const tracked_items = new Set();
+        SESSIONS[session_id] = [
+            tracked_items,
+            session_status
+        ];
+        update_cache(tracked_items);
+    }
+}
+register_ext(101, (uint_8_array, context)=>{
+    const [id, value] = unpack(uint_8_array, context);
+    const obs = new Observable(id, value);
+    register_in_session_cache(context.session_id, id, obs, context.session_status);
+    return obs;
+});
+register_ext(103, (uint_8_array, context)=>{
+    const real_value = unpack(uint_8_array, context);
+    const retain = new Retain(real_value);
+    GLOBAL_OBJECT_CACHE[real_value.id] = retain;
+    return retain;
+});
+register_ext(104, (uint_8_array, context)=>{
+    const key = unpack(uint_8_array, context);
+    return lookup_global_object(key);
+});
 register_ext(109, (uint_8_array, context)=>{
     const key = unpack(uint_8_array, context);
     track_in_session(context.session_id, key, context.session_status);
@@ -3687,6 +3715,7 @@ register_ext(108, (uint_8_array, context)=>{
 });
 register_ext(106, (uint_8_array, context)=>{
     const [session_id, session_status, packed_objects_ext] = decode(uint_8_array);
+    ensure_session_exists(session_id, session_status);
     const ctx = new UnpackContext(session_id, session_status);
     unpack(packed_objects_ext.data, ctx);
     return session_id;
@@ -3694,6 +3723,7 @@ register_ext(106, (uint_8_array, context)=>{
 register_ext(107, (uint_8_array, context)=>{
     const [session_id, session_status, packed_cache_ext, packed_data_ext] = decode(uint_8_array);
     const ctx = new UnpackContext(session_id, session_status);
+    ensure_session_exists(session_id, session_status);
     unpack(packed_cache_ext.data, ctx);
     return unpack(packed_data_ext.data, ctx);
 });
@@ -3759,27 +3789,6 @@ function init_session(session_id, message_promise, session_status, compression) 
         });
     });
 }
-function update_session_cache(session_id, new_jl_objects, session_status) {
-    function update_cache(tracked_objects) {
-        for (const [key, new_object] of new_jl_objects){
-            tracked_objects.add(key);
-            if (!(key in GLOBAL_OBJECT_CACHE)) {
-                GLOBAL_OBJECT_CACHE[key] = new_object;
-            }
-        }
-    }
-    const session = SESSIONS[session_id];
-    if (session) {
-        update_cache(session[0]);
-    } else {
-        const tracked_items = new Set();
-        SESSIONS[session_id] = [
-            tracked_items,
-            session_status
-        ];
-        update_cache(tracked_items);
-    }
-}
 const mod1 = {
     SESSIONS: SESSIONS,
     GLOBAL_OBJECT_CACHE: GLOBAL_OBJECT_CACHE,
@@ -3796,16 +3805,11 @@ const mod1 = {
     on_node_available: on_node_available,
     update_or_replace: update_or_replace,
     update_session_dom: update_session_dom,
+    ensure_session_exists: ensure_session_exists,
     track_in_session: track_in_session,
     register_in_session_cache: register_in_session_cache,
     update_session_cache: update_session_cache
 };
-register_ext(101, (uint_8_array, context)=>{
-    const [id, value] = unpack(uint_8_array, context);
-    const obs = new Observable(id, value);
-    register_in_session_cache(context.session_id, id, obs, context.session_status);
-    return obs;
-});
 function send_warning(message) {
     console.warn(message);
     send_to_julia({

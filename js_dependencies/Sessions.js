@@ -138,7 +138,9 @@ export function track_deleted_sessions() {
  */
 export function done_initializing_session(session_id) {
     if (!(session_id in SESSIONS)) {
+        // Session was deleted during initialization - still notify Julia to prevent hang
         console.warn(`Session ${session_id} got deleted before done initializing!`);
+        send_done_loading(session_id, new Error("Session deleted before initialization completed"));
         return;
     }
     send_done_loading(session_id, null);
@@ -220,15 +222,20 @@ export function free_session(session_id) {
     });
 }
 
-export function on_node_available(node_id, timeout) {
-    return new Promise((resolve) => {
-        function test_node(timeout) {
+export function on_node_available(node_id, timeout, max_timeout = 30000) {
+    return new Promise((resolve, reject) => {
+        let elapsed = 0;
+        function test_node(current_timeout) {
             const node = document.querySelector(`[data-jscall-id='${node_id}']`);
             if (node) {
                 resolve(node);
             } else {
-                const new_timeout = 2 * timeout;
-                console.log(new_timeout);
+                elapsed += current_timeout;
+                if (elapsed > max_timeout) {
+                    reject(new Error(`Timeout waiting for DOM node with data-jscall-id='${node_id}' after ${max_timeout}ms`));
+                    return;
+                }
+                const new_timeout = Math.min(current_timeout * 2, 1000); // cap at 1s intervals
                 setTimeout(test_node, new_timeout, new_timeout);
             }
         }
@@ -249,7 +256,10 @@ export function update_or_replace(node, new_html, replace) {
 
 export function update_session_dom(message) {
     lock_loading(() => {
-        const { session_id, messages, html, dom_node_selector, replace } = message;
+        const { session_id, session_status, messages, html, dom_node_selector, replace } = message;
+        // Ensure session exists - it should have been created during SerializedMessage unpack,
+        // but we ensure it here to handle any race conditions
+        ensure_session_exists(session_id, session_status || "sub");
         return on_node_available(dom_node_selector, 1).then((dom) => {
             update_or_replace(dom, html, replace);
             init_session_from_msgs(session_id, messages);
@@ -257,6 +267,20 @@ export function update_session_dom(message) {
             send_done_loading(session_id, error);
         });
     });
+}
+
+/**
+ * Ensure a session exists in SESSIONS. Creates it if it doesn't exist.
+ * This is needed because sessions without observables won't have any objects
+ * that call register_in_session_cache during unpacking.
+ *
+ * @param {string} session_id
+ * @param {string} session_status - "root" or "sub"
+ */
+export function ensure_session_exists(session_id, session_status) {
+    if (!(session_id in SESSIONS)) {
+        SESSIONS[session_id] = [new Set(), session_status];
+    }
 }
 
 /**
@@ -269,14 +293,8 @@ export function update_session_dom(message) {
  * @param {string} session_status - "root" or "sub"
  */
 export function track_in_session(session_id, key, session_status) {
-    // Ensure session exists
-    let session = SESSIONS[session_id];
-    if (!session) {
-        const tracked_items = new Set();
-        SESSIONS[session_id] = [tracked_items, session_status];
-        session = SESSIONS[session_id];
-    }
-    const tracked_objects = session[0];
+    ensure_session_exists(session_id, session_status);
+    const tracked_objects = SESSIONS[session_id][0];
 
     // Track in session (object should already be in GLOBAL_OBJECT_CACHE)
     tracked_objects.add(key);
@@ -297,14 +315,8 @@ export function track_in_session(session_id, key, session_status) {
  * @param {string} session_status - "root" or "sub"
  */
 export function register_in_session_cache(session_id, key, object, session_status) {
-    // Ensure session exists
-    let session = SESSIONS[session_id];
-    if (!session) {
-        const tracked_items = new Set();
-        SESSIONS[session_id] = [tracked_items, session_status];
-        session = SESSIONS[session_id];
-    }
-    const tracked_objects = session[0];
+    ensure_session_exists(session_id, session_status);
+    const tracked_objects = SESSIONS[session_id][0];
 
     // Track in session
     tracked_objects.add(key);
