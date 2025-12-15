@@ -1,10 +1,14 @@
 struct SerializationContext
-    message_cache::Dict{String, Any}
+    # OrderedDict preserves insertion order, which ensures that dependencies (inner observables)
+    # are serialized before their dependents (outer observables containing CacheKey references).
+    # This is critical for static export where the JS side deserializes the cache dict
+    # and needs to resolve CacheKey references during unpacking.
+    message_cache::OrderedDict{String, Any}
     session::Session
 end
 
 function SerializationContext(session::Session)
-    return SerializationContext(Dict{String,Any}(), session)
+    return SerializationContext(OrderedDict{String,Any}(), session)
 end
 
 object_identity(retain::Retain) = object_identity(retain.value)
@@ -88,14 +92,14 @@ function serialize_cached(context::SerializationContext, dict::AbstractDict)
 end
 
 """
-    add_cached!(create_cached_object::Function, session::Session, message_cache::Dict{String, Any}, key::String)
+    add_cached!(create_cached_object::Function, session::Session, message_cache::AbstractDict{String, Any}, key::String)
 
 Checks if key is already cached by the session or it's root session (we skip any child session between root -> this session).
 If not cached already, we call `create_cached_object` to create a serialized form of the object corresponding to `key` and cache it.
 We return nothing if already cached, or the serialized object if not cached.
 We also handle the part of adding things to the message_cache from the serialization context.
 """
-function add_cached!(create_cached_object::Function, session::Session, send_to_js::Dict{String, Any}, @nospecialize(object))::CacheKey
+function add_cached!(create_cached_object::Function, session::Session, send_to_js::AbstractDict{String, Any}, @nospecialize(object))::CacheKey
     root = root_session(session)
     lock(root.deletion_lock) do
         key = object_identity(object)::String
@@ -117,7 +121,7 @@ function add_cached!(create_cached_object::Function, session::Session, send_to_j
             session.session_objects[key] = nothing # session needs to reference this to "own" it
             if haskey(root.session_objects, key)
                 # in this case, we just add the key to send to js, so that the JS side can associate the object with this session
-                send_to_js[key] = "tracking-only"
+                send_to_js[key] = TrackingOnly(key)
                 return result
             end
             # Nobody has the object cached,
