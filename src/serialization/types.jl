@@ -7,16 +7,32 @@ struct CacheKey
     key::String
 end
 
+"""
+    TrackingOnly(key::String)
+
+Represents a cache entry that only needs to be tracked in a session but already exists
+in the global cache. When deserialized in JS, it self-registers the key to the session's
+tracked objects without adding anything to the global cache.
+"""
+struct TrackingOnly
+    key::String
+end
+
 struct Retain
     value::Union{Observable, SerializedObservable} # For now, restricted to observable!
 end
 
-function SessionCache(session::Session, objects::AbstractDict{String,Any})
+function SessionCache(session::Session, objects::OrderedDict{String,Any})
     return SessionCache(
         session.id,
         objects,
         root_session(session) === session ? "root" : "sub",
     )
+end
+
+function SessionCache(session::Session, objects::AbstractDict{String,Any})
+    # Convert to OrderedDict to preserve insertion order
+    return SessionCache(session, OrderedDict{String,Any}(objects))
 end
 
 struct SerializedJSCode

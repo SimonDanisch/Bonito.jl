@@ -1,4 +1,4 @@
-import { Retain, decode_binary, unpack_binary } from "./Protocol.js";
+import { Retain, decode_binary } from "./Protocol.js";
 import PQueue from "https://esm.sh/p-queue";
 
 import {
@@ -138,7 +138,9 @@ export function track_deleted_sessions() {
  */
 export function done_initializing_session(session_id) {
     if (!(session_id in SESSIONS)) {
+        // Session was deleted during initialization - still notify Julia to prevent hang
         console.warn(`Session ${session_id} got deleted before done initializing!`);
+        send_done_loading(session_id, new Error("Session deleted before initialization completed"));
         return;
     }
     send_done_loading(session_id, null);
@@ -220,15 +222,20 @@ export function free_session(session_id) {
     });
 }
 
-export function on_node_available(node_id, timeout) {
-    return new Promise((resolve) => {
-        function test_node(timeout) {
+export function on_node_available(node_id, timeout, max_timeout = 30000) {
+    return new Promise((resolve, reject) => {
+        let elapsed = 0;
+        function test_node(current_timeout) {
             const node = document.querySelector(`[data-jscall-id='${node_id}']`);
             if (node) {
                 resolve(node);
             } else {
-                const new_timeout = 2 * timeout;
-                console.log(new_timeout);
+                elapsed += current_timeout;
+                if (elapsed > max_timeout) {
+                    reject(new Error(`Timeout waiting for DOM node with data-jscall-id='${node_id}' after ${max_timeout}ms`));
+                    return;
+                }
+                const new_timeout = Math.min(current_timeout * 2, 1000); // cap at 1s intervals
                 setTimeout(test_node, new_timeout, new_timeout);
             }
         }
@@ -249,7 +256,10 @@ export function update_or_replace(node, new_html, replace) {
 
 export function update_session_dom(message) {
     lock_loading(() => {
-        const { session_id, messages, html, dom_node_selector, replace } = message;
+        const { session_id, session_status, messages, html, dom_node_selector, replace } = message;
+        // Ensure session exists - it should have been created during SerializedMessage unpack,
+        // but we ensure it here to handle any race conditions
+        ensure_session_exists(session_id, session_status || "sub");
         return on_node_available(dom_node_selector, 1).then((dom) => {
             update_or_replace(dom, html, replace);
             init_session_from_msgs(session_id, messages);
@@ -259,38 +269,82 @@ export function update_session_dom(message) {
     });
 }
 
+/**
+ * Ensure a session exists in SESSIONS. Creates it if it doesn't exist.
+ * This is needed because sessions without observables won't have any objects
+ * that call register_in_session_cache during unpacking.
+ *
+ * @param {string} session_id
+ * @param {string} session_status - "root" or "sub"
+ */
+export function ensure_session_exists(session_id, session_status) {
+    if (!(session_id in SESSIONS)) {
+        SESSIONS[session_id] = [new Set(), session_status];
+    }
+}
+
+/**
+ * Track a key in the session without adding to global cache.
+ * Used by TrackingOnly extension - the object already exists in GLOBAL_OBJECT_CACHE
+ * from a parent session, we just need to track it in this session.
+ *
+ * @param {string} session_id
+ * @param {string} key - The object's cache key
+ * @param {string} session_status - "root" or "sub"
+ */
+export function track_in_session(session_id, key, session_status) {
+    ensure_session_exists(session_id, session_status);
+    const tracked_objects = SESSIONS[session_id][0];
+
+    // Track in session (object should already be in GLOBAL_OBJECT_CACHE)
+    tracked_objects.add(key);
+
+    if (!(key in GLOBAL_OBJECT_CACHE)) {
+        console.warn(`TrackingOnly: Key ${key} not found in GLOBAL_OBJECT_CACHE`);
+    }
+}
+
+/**
+ * Register a single object to the session cache immediately during MsgPack unpacking.
+ * This is called from Protocol.js extension decoders (like OBSERVABLE_TAG) so that
+ * CacheKey references can resolve objects that were just decoded in the same unpack call.
+ *
+ * @param {string} session_id
+ * @param {string} key - The object's cache key (e.g., observable id)
+ * @param {any} object - The object to register
+ * @param {string} session_status - "root" or "sub"
+ */
+export function register_in_session_cache(session_id, key, object, session_status) {
+    ensure_session_exists(session_id, session_status);
+    const tracked_objects = SESSIONS[session_id][0];
+
+    // Track in session
+    tracked_objects.add(key);
+
+    // Add to global cache (skip if already there - shouldn't happen during single unpack)
+    if (!(key in GLOBAL_OBJECT_CACHE)) {
+        GLOBAL_OBJECT_CACHE[key] = object;
+    }
+}
+
+// NOTE: This function is kept for backwards compatibility but is no longer called
+// from Protocol.js. All objects (Observables, TrackingOnly) now self-register
+// during MsgPack unpacking via register_in_session_cache/track_in_session.
 export function update_session_cache(session_id, new_jl_objects, session_status) {
     function update_cache(tracked_objects) {
-        for (const key in new_jl_objects) {
-            // always keep track of usage in session
+        for (const [key, new_object] of new_jl_objects) {
             tracked_objects.add(key);
-            // object can be "tracking-only", which mean we already have it in GLOBAL_OBJECT_CACHE
-            const new_object = new_jl_objects[key];
-            if (new_object == "tracking-only") {
-                if (!(key in GLOBAL_OBJECT_CACHE)) {
-                    throw new Error(
-                        `Key ${key} only send for tracking, but not already tracked!!!`
-                    );
-                }
-            } else {
-                if (key in GLOBAL_OBJECT_CACHE) {
-                    console.warn(
-                        `${key} in session cache and send again!! ${new_object}`
-                    );
-                }
+            // Objects should already be in cache from self-registration during unpack
+            if (!(key in GLOBAL_OBJECT_CACHE)) {
                 GLOBAL_OBJECT_CACHE[key] = new_object;
             }
         }
     }
 
     const session = SESSIONS[session_id];
-    // session already initialized
     if (session) {
         update_cache(session[0]);
     } else {
-        // we can update the session cache for a not yet registered session, which we then need to register first:
-        // but this means our session is not initialized yet, and we need to lock it from freing objects
-        // OBJECT_FREEING_LOCK.task_lock(session_id);
         const tracked_items = new Set();
         SESSIONS[session_id] = [tracked_items, session_status];
         update_cache(tracked_items);

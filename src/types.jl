@@ -140,7 +140,9 @@ end
 
 struct SessionCache
     session_id::String
-    objects::Dict{String, Any}
+    # Must preserve insertion order for nested observable serialization.
+    # Inner observables must be deserialized before outer observables that reference them.
+    objects::OrderedDict{String, Any}
     session_type::String
 end
 

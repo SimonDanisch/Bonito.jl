@@ -57,7 +57,7 @@ function OfflineSession()
 end
 
 global ELECTRON_OPTIONS = Dict{String, Any}(
-    "show" => false,  # Don't show the window immediately
+    "show" => true,  # Don't show the window immediately
     "focusOnWebView" => false,  # Don't focus the webview
 )
 

@@ -568,6 +568,7 @@ function update_session_dom!(parent::Session, node_uuid::String, app_or_dom; rep
     session_update = Dict(
         "msg_type" => UpdateSession,
         "session_id" => sub.id,
+        "session_status" => "sub",
         "messages" => get_messages!(sub),
         "html" => html,
         "replace" => replace,
