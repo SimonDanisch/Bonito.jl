@@ -93,6 +93,7 @@ function run_connection_loop(session::Session, handler::WebSocketHandler, websoc
         bytes = safe_read(websocket)
         # nothing means the browser closed the connection so we're done
         isnothing(bytes) && break
+        isopen(session.inbox) || break
         put!(session.inbox, bytes)
     end
 end

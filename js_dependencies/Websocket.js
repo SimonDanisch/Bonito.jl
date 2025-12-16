@@ -247,6 +247,31 @@ export function setup_connection({
     query,
     main_connection,
 }) {
+    // TODO why does this make the tests hang?
+    // Detect tab duplication using BroadcastChannel.
+    // When a tab is duplicated, both tabs have the same session_id embedded in HTML.
+    // We use BroadcastChannel to detect if another tab is already using this session.
+    // if (BroadcastChannel) {
+    //     const channel = new BroadcastChannel(`bonito_session_${session_id}`);
+    //     // Handle messages from other tabs
+    //     channel.onmessage = (event) => {
+    //         console.log("BroadcastChannel message received:", event.data);
+    //         if (event.data === "session_in_use") {
+    //             // Another tab already owns this session - we're a duplicate
+    //             console.log(
+    //                 "Detected duplicated tab (another tab owns this session), reloading..."
+    //             );
+    //             channel.close();
+    //             window.location.reload();
+    //         } else if (event.data === "who_owns_session") {
+    //             // Another tab is asking - we own this session, tell them
+    //             channel.postMessage("session_in_use");
+    //         }
+    //     };
+    //     // Ask if any other tab is using this session
+    //     channel.postMessage("who_owns_session");
+    // }
+
     const url = websocket_url(session_id, proxy_url);
     console.log(`connecting : ${url + query}`);
     const ws = new Websocket(url + query, compression_enabled);
