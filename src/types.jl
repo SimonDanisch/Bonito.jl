@@ -496,7 +496,7 @@ mutable struct App
     end
     function App(dom_object;
             title="Bonito App",
-            indicator::Union{Nothing, AbstractConnectionIndicator}=ConnectionIndicator(),
+            indicator::Union{Nothing, AbstractConnectionIndicator}=nothing,
             threaded=nothing)
         if threaded isa Bool
             @warn "The `threaded` argument is deprecated and has no effect. Each App is run in a thread created by HTTP.jl."

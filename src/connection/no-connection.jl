@@ -11,8 +11,8 @@ function setup_connection(session::Session{NoConnection})
     # Notify JavaScript that this is a no-connection session
     # so the indicator can show the appropriate status
     return js"""
-    if (typeof Bonito !== 'undefined' && Bonito.set_connection_type) {
-        Bonito.set_connection_type('no_connection');
+    if (typeof Bonito !== 'undefined' && Bonito.set_no_connection) {
+        Bonito.set_no_connection();
     }
     """
 end

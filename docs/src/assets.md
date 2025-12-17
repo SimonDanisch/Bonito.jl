@@ -41,21 +41,13 @@ JavaScript assets come in two flavors: ES6 modules and traditional scripts.
 
 ### ES6 Modules
 
-ES6 modules are bundled with their dependencies and loaded as modules:
+```@docs
+ES6Module
+```
+
+You can also use the convenient CDN helper (uses esm.sh):
 
 ```julia
-# ES6Module creates an Asset with es6module=true
-jsmodule = ES6Module("path/to/local/module.js")
-
-# Interpolating in JS code returns a Promise with the module exports
-js"""
-$(jsmodule).then(module => {
-    module.someFunction();
-})
-"""
-# Works with CDN sources too
-THREE = ES6Module("https://unpkg.com/three@0.136.0/build/three.js")
-# Convenient CDN helper (uses esm.sh):
 THREE = CDNSource("three"; version="0.137.5")
 ```
 

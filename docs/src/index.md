@@ -39,6 +39,8 @@ App(() -> DOM.div(...))
 App(DOM.div(...))
 ```
 
+See [App](@ref) for all App options, including how to add a connection status indicator.
+
 The app will be displayed by e.g. the VSCode plot pane, Jupyter/Pluto or any other framework that overloads the Julia display system for HTML display.
 In the REPL or an environment without an HTML ready display, a browser should open to display it (enabled explicitly via `Bonito.browser_display()`), but one can also serve the App very easily:
 

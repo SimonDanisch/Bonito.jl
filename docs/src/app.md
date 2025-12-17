@@ -32,27 +32,27 @@ The `App` constructor accepts the following keyword arguments:
 
 ```julia
 App(handler;
-    title="Bonito App",              # Browser tab title
-    indicator=ConnectionIndicator()  # Connection status indicator (or nothing to disable)
+    title="Bonito App",  # Browser tab title
+    indicator=nothing    # Connection status indicator (nothing by default)
 )
 ```
 
 ## Connection Indicator
 
-By default, every App displays a small LED-like indicator in the top-right corner showing the connection status to the Julia server:
+Bonito provides an optional LED-like indicator that can be displayed in the top-right corner to show the connection status to the Julia server:
 
 - **Green**: Connected to the server
 - **Yellow**: Connecting or reconnecting
 - **Red**: Disconnected from the server
 - **Gray**: No connection mode (static export)
 
-The indicator also blinks during large data transfers.
+### Enabling the Indicator
 
-### Disabling the Indicator
+To show the connection indicator, pass a `ConnectionIndicator()` to your App:
 
 ```julia
-App(; indicator=nothing) do
-    DOM.h1("No indicator on this app")
+App(; indicator=ConnectionIndicator()) do
+    DOM.h1("App with connection indicator")
 end
 ```
 
@@ -165,12 +165,9 @@ function Bonito.jsrender(session::Session, indicator::TextIndicator)
         };
 
         const indicator = {
-            onStatusChange: function(status, connectionType) {
+            onStatusChange: function(status) {
                 element.textContent = messages[status] || messages.disconnected;
                 element.style.color = colors[status] || colors.disconnected;
-            },
-            onDataTransfer: function(isTransferring) {
-                element.style.opacity = isTransferring ? "0.6" : "1";
             }
         };
 
@@ -196,14 +193,8 @@ When creating a custom indicator, register it with Bonito using these JavaScript
 // Register your indicator object
 Bonito.register_connection_indicator({
     // Called when connection status changes
-    onStatusChange: function(status, connectionType) {
+    onStatusChange: function(status) {
         // status: "connected" | "connecting" | "disconnected" | "no_connection"
-        // connectionType: "websocket" | "no_connection" | etc.
-    },
-
-    // Optional: Called during large data transfers
-    onDataTransfer: function(isTransferring) {
-        // isTransferring: true when transfer starts, false when it ends
     }
 });
 
@@ -217,13 +208,4 @@ Bonito.ConnectionStatus.DISCONNECTED   // "disconnected"
 Bonito.ConnectionStatus.NO_CONNECTION  // "no_connection"
 ```
 
-## Connection Types
-
-Bonito supports different connection types for different deployment scenarios:
-
-| Connection Type | Description | Indicator Behavior |
-|----------------|-------------|-------------------|
-| `WebSocketConnection` | Default, real-time bidirectional | Shows connected/disconnected |
-| `NoConnection` | Static export, no Julia interaction | Shows gray "no connection" |
-
-The indicator automatically adapts to the connection type being used.
+The indicator automatically shows the appropriate status based on the connection state, including "no_connection" for static exports.

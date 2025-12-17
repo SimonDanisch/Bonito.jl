@@ -42,7 +42,6 @@ const ConnectionStatus = {
  * @property {string} status - Connection status, initially set to "closed".
  * @property {boolean} compression_enabled - Flag indicating if compression is enabled, initially set to false.
  * @property {Object|null} indicator - Registered connection indicator object.
- * @property {string} connectionType - Type of connection being used.
  */
 const CONNECTION = {
     send_message: undefined,
@@ -50,15 +49,13 @@ const CONNECTION = {
     status: "closed",
     compression_enabled: false,
     lastPing: Date.now(),
-    indicator: null,
-    connectionType: "websocket",
-    transferring: false
+    indicator: null
 };
 
 /**
  * Register a connection indicator object.
- * The indicator should implement: onStatusChange(status, connectionType)
- * and optionally: onDataTransfer(isTransferring)
+ * The indicator should implement: onStatusChange(status)
+ * where status is one of: "connected", "connecting", "disconnected", "no_connection"
  * @param {Object} indicator - The indicator object with callback methods
  */
 export function register_connection_indicator(indicator) {
@@ -75,11 +72,11 @@ export function unregister_connection_indicator() {
 }
 
 /**
- * Set the connection type (for NoConnection support)
- * @param {string} connectionType - Type of connection (websocket, no_connection, etc.)
+ * Set status to no_connection (for static/offline mode)
+ * This is called by NoConnection setup to indicate no Julia server connection
  */
-export function set_connection_type(connectionType) {
-    CONNECTION.connectionType = connectionType;
+export function set_no_connection() {
+    CONNECTION.status = "no_connection";
     notify_indicator_status();
 }
 
@@ -89,7 +86,7 @@ export function set_connection_type(connectionType) {
 function notify_indicator_status() {
     if (CONNECTION.indicator && typeof CONNECTION.indicator.onStatusChange === 'function') {
         let status;
-        if (CONNECTION.connectionType === "no_connection") {
+        if (CONNECTION.status === "no_connection") {
             status = ConnectionStatus.NO_CONNECTION;
         } else if (CONNECTION.status === "open") {
             status = ConnectionStatus.CONNECTED;
@@ -98,18 +95,7 @@ function notify_indicator_status() {
         } else {
             status = ConnectionStatus.DISCONNECTED;
         }
-        CONNECTION.indicator.onStatusChange(status, CONNECTION.connectionType);
-    }
-}
-
-/**
- * Notify indicator that data transfer is happening (for blinking)
- * @param {boolean} isTransferring - Whether data is currently being transferred
- */
-export function notify_data_transfer(isTransferring) {
-    CONNECTION.transferring = isTransferring;
-    if (CONNECTION.indicator && typeof CONNECTION.indicator.onDataTransfer === 'function') {
-        CONNECTION.indicator.onDataTransfer(isTransferring);
+        CONNECTION.indicator.onStatusChange(status);
     }
 }
 

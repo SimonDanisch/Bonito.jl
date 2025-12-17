@@ -17,14 +17,8 @@ function jsrender(session::Session, indicator::ConnectionIndicator)
         "pointer-events" => "auto",
     )
 
-    # CSS for animations and hover effects
+    # CSS for hover effects
     indicator_css = Styles(
-        CSS(
-            "@keyframes bonito-indicator-blink",
-            CSS("0%", "opacity" => "1"),
-            CSS("50%", "opacity" => "0.3"),
-            CSS("100%", "opacity" => "1"),
-        ),
         CSS(
             ".bonito-indicator:hover",
             "transform" => "scale(1.3)",
@@ -64,7 +58,7 @@ function jsrender(session::Session, indicator::ConnectionIndicator)
         };
 
         const indicatorObj = {
-            onStatusChange: function(status, connectionType) {
+            onStatusChange: function(status) {
                 if (!led) return;
                 // Map status to color
                 const color = colors[status] || colors.disconnected;
@@ -73,18 +67,6 @@ function jsrender(session::Session, indicator::ConnectionIndicator)
 
                 // Update tooltip
                 led.title = tooltips[status] || tooltips.disconnected;
-
-                // Stop any existing blink animation when status changes
-                led.style.animation = '';
-            },
-
-            onDataTransfer: function(isTransferring) {
-                if (!led) return;
-                if (isTransferring) {
-                    led.style.animation = 'bonito-indicator-blink 0.5s ease-in-out infinite';
-                } else {
-                    led.style.animation = '';
-                }
             }
         };
 

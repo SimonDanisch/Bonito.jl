@@ -16,8 +16,7 @@ const {
     send_to_julia,
     register_connection_indicator,
     unregister_connection_indicator,
-    set_connection_type,
-    notify_data_transfer,
+    set_no_connection,
     ConnectionStatus,
 } = Connection;
 
@@ -216,8 +215,7 @@ const Bonito = {
     // Connection indicator API
     register_connection_indicator,
     unregister_connection_indicator,
-    set_connection_type,
-    notify_data_transfer,
+    set_no_connection,
     ConnectionStatus,
 
     Sessions,
@@ -265,8 +263,7 @@ export {
     // Connection indicator API
     register_connection_indicator,
     unregister_connection_indicator,
-    set_connection_type,
-    notify_data_transfer,
+    set_no_connection,
     ConnectionStatus,
     Sessions,
     init_session,
