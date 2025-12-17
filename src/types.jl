@@ -306,6 +306,8 @@ mutable struct Session{Connection <: FrontendConnection}
     stylesheets::OrderedDict{HTMLElement, OrderedSet{CSS}}
     inbox::Channel{Vector{UInt8}}
     threadid::Int
+    # User metadata storage - accessed via root session
+    metadata::Dict{Symbol, Any}
 
     function Session(
             parent::Union{Session, Nothing},
@@ -359,7 +361,8 @@ mutable struct Session{Connection <: FrontendConnection}
             RefValue{Union{Nothing,IOContext}}(nothing),
             OrderedDict{HTMLElement,OrderedSet{CSS}}(),
             inbox,
-            Threads.threadid()
+            Threads.threadid(),
+            Dict{Symbol, Any}()
         )
 
         task = Task() do
