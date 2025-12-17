@@ -104,10 +104,14 @@ function rendered_dom(session::Session, app::App, target=HTTP.Request(); apply_j
     try
         dom = Base.invokelatest(app.handler, session, target)
         if apply_jsrender
-            return Base.invokelatest(jsrender, session, dom)
-        else
-            return dom
+            dom = Base.invokelatest(jsrender, session, dom)
         end
+        # Only render indicator for root sessions (not subsessions)
+        if isroot(session) && !isnothing(app.indicator)
+            indicator_dom = jsrender(session, app.indicator)
+            dom = DOM.div(dom, indicator_dom)
+        end
+        return dom
     catch err
         html = HTTPServer.err_to_html(err, Base.catch_backtrace())
         return jsrender(session, html)

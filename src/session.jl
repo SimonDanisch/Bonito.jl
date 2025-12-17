@@ -388,13 +388,6 @@ end
 
 function session_dom(session::Session, app::App; init=true, html_document=false)
     dom = rendered_dom(session, app)
-    # Only render indicator for root sessions (not subsessions)
-    if isroot(session) && !isnothing(app.indicator)
-        indicator_dom = jsrender(session, app.indicator)
-        # Append indicator as sibling - don't wrap in a positioned container
-        # since the indicator uses position: fixed
-        dom = DOM.div(dom, indicator_dom)
-    end
     # Ensure we have a valid DOM node (handles App(nothing; indicator=nothing))
     if isnothing(dom)
         dom = DOM.div()
