@@ -19,7 +19,7 @@
 end
 
 @testset "deduplication in rendered dom" begin
-    app = App() do
+    app = App(; indicator=nothing) do
         base = Styles("border" => "1px solid black", "padding" => "5px")
         days = map(1:31) do day
             DOM.div(day; style=Styles(base, "background-color" => "gray", "color" => "black"))
@@ -150,7 +150,7 @@ end
 @testset "render_stylesheets! order with multiple nodes" begin
     # Test that render_stylesheets! maintains consistent CSS ordering
     # when multiple nodes share styles
-    app = App() do
+    app = App(; indicator=nothing) do
         css_base = CSS("", "margin" => "5px")
         css_priority = CSS("", "padding" => "10px")
 

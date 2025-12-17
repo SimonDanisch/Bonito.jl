@@ -464,7 +464,7 @@ mutable struct App
     indicator::Union{Nothing, AbstractConnectionIndicator}
     function App(handler::Function;
             title::AbstractString="Bonito App",
-            indicator::Union{Nothing, AbstractConnectionIndicator}=ConnectionIndicator(),
+            indicator::Union{Nothing, AbstractConnectionIndicator}=nothing,
             threaded=nothing)
 
         if threaded isa Bool
