@@ -26,24 +26,107 @@ function clean_stack(stack) {
 
 
 /**
+ * Connection status constants
+ */
+const ConnectionStatus = {
+    CONNECTING: "connecting",
+    CONNECTED: "connected",
+    DISCONNECTED: "disconnected",
+    NO_CONNECTION: "no_connection"
+};
+
+/**
  * @namespace CONNECTION
  * @property {Function|undefined} send_message - Function to send a message. Initially undefined.
  * @property {Array} queue - Array to hold queued messages.
  * @property {string} status - Connection status, initially set to "closed".
  * @property {boolean} compression_enabled - Flag indicating if compression is enabled, initially set to false.
+ * @property {Object|null} indicator - Registered connection indicator object.
+ * @property {string} connectionType - Type of connection being used.
  */
 const CONNECTION = {
     send_message: undefined,
     queue: [],
     status: "closed",
     compression_enabled: false,
-    lastPing: Date.now()
+    lastPing: Date.now(),
+    indicator: null,
+    connectionType: "websocket",
+    transferring: false
 };
+
+/**
+ * Register a connection indicator object.
+ * The indicator should implement: onStatusChange(status, connectionType)
+ * and optionally: onDataTransfer(isTransferring)
+ * @param {Object} indicator - The indicator object with callback methods
+ */
+export function register_connection_indicator(indicator) {
+    CONNECTION.indicator = indicator;
+    // Immediately notify the current status
+    notify_indicator_status();
+}
+
+/**
+ * Unregister the current connection indicator
+ */
+export function unregister_connection_indicator() {
+    CONNECTION.indicator = null;
+}
+
+/**
+ * Set the connection type (for NoConnection support)
+ * @param {string} connectionType - Type of connection (websocket, no_connection, etc.)
+ */
+export function set_connection_type(connectionType) {
+    CONNECTION.connectionType = connectionType;
+    notify_indicator_status();
+}
+
+/**
+ * Notify the indicator of the current connection status
+ */
+function notify_indicator_status() {
+    if (CONNECTION.indicator && typeof CONNECTION.indicator.onStatusChange === 'function') {
+        let status;
+        if (CONNECTION.connectionType === "no_connection") {
+            status = ConnectionStatus.NO_CONNECTION;
+        } else if (CONNECTION.status === "open") {
+            status = ConnectionStatus.CONNECTED;
+        } else if (CONNECTION.status === "connecting") {
+            status = ConnectionStatus.CONNECTING;
+        } else {
+            status = ConnectionStatus.DISCONNECTED;
+        }
+        CONNECTION.indicator.onStatusChange(status, CONNECTION.connectionType);
+    }
+}
+
+/**
+ * Notify indicator that data transfer is happening (for blinking)
+ * @param {boolean} isTransferring - Whether data is currently being transferred
+ */
+export function notify_data_transfer(isTransferring) {
+    CONNECTION.transferring = isTransferring;
+    if (CONNECTION.indicator && typeof CONNECTION.indicator.onDataTransfer === 'function') {
+        CONNECTION.indicator.onDataTransfer(isTransferring);
+    }
+}
+
+/**
+ * Set status to connecting (called before connection attempt)
+ */
+export function on_connection_connecting() {
+    CONNECTION.status = "connecting";
+    notify_indicator_status();
+}
 
 export function on_connection_open(send_message_callback, compression_enabled, enable_pings = true) {
     CONNECTION.send_message = send_message_callback;
     CONNECTION.status = "open";
     CONNECTION.compression_enabled = compression_enabled;
+    // Notify indicator of connected status
+    notify_indicator_status();
     // Once connection open, we send all messages that have queued up
     CONNECTION.queue.forEach((message) => send_to_julia(message));
     if (enable_pings) {
@@ -53,6 +136,7 @@ export function on_connection_open(send_message_callback, compression_enabled, e
 
 export function on_connection_close() {
     CONNECTION.status = "closed";
+    notify_indicator_status();
 }
 
 export function can_send_to_julia() {
@@ -177,5 +261,6 @@ export {
     JavascriptWarning,
     RegisterObservable,
     JSDoneLoading,
-    FusedMessage
+    FusedMessage,
+    ConnectionStatus
 };

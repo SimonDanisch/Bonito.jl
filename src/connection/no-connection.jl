@@ -7,4 +7,12 @@ end
 Base.isopen(::NoConnection) = false
 Base.close(::NoConnection) = nothing # nothing to close
 
-setup_connection(session::Session{NoConnection}) = nothing
+function setup_connection(session::Session{NoConnection})
+    # Notify JavaScript that this is a no-connection session
+    # so the indicator can show the appropriate status
+    return js"""
+    if (typeof Bonito !== 'undefined' && Bonito.set_connection_type) {
+        Bonito.set_connection_type('no_connection');
+    }
+    """
+end

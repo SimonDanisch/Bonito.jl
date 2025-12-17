@@ -110,6 +110,11 @@ class Websocket {
     }
 
     tryconnect() {
+        // Notify indicator that we're attempting to connect
+        if (typeof Bonito !== 'undefined' && Bonito.on_connection_connecting) {
+            Bonito.on_connection_connecting();
+        }
+
         const ws = new WebSocket(this.url);
         ws.binaryType = "arraybuffer";
         this.#websocket = ws;
@@ -126,6 +131,11 @@ class Websocket {
                         // test write
                         return resolve(null);
                     }
+                    // Notify indicator of data transfer for large messages (> 10KB)
+                    const isLargeTransfer = binary.length > 10240;
+                    if (isLargeTransfer && typeof Bonito !== 'undefined' && Bonito.notify_data_transfer) {
+                        Bonito.notify_data_transfer(true);
+                    }
                     Bonito.lock_loading(() => {
                         Bonito.process_message(
                             Bonito.decode_binary(
@@ -133,6 +143,10 @@ class Websocket {
                                 this_ws.compression_enabled
                             )
                         );
+                        // Signal end of transfer
+                        if (isLargeTransfer && typeof Bonito !== 'undefined' && Bonito.notify_data_transfer) {
+                            Bonito.notify_data_transfer(false);
+                        }
                     });
                     return resolve(null);
                 });
