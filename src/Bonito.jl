@@ -67,6 +67,7 @@ include("widgets.jl")
 include("display.jl")
 include("export.jl")
 include("components.jl")
+include("connection_indicator.jl")
 include("tailwind-dashboard.jl")
 
 include("interactive.jl")
@@ -85,6 +86,7 @@ export Labeled, StylableSlider, Centered
 export interactive_server
 export ChoicesBox, ChoicesJSParams
 export ProtectedRoute, User, SingleUser, AbstractPasswordStore, FolderServer
+export ConnectionIndicator, AbstractConnectionIndicator
 export get_metadata, set_metadata!
 
 function has_html_display()

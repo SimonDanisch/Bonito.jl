@@ -87,6 +87,9 @@ class Websocket {
         attempt_connection();
     }
     tryconnect() {
+        if (typeof Bonito !== 'undefined' && Bonito.on_connection_connecting) {
+            Bonito.on_connection_connecting();
+        }
         const ws = new WebSocket(this.url);
         ws.binaryType = "arraybuffer";
         this.#websocket = ws;
@@ -100,8 +103,15 @@ class Websocket {
                     if (binary.length === 1 && binary[0] === 0) {
                         return resolve(null);
                     }
+                    const isLargeTransfer = binary.length > 10240;
+                    if (isLargeTransfer && typeof Bonito !== 'undefined' && Bonito.notify_data_transfer) {
+                        Bonito.notify_data_transfer(true);
+                    }
                     Bonito.lock_loading(()=>{
                         Bonito.process_message(Bonito.decode_binary(binary, this_ws.compression_enabled));
+                        if (isLargeTransfer && typeof Bonito !== 'undefined' && Bonito.notify_data_transfer) {
+                            Bonito.notify_data_transfer(false);
+                        }
                     });
                     return resolve(null);
                 });

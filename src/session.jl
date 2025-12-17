@@ -388,6 +388,10 @@ end
 
 function session_dom(session::Session, app::App; init=true, html_document=false)
     dom = rendered_dom(session, app)
+    # Ensure we have a valid DOM node (handles App(nothing; indicator=nothing))
+    if isnothing(dom)
+        dom = DOM.div()
+    end
     return session_dom(session, dom; init=init, html_document=html_document)
 end
 

@@ -245,6 +245,9 @@ routes = Routes(
 Bonito.export_static("html/folder", routes)
 ```
 
+!!! tip "Connection Indicator"
+    If you enable the [connection indicator](@ref "Connection Indicator"), it will display a gray color in static exports to indicate that no Julia server connection is available.
+
 Please visit [Static Sites](@ref) for more details.
 
 ## Anything else

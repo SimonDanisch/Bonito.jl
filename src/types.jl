@@ -26,6 +26,14 @@ JSCode(source) = JSCode(source, "")
 abstract type AbstractAsset end
 
 """
+    AbstractConnectionIndicator
+
+Abstract type for connection indicators. Custom indicators should subtype this.
+Implementations should define `jsrender(session::Session, indicator::T)` where T is the subtype.
+"""
+abstract type AbstractConnectionIndicator end
+
+"""
     Asset(path_or_url; name=nothing, es6module=false, check_isfile=false, bundle_dir=nothing, mediatype=:inferred)
 
 Represent an asset (JavaScript, CSS, image, etc.) that can be included in a Bonito DOM.
@@ -215,6 +223,48 @@ struct Styles
 end
 
 const HTMLElement = Node{Hyperscript.HTMLSVG}
+
+"""
+    ConnectionIndicator <: AbstractConnectionIndicator
+
+Default connection indicator showing connection status as an LED-like circle.
+See the full documentation with `?ConnectionIndicator` after loading Bonito.
+"""
+struct ConnectionIndicator <: AbstractConnectionIndicator
+    connected_color::String
+    connecting_color::String
+    disconnected_color::String
+    no_connection_color::String
+    size::Int
+    position::String
+    top::String
+    right::String
+    style::Styles
+end
+
+function ConnectionIndicator(;
+    connected_color::String="#22c55e",
+    connecting_color::String="#eab308",
+    disconnected_color::String="#ef4444",
+    no_connection_color::String="#6b7280",
+    size::Int=10,
+    position::String="fixed",
+    top::String="10px",
+    right::String="10px",
+    style::Styles=Styles(),
+)
+    return ConnectionIndicator(
+        connected_color,
+        connecting_color,
+        disconnected_color,
+        no_connection_color,
+        size,
+        position,
+        top,
+        right,
+        style,
+    )
+end
 
 """
 A web session with a user
@@ -414,21 +464,24 @@ mutable struct App
     handler::Function
     session::Base.RefValue{Union{Session,Nothing}}
     title::String
+    indicator::Union{Nothing, AbstractConnectionIndicator}
     function App(handler::Function;
-            title::AbstractString="Bonito App", threaded=nothing)
+            title::AbstractString="Bonito App",
+            indicator::Union{Nothing, AbstractConnectionIndicator}=nothing,
+            threaded=nothing)
 
         if threaded isa Bool
             @warn "The `threaded` argument is deprecated and has no effect. Each App is run in a thread created by HTTP.jl."
         end
         session = Base.RefValue{Union{Session, Nothing}}(nothing)
         if hasmethod(handler, Tuple{Session, HTTP.Request})
-            app = new(handler, session, title)
+            app = new(handler, session, title, indicator)
         elseif hasmethod(handler, Tuple{Session})
-            app = new((session, request) -> handler(session), session, title)
+            app = new((session, request) -> handler(session), session, title, indicator)
         elseif hasmethod(handler, Tuple{HTTP.Request})
-            app = new((session, request) -> handler(request), session, title)
+            app = new((session, request) -> handler(request), session, title, indicator)
         elseif hasmethod(handler, Tuple{})
-            app = new((session, request) -> handler(), session, title)
+            app = new((session, request) -> handler(), session, title, indicator)
         else
             error("""
             Handler function must have the following signature:
@@ -441,12 +494,15 @@ mutable struct App
         finalizer(close, app)
         return app
     end
-    function App(dom_object; title="Bonito App", threaded=nothing)
+    function App(dom_object;
+            title="Bonito App",
+        indicator::Union{Nothing,AbstractConnectionIndicator}=nothing,
+            threaded=nothing)
         if threaded isa Bool
             @warn "The `threaded` argument is deprecated and has no effect. Each App is run in a thread created by HTTP.jl."
         end
         session = Base.RefValue{Union{Session,Nothing}}(nothing)
-        app = new((s, r) -> dom_object, session, title)
+        app = new((s, r) -> dom_object, session, title, indicator)
         finalizer(close, app)
         return app
     end

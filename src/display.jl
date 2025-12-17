@@ -62,35 +62,44 @@ get_io_context(io::IOContext) = io
 
 function show_html(io::IO, app::App; parent=CURRENT_SESSION[])
     ctx = get_io_context(io)
-    session =  nothing
-    if !isnothing(parent)
-        # We render in a subsession
-        sub = Session(parent; title=app.title)
-        sub.io_context[] = ctx
-        dom = session_dom(sub, app)
-    else
-        session = Session(title=app.title)
-        if _use_parent_session(session)
-            CURRENT_SESSION[] = session
-            empty_app = App(nothing)
-            sub = Session(session)
+    session = nothing
+    sub = nothing
+    try
+        if !isnothing(parent)
+            # We render in a subsession
+            sub = Session(parent; title=app.title)
             sub.io_context[] = ctx
-            init_dom = session_dom(session, empty_app)
-            sub_dom = session_dom(sub, app)
-            # first time rendering in a subsession, we combine init of parent session
-            # with the dom we're rendering right now
-            dom = DOM.div(init_dom, sub_dom)
-            session.status = DISPLAYED
+            dom = session_dom(sub, app)
         else
-            sub = session
-            sub.io_context[] = ctx
-            dom = session_dom(session, app)
+            session = Session(title=app.title)
+            if _use_parent_session(session)
+                CURRENT_SESSION[] = session
+                # Use indicator from user's app on parent wrapper (only root has indicator)
+                empty_app = App(nothing; indicator=app.indicator)
+                sub = Session(session)
+                sub.io_context[] = ctx
+                init_dom = session_dom(session, empty_app)
+                sub_dom = session_dom(sub, app)
+                # first time rendering in a subsession, we combine init of parent session
+                # with the dom we're rendering right now
+                dom = DOM.div(init_dom, sub_dom)
+                session.status = DISPLAYED
+            else
+                sub = session
+                sub.io_context[] = ctx
+                dom = session_dom(session, app)
+            end
         end
+        show(io, dom)
+        mark_displayed!(sub)
+        isnothing(session) || mark_displayed!(session)
+        return sub
+    catch err
+        # Use unified error handling - closes app session to prevent wait_for_ready hang
+        error_html = handle_app_error!(err, app, nothing)
+        show(io, error_html)
+        return sub
     end
-    show(io, dom)
-    mark_displayed!(sub)
-    isnothing(session) || mark_displayed!(session)
-    return sub
 end
 
 function Base.show(io::IO, ::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
@@ -129,24 +138,29 @@ function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
     if !allow_soft_close()
         show(io, MIME"text/html"(), app)
     else
-        session = Session(title=app.title)
-        sub = Session(session)
-        sub.current_app[] = app
-        sub.io_context[] = get_io_context(io)
-        fetch_app = App() do s
-            dom_node = DOM.div()
-            request = js"""
-                Bonito.send_to_julia({
-                    msg_type: "13",
-                    session: $(sub.id),
-                    replace: $(uuid(sub, dom_node)),
-                });
-            """
-            return DOM.div(request, dom_node)
+        try
+            session = Session(title=app.title)
+            sub = Session(session)
+            sub.current_app[] = app
+            sub.io_context[] = get_io_context(io)
+            fetch_app = App() do s
+                dom_node = DOM.div()
+                request = js"""
+                    Bonito.send_to_julia({
+                        msg_type: "13",
+                        session: $(sub.id),
+                        replace: $(uuid(sub, dom_node)),
+                    });
+                """
+                return DOM.div(request, dom_node)
+            end
+            dom = session_dom(session, fetch_app)
+            show(io, dom)
+            mark_displayed!(session)
+            mark_displayed!(sub)
+        catch err
+            error_html = handle_app_error!(err, app, nothing)
+            show(io, error_html)
         end
-        dom = session_dom(session, fetch_app)
-        show(io, dom)
-        mark_displayed!(session)
-        mark_displayed!(sub)
     end
 end
