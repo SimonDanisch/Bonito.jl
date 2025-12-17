@@ -85,6 +85,7 @@ export Labeled, StylableSlider, Centered
 export interactive_server
 export ChoicesBox, ChoicesJSParams
 export ProtectedRoute, User, SingleUser, AbstractPasswordStore, FolderServer
+export get_metadata, set_metadata!
 
 function has_html_display()
     for display in Base.Multimedia.displays
@@ -101,9 +102,10 @@ function __init__()
         browser_display()
     end
     atexit() do
-        for (task, (task, close_ref)) in Bonito.SERVER_CLEANUP_TASKS
+        for (server, (task, close_ref)) in Bonito.SERVER_CLEANUP_TASKS
             close_ref[] = false
         end
+        empty!(Bonito.SERVER_CLEANUP_TASKS)
         Bonito.CURRENT_SESSION[] = nothing
         if !isnothing(Bonito.GLOBAL_SERVER[])
             close(Bonito.GLOBAL_SERVER[])
