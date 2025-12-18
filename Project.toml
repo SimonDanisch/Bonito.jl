@@ -52,7 +52,7 @@ ThreadPools = "2"
 URIs = "1"
 UUIDs = "1.0, 1.6"
 WidgetsBase = "0.1"
-julia = "1.6"
+julia = "1.10"
 
 [extras]
 Electron = "a1bb12fb-d4d1-54b4-b10a-ee7951ef7ad3"
