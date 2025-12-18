@@ -1,6 +1,6 @@
 name = "Bonito"
 uuid = "824d6782-a2ef-11e9-3a09-e5662e0c26f8"
-version = "4.1.13"
+version = "4.1.14"
 authors = ["SimonDanisch <sdanisch@gmail.com>"]
 
 [deps]
