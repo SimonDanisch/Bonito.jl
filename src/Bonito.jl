@@ -124,9 +124,9 @@ function __init__()
     if !has_html_display()
         browser_display()
     end
-    @static if VERSION >= v"1.11"
-        atexit(cleanup_globals)
-    end
+    # Register atexit for runtime cleanup (when Julia exits normally)
+    # Note: This doesn't affect precompilation since __init__ doesn't run during precompile
+    atexit(cleanup_globals)
 end
 
 end # module

@@ -46,10 +46,10 @@ const ConnectionStatus = {
 const CONNECTION = {
     send_message: undefined,
     queue: [],
-    status: "closed",
+    status: "connecting",
     compression_enabled: false,
     lastPing: Date.now(),
-    indicator: null
+    indicator: null,
 };
 
 /**
@@ -137,10 +137,10 @@ export function send_to_julia(message) {
     const { send_message, status, compression_enabled } = CONNECTION;
     if (send_message !== undefined && status === "open") {
         send_message(encode_binary(message, compression_enabled));
-    } else if (status === "closed") {
+    } else if (status === "connecting") {
         CONNECTION.queue.push(message);
     } else {
-        console.log("Trying to send messages while connection is offline");
+        console.log(`Trying to send messages while connection is offline: ${status}`);
     }
 }
 
