@@ -1,0 +1,67 @@
+’Ç,j“Ù$4898f11c-1624-4dc9-b899-50457a08465f€£sub“ÇFk’Ç-j“Ù$c62f2c22-e780-44b3-a06a-29549a58f1e9€¤root‚§payload¨msg_type¡9Èk’Ç,j“Ù$4898f11c-1624-4dc9-b899-50457a08465f€£sub‚§payloadšÈ+k’Ç7j“Ù$4898f11c-1624-4dc9-b899-50457a08465f¢58Çe’¢58Ã£subƒ£obsÇh¢58§payloadÇÏf“€Ùxreturn value => {
+    Bonito.update_node_attribute(document.querySelector('[data-jscall-id="30"]'), 'checked', value);
+}ÙQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92¨msg_type¡1ÈPk’Ç7j“Ù$4898f11c-1624-4dc9-b899-50457a08465f¢53Çe’¢53Ã£sub‚§payloadÇþf“³9063438978448113299Çh¢53Ù¦(() => {
+    document.querySelector('[data-jscall-id="30"]')['onchange'] = event=> __lookup_interpolated('9063438978448113299').notify(event.srcElement.checked);
+})()Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:345¨msg_type¡2Çÿk’Ç8j“Ù$4898f11c-1624-4dc9-b899-50457a08465f¢59Çe’¢59¡1£subƒ£obsÇh¢59§payloadÇ¢f“€ÙVreturn (val)=> {
+    document.querySelector('[data-jscall-id="35"]').innerText = val
+}ÙF/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/observables.jl:104¨msg_type¡1ÈŽk’ÇOj“Ù$4898f11c-1624-4dc9-b899-50457a08465fƒ¢51Çe’¢51¢52Çe’¢52¢50×e’¢50“£subƒ£obsÇh¢51§payloadÈf“‚²219609311738168500Çh¢50´16693265942334790451Çh¢52Ù§return (index) => {
+    const values = __lookup_interpolated('219609311738168500').value
+    __lookup_interpolated('16693265942334790451').notify(values[index - 1])
+}
+Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:272¨msg_type¡1È(k’Ç8j“Ù$4898f11c-1624-4dc9-b899-50457a08465f¢61Çe’¢61¡3£subƒ£obsÇh¢61§payloadÇËf“€Ùtreturn value => {
+    Bonito.update_node_attribute(document.querySelector('[data-jscall-id="36"]'), 'max', value);
+}ÙQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92¨msg_type¡1È*k’Ç8j“Ù$4898f11c-1624-4dc9-b899-50457a08465f¢62Çe’¢62¡1£subƒ£obsÇh¢62§payloadÇÍf“€Ùvreturn value => {
+    Bonito.update_node_attribute(document.querySelector('[data-jscall-id="36"]'), 'value', value);
+}ÙQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92¨msg_type¡1È½k’Ç,j“Ù$4898f11c-1624-4dc9-b899-50457a08465f€£sub‚§payloadÈuf“´15478467940892496540Çh¢51Ú(() => {
+    document.querySelector('[data-jscall-id="36"]')['oninput'] = (event)=> {
+    const idx = event.srcElement.valueAsNumber;
+    if (idx !== __lookup_interpolated('15478467940892496540').value) {
+        __lookup_interpolated('15478467940892496540').notify(idx)
+    }
+}
+})()Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:287¨msg_type¡2Èk’Ç;j“Ù$4898f11c-1624-4dc9-b899-50457a08465f¢65Ç	e’¢65¤true£subƒ£obsÇh¢65§payloadÇ¢f“€ÙVreturn (val)=> {
+    document.querySelector('[data-jscall-id="46"]').innerText = val
+}ÙF/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/observables.jl:104¨msg_type¡1Çÿk’Ç8j“Ù$4898f11c-1624-4dc9-b899-50457a08465f¢66Çe’¢66¡1£subƒ£obsÇh¢66§payloadÇ¢f“€ÙVreturn (val)=> {
+    document.querySelector('[data-jscall-id="47"]').innerText = val
+}ÙF/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/observables.jl:104¨msg_type¡1È„k’ÇNj“Ù$4898f11c-1624-4dc9-b899-50457a08465f‚¢54Çe’¢54¢63Çe’¢63“£sin£tan£cos£sub‚§payloadÈf“‚³4884017019520182225Çh¢63´13318738625994327802Çh¢54Ú¦(function onload(element) {
+    function onchange(e) {
+        if (element === e.srcElement) {
+            (__lookup_interpolated('13318738625994327802')).notify(element.selectedIndex + 1);
+        }
+    }
+    element.addEventListener("change", onchange);
+    element.selectedIndex = 0
+    function set_option_index(index) {
+        if (element.selectedIndex === index - 1) {
+            return
+        }
+        element.selectedIndex = index - 1;
+    }
+    __lookup_interpolated('13318738625994327802').on(set_option_index);
+    function set_options(opts) {
+        element.selectedIndex = 0;
+        // https://stackoverflow.com/questions/3364493/how-do-i-clear-all-options-in-a-dropdown-box
+        element.options.length = 0;
+        opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
+    }
+    __lookup_interpolated('4884017019520182225').on(set_options);
+}
+)(document.querySelector('[data-jscall-id="39"]'));Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:214¨msg_type¡2¨msg_type¡9È k’Ç,j“Ù$4898f11c-1624-4dc9-b899-50457a08465f€£sub‚§payloadÈÑf“³4249040182382077282ƒ¢53‚¤true“ÇKk’Ç,j“Ù$4898f11c-1624-4dc9-b899-50457a08465f€£subƒ§payloadÃ¢id¢58¨msg_type¡0ÇOk’Ç,j“Ù$4898f11c-1624-4dc9-b899-50457a08465f€£subƒ§payload¤true¢id¢65¨msg_type¡0Èuk’Ç,j“Ù$646674b8-9c19-4a21-a22a-f4b80d0e4c0b€£sub†ªsession_idÙ$646674b8-9c19-4a21-a22a-f4b80d0e4c0b¨messages§replaceÂ¨msg_type¢12¤htmlÈÖi“£div’Ç8i“£div‘Çi“¥style‘ ®data-jscall-id¢79®data-jscall-id¢78È'i“£div‘È
+i“£div“Ç:i“£div‘Çi“£pre‘¤true®data-jscall-id¢73®data-jscall-id¢72Ç7i“£div‘Çi“£pre‘¡1®data-jscall-id¢75®data-jscall-id¢74Ç]i“£div‘ÇAi“£pre‘Ù&sin (generic function with 14 methods)®data-jscall-id¢77®data-jscall-id¢76‚¥class³my-2 flex flex-col ®data-jscall-id¢71®data-jscall-id¢80ƒ¥class¯bonito-fragment¢idÙ$646674b8-9c19-4a21-a22a-f4b80d0e4c0b®data-jscall-idºsubsession-application-dom±dom_node_selector¢65¥false“ÇKk’Ç,j“Ù$4898f11c-1624-4dc9-b899-50457a08465f€£subƒ§payloadÂ¢id¢58¨msg_type¡0ÇPk’Ç,j“Ù$4898f11c-1624-4dc9-b899-50457a08465f€£subƒ§payload¥false¢id¢65¨msg_type¡0Èvk’Ç,j“Ù$754b5101-fcc3-4c39-adbf-1ba4bb50d713€£sub†ªsession_idÙ$754b5101-fcc3-4c39-adbf-1ba4bb50d713¨messages§replaceÂ¨msg_type¢12¤htmlÈ×i“£div’Ç8i“£div‘Çi“¥style‘ ®data-jscall-id¢89®data-jscall-id¢88È(i“£div‘Èi“£div“Ç;i“£div‘Çi“£pre‘¥false®data-jscall-id¢83®data-jscall-id¢82Ç7i“£div‘Çi“£pre‘¡1®data-jscall-id¢85®data-jscall-id¢84Ç]i“£div‘ÇAi“£pre‘Ù&sin (generic function with 14 methods)®data-jscall-id¢87®data-jscall-id¢86‚¥class³my-2 flex flex-col ®data-jscall-id¢81®data-jscall-id¢90ƒ¥class¯bonito-fragment¢idÙ$754b5101-fcc3-4c39-adbf-1ba4bb50d713®data-jscall-idºsubsession-application-dom±dom_node_selector¢65¢54ƒ¡1‘ÈPk’Ç,j“Ù$716be884-17fd-4c48-8160-cefb63de471e€£sub†ªsession_idÙ$716be884-17fd-4c48-8160-cefb63de471e¨messages‘È€k’Ç,j“Ù$bb8a4c9d-3ce0-45d3-a1b2-84435a36b2ac€£sub†ªsession_idÙ$bb8a4c9d-3ce0-45d3-a1b2-84435a36b2ac¨messages§replaceÂ¨msg_type¢12¤htmlÈái“£div’Ç:i“£div‘Çi“¥style‘ ®data-jscall-id£129®data-jscall-id£128È0i“£div‘Èi“£div“Ç=i“£div‘Ç i“£pre‘¥false®data-jscall-id£123®data-jscall-id£122Ç9i“£div‘Çi“£pre‘¡3®data-jscall-id£125®data-jscall-id£124Ç_i“£div‘ÇBi“£pre‘Ù&sin (generic function with 14 methods)®data-jscall-id£127®data-jscall-id£126‚¥class³my-2 flex flex-col ®data-jscall-id£121®data-jscall-id£130ƒ¥class¯bonito-fragment¢idÙ$bb8a4c9d-3ce0-45d3-a1b2-84435a36b2ac®data-jscall-idºsubsession-application-dom±dom_node_selector¢65§replaceÂ¨msg_type¢12¤htmlÈ-i“£div’Ç:i“£div‘Çi“¥style‘ ®data-jscall-id£134®data-jscall-id£133Ç}i“£div‘Ç`i“¤span‘ÇBi“£pre‘Ù&sin (generic function with 14 methods)®data-jscall-id£132®data-jscall-id£131®data-jscall-id£135ƒ¥class¯bonito-fragment¢idÙ$716be884-17fd-4c48-8160-cefb63de471e®data-jscall-idºsubsession-application-dom±dom_node_selector¢50¡2‘ÈPk’Ç,j“Ù$c2ead4b1-c732-465d-9cbc-d6d3a8355230€£sub†ªsession_idÙ$c2ead4b1-c732-465d-9cbc-d6d3a8355230¨messages‘È€k’Ç,j“Ù$b82e9750-8ce7-46fa-83a7-19fb3c20f1a6€£sub†ªsession_idÙ$b82e9750-8ce7-46fa-83a7-19fb3c20f1a6¨messages§replaceÂ¨msg_type¢12¤htmlÈái“£div’Ç:i“£div‘Çi“¥style‘ ®data-jscall-id£144®data-jscall-id£143È0i“£div‘Èi“£div“Ç=i“£div‘Ç i“£pre‘¥false®data-jscall-id£138®data-jscall-id£137Ç9i“£div‘Çi“£pre‘¡3®data-jscall-id£140®data-jscall-id£139Ç_i“£div‘ÇBi“£pre‘Ù&tan (generic function with 13 methods)®data-jscall-id£142®data-jscall-id£141‚¥class³my-2 flex flex-col ®data-jscall-id£136®data-jscall-id£145ƒ¥class¯bonito-fragment¢idÙ$b82e9750-8ce7-46fa-83a7-19fb3c20f1a6®data-jscall-idºsubsession-application-dom±dom_node_selector¢65§replaceÂ¨msg_type¢12¤htmlÈ-i“£div’Ç:i“£div‘Çi“¥style‘ ®data-jscall-id£149®data-jscall-id£148Ç}i“£div‘Ç`i“¤span‘ÇBi“£pre‘Ù&tan (generic function with 13 methods)®data-jscall-id£147®data-jscall-id£146®data-jscall-id£150ƒ¥class¯bonito-fragment¢idÙ$c2ead4b1-c732-465d-9cbc-d6d3a8355230®data-jscall-idºsubsession-application-dom±dom_node_selector¢50¡3‘ÈPk’Ç,j“Ù$2a947687-b026-488e-9db4-7a8ae7d98391€£sub†ªsession_idÙ$2a947687-b026-488e-9db4-7a8ae7d98391¨messages‘È€k’Ç,j“Ù$3d5a5d53-42eb-4016-ac80-cd5587690db4€£sub†ªsession_idÙ$3d5a5d53-42eb-4016-ac80-cd5587690db4¨messages§replaceÂ¨msg_type¢12¤htmlÈái“£div’Ç:i“£div‘Çi“¥style‘ ®data-jscall-id£159®data-jscall-id£158È0i“£div‘Èi“£div“Ç=i“£div‘Ç i“£pre‘¥false®data-jscall-id£153®data-jscall-id£152Ç9i“£div‘Çi“£pre‘¡3®data-jscall-id£155®data-jscall-id£154Ç_i“£div‘ÇBi“£pre‘Ù&cos (generic function with 14 methods)®data-jscall-id£157®data-jscall-id£156‚¥class³my-2 flex flex-col ®data-jscall-id£151®data-jscall-id£160ƒ¥class¯bonito-fragment¢idÙ$3d5a5d53-42eb-4016-ac80-cd5587690db4®data-jscall-idºsubsession-application-dom±dom_node_selector¢65§replaceÂ¨msg_type¢12¤htmlÈ-i“£div’Ç:i“£div‘Çi“¥style‘ ®data-jscall-id£164®data-jscall-id£163Ç}i“£div‘Ç`i“¤span‘ÇBi“£pre‘Ù&cos (generic function with 14 methods)®data-jscall-id£162®data-jscall-id£161®data-jscall-id£165ƒ¥class¯bonito-fragment¢idÙ$2a947687-b026-488e-9db4-7a8ae7d98391®data-jscall-idºsubsession-application-dom±dom_node_selector¢50¢52ƒ¡1“ÇLk’Ç,j“Ù$4898f11c-1624-4dc9-b899-50457a08465f€£subƒ§payload¡1¢id¢59¨msg_type¡0ÇLk’Ç,j“Ù$4898f11c-1624-4dc9-b899-50457a08465f€£subƒ§payload¡1¢id¢66¨msg_type¡0Èwk’Ç,j“Ù$0f8a56ba-1101-41e6-b64d-2a6d250d3132€£sub†ªsession_idÙ$0f8a56ba-1101-41e6-b64d-2a6d250d3132¨messages§replaceÂ¨msg_type¢12¤htmlÈØi“£div’Ç8i“£div‘Çi“¥style‘ ®data-jscall-id¢99®data-jscall-id¢98È)i“£div‘Èi“£div“Ç;i“£div‘Çi“£pre‘¥false®data-jscall-id¢93®data-jscall-id¢92Ç7i“£div‘Çi“£pre‘¡1®data-jscall-id¢95®data-jscall-id¢94Ç]i“£div‘ÇAi“£pre‘Ù&sin (generic function with 14 methods)®data-jscall-id¢97®data-jscall-id¢96‚¥class³my-2 flex flex-col ®data-jscall-id¢91®data-jscall-id£100ƒ¥class¯bonito-fragment¢idÙ$0f8a56ba-1101-41e6-b64d-2a6d250d3132®data-jscall-idºsubsession-application-dom±dom_node_selector¢65¡2“ÇLk’Ç,j“Ù$4898f11c-1624-4dc9-b899-50457a08465f€£subƒ§payload¡2¢id¢59¨msg_type¡0ÇLk’Ç,j“Ù$4898f11c-1624-4dc9-b899-50457a08465f€£subƒ§payload¡2¢id¢66¨msg_type¡0È€k’Ç,j“Ù$2f55558b-da6b-40fc-b97e-b756fa65a761€£sub†ªsession_idÙ$2f55558b-da6b-40fc-b97e-b756fa65a761¨messages§replaceÂ¨msg_type¢12¤htmlÈái“£div’Ç:i“£div‘Çi“¥style‘ ®data-jscall-id£109®data-jscall-id£108È0i“£div‘Èi“£div“Ç=i“£div‘Ç i“£pre‘¥false®data-jscall-id£103®data-jscall-id£102Ç9i“£div‘Çi“£pre‘¡2®data-jscall-id£105®data-jscall-id£104Ç_i“£div‘ÇBi“£pre‘Ù&sin (generic function with 14 methods)®data-jscall-id£107®data-jscall-id£106‚¥class³my-2 flex flex-col ®data-jscall-id£101®data-jscall-id£110ƒ¥class¯bonito-fragment¢idÙ$2f55558b-da6b-40fc-b97e-b756fa65a761®data-jscall-idºsubsession-application-dom±dom_node_selector¢65¡3“ÇLk’Ç,j“Ù$4898f11c-1624-4dc9-b899-50457a08465f€£subƒ§payload¡3¢id¢59¨msg_type¡0ÇLk’Ç,j“Ù$4898f11c-1624-4dc9-b899-50457a08465f€£subƒ§payload¡3¢id¢66¨msg_type¡0È€k’Ç,j“Ù$d183a5b9-8d96-4e0d-916c-cbe4753ef629€£sub†ªsession_idÙ$d183a5b9-8d96-4e0d-916c-cbe4753ef629¨messages§replaceÂ¨msg_type¢12¤htmlÈái“£div’Ç:i“£div‘Çi“¥style‘ ®data-jscall-id£119®data-jscall-id£118È0i“£div‘Èi“£div“Ç=i“£div‘Ç i“£pre‘¥false®data-jscall-id£113®data-jscall-id£112Ç9i“£div‘Çi“£pre‘¡3®data-jscall-id£115®data-jscall-id£114Ç_i“£div‘ÇBi“£pre‘Ù&sin (generic function with 14 methods)®data-jscall-id£117®data-jscall-id£116‚¥class³my-2 flex flex-col ®data-jscall-id£111®data-jscall-id£120ƒ¥class¯bonito-fragment¢idÙ$d183a5b9-8d96-4e0d-916c-cbe4753ef629®data-jscall-idºsubsession-application-dom±dom_node_selector¢65ÚÆBonito.fetch_binary('bonito/bin/4dd64a44a44f73591968e98ae0bf0533375e36a9-15730689555348272089.bin').then(binary => {
+    const widget_statemaps = __lookup_interpolated('4249040182382077282')
+    console.log('Widget statemaps:', widget_statemaps)
+    const observables = Bonito.decode_binary(binary, false);
+    // Set up individual listeners for each observable
+    observables.forEach((obs, idx) => {
+        obs.on(value => {
+            const obs_states = widget_statemaps[obs.id]
+            const key = Bonito.generate_state_key(value);
+            const messages = obs_states[key];
+            if (messages){
+                messages.forEach(Bonito.process_message)
+            }
+        });
+    });
+
+})
+Ù7/home/runner/work/Bonito.jl/Bonito.jl/src/export.jl:222¨msg_type¡2

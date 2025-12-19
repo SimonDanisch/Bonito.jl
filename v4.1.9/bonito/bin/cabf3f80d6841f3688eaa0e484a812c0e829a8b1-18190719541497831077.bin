@@ -1,0 +1,137 @@
+’Ç,j“Ù$88b1d7b1-40e4-4a22-bf34-c3d638a0e6af€£sub‘ÈKk’Ç,j“Ù$88b1d7b1-40e4-4a22-bf34-c3d638a0e6af€£sub‚§payloadÈf“€ÚÄ(function() {
+    const container = document.querySelector('[data-jscall-id="15"]');
+    let sort_directions = {};
+    const table = container.querySelector('.comparison-table');
+    const tbody = table.querySelector('tbody');
+    const thead = table.querySelector('thead');
+
+    function sort_table_by_column(column_index) {
+        if (!true) return;
+
+        const current_direction = sort_directions['col_' + column_index] || 'asc';
+        const new_direction = current_direction === 'asc' ? 'desc' : 'asc';
+        sort_directions['col_' + column_index] = new_direction;
+
+        const rows = Array.from(tbody.children);
+        rows.sort((a, b) => {
+            const a_value = a.children[column_index].getAttribute('data-value');
+            const b_value = b.children[column_index].getAttribute('data-value');
+
+            if (!a_value || a_value === '') return 1;
+            if (!b_value || b_value === '') return -1;
+
+            const a_num = parseFloat(a_value);
+            const b_num = parseFloat(b_value);
+
+            let comparison = 0;
+            if (!isNaN(a_num) && !isNaN(b_num)) {
+                comparison = a_num - b_num;
+            } else {
+                comparison = a_value.localeCompare(b_value);
+            }
+
+            return new_direction === 'asc' ? comparison : -comparison;
+        });
+
+        tbody.innerHTML = '';
+        rows.forEach(row => tbody.appendChild(row));
+    }
+
+    function sort_row_by_values(row_index) {
+        if (!true) return;
+
+        const current_direction = sort_directions['row_' + row_index] || 'asc';
+        const new_direction = current_direction === 'asc' ? 'desc' : 'asc';
+        sort_directions['row_' + row_index] = new_direction;
+
+        const data_row = tbody.children[row_index];
+        const header_row = thead.querySelector('tr');
+
+        const cells = Array.from(data_row.children);
+        const attribute_cell = cells[0];
+        const data_cells = cells.slice(1);
+
+        const header_cells = Array.from(header_row.children);
+        const attribute_header = header_cells[0];
+        const data_headers = header_cells.slice(1);
+
+        const cell_header_pairs = data_cells.map((cell, idx) => ({
+            cell: cell,
+            header: data_headers[idx],
+            value: cell.getAttribute('data-value')
+        }));
+
+        cell_header_pairs.sort((a, b) => {
+            const a_value = a.value;
+            const b_value = b.value;
+
+            if (!a_value || a_value === '') return 1;
+            if (!b_value || b_value === '') return -1;
+
+            const a_num = parseFloat(a_value);
+            const b_num = parseFloat(b_value);
+
+            let comparison = 0;
+            if (!isNaN(a_num) && !isNaN(b_num)) {
+                comparison = a_num - b_num;
+            } else {
+                comparison = a_value.localeCompare(b_value);
+            }
+
+            return new_direction === 'asc' ? comparison : -comparison;
+        });
+
+        data_row.innerHTML = '';
+        header_row.innerHTML = '';
+
+        data_row.appendChild(attribute_cell);
+        header_row.appendChild(attribute_header);
+
+        cell_header_pairs.forEach(pair => {
+            data_row.appendChild(pair.cell);
+            header_row.appendChild(pair.header);
+        });
+
+        // Update all other rows to match the new column order
+        Array.from(tbody.children).forEach((row, idx) => {
+            if (idx !== row_index) {
+                const row_cells = Array.from(row.children);
+                const row_attribute_cell = row_cells[0];
+                const row_data_cells = row_cells.slice(1);
+
+                const reordered_cells = cell_header_pairs.map(pair => {
+                    const original_index = data_cells.indexOf(pair.cell);
+                    return row_data_cells[original_index];
+                });
+
+                row.innerHTML = '';
+                row.appendChild(row_attribute_cell);
+                reordered_cells.forEach(cell => row.appendChild(cell));
+            }
+        });
+    }
+
+    // Add column header click listeners
+    if (true) {
+        Array.from(thead.querySelectorAll('.table-header')).forEach((header, index) => {
+            header.addEventListener('click', function() {
+                sort_table_by_column(index);
+            });
+        });
+    }
+
+    // Add row sorting listeners (first cell of each row)
+    if (true) {
+        Array.from(tbody.children).forEach((row, row_index) => {
+            const first_cell = row.children[0];
+            if (first_cell) {
+                first_cell.style.cursor = 'pointer';
+                first_cell.style.userSelect = 'none';
+                first_cell.addEventListener('click', function() {
+                    sort_row_by_values(row_index);
+                });
+            }
+        });
+    }
+})();
+Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:538¨msg_type¡2
