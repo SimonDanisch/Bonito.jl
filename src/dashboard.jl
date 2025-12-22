@@ -37,7 +37,6 @@ function get_init_html(html_b64::String)::JSCode
                 }
 
                 const newBody = doc.body;
-                //console.log("Initializing HTML content", newBody);
                 
                 //append newbody to body
                 while (newBody.firstChild) {
@@ -98,34 +97,45 @@ function add_observables_script!(
 end
 
 """
-    move_plots_script(html_ids::Vector{Pair}) -> JSCode
+    move_plots_script(html_ids::Vector{Pair{String, String}}) -> JSCode
 
-Return JS script to move Bonito plots from first value to second value of `html_ids` in the document.
+    - `html_ids::Vector{Pair{String, String}}`: <source_div_id, destination_div_id>
+
+Return JS script to move WGLMakie plots from source_div_id to destination_div_id for all entries of `html_ids`.
 """
-function move_plots_script(html_ids::Vector{Pair{String, String}})::JSCode
+function move_plots_script(html_ids::Vector{Pair{String,String}})::JSCode
     destinations = [pair[1] for pair in html_ids]
     targets = [pair[2] for pair in html_ids]
     return js"""
                 (() => {
-                    setTimeout(() => {
+                    const checkInterval = setInterval(() => {
                         const htmlPlots = $(targets).map(id => document.getElementById(id));
                         const bonitoPlots = $(destinations).map(id => document.getElementById(id));
                         
-                        for (let i = 0; i < htmlPlots.length; i++) {
-                            const htmlPlot = htmlPlots[i];
-                            const bonitoPlot = bonitoPlots[i];
+                        const allPlotsReady = bonitoPlots.every(plot => plot !== null) && 
+                                              htmlPlots.every(plot => plot !== null);
+                        
+                        if (allPlotsReady) {
+                            clearInterval(checkInterval);
                             
-                            if (htmlPlot && bonitoPlot) {
-                                while (bonitoPlot.firstChild) {
-                                    htmlPlot.appendChild(bonitoPlot.firstChild);
+                            for (let i = 0; i < htmlPlots.length; i++) {
+                                const htmlPlot = htmlPlots[i];
+                                const bonitoPlot = bonitoPlots[i];
+                                
+                                if (htmlPlot && bonitoPlot) {
+                                    while (bonitoPlot.firstChild) {
+                                        htmlPlot.appendChild(bonitoPlot.firstChild);
+                                    }
                                 }
                             }
+
+                            //update plots divs so they resize 
+                            window.dispatchEvent(new Event('resize'));
                         }
+                    }, 50);
 
-                        //update plots divs so they resize 
-                        window.dispatchEvent(new Event('resize'));
-
-                    }, 300);
+                    // Fallback: clear interval after 5 seconds to prevent infinite checking
+                    setTimeout(() => clearInterval(checkInterval), 5000);
                 })();
                 """
 end
@@ -135,7 +145,7 @@ end
         figs::Vector, target_div_ids::Vector{String}
     ) -> Vector{Union{Hyperscript.Node{Hyperscript.HTMLSVG},JSCode}}
 
-Returns JS script to figures `figs` to the document at `target_div_ids`.
+Returns JS script to place figures `figs` into the document at `target_div_ids`.
 Creates a temporary placeholder for the plots and then moves them.
 """
 function plot_to_html_script(
