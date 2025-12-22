@@ -72,6 +72,8 @@ include("tailwind-dashboard.jl")
 
 include("interactive.jl")
 
+include("dashboard.jl")
+
 # Core functionality
 export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset, CSS
 export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor
@@ -89,6 +91,8 @@ export ProtectedRoute, User, SingleUser, AbstractPasswordStore, FolderServer
 export ConnectionIndicator, AbstractConnectionIndicator
 export get_metadata, set_metadata!
 export cleanup_globals
+export add_observables_script!, index_html_inject_script, plot_to_html_script
+
 
 function has_html_display()
     for display in Base.Multimedia.displays
