@@ -1,5 +1,55 @@
 using Bonito: Observable, Retain, CacheKey, decode_extension_and_addbits
+using Bonito: SerializationContext, serialize_cached, SessionCache
 using Bonito, MsgPack, Test
+
+@testset "nested observable serialization order" begin
+    # Test that nested observables are serialized in dependency order:
+    # inner observables must come before outer observables that reference them via CacheKey.
+    # This is critical for static export where JS deserializes the cache and needs to
+    # resolve CacheKey references during unpacking.
+
+    session = Bonito.Session(Bonito.NoConnection(); asset_server=Bonito.NoServer())
+
+    inner_a = Observable(rand(3))
+    inner_b = Observable(rand(3))
+    outer_obs = Observable(Dict("a" => inner_a, "b" => inner_b))
+
+    # Serialize JSCode that references the outer observable
+    jscode = js"const x = $(outer_obs)"
+    ctx = SerializationContext(session)
+    serialize_cached(ctx, jscode)
+
+    # Create SessionCache and do MsgPack round-trip
+    cache = SessionCache(session, ctx.message_cache)
+    packed = MsgPack.pack(cache)
+    unpacked_ext = MsgPack.unpack(packed)
+    # Structure: [session_id, session_status, packed_objects_ext]
+    # packed_objects_ext is Extension(18) containing packed bytes
+    session_id, session_status, packed_objects_ext = MsgPack.unpack(unpacked_ext.data)
+    objs_array = MsgPack.unpack(packed_objects_ext.data)
+
+    # objs_array is [value, ...] where values are Observable extensions.
+    # Extract the observable id from each extension's data.
+    function get_obs_id(ext::MsgPack.Extension)
+        # Observable extension data is packed [id, value]
+        id_value = MsgPack.unpack(ext.data)
+        return id_value[1]
+    end
+
+    # Verify order: inner observables should come before outer
+    inner_ids = Set([inner_a.id, inner_b.id])
+    outer_id = outer_obs.id
+
+    obs_ids = [get_obs_id(obj) for obj in objs_array if obj isa MsgPack.Extension && obj.type == Int8(101)]
+    inner_positions = [i for (i, id) in enumerate(obs_ids) if id in inner_ids]
+    outer_position = findfirst(id -> id == outer_id, obs_ids)
+
+    @test length(inner_positions) == 2
+    @test !isnothing(outer_position)
+    @test all(p < outer_position for p in inner_positions)
+
+    close(session)
+end
 
 @testset "MsgPack" begin
     data = [

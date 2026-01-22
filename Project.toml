@@ -1,7 +1,7 @@
 name = "Bonito"
 uuid = "824d6782-a2ef-11e9-3a09-e5662e0c26f8"
+version = "4.2.0"
 authors = ["SimonDanisch <sdanisch@gmail.com>"]
-version = "4.1.11"
 
 [deps]
 Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
@@ -11,6 +11,7 @@ Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 Deno_jll = "04572ae6-984a-583e-9378-9577a1c2574d"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 Hyperscript = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Markdown = "d6f4376e-aef5-505a-96c1-9c027394607a"
 MbedTLS = "739be429-bea8-5141-9913-cc70e7f3736d"
@@ -35,6 +36,7 @@ Dates = "1.0, 1.6"
 Deno_jll = "1"
 HTTP = "1.10.9"
 Hyperscript = "0.0.3, 0.0.4, 0.0.5"
+JSON = "0.21, 1"
 LinearAlgebra = "1.0, 1.6"
 Markdown = "1.0, 1.6"
 MbedTLS = "1.1.9"
@@ -50,7 +52,7 @@ ThreadPools = "2"
 URIs = "1"
 UUIDs = "1.0, 1.6"
 WidgetsBase = "0.1"
-julia = "1.6"
+julia = "1.10"
 
 [extras]
 Electron = "a1bb12fb-d4d1-54b4-b10a-ee7951ef7ad3"

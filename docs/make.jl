@@ -10,6 +10,7 @@ makedocs(
     authors="Simon Danisch and other contributors",
     pages=[
         "Home" => "index.md",
+        "App" => "app.md",
         "Components" => [
             "Styling" => "styling.md",
             "Components" => "components.md",

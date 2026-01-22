@@ -56,6 +56,8 @@ include("rendering/rendering.jl")
 include("asset-serving/asset-serving.jl")
 include("connection/connection.jl")
 include("registry.jl")
+
+using JSON
 include("server-defaults.jl")
 
 include("serialization/serialization.jl")
@@ -65,6 +67,7 @@ include("widgets.jl")
 include("display.jl")
 include("export.jl")
 include("components.jl")
+include("connection_indicator.jl")
 include("tailwind-dashboard.jl")
 
 include("interactive.jl")
@@ -83,6 +86,9 @@ export Labeled, StylableSlider, Centered
 export interactive_server
 export ChoicesBox, ChoicesJSParams
 export ProtectedRoute, User, SingleUser, AbstractPasswordStore, FolderServer
+export ConnectionIndicator, AbstractConnectionIndicator
+export get_metadata, set_metadata!
+export cleanup_globals
 
 function has_html_display()
     for display in Base.Multimedia.displays
@@ -93,21 +99,34 @@ function has_html_display()
     return false
 end
 
+"""
+    cleanup_globals()
+
+Cleans up global state (servers, sessions, tasks) for precompilation compatibility.
+On Julia 1.11+, this is called automatically via atexit (which runs before serialization).
+On Julia 1.10, this must be called manually after precompilation workloads.
+"""
+function cleanup_globals()
+    for (_, (_, close_ref)) in SERVER_CLEANUP_TASKS
+        close_ref[] = false
+    end
+    empty!(SERVER_CLEANUP_TASKS)
+    CURRENT_SESSION[] = nothing
+    if !isnothing(GLOBAL_SERVER[])
+        close(GLOBAL_SERVER[])
+    end
+    GLOBAL_SERVER[] = nothing
+    return
+end
+
 function __init__()
     # Use browser display if no HTML display is available
     if !has_html_display()
         browser_display()
     end
-    atexit() do
-        for (task, (task, close_ref)) in Bonito.SERVER_CLEANUP_TASKS
-            close_ref[] = false
-        end
-        Bonito.CURRENT_SESSION[] = nothing
-        if !isnothing(Bonito.GLOBAL_SERVER[])
-            close(Bonito.GLOBAL_SERVER[])
-        end
-        Bonito.GLOBAL_SERVER[] = nothing
-    end
+    # Register atexit for runtime cleanup (when Julia exits normally)
+    # Note: This doesn't affect precompilation since __init__ doesn't run during precompile
+    atexit(cleanup_globals)
 end
 
 end # module

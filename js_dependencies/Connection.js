@@ -15,7 +15,7 @@ const PingPong = "11";
 const UpdateSession = "12";
 const GetSessionDOM = "13"
 
-const PING_INTERVAL = 5000 
+const PING_INTERVAL = 5000
 
 function clean_stack(stack) {
     return stack.replaceAll(
@@ -26,24 +26,93 @@ function clean_stack(stack) {
 
 
 /**
+ * Connection status constants
+ */
+const ConnectionStatus = {
+    CONNECTING: "connecting",
+    CONNECTED: "connected",
+    DISCONNECTED: "disconnected",
+    NO_CONNECTION: "no_connection"
+};
+
+/**
  * @namespace CONNECTION
  * @property {Function|undefined} send_message - Function to send a message. Initially undefined.
  * @property {Array} queue - Array to hold queued messages.
  * @property {string} status - Connection status, initially set to "closed".
  * @property {boolean} compression_enabled - Flag indicating if compression is enabled, initially set to false.
+ * @property {Object|null} indicator - Registered connection indicator object.
  */
 const CONNECTION = {
     send_message: undefined,
     queue: [],
-    status: "closed",
+    status: "connecting",
     compression_enabled: false,
-    lastPing: Date.now()
+    lastPing: Date.now(),
+    indicator: null,
 };
+
+/**
+ * Register a connection indicator object.
+ * The indicator should implement: onStatusChange(status)
+ * where status is one of: "connected", "connecting", "disconnected", "no_connection"
+ * @param {Object} indicator - The indicator object with callback methods
+ */
+export function register_connection_indicator(indicator) {
+    CONNECTION.indicator = indicator;
+    // Immediately notify the current status
+    notify_indicator_status();
+}
+
+/**
+ * Unregister the current connection indicator
+ */
+export function unregister_connection_indicator() {
+    CONNECTION.indicator = null;
+}
+
+/**
+ * Set status to no_connection (for static/offline mode)
+ * This is called by NoConnection setup to indicate no Julia server connection
+ */
+export function set_no_connection() {
+    CONNECTION.status = "no_connection";
+    notify_indicator_status();
+}
+
+/**
+ * Notify the indicator of the current connection status
+ */
+function notify_indicator_status() {
+    if (CONNECTION.indicator && typeof CONNECTION.indicator.onStatusChange === 'function') {
+        let status;
+        if (CONNECTION.status === "no_connection") {
+            status = ConnectionStatus.NO_CONNECTION;
+        } else if (CONNECTION.status === "open") {
+            status = ConnectionStatus.CONNECTED;
+        } else if (CONNECTION.status === "connecting") {
+            status = ConnectionStatus.CONNECTING;
+        } else {
+            status = ConnectionStatus.DISCONNECTED;
+        }
+        CONNECTION.indicator.onStatusChange(status);
+    }
+}
+
+/**
+ * Set status to connecting (called before connection attempt)
+ */
+export function on_connection_connecting() {
+    CONNECTION.status = "connecting";
+    notify_indicator_status();
+}
 
 export function on_connection_open(send_message_callback, compression_enabled, enable_pings = true) {
     CONNECTION.send_message = send_message_callback;
     CONNECTION.status = "open";
     CONNECTION.compression_enabled = compression_enabled;
+    // Notify indicator of connected status
+    notify_indicator_status();
     // Once connection open, we send all messages that have queued up
     CONNECTION.queue.forEach((message) => send_to_julia(message));
     if (enable_pings) {
@@ -53,6 +122,7 @@ export function on_connection_open(send_message_callback, compression_enabled, e
 
 export function on_connection_close() {
     CONNECTION.status = "closed";
+    notify_indicator_status();
 }
 
 export function can_send_to_julia() {
@@ -67,10 +137,10 @@ export function send_to_julia(message) {
     const { send_message, status, compression_enabled } = CONNECTION;
     if (send_message !== undefined && status === "open") {
         send_message(encode_binary(message, compression_enabled));
-    } else if (status === "closed") {
+    } else if (status === "connecting") {
         CONNECTION.queue.push(message);
     } else {
-        console.log("Trying to send messages while connection is offline");
+        console.log(`Trying to send messages while connection is offline: ${status}`);
     }
 }
 
@@ -177,5 +247,6 @@ export {
     JavascriptWarning,
     RegisterObservable,
     JSDoneLoading,
-    FusedMessage
+    FusedMessage,
+    ConnectionStatus
 };

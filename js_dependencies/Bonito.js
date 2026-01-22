@@ -9,10 +9,15 @@ const {
     process_message,
     on_connection_open,
     on_connection_close,
+    on_connection_connecting,
     send_close_session,
     send_pingpong,
     can_send_to_julia,
     send_to_julia,
+    register_connection_indicator,
+    unregister_connection_indicator,
+    set_no_connection,
+    ConnectionStatus,
 } = Connection;
 
 const {
@@ -203,8 +208,15 @@ const Bonito = {
     process_message,
     on_connection_open,
     on_connection_close,
+    on_connection_connecting,
     send_close_session,
     send_pingpong,
+
+    // Connection indicator API
+    register_connection_indicator,
+    unregister_connection_indicator,
+    set_no_connection,
+    ConnectionStatus,
 
     Sessions,
     init_session,
@@ -245,8 +257,14 @@ export {
     process_message,
     on_connection_open,
     on_connection_close,
+    on_connection_connecting,
     send_close_session,
     send_pingpong,
+    // Connection indicator API
+    register_connection_indicator,
+    unregister_connection_indicator,
+    set_no_connection,
+    ConnectionStatus,
     Sessions,
     init_session,
     free_session,

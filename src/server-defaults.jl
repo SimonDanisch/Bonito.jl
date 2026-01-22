@@ -30,7 +30,7 @@ function jupyter_running_servers()
     end
     json = replace(json, "[JupyterServerListApp] " => "")
     json = replace(json, r"[\r\n]+" => "\n")
-    configs = IJulia().JSON.parse.(split(json, "\n"; keepempty=false))
+    configs = JSON.parse.(split(json, "\n"; keepempty=false))
     return configs
 end
 

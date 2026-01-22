@@ -45,6 +45,34 @@ session(session::Session) = session
 Base.parent(session::Session) = session.parent
 root_session(session::Session) = isnothing(parent(session)) ? session : root_session(parent(session))
 
+"""
+    get_metadata(session, key::Symbol)
+    get_metadata(session, key::Symbol, default)
+
+Get metadata from the root session. Returns `nothing` or the provided `default` if key doesn't exist.
+Metadata is stored on the root session and shared across all child sessions.
+"""
+function get_metadata(session::Session, key::Symbol, default=nothing)
+    root = root_session(session)
+    return lock(root.deletion_lock) do
+        get(root.metadata, key, default)
+    end
+end
+
+"""
+    set_metadata!(session, key::Symbol, value)
+
+Set metadata on the root session. Returns the value.
+Metadata is stored on the root session and shared across all child sessions.
+"""
+function set_metadata!(session::Session, key::Symbol, value)
+    root = root_session(session)
+    lock(root.deletion_lock) do
+        root.metadata[key] = value
+    end
+    return value
+end
+
 function get_session(session::Session, id::String)
     session.id == id && return session
     if haskey(session.children, id)
@@ -360,6 +388,10 @@ end
 
 function session_dom(session::Session, app::App; init=true, html_document=false)
     dom = rendered_dom(session, app)
+    # Ensure we have a valid DOM node (handles App(nothing; indicator=nothing))
+    if isnothing(dom)
+        dom = DOM.div()
+    end
     return session_dom(session, dom; init=init, html_document=html_document)
 end
 
@@ -598,6 +630,7 @@ function update_session_dom!(parent::Session, node_uuid::String, app_or_dom; rep
     session_update = Dict(
         "msg_type" => UpdateSession,
         "session_id" => sub.id,
+        "session_status" => "sub",
         "messages" => get_messages!(sub),
         "html" => html_str,  # Send as HTML string for fast innerHTML updates
         "replace" => replace,

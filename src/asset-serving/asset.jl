@@ -195,6 +195,47 @@ function Asset(path_or_url::Union{String,Path}; name=nothing, es6module=false, c
 end
 
 
+"""
+    ES6Module(path)
+
+Create an ES6 module asset that will be bundled using Deno.
+
+ES6 modules are automatically bundled with their dependencies when first loaded.
+Interpolating an ES6Module in JavaScript code returns a `Promise` that resolves
+to the module's exports.
+
+## Example
+
+```julia
+THREE = ES6Module("https://unpkg.com/three@0.136.0/build/three.js")
+
+js\"\"\"
+\$(THREE).then(module => {
+    // Use the module
+    const scene = new module.Scene();
+})
+\"\"\"
+```
+
+## Rebundling
+
+Bonito tracks the timestamp of the main module file and will automatically
+rebundle if it detects changes. However, changes to imported/included files
+(e.g., `Session.js` imported by `Bonito.js`) are not tracked.
+
+To force a rebundle when you've modified an included file, delete the bundle file:
+
+```julia
+mod = ES6Module("path/to/module.js")
+rm(mod.bundle_file)  # Bonito will rebundle on next use
+```
+
+For Bonito's internal JavaScript:
+
+```julia
+rm(Bonito.BonitoLib.bundle_file)
+```
+"""
 function ES6Module(path)
     name = String(splitext(basename(path))[1])
     asset = Asset(path; name=name, es6module=true)
