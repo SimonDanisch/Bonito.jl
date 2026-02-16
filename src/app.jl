@@ -140,8 +140,11 @@ end
 
 function Base.close(app::App)
     session = app.session[]
-    # Needs to be async because of finalizers (todo, figure out better ways!)
-    !isnothing(session) && free(session)
+    # Only free root sessions - subsessions are managed by their parent session hierarchy
+    # This prevents the App finalizer from closing sessions that are still in use
+    if !isnothing(session) && isroot(session)
+        free(session)
+    end
     app.session[] = nothing
 end
 
@@ -242,5 +245,5 @@ function wait_for_ready(app::App; timeout=100)
 end
 
 function jsrender(session::Session, app::App)
-    return rendered_dom(session, app; apply_jsrender=false)
+    return jsrender(session, rendered_dom(session, app; apply_jsrender=false))
 end

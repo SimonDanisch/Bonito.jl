@@ -37,7 +37,12 @@ const {
     OBJECT_FREEING_LOCK,
     free_object,
     force_free_object,
+    close_all_sessions,
+    setup_tab_close_handler,
 } = Sessions;
+
+// Setup tab close handler to close sessions when the page is unloaded
+setup_tab_close_handler();
 
 function update_node_attribute(node, attribute, value) {
     if (node) {
@@ -222,6 +227,7 @@ const Bonito = {
     init_session,
     free_session,
     lock_loading,
+    close_all_sessions,
     // Util
     update_node_attribute,
     update_dom_node,
@@ -269,6 +275,7 @@ export {
     init_session,
     free_session,
     lock_loading,
+    close_all_sessions,
     // Util
     update_node_attribute,
     update_dom_node,

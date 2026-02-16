@@ -109,9 +109,6 @@ export function track_deleted_sessions() {
                     const status = SESSIONS[id][1];
                     if (status === "delete") {
                         if (!document.getElementById(id)) {
-                            console.debug(
-                                `adding session to delete candidates: ${id}`
-                            );
                             // the ROOT session may survive without being in the dom anymore
                             to_delete.add(id);
                         }
@@ -349,6 +346,37 @@ export function update_session_cache(session_id, new_jl_objects, session_status)
         SESSIONS[session_id] = [tracked_items, session_status];
         update_cache(tracked_items);
     }
+}
+
+/**
+ * Close all sessions, including root sessions.
+ * Used when the tab/page is being closed.
+ */
+export function close_all_sessions() {
+    Object.keys(SESSIONS).forEach((session_id) => {
+        const session = SESSIONS[session_id];
+        if (session) {
+            // Force close all sessions including root sessions
+            send_close_session(session_id, "delete");
+        }
+    });
+}
+
+/**
+ * Setup tab close handler to close all sessions when the page is unloaded.
+ * This ensures Julia sessions are properly cleaned up when the user closes the tab.
+ */
+export function setup_tab_close_handler() {
+    // Use pagehide for better cross-browser support (especially Safari/iOS)
+    // pagehide fires reliably when the page is being unloaded
+    window.addEventListener("pagehide", (event) => {
+        close_all_sessions();
+    });
+
+    // Also use beforeunload as a fallback for older browsers
+    window.addEventListener("beforeunload", (event) => {
+        close_all_sessions();
+    });
 }
 
 export { SESSIONS, GLOBAL_OBJECT_CACHE, OBJECT_FREEING_LOCK };
