@@ -460,49 +460,65 @@ function Session(parent_session::Session;
     end
 end
 
+"""
+    default_loading_content()
+
+Returns the default loading content for Apps. Defined as a function to avoid
+evaluation at parse time (before LoadingPage is defined).
+"""
+default_loading_content() = LoadingPage()
+
+function normalize_handler(handler)
+    # Normalize to (session, request) -> DOM signature
+    if handler isa Node
+        return (session, request) -> handler
+    elseif hasmethod(handler, Tuple{Session, HTTP.Request})
+        return handler
+    elseif hasmethod(handler, Tuple{Session})
+        return (session, request) -> handler(session)
+    elseif hasmethod(handler, Tuple{HTTP.Request})
+        return (session, request) -> handler(request)
+    elseif hasmethod(handler, Tuple{})
+        return (session, request) -> handler()
+    elseif !(handler isa Function)
+        return (session, request) -> handler
+    else
+        error("""
+        Handler function must have one of these signatures:
+            handler() -> DOM
+            handler(session::Session) -> DOM
+            handler(request::Request) -> DOM
+            handler(session, request) -> DOM
+        """)
+    end
+end
+
+function create_handler(handler, loading_content)
+    # No loading content - return normalized handler directly
+    isnothing(loading_content) && return handler
+    # Wrap with loading content
+    # If loading_content is a function (like default_loading_content), call it lazily
+    return function(session, request)
+        obs = Observable{Any}(loading_content())
+        @async begin
+            obs[] = handler(session, request)
+        end
+        return DOM.div(obs)
+    end
+end
+
 mutable struct App
     handler::Function
     session::Base.RefValue{Union{Session,Nothing}}
     title::String
     indicator::Union{Nothing, AbstractConnectionIndicator}
-    function App(handler::Function;
+    function App(handler::Any;
             title::AbstractString="Bonito App",
             indicator::Union{Nothing, AbstractConnectionIndicator}=nothing,
-            threaded=nothing)
-
-        if threaded isa Bool
-            @warn "The `threaded` argument is deprecated and has no effect. Each App is run in a thread created by HTTP.jl."
-        end
-        session = Base.RefValue{Union{Session, Nothing}}(nothing)
-        if hasmethod(handler, Tuple{Session, HTTP.Request})
-            app = new(handler, session, title, indicator)
-        elseif hasmethod(handler, Tuple{Session})
-            app = new((session, request) -> handler(session), session, title, indicator)
-        elseif hasmethod(handler, Tuple{HTTP.Request})
-            app = new((session, request) -> handler(request), session, title, indicator)
-        elseif hasmethod(handler, Tuple{})
-            app = new((session, request) -> handler(), session, title, indicator)
-        else
-            error("""
-            Handler function must have the following signature:
-                handler() -> DOM
-                handler(session::Session) -> DOM
-                handler(request::Request) -> DOM
-                handler(session, request) -> DOM
-            """)
-        end
-        finalizer(close, app)
-        return app
-    end
-    function App(dom_object;
-            title="Bonito App",
-        indicator::Union{Nothing,AbstractConnectionIndicator}=nothing,
-            threaded=nothing)
-        if threaded isa Bool
-            @warn "The `threaded` argument is deprecated and has no effect. Each App is run in a thread created by HTTP.jl."
-        end
-        session = Base.RefValue{Union{Session,Nothing}}(nothing)
-        app = new((s, r) -> dom_object, session, title, indicator)
+            loading_content=default_loading_content)
+        n_handler = normalize_handler(handler)
+        wrapped = create_handler(n_handler, loading_content)
+        app = new(wrapped, session, title, indicator)
         finalizer(close, app)
         return app
     end

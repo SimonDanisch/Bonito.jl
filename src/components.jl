@@ -591,6 +591,69 @@ function RippleSpinner(; width=64, height=width, stroke=4, duration=1)
     return DOM.div(styles, DOM.div(), DOM.div(); class="lds-ripple")
 end
 
+"""
+    LoadingPage(; text="Loading Bonito App", spinner=RippleSpinner(), style=Styles())
+
+A customizable loading page component that displays a centered spinner and text.
+This is used as the default `loading_content` for `App` to show while the app is initializing.
+
+# Arguments
+- `text::String`: The text to display below the spinner (default: "Loading Bonito App")
+- `spinner`: The spinner component to display (default: RippleSpinner())
+- `style::Styles`: Custom styles for the container (default: Styles())
+
+# Example
+```julia
+app = App() do
+    return DOM.div("Hello World")
+end
+
+# With custom loading page
+app = App(; loading_content=LoadingPage(text="Please wait...", spinner=RippleSpinner(width=80))) do
+    return DOM.div("Hello World")
+end
+```
+"""
+struct LoadingPage
+    text::String
+    spinner::Any
+    style::Styles
+end
+
+LoadingPage(; text="Loading Bonito App", spinner=RippleSpinner(), style=Styles()) = LoadingPage(text, spinner, style)
+
+function jsrender(session::Session, loading::LoadingPage)
+    default_styles = Styles(
+        CSS(
+            ".bonito-loading-container",
+            "position" => "fixed",
+            "top" => "50%",
+            "left" => "50%",
+            "transform" => "translate(-50%, -50%)",
+            "z-index" => "1000",
+            "display" => "flex",
+            "flex-direction" => "column",
+            "align-items" => "center",
+            "gap" => "1rem",
+        ),
+        CSS(
+            ".bonito-loading-text",
+            "font-family" => "system-ui, -apple-system, sans-serif",
+            "font-size" => "1.125rem",
+            "color" => "#4B5563",
+        ),
+    )
+
+    combined_styles = Styles(default_styles, loading.style)
+    dom = DOM.div(
+        combined_styles,
+        jsrender(session, loading.spinner),
+        DOM.div(loading.text; class="bonito-loading-text");
+        class="bonito-loading-container"
+    )
+    return jsrender(session, dom)
+end
+
 struct KaTeX
     source::String
     display::Bool

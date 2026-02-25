@@ -83,6 +83,7 @@ export NoConnection, IJuliaConnection, PlutoConnection, WebSocketConnection
 export export_static, Routes, interactive_server
 export Card, Grid, FileInput, Dropdown, Styles, Col, Row
 export Labeled, StylableSlider, Centered
+export LoadingPage, VerticalSpinner, RippleSpinner
 export interactive_server
 export ChoicesBox, ChoicesJSParams
 export ProtectedRoute, User, SingleUser, AbstractPasswordStore, FolderServer

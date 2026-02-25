@@ -572,7 +572,9 @@ function page_to_fragment(head, body, dom)
 end
 
 function render_subsession(p::Session, data; init=false)
-    return render_subsession(p, App(DOM.span(data)); init=init)
+    return render_subsession(
+        p, App(DOM.span(data); indicator=nothing, loading_content=nothing); init=init
+    )
 end
 
 function render_subsession(parent::Session, app::App; init=false)
