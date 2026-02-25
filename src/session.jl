@@ -386,13 +386,43 @@ function evaljs_value(with_session, js; error_on_closed=true, timeout=100.0)
     evaljs_value(session(with_session), js; error_on_closed=error_on_closed, timeout=timeout)
 end
 
-function session_dom(session::Session, app::App; init=true, html_document=false)
-    dom = rendered_dom(session, app)
-    # Ensure we have a valid DOM node (handles App(nothing; indicator=nothing))
-    if isnothing(dom)
-        dom = DOM.div()
+function session_dom(session::Session, app::App; init=true, html_document=false, target=HTTP.Request())
+    # Loading page only works with live connections that can push updates.
+    # For NoConnection (static export), fall back to synchronous rendering.
+    use_loading_page = !isnothing(app.loading_page) && !(root_session(session).connection isa NoConnection)
+    if !use_loading_page
+        # Existing synchronous behavior - no loading page
+        dom = rendered_dom(session, app, target)
+        if isnothing(dom)
+            dom = DOM.div()
+        end
+        return session_dom(session, dom; init=init, html_document=html_document)
+    else
+        # Loading page path: wrap DOM in Observable for async rendering
+        # Set session early so wait_for_ready can find it
+        app.session[] = session
+        session.current_app[] = app
+        dom_obs = Observable{Any}(app.loading_page)
+        rendered_node = jsrender(session, dom_obs)
+        @async try
+            real_dom = Base.invokelatest(app.handler, session, target)
+            real_dom = Base.invokelatest(jsrender, session, real_dom)
+            # Add connection indicator for root sessions
+            if isroot(session) && !isnothing(app.indicator)
+                indicator_dom = jsrender(session, app.indicator)
+                real_dom = DOM.div(real_dom, indicator_dom)
+            end
+            if isnothing(real_dom)
+                real_dom = DOM.div()
+            end
+            dom_obs[] = real_dom
+        catch err
+            @error "Error rendering app with loading_page" exception = (err, Base.catch_backtrace())
+            error_html = HTTPServer.err_to_html(err, Base.catch_backtrace())
+            dom_obs[] = error_html
+        end
+        return session_dom(session, rendered_node; init=init, html_document=html_document)
     end
-    return session_dom(session, dom; init=init, html_document=html_document)
 end
 
 isroot(session::Session) = session.parent === nothing
