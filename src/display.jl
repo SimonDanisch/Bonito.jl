@@ -75,7 +75,7 @@ function show_html(io::IO, app::App; parent=CURRENT_SESSION[])
             if _use_parent_session(session)
                 CURRENT_SESSION[] = session
                 # Use indicator from user's app on parent wrapper (only root has indicator)
-                empty_app = App(nothing; indicator=app.indicator)
+                empty_app = App(nothing; indicator=app.indicator, loading_page=nothing)
                 sub = Session(session)
                 sub.io_context[] = ctx
                 init_dom = session_dom(session, empty_app)
@@ -143,7 +143,7 @@ function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
             sub = Session(session)
             sub.current_app[] = app
             sub.io_context[] = get_io_context(io)
-            fetch_app = App() do s
+            fetch_app = App(loading_page=nothing) do s
                 dom_node = DOM.div()
                 request = js"""
                     Bonito.send_to_julia({

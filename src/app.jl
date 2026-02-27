@@ -210,7 +210,7 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
         end
         sub = Session(parent)
         # Use indicator from user's app on the parent wrapper (only root has indicator)
-        parent_dom = session_dom(parent, App(nothing; indicator=handler.current_app.indicator); html_document=true)
+        parent_dom = session_dom(parent, App(nothing; indicator=handler.current_app.indicator, loading_page=nothing); html_document=true)
         sub_dom = session_dom(sub, handler.current_app)
 
         # first time rendering in a subsession, we put the
