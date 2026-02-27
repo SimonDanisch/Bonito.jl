@@ -1,0 +1,55 @@
+í«,jìŸ$d137ea00-8239-466e-8c54-8d646b204c11ê£subÉßpayloadï«ükí«-jìŸ$dc87a66a-4586-4aea-8819-35c50cbbd62cê§rootÉßpayloadë«Nkí«-jìŸ$dc87a66a-4586-4aea-8819-35c50cbbd62cê§rootÉßpayloadê®msg_type°9¶cachesê®msg_type°9¶cachesê»ykí«:jìŸ$d137ea00-8239-466e-8c54-8d646b204c11ëí£237«eí£237£subÉ£obs÷h£237ßpayload»fìÅ≥6974211987395400070ï¨space-evenly¶center£end≠space-between¨space-aroundŸºreturn  (idx) => {
+    grid = document.querySelector('[data-jscall-id="374"]')
+    const val = __lookup_interpolated('6974211987395400070')[idx-1]
+    grid.style["justify-content"] = val
+}∞layouting.md:412®msg_type°1»\kí«:jìŸ$d137ea00-8239-466e-8c54-8d646b204c11ëí£240«eí£240£subÉ£obs÷h£240ßpayload«˝fìÅ≥6512101515035149028îßstretch•start¶center£endŸ∫return  (idx) => {
+    grid = document.querySelector('[data-jscall-id="374"]')
+    const val = __lookup_interpolated('6512101515035149028')[idx-1]
+    grid.style["justify-items"] = val
+}∞layouting.md:417®msg_type°1»Qkí«mjìŸ$d137ea00-8239-466e-8c54-8d646b204c11ëí£243«9eí£243ï¨space-evenly¶center£end≠space-between¨space-around£subÇßpayload»»fìÇ£237÷h£237£243÷h£243⁄u(function onload(element) {
+    function onchange(e) {
+        if (element === e.srcElement) {
+            (__lookup_interpolated('237')).notify(element.selectedIndex + 1);
+        }
+    }
+    element.addEventListener("change", onchange);
+    element.selectedIndex = 0
+    function set_option_index(index) {
+        if (element.selectedIndex === index - 1) {
+            return
+        }
+        element.selectedIndex = index - 1;
+    }
+    __lookup_interpolated('237').on(set_option_index);
+    function set_options(opts) {
+        element.selectedIndex = 0;
+        // https://stackoverflow.com/questions/3364493/how-do-i-clear-all-options-in-a-dropdown-box
+        element.options.length = 0;
+        opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
+    }
+    __lookup_interpolated('243').on(set_options);
+}
+)(document.querySelector('[data-jscall-id="376"]'));Ÿ8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:214®msg_type°2»7kí«SjìŸ$d137ea00-8239-466e-8c54-8d646b204c11ëí£245«eí£245îßstretch•start¶center£end£subÇßpayload»»fìÇ£240÷h£240£245÷h£245⁄u(function onload(element) {
+    function onchange(e) {
+        if (element === e.srcElement) {
+            (__lookup_interpolated('240')).notify(element.selectedIndex + 1);
+        }
+    }
+    element.addEventListener("change", onchange);
+    element.selectedIndex = 0
+    function set_option_index(index) {
+        if (element.selectedIndex === index - 1) {
+            return
+        }
+        element.selectedIndex = index - 1;
+    }
+    __lookup_interpolated('240').on(set_option_index);
+    function set_options(opts) {
+        element.selectedIndex = 0;
+        // https://stackoverflow.com/questions/3364493/how-do-i-clear-all-options-in-a-dropdown-box
+        element.options.length = 0;
+        opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
+    }
+    __lookup_interpolated('245').on(set_options);
+}
+)(document.querySelector('[data-jscall-id="382"]'));Ÿ8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:214®msg_type°2®msg_type°9¶cachesê

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Wrapping JS libraries · Bonito</title><meta name="title" content="Wrapping JS libraries · Bonito"/><meta property="og:title" content="Wrapping JS libraries · Bonito"/><meta property="twitter:title" content="Wrapping JS libraries · Bonito"/><meta name="description" content="Documentation for Bonito."/><meta property="og:description" content="Documentation for Bonito."/><meta property="twitter:description" content="Documentation for Bonito."/><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="index.html">Bonito</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li><span class="tocitem">Components</span><ul><li><a class="tocitem" href="styling.html">Styling</a></li><li><a class="tocitem" href="components.html">Components</a></li><li><a class="tocitem" href="layouting.html">Layouting</a></li><li><a class="tocitem" href="widgets.html">Widgets</a></li><li><a class="tocitem" href="interactions.html">Interactions</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="plotting.html">Plotting</a></li><li class="is-active"><a class="tocitem" href="javascript-libraries.html">Wrapping JS libraries</a><ul class="internal"><li><a class="tocitem" href="#Wrapping-Javascript-Libraries"><span>Wrapping Javascript Libraries</span></a></li></ul></li><li><a class="tocitem" href="assets.html">Assets</a></li><li><a class="tocitem" href="extending.html">Extending</a></li></ul></li><li><a class="tocitem" href="handlers.html">Handlers</a></li><li><a class="tocitem" href="deployment.html">Deployment</a></li><li><a class="tocitem" href="static.html">Static Sites</a></li><li><a class="tocitem" href="api.html">Api</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href="javascript-libraries.html">Wrapping JS libraries</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="javascript-libraries.html">Wrapping JS libraries</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/master/docs/src/javascript-libraries.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Javascript"><a class="docs-heading-anchor" href="#Javascript">Javascript</a><a id="Javascript-1"></a><a class="docs-heading-anchor-permalink" href="#Javascript" title="Permalink"></a></h1><h2 id="Wrapping-Javascript-Libraries"><a class="docs-heading-anchor" href="#Wrapping-Javascript-Libraries">Wrapping Javascript Libraries</a><a id="Wrapping-Javascript-Libraries-1"></a><a class="docs-heading-anchor-permalink" href="#Wrapping-Javascript-Libraries" title="Permalink"></a></h2><pre><code class="language-julia hljs">leafletjs = Bonito.ES6Module(&quot;https://esm.sh/v133/leaflet@1.9.4/es2022/leaflet.mjs&quot;)
+leafletcss = Bonito.Asset(&quot;https://unpkg.com/leaflet@1.9.4/dist/leaflet.css&quot;)
+struct LeafletMap
+    position::NTuple{2,Float64}
+    zoom::Int
+end
+
+function Bonito.jsrender(session::Session, map::LeafletMap)
+
+    map_div = DOM.div(id=&quot;map&quot;; style=&quot;height: 500px;&quot;)
+
+    return Bonito.jsrender(session, DOM.div(
+        leafletcss,
+        leafletjs,
+        map_div,
+        js&quot;&quot;&quot;
+            $(leafletjs).then(L=&gt; {
+                const map = L.map(&#39;map&#39;).setView($(map.position), $(map.zoom));
+                L.tileLayer(
+                    &#39;https://tile.openstreetmap.org/{z}/{x}/{y}.png&#39;, {
+                    maxZoom: 19,
+                    attribution: &#39;&amp;copy; &lt;a href=&quot;http://www.openstreetmap.org/copyright&quot;&gt;OpenStreetMap&lt;/a&gt;&#39;
+                }).addTo(map);
+            })
+
+        &quot;&quot;&quot;
+    ))
+end
+
+
+App() do
+    return LeafletMap((51.505, -0.09), 13)
+end</code></pre><div>
+  <div class="bonito-fragment" id="3dbabbb4-79ac-487c-882f-b06137150e0c" data-jscall-id="root">
+    <div>
+      <script src="bonito/js/Bonito.bundled14758617953041682730.js" type="module"></script>
+      <style></style>
+    </div>
+    <div>
+      <script type="module">Bonito.init_session("3dbabbb4-79ac-487c-882f-b06137150e0c", null, "root", false);
+</script>
+      <span></span>
+    </div>
+  </div>
+  <div class="bonito-fragment" id="13b9bb3e-d987-4d9e-b5d3-934a040fce15" data-jscall-id="subsession-application-dom">
+    <div>
+      <style></style>
+      <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet" type="text/css" />
+      <script src="https://esm.sh/v133/leaflet@1.9.4/es2022/leaflet.mjs" type="module"></script>
+    </div>
+    <div>
+      <script type="module">Bonito.init_session("13b9bb3e-d987-4d9e-b5d3-934a040fce15", Bonito.fetch_binary('bonito/bin/413b33c2533a99d1f5d5b7c8d34c44a4a66170cd-3375631866377077111.bin'), "sub", false);
+</script>
+      <div data-jscall-id="1">
+        <div id="map" data-jscall-id="2" style="height: 500px;"></div>
+      </div>
+    </div>
+  </div>
+</div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="plotting.html">« Plotting</a><a class="docs-footer-nextpage" href="assets.html">Assets »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Wednesday 15 October 2025 19:32">Wednesday 15 October 2025</span>. Using Julia version 1.12.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

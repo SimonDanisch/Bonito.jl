@@ -1,0 +1,26 @@
+í«,jìŸ$e93a1d19-267a-44b2-8c6f-ac3d7d1f4eefÄ£subÇßpayloadì»}kí«,jìŸ$e93a1d19-267a-44b2-8c6f-ac3d7d1f4eefÄ£subÇßpayloadî»ékí«OjìŸ$e93a1d19-267a-44b2-8c6f-ac3d7d1f4eefÉ¢34«eí¢34¢33◊eí¢33ì¢35«eí¢35£subÉ£obs«h¢34ßpayload»fìÇ≥1316302896589058529«h¢33≥4972599868450838210«h¢35Ÿßreturn (index) => {
+    const values = __lookup_interpolated('1316302896589058529').value
+    __lookup_interpolated('4972599868450838210').notify(values[index - 1])
+}
+Ÿ8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:272®msg_type°1»kí«8jìŸ$e93a1d19-267a-44b2-8c6f-ac3d7d1f4eefÅ¢38«eí¢38°3£subÉ£obs«h¢38ßpayload«¿fìÄŸireturn value=> Bonito.update_node_attribute(document.querySelector('[data-jscall-id="5"]'), 'max', value)ŸQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92®msg_type°1»kí«8jìŸ$e93a1d19-267a-44b2-8c6f-ac3d7d1f4eefÅ¢39«eí¢39°1£subÉ£obs«h¢39ßpayload«¬fìÄŸkreturn value=> Bonito.update_node_attribute(document.querySelector('[data-jscall-id="5"]'), 'value', value)ŸQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92®msg_type°1»^kí«,jìŸ$e93a1d19-267a-44b2-8c6f-ac3d7d1f4eefÄ£subÇßpayload»fìÅ≥6884639643686934696«h¢34Ÿæ((node) => {
+    node['oninput'] = (event)=> {
+    __lookup_interpolated('6884639643686934696').notify(parseInt(event.srcElement.value))
+}
+})(document.querySelector('[data-jscall-id="5"]'));Ÿ8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:287®msg_type°2®msg_type°9»
+pkí«,jìŸ$e93a1d19-267a-44b2-8c6f-ac3d7d1f4eefÄ£subÇßpayload»
+(fìÅ≥7049288966394468709É°1ì»≈kí«,jìŸ$1887c709-7bf8-4258-bdf2-6dd10a983be6Ä£subÜ™session_idŸ$1887c709-7bf8-4258-bdf2-6dd10a983be6®messagesÇßpayloadê®msg_type°9ßreplace¬®msg_type¢12§html»iì£diví«Tiì£diví«iì•styleë†ÅÆdata-jscall-id¢20«iì£divêÅÆdata-jscall-id¢21ÅÆdata-jscall-id¢19«Iiì£divë«-iì¢h1ë¥hello from slider: 1ÅÆdata-jscall-id¢18ÅÆdata-jscall-id¢22É•classØbonito-fragment¢idŸ$1887c709-7bf8-4258-bdf2-6dd10a983be6Ædata-jscall-id∫subsession-application-dom±dom_node_selector°7«Lkí«-jìŸ$6937ece8-6cf4-418e-9c04-507a2effcef4Ä§rootÉßpayload¢id¢35®msg_type°0«Mkí«-jìŸ$6937ece8-6cf4-418e-9c04-507a2effcef4Ä§rootÉßpayload°1¢id¢39®msg_type°0°2ì»Èkí«,jìŸ$9abf44b3-4950-41b8-b392-7869955513b2Ä£subÜ™session_idŸ$9abf44b3-4950-41b8-b392-7869955513b2®messagesÇßpayloadê®msg_type°9ßreplace¬®msg_type¢12§html»7iì£diví«Tiì£diví«iì•styleë†ÅÆdata-jscall-id¢30«iì£divêÅÆdata-jscall-id¢31ÅÆdata-jscall-id¢29«miì£divë«Qiì£imgêÉÆdata-jscall-id¢28£srcŸ&https://docs.makie.org/stable/logo.svg•width•200pxÅÆdata-jscall-id¢32É•classØbonito-fragment¢idŸ$9abf44b3-4950-41b8-b392-7869955513b2Ædata-jscall-id∫subsession-application-dom±dom_node_selector°7«Lkí«-jìŸ$6937ece8-6cf4-418e-9c04-507a2effcef4Ä§rootÉßpayload¢id¢35®msg_type°0«Mkí«-jìŸ$6937ece8-6cf4-418e-9c04-507a2effcef4Ä§rootÉßpayload°2¢id¢39®msg_type°0°3ì»¥kí«,jìŸ$8b92bfc9-98c0-46af-abcc-5b2bd58df951Ä£subÜ™session_idŸ$8b92bfc9-98c0-46af-abcc-5b2bd58df951®messagesÇßpayloadê®msg_type°9ßreplace¬®msg_type¢12§html»iì£diví«Tiì£diví«iì•styleë†ÅÆdata-jscall-id¢40«iì£divêÅÆdata-jscall-id¢41ÅÆdata-jscall-id¢39«8iì£divë«iì§spanë°9ÅÆdata-jscall-id¢38ÅÆdata-jscall-id¢42É•classØbonito-fragment¢idŸ$8b92bfc9-98c0-46af-abcc-5b2bd58df951Ædata-jscall-id∫subsession-application-dom±dom_node_selector°7«Lkí«-jìŸ$6937ece8-6cf4-418e-9c04-507a2effcef4Ä§rootÉßpayload¢id¢35®msg_type°0«Mkí«-jìŸ$6937ece8-6cf4-418e-9c04-507a2effcef4Ä§rootÉßpayload°3¢id¢39®msg_type°0⁄ÅBonito.fetch_binary('bonito/bin/9db2c9ca80f32db88b47e6ca582c0a936b0ba67d-5827476271548123547.bin').then(binary => {
+    const statemap = __lookup_interpolated('7049288966394468709')
+    console.log(statemap)
+    const observables = Bonito.decode_binary(binary, false);
+    Bonito.onany(observables, (states) => {
+        console.log(states)
+        // messages to send for this state of that observable
+        const messages = statemap[states]
+        // not all states trigger events
+        // so some states won't have any messages recorded
+        if (messages){
+            messages.forEach(Bonito.process_message)
+        }
+    })
+})
+Ÿ7/home/runner/work/Bonito.jl/Bonito.jl/src/export.jl:144®msg_type°2«Fkí«-jìŸ$6937ece8-6cf4-418e-9c04-507a2effcef4Ä§rootÇßpayloadê®msg_type°9®msg_type°9

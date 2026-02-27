@@ -1,0 +1,24 @@
+’Ç,j“Ù$77dd9cf9-b3b4-4362-879a-68b238b8a694€£sub‚§payload‘È‹k’ÇPj“Ù$77dd9cf9-b3b4-4362-879a-68b238b8a694‚¤1420Çe’¤1420¤1423Çe’¤1423“¡a¡b¡c£sub‚§payloadÈf“‚´15052673232129723292Çh¤1420´11176658906470347577Çh¤1423Ú¦(function onload(element) {
+    function onchange(e) {
+        if (element === e.srcElement) {
+            (__lookup_interpolated('15052673232129723292')).notify(element.selectedIndex + 1);
+        }
+    }
+    element.addEventListener("change", onchange);
+    element.selectedIndex = 1
+    function set_option_index(index) {
+        if (element.selectedIndex === index - 1) {
+            return
+        }
+        element.selectedIndex = index - 1;
+    }
+    __lookup_interpolated('15052673232129723292').on(set_option_index);
+    function set_options(opts) {
+        element.selectedIndex = 0;
+        // https://stackoverflow.com/questions/3364493/how-do-i-clear-all-options-in-a-dropdown-box
+        element.options.length = 0;
+        opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
+    }
+    __lookup_interpolated('11176658906470347577').on(set_options);
+}
+)(document.querySelector('[data-jscall-id="4"]'));Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:214¨msg_type¡2¨msg_type¡9

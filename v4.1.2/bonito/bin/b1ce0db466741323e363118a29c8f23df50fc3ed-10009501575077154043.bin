@@ -1,0 +1,80 @@
+’Ç,j“Ù$e9c5cdb5-80cc-4573-8990-d297c6b3b9b5€£sub‘È
+&k’Ç,j“Ù$e9c5cdb5-80cc-4573-8990-d297c6b3b9b5€£sub‚§payloadÈ	Þf“€Ú	È    const hover = document.querySelector('[data-jscall-id="344"]');
+    const grid = document.querySelector('[data-jscall-id="343"]');
+    const style_display = document.querySelector('[data-jscall-id="306"]');
+    const h2_node = style_display.children[0].children[0];
+
+
+    let is_dragging = false;
+    let start_position = null;
+    function get_element(e) {
+        const elements = document.elementsFromPoint(e.clientX, e.clientY);
+        for (let i = 0; i < elements.length; i++) {
+            const element = elements[i];
+            if (element.getAttribute('data-col')) {
+                return element;
+            }
+        }
+        return
+    }
+
+
+    function handle_click(current) {
+        // Check if the current element is a child of the container
+        const index = current.getAttribute('data-col')
+        if (index) {
+            const start = start_position.split(",").map(x=> parseInt(x))
+            const end = index.split(",").map(x=> parseInt(x))
+
+
+            const [start_row, end_row] = [start[0], end[0]].sort()
+            const [start_col, end_col] = [start[1], end[1]].sort()
+            const row = (start_row) + " / " + (end_row + 1)
+            const col = (start_col) + " / " + (end_col + 1)
+            hover.style["grid-row"] = row
+            hover.style["grid-column"] = col
+            const nelems = 16 - ((end_row - start_row+ 1) * (end_col - start_col+ 1))
+            for (let i = 0; i < grid.children.length; i++) {
+                console.log(i)
+                const child = grid.children[i];
+                if (child == hover) {
+                    continue
+                }
+                child.style.display = nelems >= i ? "block" : "none";
+            }
+
+
+            h2_node.innerText = 'Styles(\n"grid-row" => "' + row + '",\n "grid-column" => "' + col + '"\n)';
+        }
+    }
+
+
+    grid.addEventListener('mousedown', (e) => {
+        if (!hover) {
+            return
+        }
+        is_dragging = true;
+        const current = get_element(e);
+        const index = current.getAttribute('data-col')
+        if (!index) {
+            return;
+        }
+        start_position = index
+        hover.style.display = "block"; // unhide hover element
+        handle_click(current);
+    });
+
+
+    grid.addEventListener('mousemove', (e) => {
+        if (!is_dragging) return;
+        const current = get_element(e);
+        handle_click(current);
+    });
+
+
+    document.addEventListener('mouseup', () => {
+        is_dragging = false;
+    });
+
+
+°layouting.md:201¨msg_type¡2

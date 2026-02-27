@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Handlers · Bonito</title><meta name="title" content="Handlers · Bonito"/><meta property="og:title" content="Handlers · Bonito"/><meta property="twitter:title" content="Handlers · Bonito"/><meta name="description" content="Documentation for Bonito."/><meta property="og:description" content="Documentation for Bonito."/><meta property="twitter:description" content="Documentation for Bonito."/><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="index.html">Bonito</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li><span class="tocitem">Components</span><ul><li><a class="tocitem" href="styling.html">Styling</a></li><li><a class="tocitem" href="components.html">Components</a></li><li><a class="tocitem" href="layouting.html">Layouting</a></li><li><a class="tocitem" href="widgets.html">Widgets</a></li><li><a class="tocitem" href="interactions.html">Interactions</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="plotting.html">Plotting</a></li><li><a class="tocitem" href="javascript-libraries.html">Wrapping JS libraries</a></li><li><a class="tocitem" href="assets.html">Assets</a></li><li><a class="tocitem" href="extending.html">Extending</a></li></ul></li><li class="is-active"><a class="tocitem" href="handlers.html">Handlers</a><ul class="internal"><li><a class="tocitem" href="#Understanding-Handlers"><span>Understanding Handlers</span></a></li><li><a class="tocitem" href="#Creating-Custom-Handlers"><span>Creating Custom Handlers</span></a></li><li><a class="tocitem" href="#Built-in-Handlers"><span>Built-in Handlers</span></a></li><li><a class="tocitem" href="#Password-Storage"><span>Password Storage</span></a></li><li><a class="tocitem" href="#Combining-Handlers"><span>Combining Handlers</span></a></li><li><a class="tocitem" href="#Advanced:-Handler-Context"><span>Advanced: Handler Context</span></a></li></ul></li><li><a class="tocitem" href="deployment.html">Deployment</a></li><li><a class="tocitem" href="static.html">Static Sites</a></li><li><a class="tocitem" href="api.html">Api</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href="handlers.html">Handlers</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="handlers.html">Handlers</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/master/docs/src/handlers.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Handlers"><a class="docs-heading-anchor" href="#Handlers">Handlers</a><a id="Handlers-1"></a><a class="docs-heading-anchor-permalink" href="#Handlers" title="Permalink"></a></h1><p>Handlers are the building blocks for serving content in Bonito. Any type that implements the <code>apply_handler</code> interface can be used with <code>route!</code> to respond to HTTP requests. This makes Bonito&#39;s routing system highly extensible - you can wrap existing handlers to add functionality like authentication, rate limiting, or logging.</p><h2 id="Understanding-Handlers"><a class="docs-heading-anchor" href="#Understanding-Handlers">Understanding Handlers</a><a id="Understanding-Handlers-1"></a><a class="docs-heading-anchor-permalink" href="#Understanding-Handlers" title="Permalink"></a></h2><p>A handler is any type that implements the <code>apply_handler</code> method:</p><pre><code class="language-julia hljs">function Bonito.HTTPServer.apply_handler(handler::YourHandlerType, context)
+    request = context.request
+    # ... process the request and return HTTP.Response
+    return HTTP.Response(200, &quot;Hello World&quot;)
+end</code></pre><p>The <code>context</code> parameter provides access to:</p><ul><li><code>context.request</code> - The HTTP request object</li><li><code>context.application</code> - The server instance</li><li><code>context.routes</code> - The routes table</li><li><code>context.match</code> - The pattern match result (string or regex match)</li></ul><p>Bonito&#39;s built-in <code>App</code> type is itself a handler, which is why you can use <code>route!(server, &quot;/&quot; =&gt; app)</code> directly.</p><h2 id="Creating-Custom-Handlers"><a class="docs-heading-anchor" href="#Creating-Custom-Handlers">Creating Custom Handlers</a><a id="Creating-Custom-Handlers-1"></a><a class="docs-heading-anchor-permalink" href="#Creating-Custom-Handlers" title="Permalink"></a></h2><p>Here&#39;s a simple example of a custom handler that logs requests:</p><pre><code class="language-julia hljs">using Bonito, Dates
+
+struct LoggingHandler{T}
+    handler::T
+    log_file::String
+end
+
+function Bonito.HTTPServer.apply_handler(logger::LoggingHandler, context)
+    request = context.request
+    # Log the request
+    open(logger.log_file, &quot;a&quot;) do io
+        println(io, &quot;$(now()): $(request.method) $(request.target)&quot;)
+    end
+    # Delegate to wrapped handler
+    return Bonito.HTTPServer.apply_handler(logger.handler, context)
+end
+
+# Usage
+app = App(DOM.div(&quot;Hello World&quot;))
+logged_app = LoggingHandler(app, &quot;requests.log&quot;)
+# route!(server, &quot;/&quot; =&gt; logged_app)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Main.LoggingHandler{App}(App(Bonito.var&quot;#29#30&quot;{Hyperscript.Node{Hyperscript.HTMLSVG}}(&lt;div&gt;Hello World&lt;/div&gt;), Base.RefValue{Union{Nothing, Session}}(nothing), &quot;Bonito App&quot;), &quot;requests.log&quot;)</code></pre><p>This pattern of wrapping handlers is similar to middleware in other web frameworks. You can chain multiple wrappers together:</p><pre><code class="language-julia hljs">protected_logged_app = ProtectedRoute(logged_app, password_store)</code></pre><h2 id="Built-in-Handlers"><a class="docs-heading-anchor" href="#Built-in-Handlers">Built-in Handlers</a><a id="Built-in-Handlers-1"></a><a class="docs-heading-anchor-permalink" href="#Built-in-Handlers" title="Permalink"></a></h2><p>Bonito provides several ready-to-use handlers:</p><h3 id="FolderServer"><a class="docs-heading-anchor" href="#FolderServer">FolderServer</a><a id="FolderServer-1"></a><a class="docs-heading-anchor-permalink" href="#FolderServer" title="Permalink"></a></h3><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Bonito.FolderServer-handlers" href="#Bonito.FolderServer-handlers"><code>Bonito.FolderServer</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">FolderServer(folder::String)</code></pre><p>A simple file server that serves files from the specified folder. Example with a static site generated with Bonito:</p><pre><code class="language-julia hljs"># Build a static site
+app = App(()-&gt; DOM.div(&quot;Hello World&quot;));
+routes = Routes(
+    &quot;/&quot; =&gt; app
+    # Add more routes as needed
+)
+export_static(&quot;build&quot;, routes)
+# Serve the static site from the build folder
+server = Bonito.Server(&quot;0.0.0.0&quot;, 8982)
+route!(server, r&quot;.*&quot; =&gt; FolderServer(&quot;build&quot;))</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/64719f668ecfc5799a43be8773b436ea8754098b/src/HTTPServer/folderserver.jl#L3-L19">source</a></section></article><h3 id="ProtectedRoute"><a class="docs-heading-anchor" href="#ProtectedRoute">ProtectedRoute</a><a id="ProtectedRoute-1"></a><a class="docs-heading-anchor-permalink" href="#ProtectedRoute" title="Permalink"></a></h3><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Bonito.ProtectedRoute-handlers" href="#Bonito.ProtectedRoute-handlers"><code>Bonito.ProtectedRoute</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">ProtectedRoute{T, PS &lt;: AbstractPasswordStore}</code></pre><p>A wrapper that adds HTTP Basic Authentication to any type that implements <code>apply_handler</code>. Can wrap Bonito.App, FolderServer, or any other handler type.</p><p><strong>Security Notes</strong></p><ul><li><strong>REQUIRES HTTPS</strong>: HTTP Basic Auth sends credentials with every request. Without HTTPS, credentials are transmitted in plaintext (Base64 is NOT encryption).</li><li><strong>Experimental</strong>: This is a simple implementation for basic use cases with no security guarantees.</li><li><strong>Rate Limiting</strong>: Built-in protection against brute force attacks (max 5 attempts per IP per minute).</li><li><strong>PBKDF2 Password Hashing</strong>: Uses PBKDF2-HMAC-SHA256 with 10,000 iterations and random salt.</li><li><strong>Extensible</strong>: Use custom AbstractPasswordStore implementations for multi-user or database-backed auth.</li></ul><p><strong>Fields</strong></p><ul><li><code>handler::T</code>: The wrapped handler (e.g., Bonito.App, FolderServer, etc.)</li><li><code>password_store::PS</code>: Password store implementing AbstractPasswordStore interface</li><li><code>realm::String</code>: Authentication realm name (default: &quot;Protected Area&quot;)</li><li><code>failed_attempts::Dict{String, Vector{Float64}}</code>: IP -&gt; timestamps of failed attempts</li><li><code>max_attempts::Int</code>: Maximum failed attempts allowed (default: 5)</li><li><code>lockout_window::Float64</code>: Time window in seconds for rate limiting (default: 60.0)</li><li><code>auth_required_handler</code>: Handler for 401 responses (default: built-in HTML page)</li><li><code>rate_limited_handler</code>: Handler for 429 responses (default: built-in HTML page)</li></ul><p><strong>Example</strong></p><pre><code class="language-julia hljs"># Create app
+app = App() do
+    return DOM.h1(&quot;Hello World&quot;)
+end
+
+# Create password store
+store = SingleUser(&quot;admin&quot;, &quot;secret123&quot;)
+
+# Create protected route
+protected_app = ProtectedRoute(app, store)
+
+# With custom error pages
+auth_page = App() do
+    return DOM.div(
+        DOM.h1(&quot;Authentication Required&quot;),
+        DOM.p(&quot;Please log in to access this resource&quot;)
+    )
+end
+
+rate_limit_page = App() do
+    return DOM.div(
+        DOM.h1(&quot;Too Many Attempts&quot;),
+        DOM.p(&quot;Please wait before trying again&quot;)
+    )
+end
+
+protected_app = ProtectedRoute(app, store;
+                               auth_required_handler=auth_page,
+                               rate_limited_handler=rate_limit_page)
+
+# Add to server (MUST use HTTPS in production!)
+server = Bonito.Server(&quot;0.0.0.0&quot;, 8443)  # Use SSL/TLS
+route!(server, &quot;/&quot; =&gt; protected_app)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/64719f668ecfc5799a43be8773b436ea8754098b/src/HTTPServer/protectedroute.jl#L227-L287">source</a></section></article><h2 id="Password-Storage"><a class="docs-heading-anchor" href="#Password-Storage">Password Storage</a><a id="Password-Storage-1"></a><a class="docs-heading-anchor-permalink" href="#Password-Storage" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Bonito.AbstractPasswordStore-handlers" href="#Bonito.AbstractPasswordStore-handlers"><code>Bonito.AbstractPasswordStore</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">AbstractPasswordStore</code></pre><p>Abstract interface for password storage and authentication.</p><p><strong>Required Methods</strong></p><ul><li><code>get_user(store, username::String)::Union{User, Nothing}</code>: Retrieve user by username</li></ul><p><strong>Provided Methods</strong></p><ul><li><code>authenticate(store, username::String, password::String)::Bool</code>: Verify credentials (implemented via get_user)</li></ul><p><strong>Implementation Guide</strong></p><p>Subtypes only need to implement <code>get_user()</code>. The <code>authenticate()</code> method will automatically:</p><ol><li>Call <code>get_user()</code> to retrieve the user</li><li>Verify the password using the User&#39;s authenticate method</li><li>Return true if credentials match, false otherwise</li></ol><p>For custom authentication logic (e.g., LDAP), you can override <code>authenticate()</code>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/64719f668ecfc5799a43be8773b436ea8754098b/src/HTTPServer/protectedroute.jl#L137-L155">source</a></section></article><h3 id="SingleUser"><a class="docs-heading-anchor" href="#SingleUser">SingleUser</a><a id="SingleUser-1"></a><a class="docs-heading-anchor-permalink" href="#SingleUser" title="Permalink"></a></h3><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Bonito.SingleUser-handlers" href="#Bonito.SingleUser-handlers"><code>Bonito.SingleUser</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">SingleUser &lt;: AbstractPasswordStore</code></pre><p>Simple password store for single-user authentication.</p><p><strong>Fields</strong></p><ul><li><code>user::User</code>: The single user</li></ul></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/64719f668ecfc5799a43be8773b436ea8754098b/src/HTTPServer/protectedroute.jl#L187-L194">source</a></section></article><h3 id="Custom-Password-Stores"><a class="docs-heading-anchor" href="#Custom-Password-Stores">Custom Password Stores</a><a id="Custom-Password-Stores-1"></a><a class="docs-heading-anchor-permalink" href="#Custom-Password-Stores" title="Permalink"></a></h3><p>To implement a custom password store, subtype <code>AbstractPasswordStore</code> and implement <code>get_user</code>:</p><pre><code class="language-julia hljs">using Bonito
+using Bonito: User, AbstractPasswordStore
+
+# Example: Database-backed password store
+struct DatabasePasswordStore &lt;: AbstractPasswordStore
+    db_connection::DatabaseConnection
+end
+
+function Bonito.get_user(store::DatabasePasswordStore, username::String)
+    # Query database for user
+    result = query(store.db_connection,
+                   &quot;SELECT * FROM users WHERE username = ?&quot;, username)
+
+    if isempty(result)
+        return nothing
+    end
+
+    # Reconstruct User from database fields
+    row = result[1]
+    return User(
+        row.username,
+        row.password_hash,  # Already hashed in database
+        row.salt,
+        row.iterations,
+        Dict(&quot;role&quot; =&gt; row.role)  # Optional metadata
+    )
+end
+
+# The authenticate() method is automatically provided</code></pre><p><strong>Interface Requirements:</strong></p><ul><li>Implement <code>get_user(store, username)</code> which returns a <code>User</code> or <code>nothing</code></li><li>The <code>authenticate(store, username, password)</code> method is automatically implemented</li><li>Only override <code>authenticate()</code> if you need custom authentication logic</li></ul><p><strong>Creating Users Manually:</strong></p><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Bonito.User-handlers" href="#Bonito.User-handlers"><code>Bonito.User</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">User</code></pre><p>Represents a user with authentication credentials.</p><p><strong>Fields</strong></p><ul><li><code>username::String</code>: The username</li><li><code>password_hash::Vector{UInt8}</code>: PBKDF2 derived key</li><li><code>salt::Vector{UInt8}</code>: Random salt for password hashing</li><li><code>iterations::Int</code>: PBKDF2 iteration count</li><li><code>metadata::Dict{String, Any}</code>: Optional user metadata (roles, permissions, etc.)</li></ul></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/64719f668ecfc5799a43be8773b436ea8754098b/src/HTTPServer/protectedroute.jl#L87-L98">source</a></section></article><h2 id="Combining-Handlers"><a class="docs-heading-anchor" href="#Combining-Handlers">Combining Handlers</a><a id="Combining-Handlers-1"></a><a class="docs-heading-anchor-permalink" href="#Combining-Handlers" title="Permalink"></a></h2><p>Handlers can be composed to create complex behaviors:</p><pre><code class="language-julia hljs"># Multiple layers of protection
+admin_app = App(DOM.h1(&quot;Super Secret Admin&quot;))
+logged_app = LoggingHandler(admin_app, &quot;admin.log&quot;)
+protected_app = ProtectedRoute(logged_app, admin_store)
+
+# Different protection for different routes
+public_files = FolderServer(&quot;public&quot;)
+protected_files = ProtectedRoute(FolderServer(&quot;private&quot;), file_store)
+
+server = Bonito.Server(&quot;0.0.0.0&quot;, 8080)
+# Use regex route to forward all file requests to FolderServer
+route!(server, r&quot;/public/.*&quot; =&gt; public_files)
+route!(server, &quot;/private/.*&quot; =&gt; protected_files)
+route!(server, &quot;/admin&quot; =&gt; protected_app)</code></pre><h2 id="Advanced:-Handler-Context"><a class="docs-heading-anchor" href="#Advanced:-Handler-Context">Advanced: Handler Context</a><a id="Advanced:-Handler-Context-1"></a><a class="docs-heading-anchor-permalink" href="#Advanced:-Handler-Context" title="Permalink"></a></h2><p>The <code>context</code> object passed to handlers is a NamedTuple with the following fields:</p><pre><code class="language-julia hljs">context = (
+    request = HTTP.Request,      # The HTTP request
+    application = Server,         # The server instance
+    routes = Routes,              # The routes table
+    match = Union{String, RegexMatch}  # The pattern match result
+)</code></pre><p>You can access request details like:</p><pre><code class="language-julia hljs">function Bonito.HTTPServer.apply_handler(handler::MyHandler, context)
+    request = context.request
+
+    # Request method (GET, POST, etc.)
+    method = request.method
+
+    # Request path
+    path = request.target
+
+    # Headers
+    user_agent = HTTP.header(request, &quot;User-Agent&quot;, &quot;&quot;)
+
+    # Query parameters
+    uri = URIs.URI(request.target)
+    query = URIs.queryparams(uri.query)
+
+    # Access server info
+    server = context.application
+    server_url = online_url(server, &quot;/&quot;)
+
+    # Access regex capture groups if using regex pattern
+    if context.match isa RegexMatch
+        captured = context.match.captures
+    end
+
+    # ...
+end</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="extending.html">« Extending</a><a class="docs-footer-nextpage" href="deployment.html">Deployment »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.15.0 on <span class="colophon-date" title="Thursday 23 October 2025 12:23">Thursday 23 October 2025</span>. Using Julia version 1.12.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

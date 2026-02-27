@@ -1,0 +1,1940 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Layouting · Bonito</title><meta name="title" content="Layouting · Bonito"/><meta property="og:title" content="Layouting · Bonito"/><meta property="twitter:title" content="Layouting · Bonito"/><meta name="description" content="Documentation for Bonito."/><meta property="og:description" content="Documentation for Bonito."/><meta property="twitter:description" content="Documentation for Bonito."/><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="index.html">Bonito</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li><span class="tocitem">Components</span><ul><li><a class="tocitem" href="styling.html">Styling</a></li><li><a class="tocitem" href="components.html">Components</a></li><li class="is-active"><a class="tocitem" href="layouting.html">Layouting</a><ul class="internal"><li><a class="tocitem" href="#Implicit-Grids"><span>Implicit Grids</span></a></li><li><a class="tocitem" href="#Assigning-children"><span>Assigning children</span></a></li><li><a class="tocitem" href="#Grid-areas"><span>Grid areas</span></a></li><li><a class="tocitem" href="#Alignment"><span>Alignment</span></a></li></ul></li><li><a class="tocitem" href="widgets.html">Widgets</a></li><li><a class="tocitem" href="interactions.html">Interactions</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="plotting.html">Plotting</a></li><li><a class="tocitem" href="javascript-libraries.html">Wrapping JS libraries</a></li><li><a class="tocitem" href="assets.html">Assets</a></li><li><a class="tocitem" href="extending.html">Extending</a></li></ul></li><li><a class="tocitem" href="deployment.html">Deployment</a></li><li><a class="tocitem" href="static.html">Static Sites</a></li><li><a class="tocitem" href="api.html">Api</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Components</a></li><li class="is-active"><a href="layouting.html">Layouting</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="layouting.html">Layouting</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/master/docs/src/layouting.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Layouting"><a class="docs-heading-anchor" href="#Layouting">Layouting</a><a id="Layouting-1"></a><a class="docs-heading-anchor-permalink" href="#Layouting" title="Permalink"></a></h1><p>The main layouting primitive Bonito offers is <code>Grid</code>, <code>Column</code> and <code>Row</code>. They are all based on css <code>display: grid</code> and Bonito offers a small convenience wrapper around it.</p><p>We recommend reading through the great introduction to Styles grids by Josh Comeau: <a href="https://www.joshwcomeau.com/css/interactive-guide-to-grid">interactive guide to grid</a>, for a better understanding of how grids work. It&#39;s recommended to read this before following this tutorial, since the examples are styled much nicer and explain everything in much greater detail.</p><p>To easier apply the tutorial to Bonito, we ported all the examples of the tutorial, while only describing them with the bare minimum. To get the full picture, please refer to the linked, original tutorial!</p><p>Let&#39;s start with the docstring for <code>Grid</code>:</p><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Bonito.Grid" href="#Bonito.Grid"><code>Bonito.Grid</code></a> — <span class="docstring-category">Function</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Grid(
+    elems...;
+    gap=&quot;10px&quot;,
+    width=&quot;100%&quot;,
+    height=&quot;100%&quot;,
+    # All below Attributes are set to the default CSS values:
+    columns=&quot;none&quot;,
+    rows=&quot;none&quot;,
+    areas=&quot;none&quot;,
+    justify_content=&quot;normal&quot;,
+    justify_items=&quot;legacy&quot;,
+    align_content=&quot;normal&quot;,
+    align_items=&quot;legacy&quot;,
+    style::Styles=Styles(),
+    div_attributes...,
+)</code></pre><p>A Grid is a container that lays out its children in a grid, based on the powerful css <code>display: grid</code> property.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/cd9583508a6a875ca08d48dc50095a138c503eb7/src/components.jl#L72-L91">source</a></section></article><p>It pretty much just sets the css attributes to some defaults, but everything can be overwritten or extended by passing your own <code>style=Styles(...)</code> object. All Styles objects inside one App will be merged into a single stylesheet, so using many grids with the same keyword arguments will only generate one entry into the global stylesheet. You can read more about this in the styling section.</p><p>There&#39;s also <code>Row</code> and <code>Col</code> which uses <code>Grid</code> under the hood:</p><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Bonito.Row" href="#Bonito.Row"><code>Bonito.Row</code></a> — <span class="docstring-category">Function</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Row(elems...; grid_attributes...)</code></pre><p>Places objects in a row, based on <code>Grid</code>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/cd9583508a6a875ca08d48dc50095a138c503eb7/src/components.jl#L125-L129">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Bonito.Col" href="#Bonito.Col"><code>Bonito.Col</code></a> — <span class="docstring-category">Function</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Col(elems...; grid_attributes...)</code></pre><p>Places objects in a column, based on <code>Grid</code>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/cd9583508a6a875ca08d48dc50095a138c503eb7/src/components.jl#L136-L140">source</a></section></article><h2 id="Implicit-Grids"><a class="docs-heading-anchor" href="#Implicit-Grids">Implicit Grids</a><a id="Implicit-Grids-1"></a><a class="docs-heading-anchor-permalink" href="#Implicit-Grids" title="Permalink"></a></h2><p>If we don&#39;t specify any attributes for the <code>Grid</code>, the default will be one dynamic column, where every item gets their own row:</p><pre><code class="language-julia hljs">DemoCard(content=DOM.div(); style=Styles(), attributes...) = Card(content; backgroundcolor=:silver, border_radius=&quot;2px&quot;, style=Styles(style, &quot;color&quot; =&gt; :white),attributes...)
+
+
+App() do sess
+    s = Bonito.Slider(1:5)
+    cards = map(s.value) do n
+        cards = [DemoCard(height=&quot;50px&quot;, width=&quot;300px&quot;) for i in 1:n]
+        return Grid(cards;)
+    end
+    return Bonito.record_states(sess, Grid(s, cards))
+end</code></pre><div>
+  <div class="bonito-fragment" id="109db6da-6ceb-4478-a9a3-6a2fed6d969c" data-jscall-id="root">
+    <div>
+      <script src="bonito/js/Bonito.bundled.js" type="module"></script>
+      <style></style>
+      <div></div>
+    </div>
+    <div>
+      <script type="module">Bonito.lock_loading(() => Bonito.init_session('109db6da-6ceb-4478-a9a3-6a2fed6d969c', null, 'root'))</script>
+      <span></span>
+    </div>
+  </div>
+  <div class="bonito-fragment" id="c83b42d4-ab6e-4efc-b4a3-47756b2f6446" data-jscall-id="subsession-application-dom">
+    <div>
+      <style>.style_24 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+</style>
+      <div></div>
+    </div>
+    <div>
+      <script type="module">    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/30ea17830e1c71e893f10cc3256f9919e8584747-7507196675215209481.bin').then(msgs=> Bonito.init_session('c83b42d4-ab6e-4efc-b4a3-47756b2f6446', msgs, 'sub'));
+    })
+</script>
+      <div style="" data-jscall-id="1">
+        <input step="1" max="5" min="1" style="styles" data-jscall-id="2" value="1" oninput="" type="range" />
+        <span data-jscall-id="6">
+          <div class="bonito-fragment" id="299b3c6e-005c-427e-bd22-17e63549e4d3" data-jscall-id="subsession-application-dom">
+            <div data-jscall-id="7">
+              <style data-jscall-id="8">.style_2 {
+  height: 50px;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_3 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+</style>
+              <div data-jscall-id="9"></div>
+            </div>
+            <div data-jscall-id="10">
+              <script data-jscall-id="11" type="module">Bonito.lock_loading(() => Bonito.init_session('299b3c6e-005c-427e-bd22-17e63549e4d3', null, 'sub'))</script>
+              <div class=" style_3" style="" data-jscall-id="3">
+                <div class=" style_2" style="" data-jscall-id="4">
+                  <div data-jscall-id="5"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </span>
+      </div>
+    </div>
+  </div>
+</div><p>If we specify a height, while not specifying a height for the elements, the space will be partitioned for the n children:</p><pre><code class="language-julia hljs">App() do sess
+    s = Bonito.Slider(1:5)
+    cards = map(s.value) do n
+        cards = [DemoCard(width=&quot;300px&quot;) for i in 1:n]
+        Grid(cards; height=&quot;300px&quot;)
+    end
+    return Bonito.record_states(sess, Grid(s, cards))
+end</code></pre><div class="bonito-fragment" id="efba4077-2373-48e3-b3dd-b6220915eda4" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_47 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+</style>
+    <div></div>
+  </div>
+  <div>
+    <script type="module">    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/3a4bc73c24753d83931c5d90219c7a510bc95acc-8730265636635230050.bin').then(msgs=> Bonito.init_session('efba4077-2373-48e3-b3dd-b6220915eda4', msgs, 'sub'));
+    })
+</script>
+    <div style="" data-jscall-id="122">
+      <input step="1" max="5" min="1" style="styles" data-jscall-id="123" value="1" oninput="" type="range" />
+      <span data-jscall-id="127">
+        <div class="bonito-fragment" id="f7798826-5d3d-4cb1-bfbd-c8b3c9eaf1d7" data-jscall-id="subsession-application-dom">
+          <div data-jscall-id="128">
+            <style data-jscall-id="129">.style_25 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 300px;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_26 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+</style>
+            <div data-jscall-id="130"></div>
+          </div>
+          <div data-jscall-id="131">
+            <script data-jscall-id="132" type="module">Bonito.lock_loading(() => Bonito.init_session('f7798826-5d3d-4cb1-bfbd-c8b3c9eaf1d7', null, 'sub'))</script>
+            <div class=" style_25" style="" data-jscall-id="124">
+              <div class=" style_26" style="" data-jscall-id="125">
+                <div data-jscall-id="126"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </span>
+    </div>
+  </div>
+</div><p>To introduce new columns, we can specify a width for each column via the <code>column</code> keyword, which supports any css unit:</p><pre><code class="language-julia hljs">App() do
+    grid = Grid(DemoCard(), DemoCard();
+        height=&quot;300px&quot;, columns=&quot;25% 75%&quot;)
+    return grid
+end</code></pre><div class="bonito-fragment" id="8ce6c771-039b-4cf5-931c-8e6fe7153d92" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_48 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 300px;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: 25% 75%;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_49 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: auto;
+  border-radius: 2px;
+  margin: 2px;
+}
+</style>
+    <div></div>
+  </div>
+  <div>
+    <script type="module">Bonito.lock_loading(() => Bonito.init_session('8ce6c771-039b-4cf5-931c-8e6fe7153d92', null, 'sub'))</script>
+    <div class=" style_48" style="" data-jscall-id="243">
+      <div class=" style_49" style="" data-jscall-id="244">
+        <div data-jscall-id="245"></div>
+      </div>
+      <div class=" style_49" style="" data-jscall-id="246">
+        <div data-jscall-id="247"></div>
+      </div>
+    </div>
+  </div>
+</div><p>Grid also introduced a new css unit namely <code>fr</code>, which represents the fraction of the leftover space in the grid container.</p><p>To see what that means, the below example shows how the percent based unit will shrink proportionally, while <code>fr</code> divides the space more evenly and can take the size of the content into it&#39;s constraint solver:</p><pre><code class="language-julia hljs">App() do sess
+    container_width = Bonito.Slider(5:0.1:100)
+    container_width[] = 100
+    imstyle = Styles(
+        &quot;display&quot; =&gt; :block, &quot;position&quot; =&gt; :relative, &quot;width&quot; =&gt; &quot;100px&quot;,
+        &quot;max-width&quot; =&gt; :none # needs to be set so it&#39;s not overwritten by others
+    )
+    img = DOM.img(; src=&quot;https://docs.makie.org/stable/logo.svg&quot;, style=imstyle)
+    style = Styles(&quot;position&quot; =&gt; :relative, &quot;display&quot; =&gt; :flex, &quot;justify-content&quot; =&gt; :center, &quot;align-items&quot; =&gt; :center)
+
+
+    function example_grid(cols)
+        grid = Grid(DemoCard(img; style=style), DemoCard(DOM.div(); style=style); columns=cols)
+        container = DOM.div(grid; style=Styles(&quot;height&quot; =&gt; &quot;200px&quot;, &quot;width&quot; =&gt; &quot;500px&quot;))
+        return Grid(container; rows=&quot;1fr&quot;, justify_content=&quot;center&quot;), container
+    end
+    pgrid, p1 = example_grid(&quot;25% 75%&quot;)
+    frgrid, p2 = example_grid(&quot;1fr 3fr&quot;)
+    grid_percent = DOM.div(Grid(pgrid; rows=&quot;1fr&quot;))
+    grid_fr = DOM.div(Grid(frgrid; rows=&quot;1fr&quot;))
+
+
+    onjs(sess, container_width.value, js&quot;w=&gt; {$(p1).style.width = (5 * w) + &#39;px&#39;;}&quot;)
+    onjs(sess, container_width.value, js&quot;w=&gt; {$(p2).style.width = (5 * w) + &#39;px&#39;;}&quot;)
+    title_percent = DOM.h2(&quot;Grid(...; columns=\&quot;25% 75%\&quot;)&quot;)
+    title_fr = DOM.h2(&quot;Grid(...; columns=\&quot;1fr 3fr\&quot;)&quot;)
+    return Grid(container_width, title_percent, grid_percent, title_fr, grid_fr; columns=&quot;1fr&quot;)
+end</code></pre><div class="bonito-fragment" id="b2066b3e-2a67-4e1a-a477-9d4bf8f4f5a0" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_50 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: 1fr;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_51 {
+  max-width: none;
+  display: block;
+  position: relative;
+  width: 100px;
+}
+.style_52 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: 1fr 3fr;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_53 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: 25% 75%;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_54 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: 1fr;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_55 {
+  align-items: center;
+  height: auto;
+  display: flex;
+  padding: 12px;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  position: relative;
+  border-radius: 2px;
+  justify-content: center;
+  background-color: silver;
+  width: auto;
+  color: white;
+  margin: 2px;
+}
+.style_56 {
+  height: 200px;
+  width: 500px;
+}
+.style_57 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: 1fr;
+  justify-content: center;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+</style>
+    <div></div>
+  </div>
+  <div>
+    <script type="module">    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/c8738730be655befd6b3963b0ae233eae9bd4beb-13597801279956752405.bin').then(msgs=> Bonito.init_session('b2066b3e-2a67-4e1a-a477-9d4bf8f4f5a0', msgs, 'sub'));
+    })
+</script>
+    <div class=" style_50" style="" data-jscall-id="250">
+      <input step="1" max="951" min="1" style="styles" data-jscall-id="251" value="951" oninput="" type="range" />
+      <h2 data-jscall-id="252">Grid&#40;...; columns&#61;&#34;25&#37; 75&#37;&#34;&#41;</h2>
+      <div data-jscall-id="253">
+        <div class=" style_54" style="" data-jscall-id="254">
+          <div class=" style_57" style="" data-jscall-id="255">
+            <div class=" style_56" style="" data-jscall-id="248">
+              <div class=" style_53" style="" data-jscall-id="256">
+                <div class=" style_55" style="" data-jscall-id="257">
+                  <img class=" style_51" style="" data-jscall-id="258" src="https://docs.makie.org/stable/logo.svg" />
+                </div>
+                <div class=" style_55" style="" data-jscall-id="259">
+                  <div data-jscall-id="260"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <h2 data-jscall-id="261">Grid&#40;...; columns&#61;&#34;1fr 3fr&#34;&#41;</h2>
+      <div data-jscall-id="262">
+        <div class=" style_54" style="" data-jscall-id="263">
+          <div class=" style_57" style="" data-jscall-id="264">
+            <div class=" style_56" style="" data-jscall-id="249">
+              <div class=" style_52" style="" data-jscall-id="265">
+                <div class=" style_55" style="" data-jscall-id="266">
+                  <img class=" style_51" style="" data-jscall-id="258" src="https://docs.makie.org/stable/logo.svg" />
+                </div>
+                <div class=" style_55" style="" data-jscall-id="267">
+                  <div data-jscall-id="268"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><p>Now, what happens if we add more then 2 items to a Grid with 2 columns?</p><pre><code class="language-julia hljs"># Little helper to create a Card with centered content
+centered(c; style=Styles(), kw...) = DemoCard(Centered(DOM.h4(c; style=Styles(&quot;color&quot; =&gt; :white))); style=style, kw...)
+
+
+App() do
+    cards = [centered(i) for i in 1:3]
+    grid = Grid(cards...; columns=&quot;1fr 3fr&quot;)
+    return DOM.div(grid; style=Styles(&quot;margin&quot; =&gt; &quot;20px&quot;))
+end</code></pre><div class="bonito-fragment" id="08f5a301-c60d-40f1-b69d-44dcc021ed26" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_58 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: 1fr 3fr;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_59 {
+  margin: 20px;
+}
+.style_60 {
+  justify-items: center;
+  align-items: center;
+  height: 100%;
+  display: grid;
+  align-content: center;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: center;
+  grid-template-columns: 1fr;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_61 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: auto;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_62 {
+  color: white;
+}
+</style>
+    <div></div>
+  </div>
+  <div>
+    <script type="module">Bonito.lock_loading(() => Bonito.init_session('08f5a301-c60d-40f1-b69d-44dcc021ed26', null, 'sub'))</script>
+    <div class=" style_59" style="" data-jscall-id="269">
+      <div class=" style_58" style="" data-jscall-id="270">
+        <div class=" style_61" style="" data-jscall-id="271">
+          <div class=" style_60" style="" data-jscall-id="272">
+            <h4 class=" style_62" style="" data-jscall-id="273">1</h4>
+          </div>
+        </div>
+        <div class=" style_61" style="" data-jscall-id="274">
+          <div class=" style_60" style="" data-jscall-id="275">
+            <h4 class=" style_62" style="" data-jscall-id="276">2</h4>
+          </div>
+        </div>
+        <div class=" style_61" style="" data-jscall-id="277">
+          <div class=" style_60" style="" data-jscall-id="278">
+            <h4 class=" style_62" style="" data-jscall-id="279">3</h4>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><p>Specifying the size of the rows works exactly the same as with <code>columns</code>:</p><pre><code class="language-julia hljs">App() do
+    cards = [centered(i) for i in 1:4]
+    grid = Grid(cards...; columns=&quot;1fr 3fr&quot;, rows=&quot;5rem 1fr&quot;)
+    return DOM.div(grid; style=Styles(&quot;width&quot; =&gt; &quot;400px&quot;, &quot;height&quot; =&gt; &quot;300px&quot;, &quot;margin&quot; =&gt; &quot;20px&quot;))
+end</code></pre><div class="bonito-fragment" id="53b37762-0e43-41ee-a9b9-de43dedef1e5" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_63 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: 5rem 1fr;
+  justify-content: normal;
+  grid-template-columns: 1fr 3fr;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_64 {
+  justify-items: center;
+  align-items: center;
+  height: 100%;
+  display: grid;
+  align-content: center;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: center;
+  grid-template-columns: 1fr;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_65 {
+  height: 300px;
+  width: 400px;
+  margin: 20px;
+}
+.style_66 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: auto;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_67 {
+  color: white;
+}
+</style>
+    <div></div>
+  </div>
+  <div>
+    <script type="module">Bonito.lock_loading(() => Bonito.init_session('53b37762-0e43-41ee-a9b9-de43dedef1e5', null, 'sub'))</script>
+    <div class=" style_65" style="" data-jscall-id="280">
+      <div class=" style_63" style="" data-jscall-id="281">
+        <div class=" style_66" style="" data-jscall-id="282">
+          <div class=" style_64" style="" data-jscall-id="283">
+            <h4 class=" style_67" style="" data-jscall-id="284">1</h4>
+          </div>
+        </div>
+        <div class=" style_66" style="" data-jscall-id="285">
+          <div class=" style_64" style="" data-jscall-id="286">
+            <h4 class=" style_67" style="" data-jscall-id="287">2</h4>
+          </div>
+        </div>
+        <div class=" style_66" style="" data-jscall-id="288">
+          <div class=" style_64" style="" data-jscall-id="289">
+            <h4 class=" style_67" style="" data-jscall-id="290">3</h4>
+          </div>
+        </div>
+        <div class=" style_66" style="" data-jscall-id="291">
+          <div class=" style_64" style="" data-jscall-id="292">
+            <h4 class=" style_67" style="" data-jscall-id="293">4</h4>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><p>Now, if we want to do something with lots of rows/columns, e.g. a calendar, it may get tiring to write those out, which is why css offers the <code>repeat</code> function:</p><pre><code class="language-julia hljs">App() do
+    cards = [centered(i) for i in 1:31]
+    grid = Grid(cards...; columns=&quot;repeat(7, 1fr)&quot;)
+    return DOM.div(grid; style=Styles(&quot;width&quot; =&gt; &quot;400px&quot;, &quot;margin&quot; =&gt; &quot;5px&quot;))
+end</code></pre><div class="bonito-fragment" id="85f24818-2d72-4181-bd0e-683350a6cb16" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_68 {
+  justify-items: center;
+  align-items: center;
+  height: 100%;
+  display: grid;
+  align-content: center;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: center;
+  grid-template-columns: 1fr;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_69 {
+  width: 400px;
+  margin: 5px;
+}
+.style_70 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: repeat(7, 1fr);
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_71 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: auto;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_72 {
+  color: white;
+}
+</style>
+    <div></div>
+  </div>
+  <div>
+    <script type="module">Bonito.lock_loading(() => Bonito.init_session('85f24818-2d72-4181-bd0e-683350a6cb16', null, 'sub'))</script>
+    <div class=" style_69" style="" data-jscall-id="294">
+      <div class=" style_70" style="" data-jscall-id="295">
+        <div class=" style_71" style="" data-jscall-id="296">
+          <div class=" style_68" style="" data-jscall-id="297">
+            <h4 class=" style_72" style="" data-jscall-id="298">1</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="299">
+          <div class=" style_68" style="" data-jscall-id="300">
+            <h4 class=" style_72" style="" data-jscall-id="301">2</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="302">
+          <div class=" style_68" style="" data-jscall-id="303">
+            <h4 class=" style_72" style="" data-jscall-id="304">3</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="305">
+          <div class=" style_68" style="" data-jscall-id="306">
+            <h4 class=" style_72" style="" data-jscall-id="307">4</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="308">
+          <div class=" style_68" style="" data-jscall-id="309">
+            <h4 class=" style_72" style="" data-jscall-id="310">5</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="311">
+          <div class=" style_68" style="" data-jscall-id="312">
+            <h4 class=" style_72" style="" data-jscall-id="313">6</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="314">
+          <div class=" style_68" style="" data-jscall-id="315">
+            <h4 class=" style_72" style="" data-jscall-id="316">7</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="317">
+          <div class=" style_68" style="" data-jscall-id="318">
+            <h4 class=" style_72" style="" data-jscall-id="319">8</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="320">
+          <div class=" style_68" style="" data-jscall-id="321">
+            <h4 class=" style_72" style="" data-jscall-id="322">9</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="323">
+          <div class=" style_68" style="" data-jscall-id="324">
+            <h4 class=" style_72" style="" data-jscall-id="325">10</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="326">
+          <div class=" style_68" style="" data-jscall-id="327">
+            <h4 class=" style_72" style="" data-jscall-id="328">11</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="329">
+          <div class=" style_68" style="" data-jscall-id="330">
+            <h4 class=" style_72" style="" data-jscall-id="331">12</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="332">
+          <div class=" style_68" style="" data-jscall-id="333">
+            <h4 class=" style_72" style="" data-jscall-id="334">13</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="335">
+          <div class=" style_68" style="" data-jscall-id="336">
+            <h4 class=" style_72" style="" data-jscall-id="337">14</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="338">
+          <div class=" style_68" style="" data-jscall-id="339">
+            <h4 class=" style_72" style="" data-jscall-id="340">15</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="341">
+          <div class=" style_68" style="" data-jscall-id="342">
+            <h4 class=" style_72" style="" data-jscall-id="343">16</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="344">
+          <div class=" style_68" style="" data-jscall-id="345">
+            <h4 class=" style_72" style="" data-jscall-id="346">17</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="347">
+          <div class=" style_68" style="" data-jscall-id="348">
+            <h4 class=" style_72" style="" data-jscall-id="349">18</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="350">
+          <div class=" style_68" style="" data-jscall-id="351">
+            <h4 class=" style_72" style="" data-jscall-id="352">19</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="353">
+          <div class=" style_68" style="" data-jscall-id="354">
+            <h4 class=" style_72" style="" data-jscall-id="355">20</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="356">
+          <div class=" style_68" style="" data-jscall-id="357">
+            <h4 class=" style_72" style="" data-jscall-id="358">21</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="359">
+          <div class=" style_68" style="" data-jscall-id="360">
+            <h4 class=" style_72" style="" data-jscall-id="361">22</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="362">
+          <div class=" style_68" style="" data-jscall-id="363">
+            <h4 class=" style_72" style="" data-jscall-id="364">23</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="365">
+          <div class=" style_68" style="" data-jscall-id="366">
+            <h4 class=" style_72" style="" data-jscall-id="367">24</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="368">
+          <div class=" style_68" style="" data-jscall-id="369">
+            <h4 class=" style_72" style="" data-jscall-id="370">25</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="371">
+          <div class=" style_68" style="" data-jscall-id="372">
+            <h4 class=" style_72" style="" data-jscall-id="373">26</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="374">
+          <div class=" style_68" style="" data-jscall-id="375">
+            <h4 class=" style_72" style="" data-jscall-id="376">27</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="377">
+          <div class=" style_68" style="" data-jscall-id="378">
+            <h4 class=" style_72" style="" data-jscall-id="379">28</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="380">
+          <div class=" style_68" style="" data-jscall-id="381">
+            <h4 class=" style_72" style="" data-jscall-id="382">29</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="383">
+          <div class=" style_68" style="" data-jscall-id="384">
+            <h4 class=" style_72" style="" data-jscall-id="385">30</h4>
+          </div>
+        </div>
+        <div class=" style_71" style="" data-jscall-id="386">
+          <div class=" style_68" style="" data-jscall-id="387">
+            <h4 class=" style_72" style="" data-jscall-id="388">31</h4>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><h2 id="Assigning-children"><a class="docs-heading-anchor" href="#Assigning-children">Assigning children</a><a id="Assigning-children-1"></a><a class="docs-heading-anchor-permalink" href="#Assigning-children" title="Permalink"></a></h2><p>Children can be assigned slots in the layout explicitly, and it&#39;s also possible to assign them to multiple slots. The css syntax for this is:</p><pre><code class="language-julia hljs">start_column = 1
+end_column = 3
+start_row = 1
+end_row = 3
+
+
+style = Styles(
+    &quot;grid-column&quot; =&gt; &quot;$start_column / $end_column&quot;,
+    &quot;grid-row&quot; =&gt; &quot;$start_row / $end_row&quot;
+)
+child = DOM.div(style=style) # assign child from slot 1-2</code></pre><p>To illustrate how this works, here is an interactive app where you can select the slots in the grid, and see the corresponding grid/column assignments:</p><pre><code class="language-julia hljs">function centered2d(i, j;)
+    return Card(Centered(&quot;($i, $j)&quot;; dataCol=&quot;$i,$j&quot;, style=Styles(&quot;user-select&quot; =&gt; :none)))
+end
+
+App() do
+    cards = [centered2d(i, j) for i in 1:4 for j in 1:4]
+
+
+    hover_style = Styles(
+        &quot;background-color&quot; =&gt; :blue,
+        &quot;opacity&quot; =&gt; 0.2,
+        &quot;z-index&quot; =&gt; 1,
+        &quot;display&quot; =&gt; :none,
+        &quot;user-select&quot; =&gt; :none,
+    )
+
+
+    hover = DOM.div(; style=hover_style)
+
+
+    grid_style = Styles(&quot;position&quot; =&gt; :absolute, &quot;top&quot; =&gt; 0, &quot;left&quot; =&gt; 0)
+    size = &quot;300px&quot;
+    background_grid = Grid(cards...; columns=&quot;repeat(4, 1fr)&quot;, gap=&quot;0px&quot;,
+        style=grid_style, height=size, width=size)
+
+
+    rows = [DOM.div() for i in 1:15]
+
+
+    selected_grid = Grid(hover, rows...; columns=&quot;repeat(4, 1fr)&quot;, gap=&quot;0px&quot;,
+        style=grid_style, height=size, width=size)
+
+
+    style_display = centered(&quot;Styles(...)&quot;)
+
+
+    hover_js = js&quot;&quot;&quot;
+        const hover = $(hover);
+        const grid = $(selected_grid);
+        const style_display = $(style_display);
+        const h2_node = style_display.children[0].children[0];
+
+
+        let is_dragging = false;
+        let start_position = null;
+        function get_element(e) {
+            const elements = document.elementsFromPoint(e.clientX, e.clientY);
+            for (let i = 0; i &lt; elements.length; i++) {
+                const element = elements[i];
+                if (element.getAttribute(&#39;data-col&#39;)) {
+                    return element;
+                }
+            }
+            return
+        }
+
+
+        function handle_click(current) {
+            // Check if the current element is a child of the container
+            const index = current.getAttribute(&#39;data-col&#39;)
+            if (index) {
+                const start = start_position.split(&quot;,&quot;).map(x=&gt; parseInt(x))
+                const end = index.split(&quot;,&quot;).map(x=&gt; parseInt(x))
+
+
+                const [start_row, end_row] = [start[0], end[0]].sort()
+                const [start_col, end_col] = [start[1], end[1]].sort()
+                const row = (start_row) + &quot; / &quot; + (end_row + 1)
+                const col = (start_col) + &quot; / &quot; + (end_col + 1)
+                hover.style[&quot;grid-row&quot;] = row
+                hover.style[&quot;grid-column&quot;] = col
+                const nelems = 16 - ((end_row - start_row+ 1) * (end_col - start_col+ 1))
+                for (let i = 0; i &lt; grid.children.length; i++) {
+                    console.log(i)
+                    const child = grid.children[i];
+                    if (child == hover) {
+                        continue
+                    }
+                    child.style.display = nelems &gt;= i ? &quot;block&quot; : &quot;none&quot;;
+                }
+
+
+                h2_node.innerText = &#39;Styles(\n\&quot;grid-row\&quot; =&gt; \&quot;&#39; + row + &#39;\&quot;,\n \&quot;grid-column\&quot; =&gt; \&quot;&#39; + col + &#39;\&quot;\n)&#39;;
+            }
+        }
+
+
+        grid.addEventListener(&#39;mousedown&#39;, (e) =&gt; {
+            if (!hover) {
+                return
+            }
+            is_dragging = true;
+            const current = get_element(e);
+            const index = current.getAttribute(&#39;data-col&#39;)
+            if (!index) {
+                return;
+            }
+            start_position = index
+            hover.style.display = &quot;block&quot;; // unhide hover element
+            handle_click(current);
+        });
+
+
+        grid.addEventListener(&#39;mousemove&#39;, (e) =&gt; {
+            if (!is_dragging) return;
+            const current = get_element(e);
+            handle_click(current);
+        });
+
+
+        document.addEventListener(&#39;mouseup&#39;, () =&gt; {
+            is_dragging = false;
+        });
+
+
+    &quot;&quot;&quot;
+    grids = DOM.div(background_grid, selected_grid, hover_js; style=Styles(&quot;position&quot; =&gt; :relative, &quot;height&quot; =&gt; size))
+
+
+    return Grid(style_display, grids; columns=&quot;1fr 2fr&quot;, width=&quot;100%&quot;)
+end</code></pre><div class="bonito-fragment" id="5e676bcc-72d9-4eb8-9a79-13a9abd81b75" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_73 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: 1fr 2fr;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_74 {
+  justify-items: center;
+  align-items: center;
+  height: 100%;
+  display: grid;
+  align-content: center;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: center;
+  grid-template-columns: 1fr;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_75 {
+  height: 300px;
+  position: relative;
+}
+.style_76 {
+  justify-items: center;
+  align-items: center;
+  height: 100%;
+  display: grid;
+  align-content: center;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: center;
+  grid-template-columns: 1fr;
+  width: 100%;
+  grid-template-areas: none;
+  user-select: none;
+}
+.style_77 {
+  left: 0;
+  justify-items: legacy;
+  align-items: legacy;
+  height: 300px;
+  display: grid;
+  align-content: normal;
+  position: absolute;
+  grid-gap: 0px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: repeat(4, 1fr);
+  top: 0;
+  width: 300px;
+  grid-template-areas: none;
+}
+.style_78 {
+  height: auto;
+  padding: 12px;
+  background-color: rgba(255.0, 255.0, 255.0, 0.2);
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  width: auto;
+  border-radius: 10px;
+  margin: 2px;
+}
+.style_79 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: auto;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_80 {
+  color: white;
+}
+.style_81 {
+  display: none;
+  background-color: blue;
+  user-select: none;
+  z-index: 1;
+  opacity: 0.2;
+}
+</style>
+    <div></div>
+  </div>
+  <div>
+    <script type="module">Bonito.lock_loading(() => Bonito.init_session('5e676bcc-72d9-4eb8-9a79-13a9abd81b75', null, 'sub'))</script>
+    <div class=" style_73" style="" data-jscall-id="389">
+      <div class=" style_79" style="" data-jscall-id="390">
+        <div class=" style_74" style="" data-jscall-id="391">
+          <h4 class=" style_80" style="" data-jscall-id="392">Styles&#40;...&#41;</h4>
+        </div>
+      </div>
+      <div class=" style_75" style="" data-jscall-id="393">
+        <div class=" style_77" style="" data-jscall-id="394">
+          <div class=" style_78" style="" data-jscall-id="395">
+            <div class=" style_76" style="" data-jscall-id="396" data-col="1,1">&#40;1, 1&#41;</div>
+          </div>
+          <div class=" style_78" style="" data-jscall-id="397">
+            <div class=" style_76" style="" data-jscall-id="398" data-col="1,2">&#40;1, 2&#41;</div>
+          </div>
+          <div class=" style_78" style="" data-jscall-id="399">
+            <div class=" style_76" style="" data-jscall-id="400" data-col="1,3">&#40;1, 3&#41;</div>
+          </div>
+          <div class=" style_78" style="" data-jscall-id="401">
+            <div class=" style_76" style="" data-jscall-id="402" data-col="1,4">&#40;1, 4&#41;</div>
+          </div>
+          <div class=" style_78" style="" data-jscall-id="403">
+            <div class=" style_76" style="" data-jscall-id="404" data-col="2,1">&#40;2, 1&#41;</div>
+          </div>
+          <div class=" style_78" style="" data-jscall-id="405">
+            <div class=" style_76" style="" data-jscall-id="406" data-col="2,2">&#40;2, 2&#41;</div>
+          </div>
+          <div class=" style_78" style="" data-jscall-id="407">
+            <div class=" style_76" style="" data-jscall-id="408" data-col="2,3">&#40;2, 3&#41;</div>
+          </div>
+          <div class=" style_78" style="" data-jscall-id="409">
+            <div class=" style_76" style="" data-jscall-id="410" data-col="2,4">&#40;2, 4&#41;</div>
+          </div>
+          <div class=" style_78" style="" data-jscall-id="411">
+            <div class=" style_76" style="" data-jscall-id="412" data-col="3,1">&#40;3, 1&#41;</div>
+          </div>
+          <div class=" style_78" style="" data-jscall-id="413">
+            <div class=" style_76" style="" data-jscall-id="414" data-col="3,2">&#40;3, 2&#41;</div>
+          </div>
+          <div class=" style_78" style="" data-jscall-id="415">
+            <div class=" style_76" style="" data-jscall-id="416" data-col="3,3">&#40;3, 3&#41;</div>
+          </div>
+          <div class=" style_78" style="" data-jscall-id="417">
+            <div class=" style_76" style="" data-jscall-id="418" data-col="3,4">&#40;3, 4&#41;</div>
+          </div>
+          <div class=" style_78" style="" data-jscall-id="419">
+            <div class=" style_76" style="" data-jscall-id="420" data-col="4,1">&#40;4, 1&#41;</div>
+          </div>
+          <div class=" style_78" style="" data-jscall-id="421">
+            <div class=" style_76" style="" data-jscall-id="422" data-col="4,2">&#40;4, 2&#41;</div>
+          </div>
+          <div class=" style_78" style="" data-jscall-id="423">
+            <div class=" style_76" style="" data-jscall-id="424" data-col="4,3">&#40;4, 3&#41;</div>
+          </div>
+          <div class=" style_78" style="" data-jscall-id="425">
+            <div class=" style_76" style="" data-jscall-id="426" data-col="4,4">&#40;4, 4&#41;</div>
+          </div>
+        </div>
+        <div class=" style_77" style="" data-jscall-id="427">
+          <div class=" style_81" style="" data-jscall-id="428"></div>
+          <div data-jscall-id="429"></div>
+          <div data-jscall-id="430"></div>
+          <div data-jscall-id="431"></div>
+          <div data-jscall-id="432"></div>
+          <div data-jscall-id="433"></div>
+          <div data-jscall-id="434"></div>
+          <div data-jscall-id="435"></div>
+          <div data-jscall-id="436"></div>
+          <div data-jscall-id="437"></div>
+          <div data-jscall-id="438"></div>
+          <div data-jscall-id="439"></div>
+          <div data-jscall-id="440"></div>
+          <div data-jscall-id="441"></div>
+          <div data-jscall-id="442"></div>
+          <div data-jscall-id="443"></div>
+        </div>
+        <script type="module">    const hover = document.querySelector('[data-jscall-id="428"]');
+    const grid = document.querySelector('[data-jscall-id="427"]');
+    const style_display = document.querySelector('[data-jscall-id="390"]');
+    const h2_node = style_display.children[0].children[0];
+
+
+    let is_dragging = false;
+    let start_position = null;
+    function get_element(e) {
+        const elements = document.elementsFromPoint(e.clientX, e.clientY);
+        for (let i = 0; i < elements.length; i++) {
+            const element = elements[i];
+            if (element.getAttribute('data-col')) {
+                return element;
+            }
+        }
+        return
+    }
+
+
+    function handle_click(current) {
+        // Check if the current element is a child of the container
+        const index = current.getAttribute('data-col')
+        if (index) {
+            const start = start_position.split(",").map(x=> parseInt(x))
+            const end = index.split(",").map(x=> parseInt(x))
+
+
+            const [start_row, end_row] = [start[0], end[0]].sort()
+            const [start_col, end_col] = [start[1], end[1]].sort()
+            const row = (start_row) + " / " + (end_row + 1)
+            const col = (start_col) + " / " + (end_col + 1)
+            hover.style["grid-row"] = row
+            hover.style["grid-column"] = col
+            const nelems = 16 - ((end_row - start_row+ 1) * (end_col - start_col+ 1))
+            for (let i = 0; i < grid.children.length; i++) {
+                console.log(i)
+                const child = grid.children[i];
+                if (child == hover) {
+                    continue
+                }
+                child.style.display = nelems >= i ? "block" : "none";
+            }
+
+
+            h2_node.innerText = 'Styles(\n"grid-row" => "' + row + '",\n "grid-column" => "' + col + '"\n)';
+        }
+    }
+
+
+    grid.addEventListener('mousedown', (e) => {
+        if (!hover) {
+            return
+        }
+        is_dragging = true;
+        const current = get_element(e);
+        const index = current.getAttribute('data-col')
+        if (!index) {
+            return;
+        }
+        start_position = index
+        hover.style.display = "block"; // unhide hover element
+        handle_click(current);
+    });
+
+
+    grid.addEventListener('mousemove', (e) => {
+        if (!is_dragging) return;
+        const current = get_element(e);
+        handle_click(current);
+    });
+
+
+    document.addEventListener('mouseup', () => {
+        is_dragging = false;
+    });
+
+
+</script>
+      </div>
+    </div>
+  </div>
+</div><h2 id="Grid-areas"><a class="docs-heading-anchor" href="#Grid-areas">Grid areas</a><a id="Grid-areas-1"></a><a class="docs-heading-anchor-permalink" href="#Grid-areas" title="Permalink"></a></h2><p>We can now easily create complex layouts like this:</p><pre><code class="language-julia hljs">App() do
+
+
+    sidebar = DemoCard(
+        &quot;SIDEBAR&quot;,
+        style = Styles(
+            &quot;grid-column&quot; =&gt;  &quot;1&quot;,
+            &quot;grid-row&quot; =&gt;  &quot;1 / 3&quot;,
+        )
+    )
+
+
+    header = DemoCard(
+        &quot;HEADER&quot;,
+        style = Styles(
+            &quot;grid-column&quot; =&gt;  &quot;2&quot;,
+            &quot;grid-row&quot; =&gt;  &quot;1&quot;,
+        )
+    )
+
+
+    main = DemoCard(
+        &quot;MAIN&quot;,
+        style = Styles(
+            &quot;grid-column&quot; =&gt;  &quot;2&quot;,
+            &quot;grid-row&quot; =&gt;  &quot;2&quot;,
+        )
+    )
+
+
+    grid = Grid(
+        sidebar, header, main,
+        columns = &quot;2fr 5fr&quot;,
+        rows = &quot;50px 1fr&quot;
+    )
+    return DOM.div(grid; style=Styles(&quot;height&quot; =&gt; &quot;600px&quot;, &quot;margin&quot; =&gt; &quot;20px&quot;, &quot;position&quot; =&gt; :relative))
+end</code></pre><div class="bonito-fragment" id="d2070808-0ef5-4a2f-8e23-1d70a3e4f10a" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_82 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: 50px 1fr;
+  justify-content: normal;
+  grid-template-columns: 2fr 5fr;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_83 {
+  height: 600px;
+  position: relative;
+  margin: 20px;
+}
+.style_84 {
+  grid-column: 1;
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  grid-row: 1 / 3;
+  width: auto;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_85 {
+  grid-column: 2;
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  grid-row: 2;
+  width: auto;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_86 {
+  grid-column: 2;
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  grid-row: 1;
+  width: auto;
+  border-radius: 2px;
+  margin: 2px;
+}
+</style>
+    <div></div>
+  </div>
+  <div>
+    <script type="module">Bonito.lock_loading(() => Bonito.init_session('d2070808-0ef5-4a2f-8e23-1d70a3e4f10a', null, 'sub'))</script>
+    <div class=" style_83" style="" data-jscall-id="444">
+      <div class=" style_82" style="" data-jscall-id="445">
+        <div class=" style_84" style="" data-jscall-id="446">SIDEBAR</div>
+        <div class=" style_86" style="" data-jscall-id="447">HEADER</div>
+        <div class=" style_85" style="" data-jscall-id="448">MAIN</div>
+      </div>
+    </div>
+  </div>
+</div><p>With <code>areas</code>, in css <code>grid-template-areas</code> this can be made even simpler:</p><pre><code class="language-julia hljs">App() do
+
+
+    sidebar = DemoCard(
+        &quot;SIDEBAR&quot;,
+        style = Styles(&quot;grid-area&quot; =&gt;  &quot;sidebar&quot;)
+    )
+
+
+    header = DemoCard(
+        &quot;HEADER&quot;,
+        style = Styles(&quot;grid-area&quot; =&gt;  &quot;header&quot;)
+    )
+
+
+    main = DemoCard(
+        &quot;MAIN&quot;,
+        style = Styles(&quot;grid-area&quot; =&gt;  &quot;main&quot;)
+    )
+
+
+    grid = Grid(
+        sidebar, header, main,
+        columns = &quot;2fr 5fr&quot;,
+        rows = &quot;50px 1fr&quot;,
+        areas = &quot;&quot;&quot;
+            &#39;sidebar header&#39;
+            &#39;sidebar main&#39;;
+        &quot;&quot;&quot;
+    )
+    return DOM.div(grid; style=Styles(&quot;height&quot; =&gt; &quot;600px&quot;, &quot;margin&quot; =&gt; &quot;20px&quot;, &quot;position&quot; =&gt; :relative))
+end</code></pre><div class="bonito-fragment" id="d45d4474-25ee-48f0-af65-895f5bdee369" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_87 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: 50px 1fr;
+  justify-content: normal;
+  grid-template-columns: 2fr 5fr;
+  width: 100%;
+  grid-template-areas:     'sidebar header'
+    'sidebar main';;
+}
+.style_88 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  grid-area: sidebar;
+  color: white;
+  width: auto;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_89 {
+  height: 600px;
+  position: relative;
+  margin: 20px;
+}
+.style_90 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  grid-area: main;
+  color: white;
+  width: auto;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_91 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  grid-area: header;
+  color: white;
+  width: auto;
+  border-radius: 2px;
+  margin: 2px;
+}
+</style>
+    <div></div>
+  </div>
+  <div>
+    <script type="module">Bonito.lock_loading(() => Bonito.init_session('d45d4474-25ee-48f0-af65-895f5bdee369', null, 'sub'))</script>
+    <div class=" style_89" style="" data-jscall-id="449">
+      <div class=" style_87" style="" data-jscall-id="450">
+        <div class=" style_88" style="" data-jscall-id="451">SIDEBAR</div>
+        <div class=" style_91" style="" data-jscall-id="452">HEADER</div>
+        <div class=" style_90" style="" data-jscall-id="453">MAIN</div>
+      </div>
+    </div>
+  </div>
+</div><p>The syntax is quite similar to Julia&#39;s matrix syntax, just wrapping all rows into <code>&#39;...row...&#39;</code>! To span multiple rows or columns, the name can be repeated multiple times.</p><h2 id="Alignment"><a class="docs-heading-anchor" href="#Alignment">Alignment</a><a id="Alignment-1"></a><a class="docs-heading-anchor-permalink" href="#Alignment" title="Permalink"></a></h2><pre><code class="language-julia hljs">App() do
+    grid = Grid(
+        DemoCard(), DemoCard(),
+        columns = &quot;90px 90px&quot;,
+    )
+    return DOM.div(grid; style=Styles(&quot;height&quot; =&gt; &quot;200px&quot;, &quot;margin&quot; =&gt; &quot;20px&quot;, &quot;position&quot; =&gt; :relative, &quot;background-color&quot; =&gt; &quot;#F88379&quot;, &quot;padding&quot; =&gt; &quot;5px&quot;))
+end</code></pre><div class="bonito-fragment" id="6920a49a-7102-4e73-9bc5-b46d09df7307" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_92 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: 90px 90px;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_93 {
+  height: 200px;
+  padding: 5px;
+  background-color: #F88379;
+  position: relative;
+  margin: 20px;
+}
+.style_94 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: auto;
+  border-radius: 2px;
+  margin: 2px;
+}
+</style>
+    <div></div>
+  </div>
+  <div>
+    <script type="module">Bonito.lock_loading(() => Bonito.init_session('6920a49a-7102-4e73-9bc5-b46d09df7307', null, 'sub'))</script>
+    <div class=" style_93" style="" data-jscall-id="454">
+      <div class=" style_92" style="" data-jscall-id="455">
+        <div class=" style_94" style="" data-jscall-id="456">
+          <div data-jscall-id="457"></div>
+        </div>
+        <div class=" style_94" style="" data-jscall-id="458">
+          <div data-jscall-id="459"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><pre><code class="language-julia hljs">App() do session
+    justification = Bonito.Dropdown([&quot;space-evenly&quot;, &quot;center&quot;, &quot;end&quot;, &quot;space-between&quot;, &quot;space-around&quot;, &quot;space-evenly&quot;], style=Styles(&quot;width&quot; =&gt; &quot;200px&quot;))
+
+
+    grid = Grid(
+        DemoCard(), DemoCard(),
+        columns = &quot;90px 90px&quot;
+    )
+    onjs(session, justification.option_index, js&quot;&quot;&quot; (idx) =&gt; {
+        grid = $(grid)
+        grid.style[&quot;justify-content&quot;] = $(justification.options[])[idx-1]
+    }&quot;&quot;&quot;)
+    area_style = Styles(&quot;height&quot; =&gt; &quot;200px&quot;, &quot;width&quot; =&gt; &quot;600px&quot;, &quot;margin&quot; =&gt; &quot;20px&quot;, &quot;position&quot; =&gt; :relative, &quot;background-color&quot; =&gt; &quot;#F88379&quot;, &quot;padding&quot; =&gt; &quot;5px&quot;)
+    grid_area = DOM.div(grid; style=area_style)
+    return Grid(justification, grid_area; justify_items=&quot;center&quot;)
+end</code></pre><div class="bonito-fragment" id="a371322d-5677-4751-8c2f-efaaa901ea6b" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_95 {
+  justify-items: center;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_96 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: 90px 90px;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_97 {
+  height: 200px;
+  padding: 5px;
+  background-color: #F88379;
+  position: relative;
+  width: 600px;
+  margin: 20px;
+}
+.style_98 {
+  min-width: 8rem;
+  font-weight: 600;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  width: 200px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+}
+.style_99:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(66, 153, 225, 0.5) 0px 0px 0px 1px;
+  outline: 1px solid transparent;
+}
+.style_100 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: auto;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_101:hover {
+  background-color: #F9FAFB;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+</style>
+    <div></div>
+  </div>
+  <div>
+    <script type="module">    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/732ffe0f735dc546134928de3c618e5afca76e35-3271859497844904920.bin').then(msgs=> Bonito.init_session('a371322d-5677-4751-8c2f-efaaa901ea6b', msgs, 'sub'));
+    })
+</script>
+    <div class=" style_95" style="" data-jscall-id="461">
+      <select class=" style_98 style_99 style_101" style="" data-jscall-id="462">
+        <option data-jscall-id="463">space-evenly</option>
+        <option data-jscall-id="464">center</option>
+        <option data-jscall-id="465">end</option>
+        <option data-jscall-id="466">space-between</option>
+        <option data-jscall-id="467">space-around</option>
+        <option data-jscall-id="468">space-evenly</option>
+      </select>
+      <div class=" style_97" style="" data-jscall-id="469">
+        <div class=" style_96" style="" data-jscall-id="460">
+          <div class=" style_100" style="" data-jscall-id="470">
+            <div data-jscall-id="471"></div>
+          </div>
+          <div class=" style_100" style="" data-jscall-id="472">
+            <div data-jscall-id="473"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><pre><code class="language-julia hljs">App() do session
+    content = Bonito.Dropdown([&quot;space-evenly&quot;, &quot;center&quot;, &quot;end&quot;, &quot;space-between&quot;, &quot;space-around&quot;])
+    items = Bonito.Dropdown([&quot;stretch&quot;, &quot;start&quot;, &quot;center&quot;, &quot;end&quot;])
+    grid = Grid(
+        DemoCard(), DemoCard(),
+        DemoCard(), DemoCard(),
+        columns = &quot;90px 90px&quot;
+    )
+    onjs(session, content.option_index, js&quot;&quot;&quot; (idx) =&gt; {
+        grid = $(grid)
+        const val = $(content.options[])[idx-1]
+        grid.style[&quot;justify-content&quot;] = val
+    }&quot;&quot;&quot;)
+    onjs(session, items.option_index, js&quot;&quot;&quot; (idx) =&gt; {
+        grid = $(grid)
+        const val = $(items.options[])[idx-1]
+        grid.style[&quot;justify-items&quot;] = val
+    }&quot;&quot;&quot;)
+    grid_area = DOM.div(grid; style=Styles(&quot;height&quot; =&gt; &quot;200px&quot;, &quot;width&quot; =&gt; &quot;600px&quot;, &quot;margin&quot; =&gt; &quot;20px&quot;, &quot;position&quot; =&gt; :relative, &quot;background-color&quot; =&gt; &quot;#F88379&quot;, &quot;padding&quot; =&gt; &quot;5px&quot;,
+        &quot;grid-column&quot; =&gt; &quot;1 / 3&quot;, &quot;grid-row&quot; =&gt; &quot;2&quot;))
+    return Grid(content, items, grid_area; width=&quot;500px&quot;, justify_items=&quot;space-around&quot;)
+end</code></pre><div class="bonito-fragment" id="de696be6-b00f-40d6-9a29-b6de0282be17" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_102 {
+  min-width: 8rem;
+  font-weight: 600;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+}
+.style_103 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: 90px 90px;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_104 {
+  justify-items: space-around;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 500px;
+  grid-template-areas: none;
+}
+.style_105:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(66, 153, 225, 0.5) 0px 0px 0px 1px;
+  outline: 1px solid transparent;
+}
+.style_106 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: auto;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_107 {
+  grid-column: 1 / 3;
+  height: 200px;
+  padding: 5px;
+  background-color: #F88379;
+  grid-row: 2;
+  position: relative;
+  width: 600px;
+  margin: 20px;
+}
+.style_108:hover {
+  background-color: #F9FAFB;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+</style>
+    <div></div>
+  </div>
+  <div>
+    <script type="module">    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/928fc7e1f29d1d3f0d1ad6294411b8bfe9aaab5b-16001978489032320749.bin').then(msgs=> Bonito.init_session('de696be6-b00f-40d6-9a29-b6de0282be17', msgs, 'sub'));
+    })
+</script>
+    <div class=" style_104" style="" data-jscall-id="475">
+      <select class=" style_102 style_105 style_108" style="" data-jscall-id="476">
+        <option data-jscall-id="477">space-evenly</option>
+        <option data-jscall-id="478">center</option>
+        <option data-jscall-id="479">end</option>
+        <option data-jscall-id="480">space-between</option>
+        <option data-jscall-id="481">space-around</option>
+      </select>
+      <select class=" style_102 style_105 style_108" style="" data-jscall-id="482">
+        <option data-jscall-id="483">stretch</option>
+        <option data-jscall-id="484">start</option>
+        <option data-jscall-id="485">center</option>
+        <option data-jscall-id="486">end</option>
+      </select>
+      <div class=" style_107" style="" data-jscall-id="487">
+        <div class=" style_103" style="" data-jscall-id="474">
+          <div class=" style_106" style="" data-jscall-id="488">
+            <div data-jscall-id="489"></div>
+          </div>
+          <div class=" style_106" style="" data-jscall-id="490">
+            <div data-jscall-id="491"></div>
+          </div>
+          <div class=" style_106" style="" data-jscall-id="492">
+            <div data-jscall-id="493"></div>
+          </div>
+          <div class=" style_106" style="" data-jscall-id="494">
+            <div data-jscall-id="495"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><pre><code class="language-julia hljs">App() do session
+    content = Bonito.Dropdown([&quot;space-evenly&quot;, &quot;center&quot;, &quot;end&quot;, &quot;space-between&quot;, &quot;space-around&quot;])
+    items = Bonito.Dropdown([&quot;stretch&quot;, &quot;start&quot;, &quot;center&quot;, &quot;end&quot;])
+    align_content = Bonito.Dropdown([&quot;space-evenly&quot;, &quot;center&quot;, &quot;end&quot;, &quot;space-between&quot;, &quot;space-around&quot;])
+    align_items = Bonito.Dropdown([&quot;stretch&quot;, &quot;start&quot;, &quot;center&quot;, &quot;end&quot;])
+    grid_style = Styles(&quot;position&quot; =&gt; :absolute, &quot;top&quot; =&gt; 0, &quot;left&quot; =&gt; 0)
+    grid = Grid(
+        centered(&quot;One&quot;), centered(&quot;Two&quot;),
+        centered(&quot;Three&quot;), centered(&quot;Four&quot;),
+        columns = &quot;100px 100px&quot;,
+        rows = &quot;100px 100px&quot;,
+        style=grid_style
+    )
+
+
+    grid_col() = DOM.div(style=Styles(&quot;border&quot; =&gt; &quot;2px dashed white&quot;, &quot;width&quot;=&gt;&quot;100px&quot;))
+    grid_row() = DOM.div(style=Styles(&quot;border&quot; =&gt; &quot;2px dashed white&quot;, &quot;height&quot;=&gt;&quot;100px&quot;))
+
+
+    shadow_cols = Grid(
+        grid_col(), grid_col(),
+        columns = &quot;100px 100px&quot;,
+        style=grid_style
+    )
+    shadow_rows = Grid(
+        grid_row(), grid_row(),
+        rows = &quot;100px 100px&quot;,
+        style=grid_style
+    )
+
+
+    onjs(session, content.option_index, js&quot;&quot;&quot; (idx) =&gt; {
+        const grids = [$(grid), $(shadow_cols)]
+        const val = $(content.options[])[idx-1]
+        grids.forEach(x=&gt; x.style[&quot;justify-content&quot;] = val)
+    }&quot;&quot;&quot;)
+
+
+    onjs(session, items.option_index, js&quot;&quot;&quot; (idx) =&gt; {
+        const grids = [$(grid), $(shadow_cols)]
+        const val = $(items.options[])[idx-1]
+        grids.forEach(x=&gt; x.style[&quot;justify-items&quot;] = val)
+    }&quot;&quot;&quot;)
+
+
+    onjs(session, align_content.option_index, js&quot;&quot;&quot; (idx) =&gt; {
+        const grids = [$(grid), $(shadow_rows)]
+        const val = $(align_content.options[])[idx-1]
+        grids.forEach(x=&gt; x.style[&quot;align-content&quot;] = val)
+    }&quot;&quot;&quot;)
+
+
+    onjs(session, align_items.option_index, js&quot;&quot;&quot; (idx) =&gt; {
+        const grids = [$(grid), $(shadow_rows)]
+        const val = $(align_items.options[])[idx-1]
+        grids.forEach(x=&gt; x.style[&quot;align-items&quot;] = val)
+    }&quot;&quot;&quot;)
+
+
+    grid_area = DOM.div(grid, shadow_cols, shadow_rows; style=Styles(
+        &quot;height&quot; =&gt; &quot;400px&quot;, &quot;width&quot; =&gt; &quot;400px&quot;,
+        &quot;margin&quot; =&gt; &quot;20px&quot;,
+        &quot;padding&quot; =&gt; &quot;5px&quot;,
+        &quot;position&quot; =&gt; :relative,
+        &quot;background-color&quot; =&gt; &quot;#F88379&quot;,
+        &quot;grid-column&quot; =&gt; &quot;1 / 3&quot;, &quot;grid-row&quot; =&gt; &quot;4&quot;))
+
+
+    text(t) = DOM.div(t; style=Styles(&quot;font-size&quot; =&gt; &quot;1.3rem&quot;, &quot;font-weight&quot; =&gt; &quot;bold&quot;))
+    final_grid = Grid(
+        text(&quot;Row Alignment&quot;), text(&quot;Col Justification&quot;),
+        align_content, content,
+        align_items, items,
+        grid_area;
+        rows = &quot;2rem 1rem 2rem 1fr&quot;,
+        align_items = &quot;center&quot;,
+        justify_items=&quot;begin&quot;, justify_content=&quot;center&quot;,
+        width=&quot;400px&quot;)
+
+
+    return DOM.div(final_grid, style=Styles(&quot;padding&quot; =&gt; &quot;20px&quot;))
+end</code></pre><div class="bonito-fragment" id="db87c542-b773-4833-a713-8f1e7068eda7" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_109 {
+  font-size: 1.3rem;
+  font-weight: bold;
+}
+.style_110 {
+  justify-items: center;
+  align-items: center;
+  height: 100%;
+  display: grid;
+  align-content: center;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: center;
+  grid-template-columns: 1fr;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_111 {
+  height: 100px;
+  border: 2px dashed white;
+}
+.style_112 {
+  border: 2px dashed white;
+  width: 100px;
+}
+.style_113 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: auto;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_114:hover {
+  background-color: #F9FAFB;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+.style_115 {
+  grid-column: 1 / 3;
+  height: 400px;
+  padding: 5px;
+  background-color: #F88379;
+  grid-row: 4;
+  position: relative;
+  width: 400px;
+  margin: 20px;
+}
+.style_116 {
+  left: 0;
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  position: absolute;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: 100px 100px;
+  top: 0;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_117:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(66, 153, 225, 0.5) 0px 0px 0px 1px;
+  outline: 1px solid transparent;
+}
+.style_118 {
+  left: 0;
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  position: absolute;
+  grid-gap: 10px;
+  grid-template-rows: 100px 100px;
+  justify-content: normal;
+  grid-template-columns: none;
+  top: 0;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_119 {
+  justify-items: begin;
+  align-items: center;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: 2rem 1rem 2rem 1fr;
+  justify-content: center;
+  grid-template-columns: none;
+  width: 400px;
+  grid-template-areas: none;
+}
+.style_120 {
+  left: 0;
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  position: absolute;
+  grid-gap: 10px;
+  grid-template-rows: 100px 100px;
+  justify-content: normal;
+  grid-template-columns: 100px 100px;
+  top: 0;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_121 {
+  color: white;
+}
+.style_122 {
+  padding: 20px;
+}
+.style_123 {
+  min-width: 8rem;
+  font-weight: 600;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+}
+</style>
+    <div></div>
+  </div>
+  <div>
+    <script type="module">    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/868d4b20cb3c5052df91ae8d92998cd85f60dea8-2466526759756826102.bin').then(msgs=> Bonito.init_session('db87c542-b773-4833-a713-8f1e7068eda7', msgs, 'sub'));
+    })
+</script>
+    <div class=" style_122" style="" data-jscall-id="499">
+      <div class=" style_119" style="" data-jscall-id="500">
+        <div class=" style_109" style="" data-jscall-id="501">Row Alignment</div>
+        <div class=" style_109" style="" data-jscall-id="502">Col Justification</div>
+        <select class=" style_114 style_117 style_123" style="" data-jscall-id="503">
+          <option data-jscall-id="504">space-evenly</option>
+          <option data-jscall-id="505">center</option>
+          <option data-jscall-id="506">end</option>
+          <option data-jscall-id="507">space-between</option>
+          <option data-jscall-id="508">space-around</option>
+        </select>
+        <select class=" style_114 style_117 style_123" style="" data-jscall-id="509">
+          <option data-jscall-id="510">space-evenly</option>
+          <option data-jscall-id="511">center</option>
+          <option data-jscall-id="512">end</option>
+          <option data-jscall-id="513">space-between</option>
+          <option data-jscall-id="514">space-around</option>
+        </select>
+        <select class=" style_114 style_117 style_123" style="" data-jscall-id="515">
+          <option data-jscall-id="516">stretch</option>
+          <option data-jscall-id="517">start</option>
+          <option data-jscall-id="518">center</option>
+          <option data-jscall-id="519">end</option>
+        </select>
+        <select class=" style_114 style_117 style_123" style="" data-jscall-id="520">
+          <option data-jscall-id="521">stretch</option>
+          <option data-jscall-id="522">start</option>
+          <option data-jscall-id="523">center</option>
+          <option data-jscall-id="524">end</option>
+        </select>
+        <div class=" style_115" style="" data-jscall-id="525">
+          <div class=" style_120" style="" data-jscall-id="496">
+            <div class=" style_113" style="" data-jscall-id="526">
+              <div class=" style_110" style="" data-jscall-id="527">
+                <h4 class=" style_121" style="" data-jscall-id="528">One</h4>
+              </div>
+            </div>
+            <div class=" style_113" style="" data-jscall-id="529">
+              <div class=" style_110" style="" data-jscall-id="530">
+                <h4 class=" style_121" style="" data-jscall-id="531">Two</h4>
+              </div>
+            </div>
+            <div class=" style_113" style="" data-jscall-id="532">
+              <div class=" style_110" style="" data-jscall-id="533">
+                <h4 class=" style_121" style="" data-jscall-id="534">Three</h4>
+              </div>
+            </div>
+            <div class=" style_113" style="" data-jscall-id="535">
+              <div class=" style_110" style="" data-jscall-id="536">
+                <h4 class=" style_121" style="" data-jscall-id="537">Four</h4>
+              </div>
+            </div>
+          </div>
+          <div class=" style_116" style="" data-jscall-id="497">
+            <div class=" style_112" style="" data-jscall-id="538"></div>
+            <div class=" style_112" style="" data-jscall-id="539"></div>
+          </div>
+          <div class=" style_118" style="" data-jscall-id="498">
+            <div class=" style_111" style="" data-jscall-id="540"></div>
+            <div class=" style_111" style="" data-jscall-id="541"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="components.html">« Components</a><a class="docs-footer-nextpage" href="widgets.html">Widgets »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Saturday 5 October 2024 21:39">Saturday 5 October 2024</span>. Using Julia version 1.10.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

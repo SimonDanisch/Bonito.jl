@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Widgets · JSServe</title><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="index.html">JSServe</a></span></div><form class="docs-search" action="search.html"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li><a class="tocitem" href="plotting.html">Plotting</a></li><li class="is-active"><a class="tocitem" href="widgets.html">Widgets</a><ul class="internal"><li><a class="tocitem" href="#Editor"><span>Editor</span></a></li></ul></li><li><a class="tocitem" href="deployment.html">Deployment</a></li><li><a class="tocitem" href="assets.html">Assets</a></li><li><a class="tocitem" href="extending.html">Extending</a></li><li><a class="tocitem" href="api.html">Api</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href="widgets.html">Widgets</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="widgets.html">Widgets</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/SimonDanisch/JSServe.jl/blob/master/docs/src/widgets.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Widgets"><a class="docs-heading-anchor" href="#Widgets">Widgets</a><a id="Widgets-1"></a><a class="docs-heading-anchor-permalink" href="#Widgets" title="Permalink"></a></h1><h2 id="Editor"><a class="docs-heading-anchor" href="#Editor">Editor</a><a id="Editor-1"></a><a class="docs-heading-anchor-permalink" href="#Editor" title="Permalink"></a></h2><p>This editor works in pure Javascript, so feel free to try out editing the Javascript and clicking <code>eval</code> to see how the output changes. In <code>JSServe/examples/editor.jl</code>, you will find a version that works with Julia code, but that requires a running Julia server of course.</p><pre><code class="language-julia hljs">using JSServe
+import JSServe.TailwindDashboard as D
+
+function range_slider(orientation)
+    range_slider = RangeSlider(1:100; value=[10, 80])
+    range_slider.tooltips[] = true
+    range_slider.ticks[] = Dict(
+        &quot;mode&quot; =&gt; &quot;range&quot;,
+        &quot;density&quot; =&gt; 3
+    )
+    range_slider.orientation[] = orientation
+    return range_slider
+end
+
+App() do
+
+    button = D.Button(&quot;click&quot;)
+    textfield = D.TextField(&quot;type in your text&quot;)
+    numberinput = D.NumberInput(0.0)
+    file_input = D.FileInput()
+    on(file_input.value) do file
+        @show file
+    end
+    slider = D.Slider(&quot;Test&quot;, 1:5)
+
+    checkbox = D.Checkbox(&quot;check this&quot;, true)
+    table = JSServe.Table([(a=22, b=33, c=44), (a=22, b=33, c=44)])
+
+    source = &quot;&quot;&quot;
+    function test(a, b)
+        return a + b
+    end
+    &quot;&quot;&quot;
+    editor = CodeEditor(&quot;julia&quot;; initial_source=source, width=250, height=200, scrollPastEnd=false)
+    dropdown = D.Dropdown(&quot;chose&quot;, [&quot;option 1&quot;, &quot;option 2&quot;, &quot;option 3&quot;])
+
+    vrange_slider = range_slider(JSServe.WidgetsBase.vertical)
+
+    hrange_slider = range_slider(JSServe.WidgetsBase.horizontal)
+
+
+    return DOM.div(
+        D.Card.([
+            D.FlexRow(
+                D.Card(D.FlexCol(
+                    button,
+                    textfield,
+                    numberinput,
+                    dropdown,
+                    file_input,
+                    slider,
+                    checkbox,
+                    class=&quot;items-start&quot;
+                )),
+                D.Card(table; class=&quot;w-64&quot;)),
+            D.FlexRow(
+                D.Card.([
+                    DOM.div(vrange_slider; style=&quot;height: 200px; padding: 1px 50px&quot;),
+                    DOM.div(hrange_slider; style=&quot;width: 200px; padding: 50px 1px&quot;),
+                    editor
+                ])
+            ),
+        ])...
+    )
+end</code></pre><div data-jscall-id="142">
+  <div data-jscall-id="64">
+    <script data-jscall-id="65" src="JSServe.bundled.js" type="module"></script>
+    <script data-jscall-id="67" type="module">    JSServe.fetch_binary('10623675889561752460.bin').then(msgs=> JSServe.init_session('e323c109-1bb4-47b7-a7db-a88383302e1d', msgs, 'root'));
+</script>
+    <script data-jscall-id="66" type="module">    JSServe.on_connection_open((w)=> null, false)
+</script>
+    <div id="e323c109-1bb4-47b7-a7db-a88383302e1d" data-jscall-id="JSServer-application-dom">
+      <span data-jscall-id="62"></span>
+    </div>
+  </div>
+  <div data-jscall-id="139">
+    <script data-jscall-id="141" type="module">    JSServe.fetch_binary('12546752660091376196.bin').then(msgs=> JSServe.init_session('1796111e-ac45-4cae-8553-8bc211f8ebe0', msgs, 'sub'));
+</script>
+    <div id="1796111e-ac45-4cae-8553-8bc211f8ebe0" data-jscall-id="JSServer-application-dom">
+      <div data-jscall-id="90">
+        <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content" data-jscall-id="88">
+          <link href="tailwind.min.css" data-jscall-id="91" rel="stylesheet" type="text/css" />
+          <div class="m-2 flex flex-row " data-jscall-id="81">
+            <link href="tailwind.min.css" data-jscall-id="92" rel="stylesheet" type="text/css" />
+            <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content" data-jscall-id="79">
+              <link href="tailwind.min.css" data-jscall-id="93" rel="stylesheet" type="text/css" />
+              <div class="m-2 flex flex-col items-start" data-jscall-id="78">
+                <link href="tailwind.min.css" data-jscall-id="94" rel="stylesheet" type="text/css" />
+                <button onclick="" class=" focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow" style="min-width: 8rem;" data-jscall-id="95">click</button>
+                <input class=" focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow" data-jscall-id="96" value="type in your text" onchange="" type="textfield" />
+                <input class=" focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow" data-jscall-id="97" value="0.0" onchange="" type="number" />
+                <div class="flex-row, mb-1 mt-1 " data-jscall-id="77">
+                  <h2 class="font-semibold " data-jscall-id="76">chose</h2>
+                  <select class=" focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow" data-jscall-id="101">
+                    <option data-jscall-id="98">option 1</option>
+                    <option data-jscall-id="99">option 2</option>
+                    <option data-jscall-id="100">option 3</option>
+                  </select>
+                </div>
+                <input multiple="true" data-jscall-id="102" onchange="event =&#62; {&#10;    if (event.target.files) {&#10;        const files = [];&#10;        for (const file of event.target.files) {&#10;            files.push(URL.createObjectURL(file))&#10;        }&#10;        __lookup_interpolated('8142894759614691746').notify(files);&#10;    }&#10;}" type="file" />
+                <div class="flex-row, mb-1 mt-1 " data-jscall-id="72">
+                  <h2 class="font-semibold " data-jscall-id="71">
+                    <div data-jscall-id="70">Test
+                      <div class="float-right" data-jscall-id="69">
+                        <span data-jscall-id="103"></span>
+                      </div>
+                    </div>
+                  </h2>
+                  <input step="1" max="5" min="1" style="width: 100%;" data-jscall-id="105" value="1" oninput="" type="range" />
+                </div>
+                <div class="flex-row, mb-1 mt-1 " data-jscall-id="74">
+                  <h2 class="font-semibold " data-jscall-id="73">check this</h2>
+                  <input checked="true" data-jscall-id="106" onchange="" type="checkbox" />
+                </div>
+              </div>
+            </div>
+            <div class="rounded-md p-2 m-2 shadow w-64" style="width: fit-content; height: fit-content" data-jscall-id="80">
+              <link href="tailwind.min.css" data-jscall-id="107" rel="stylesheet" type="text/css" />
+              <div data-jscall-id="124">
+                <link href="table.css" data-jscall-id="122" rel="stylesheet" type="text/css" />
+                <table class="" data-jscall-id="123">
+                  <thead data-jscall-id="112">
+                    <tr data-jscall-id="111">
+                      <th data-jscall-id="108">a</th>
+                      <th data-jscall-id="109">b</th>
+                      <th data-jscall-id="110">c</th>
+                    </tr>
+                  </thead>
+                  <tbody data-jscall-id="121">
+                    <tr data-jscall-id="116">
+                      <td data-jscall-id="113">22</td>
+                      <td data-jscall-id="114">33</td>
+                      <td data-jscall-id="115">44</td>
+                    </tr>
+                    <tr data-jscall-id="120">
+                      <td data-jscall-id="117">22</td>
+                      <td data-jscall-id="118">33</td>
+                      <td data-jscall-id="119">44</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content" data-jscall-id="89">
+          <link href="tailwind.min.css" data-jscall-id="125" rel="stylesheet" type="text/css" />
+          <div class="m-2 flex flex-row " data-jscall-id="87">
+            <link href="tailwind.min.css" data-jscall-id="126" rel="stylesheet" type="text/css" />
+            <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content" data-jscall-id="84">
+              <link href="tailwind.min.css" data-jscall-id="127" rel="stylesheet" type="text/css" />
+              <div style="height: 200px; padding: 1px 50px" data-jscall-id="82">
+                <div data-jscall-id="130">
+                  <link href="noUISlider.css" data-jscall-id="129" rel="stylesheet" type="text/css" />
+                  <div data-jscall-id="128"></div>
+                </div>
+              </div>
+            </div>
+            <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content" data-jscall-id="85">
+              <link href="tailwind.min.css" data-jscall-id="131" rel="stylesheet" type="text/css" />
+              <div style="width: 200px; padding: 50px 1px" data-jscall-id="83">
+                <div data-jscall-id="134">
+                  <link href="noUISlider.css" data-jscall-id="133" rel="stylesheet" type="text/css" />
+                  <div data-jscall-id="132"></div>
+                </div>
+              </div>
+            </div>
+            <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content" data-jscall-id="86">
+              <link href="tailwind.min.css" data-jscall-id="135" rel="stylesheet" type="text/css" />
+              <div data-jscall-id="137">
+                <script data-jscall-id="136" src="https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"></script>
+                <div style="    position: &#34;absolute&#34;;&#10;    top: 0;&#10;    right: 0;&#10;    bottom: 0;&#10;    left: 0;&#10;    width: 250px;&#10;    height: 200px;&#10;" data-jscall-id="75"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><pre><code class="language-julia hljs">using JSServe, Observables
+src = &quot;&quot;&quot;
+(() =&gt; {
+    const canvas = document.createElement(&quot;canvas&quot;);
+    const context = canvas.getContext(&#39;2d&#39;);
+    const width = 500
+    const height = 400
+    canvas.width = width;
+    canvas.height = height;
+    const gradient = context.createRadialGradient(200, 200, 0, 200, 200, 200);
+    gradient.addColorStop(&quot;0&quot;, &quot;magenta&quot;);
+    gradient.addColorStop(&quot;.25&quot;, &quot;blue&quot;);
+    gradient.addColorStop(&quot;.50&quot;, &quot;green&quot;);
+    gradient.addColorStop(&quot;.75&quot;, &quot;yellow&quot;);
+    gradient.addColorStop(&quot;1.0&quot;, &quot;red&quot;);
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, height);
+    return canvas;
+})();
+&quot;&quot;&quot;
+App() do session::Session
+    editor = CodeEditor(&quot;javascript&quot;; initial_source=src, width=800, height=300)
+    eval_button = Button(&quot;eval&quot;)
+    output = DOM.div(DOM.span())
+    JSServe.onjs(session, eval_button.value, js&quot;&quot;&quot;function (click){
+        const js_src = $(editor.onchange).value;
+        const result = new Function(&quot;return &quot; + (js_src))()
+        let dom;
+        if (typeof result === &#39;object&#39; &amp;&amp; result.nodeName) {
+            dom = result
+        } else {
+            const span = document.createElement(&quot;span&quot;)
+            span.innerText = result;
+            dom = span
+        }
+        JSServe.update_or_replace($(output), dom, false);
+        return
+    }
+    &quot;&quot;&quot;)
+    notify(eval_button.value)
+    return DOM.div(editor, eval_button, output)
+end</code></pre><div data-jscall-id="151">
+  <script data-jscall-id="153" type="module">    JSServe.fetch_binary('12099183227826562688.bin').then(msgs=> JSServe.init_session('1dd2a4f8-b5ca-477a-8b93-3718ddcec9bb', msgs, 'sub'));
+</script>
+  <div id="1dd2a4f8-b5ca-477a-8b93-3718ddcec9bb" data-jscall-id="JSServer-application-dom">
+    <div data-jscall-id="146">
+      <div data-jscall-id="148">
+        <script data-jscall-id="147" src="https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"></script>
+        <div style="    position: &#34;absolute&#34;;&#10;    top: 0;&#10;    right: 0;&#10;    bottom: 0;&#10;    left: 0;&#10;    width: 800px;&#10;    height: 300px;&#10;" data-jscall-id="143"></div>
+      </div>
+      <button onclick="" data-jscall-id="149">eval</button>
+      <div data-jscall-id="145">
+        <span data-jscall-id="144"></span>
+      </div>
+    </div>
+  </div>
+</div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="plotting.html">« Plotting</a><a class="docs-footer-nextpage" href="deployment.html">Deployment »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Thursday 9 February 2023 16:21">Thursday 9 February 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

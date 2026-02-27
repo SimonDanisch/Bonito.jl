@@ -1,0 +1,13 @@
+í«,jìŸ$d14d8254-d3bd-42a5-b7e9-a76823b959e6Ä£subÇßpayloadí»skí«9jìŸ$d14d8254-d3bd-42a5-b7e9-a76823b959e6Å£445«eí£445£subÉ£obs÷h£445ßpayload»fìÅ¥10865314609589633331ñ¨space-evenly¶center£end≠space-between¨space-around¨space-evenlyŸ©return  (idx) => {
+    grid = document.querySelector('[data-jscall-id="460"]')
+    grid.style["justify-content"] = __lookup_interpolated('10865314609589633331')[idx-1]
+}∞layouting.md:393®msg_type°1»Ùkí«,jìŸ$d14d8254-d3bd-42a5-b7e9-a76823b959e6Ä£subÇßpayload»¨fìÅ≥7947442555689728045÷h£445⁄S(function onload(element) {
+    function onchange(e) {
+        if (element === e.srcElement) {
+            (__lookup_interpolated('7947442555689728045')).notify(element.selectedIndex + 1);
+        }
+    }
+    element.addEventListener("change", onchange);
+    element.selectedIndex = 0
+}
+)(document.querySelector('[data-jscall-id="462"]'));Ÿ8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:213®msg_type°2®msg_type°9
