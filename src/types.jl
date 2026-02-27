@@ -487,6 +487,10 @@ end
 
 
 function loading_page_handler(app, loadingpage, handler, session, request)
+    # No live connection — render synchronously (e.g. export_static with NoConnection)
+    if root_session(session).connection isa NoConnection
+        return handler(session, request)
+    end
     obs = Observable{Any}(loadingpage)
     app.loading_task[] = @async try
         obs[] = handler(session, request)

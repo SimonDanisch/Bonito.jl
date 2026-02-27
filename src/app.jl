@@ -118,13 +118,6 @@ function rendered_dom(session::Session, app::App, target=HTTP.Request(); apply_j
     session.current_app[] = app
     try
         dom = Base.invokelatest(app.handler, session, target)
-        # For offline sessions (NoConnection), wait for loading task so the
-        # Observable has its final value before jsrender serializes the DOM.
-        # Live connections get async updates via WebSocket instead.
-        task = app.loading_task[]
-        if !isnothing(task) && !istaskdone(task) && root_session(session).connection isa NoConnection
-            wait(task)
-        end
         if apply_jsrender
             dom = Base.invokelatest(jsrender, session, dom)
         end
@@ -259,6 +252,12 @@ function wait_for_ready(app::App; timeout=100)
     isclosed(app.session[]) && return nothing
     wait_for(timeout=timeout) do
         isready(app.session[]) || isclosed(app.session[])
+    end
+    task = app.loading_task[]
+    if !isnothing(task)
+        wait_for(; timeout=timeout) do
+            istaskdone(task)
+        end
     end
 end
 

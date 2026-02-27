@@ -225,9 +225,8 @@ end
 end
 
 @testset "LoadingPage - static export with loading_page" begin
-    # loading_page with export_static: for NoConnection, falls back to synchronous rendering.
-    # For live connections (WebSocket, DualWebsocket), the async Observable update requires
-    # a connected session, which export_static doesn't provide. So we only test NoConnection here.
+    # For NoConnection (static export), loading_page_handler detects the offline session
+    # and renders synchronously, bypassing the Observable wrapper.
     function loading_page_test_app(session, request)
         result = DOM.div("passed"; dataTestId="lp-result")
         return result
