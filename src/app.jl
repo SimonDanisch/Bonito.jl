@@ -1,16 +1,31 @@
 """
-    App(callback_or_dom; title="Bonito App")
+    App(callback_or_dom; title="Bonito App", loading_page=nothing)
     App((session, request) -> DOM.div(...))
     App((session::Session) -> DOM.div(...))
     App((request::HTTP.Request) -> DOM.div(...))
     App(() -> DOM.div(...))
     App(DOM.div(...))
 
-Usage:
+# Keywords
+- `title::String`: Browser tab title (default: `"Bonito App"`)
+- `indicator::Union{Nothing, AbstractConnectionIndicator}`: Connection status indicator (default: `nothing`)
+- `loading_page`: A component (e.g. `LoadingPage()`) to display while the app handler runs.
+  When set, the app DOM is wrapped in an `Observable` that initially shows the loading page,
+  then asynchronously replaces it with the real content once the handler completes (default: `nothing`).
+
+# Usage
 ```julia
 using Bonito
 app = App() do
     return DOM.div(DOM.h1("hello world"), js\"\"\"console.log('hello world')\"\"\")
+end
+```
+
+# Loading Page
+```julia
+app = App(; loading_page=LoadingPage(text="Initializing...")) do session
+    data = expensive_setup()
+    return DOM.div(data)
 end
 ```
 
@@ -130,9 +145,8 @@ function HTTPServer.apply_handler(app::App, context)
     server = context.application
     session = HTTPSession(server)
     session.title = app.title
-    html_dom = rendered_dom(session, app, context.request)
     html_str = sprint() do io
-        page_html(io, session, html_dom)
+        page_html(io, session, app)
     end
     mark_displayed!(session)
     return html(html_str)
@@ -210,7 +224,7 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
         end
         sub = Session(parent)
         # Use indicator from user's app on the parent wrapper (only root has indicator)
-        parent_dom = session_dom(parent, App(nothing; indicator=handler.current_app.indicator); html_document=true)
+        parent_dom = session_dom(parent, App(nothing; indicator=handler.current_app.indicator, loading_page=nothing); html_document=true)
         sub_dom = session_dom(sub, handler.current_app)
 
         # first time rendering in a subsession, we put the
@@ -238,6 +252,12 @@ function wait_for_ready(app::App; timeout=100)
     isclosed(app.session[]) && return nothing
     wait_for(timeout=timeout) do
         isready(app.session[]) || isclosed(app.session[])
+    end
+    task = app.loading_task[]
+    if !isnothing(task)
+        wait_for(; timeout=timeout) do
+            istaskdone(task)
+        end
     end
 end
 
