@@ -1,16 +1,31 @@
 """
-    App(callback_or_dom; title="Bonito App")
+    App(callback_or_dom; title="Bonito App", loading_page=nothing)
     App((session, request) -> DOM.div(...))
     App((session::Session) -> DOM.div(...))
     App((request::HTTP.Request) -> DOM.div(...))
     App(() -> DOM.div(...))
     App(DOM.div(...))
 
-Usage:
+# Keywords
+- `title::String`: Browser tab title (default: `"Bonito App"`)
+- `indicator::Union{Nothing, AbstractConnectionIndicator}`: Connection status indicator (default: `nothing`)
+- `loading_page`: A component (e.g. `LoadingPage()`) to display while the app handler runs.
+  When set, the app DOM is wrapped in an `Observable` that initially shows the loading page,
+  then asynchronously replaces it with the real content once the handler completes (default: `nothing`).
+
+# Usage
 ```julia
 using Bonito
 app = App() do
     return DOM.div(DOM.h1("hello world"), js\"\"\"console.log('hello world')\"\"\")
+end
+```
+
+# Loading Page
+```julia
+app = App(; loading_page=LoadingPage(text="Initializing...")) do session
+    data = expensive_setup()
+    return DOM.div(data)
 end
 ```
 
@@ -103,6 +118,13 @@ function rendered_dom(session::Session, app::App, target=HTTP.Request(); apply_j
     session.current_app[] = app
     try
         dom = Base.invokelatest(app.handler, session, target)
+        # For offline sessions (NoConnection), wait for loading task so the
+        # Observable has its final value before jsrender serializes the DOM.
+        # Live connections get async updates via WebSocket instead.
+        task = app.loading_task[]
+        if !isnothing(task) && !istaskdone(task) && root_session(session).connection isa NoConnection
+            wait(task)
+        end
         if apply_jsrender
             dom = Base.invokelatest(jsrender, session, dom)
         end
@@ -130,9 +152,8 @@ function HTTPServer.apply_handler(app::App, context)
     server = context.application
     session = HTTPSession(server)
     session.title = app.title
-    html_dom = rendered_dom(session, app, context.request)
     html_str = sprint() do io
-        page_html(io, session, html_dom)
+        page_html(io, session, app)
     end
     mark_displayed!(session)
     return html(html_str)

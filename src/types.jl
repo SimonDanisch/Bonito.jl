@@ -486,20 +486,22 @@ function normalize_handler(handler)
 end
 
 
-function loading_page_handler(loadingpage, handler, session, request)
+function loading_page_handler(app, loadingpage, handler, session, request)
     obs = Observable{Any}(loadingpage)
-    @async begin
+    app.loading_task[] = @async try
         obs[] = handler(session, request)
+    catch err
+        @error "Error rendering app with loading_page" exception = (err, Base.catch_backtrace())
+        obs[] = HTTPServer.err_to_html(err, Base.catch_backtrace())
     end
     return DOM.div(obs)
 end
 
-function create_handler(handler, loading_content)
+function create_handler(app, handler, loading_content)
     # No loading content - return normalized handler directly
     isnothing(loading_content) && return handler
     # Wrap with loading content
-    # If loading_content is a function (like default_loading_content), call it lazily
-    return (s, r) -> loading_page_handler(loading_content, handler, s, r)
+    return (s, r) -> loading_page_handler(app, loading_content, handler, s, r)
 end
 
 mutable struct App
@@ -507,16 +509,19 @@ mutable struct App
     session::Base.RefValue{Union{Session,Nothing}}
     title::String
     indicator::Union{Nothing,AbstractConnectionIndicator}
+    loading_page::Any # Union{Nothing, LoadingPage} - LoadingPage defined later in components.jl
+    loading_task::Base.RefValue{Union{Nothing, Task}}
     function App(
         handler::Any;
         title::AbstractString="Bonito App",
         indicator::Union{Nothing,AbstractConnectionIndicator}=nothing,
-        loading_page="loading...",
+        loading_page=nothing,
     )
         n_handler = normalize_handler(handler)
-        wrapped = create_handler(n_handler, loading_page)
         session = Base.RefValue{Union{Session,Nothing}}(nothing)
-        app = new(wrapped, session, title, indicator)
+        loading_task = Base.RefValue{Union{Nothing, Task}}(nothing)
+        app = new(n_handler, session, title, indicator, loading_page, loading_task)
+        app.handler = create_handler(app, n_handler, loading_page)
         finalizer(close, app)
         return app
     end
