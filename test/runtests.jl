@@ -101,6 +101,9 @@ end
             include("widgets.jl")
         end
         # @testset "various" begin; include("various.jl"); end
+        @testset "commonmark" begin
+            include("commonmark.jl")
+        end
         @testset "markdown" begin
             include("markdown.jl")
         end
