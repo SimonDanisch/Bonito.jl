@@ -149,6 +149,20 @@ end
     end
 end
 
+@testset "basic js_str interpolation" begin
+    # does not test anything regarding the js-julia-bridges
+    foo = "foostr"
+    js = js"α$foo" # interpolation after multicodepoint
+    @test string(js) == raw"α'foostr'"
+
+    js = js"α${foo}"
+    @test string(js) == raw"α${foo}"
+
+    id = "#myid"
+    js = js"\$jqref = \$($id)\$"
+    @test string(js) == raw"$jqref = $('#myid')$"
+end
+
 # @testset "" begin
 #     obs2 = Observable("hey")
 #     obs[] = App() do s
