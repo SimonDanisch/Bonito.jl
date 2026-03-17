@@ -495,7 +495,7 @@ function loading_page_handler(app, loadingpage, handler, session, request)
     app.loading_task[] = @async try
         obs[] = handler(session, request)
     catch err
-        @error "Error rendering app with loading_page" exception = (err, Base.catch_backtrace())
+        @debug "Error rendering app with loading_page" exception = (err, Base.catch_backtrace())
         obs[] = HTTPServer.err_to_html(err, Base.catch_backtrace())
     end
     return DOM.div(obs)

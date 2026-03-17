@@ -44,11 +44,10 @@
 end
 Bonito.set_cleanup_time!(0.0)
 @testset "server cleanup" begin
-    # Close edisplay to remove Retain (gotta add a functionality to do this nonviolently)
-    # But this is also a good chance to test server cleanup :)
-    close(edisplay.window)
+    # Close the full display (window + handler/session) to properly clean up.
+    # This closes the Bonito session which deregisters assets and websocket routes.
     server = edisplay.browserdisplay.server
-    # It may take a while for close(edisplay.window) to remove the websocket route (by closing the socket)
+    close(edisplay)
     success = Bonito.wait_for(() -> isempty(server.websocket_routes.table); timeout=6)
     for (r, handler) in server.websocket_routes.table
         @show handler.session
@@ -62,7 +61,7 @@ end
 Bonito.set_cleanup_time!(30/60/60)
 
 # Re-Create edisplay for other tests
-edisplay = Bonito.use_electron_display(devtools=true, options=ELECTRON_OPTIONS)
+edisplay = Bonito.use_electron_display(; app=get_test_app(), options=Dict{String, Any}("show" => false, "focusOnWebView" => false), devtools=false)
 
 @testset "subsession & freing" begin
     server = Server("0.0.0.0", 9433)
