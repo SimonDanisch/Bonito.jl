@@ -249,6 +249,284 @@ function string_to_markdown(source::String, replacements=Dict{Any, Function}(); 
     else
         error("Unsupported type for `eval_julia_code`: $(eval_julia_code). Supported are `false`, a Module to eval in, or a `Bonito.RunnerLike`.")
     end
+    # Check if any replacement keys are CommonMark types — if so, use CommonMark parser
+    has_cm_keys = any(k -> k isa Type && k <: Union{CommonMark.AbstractBlock, CommonMark.AbstractInline, CommonMark.AbstractContainer}, keys(replacements))
+    if has_cm_keys
+        ast = bonito_parser(source)
+        return commonmark_to_dom(ast; replacements=replacements)
+    end
     markdown = Markdown.parse(source)
     return replace_expressions(markdown, replacements, runner)
+end
+
+# ============================================================================
+# CommonMark.jl Integration
+# ============================================================================
+
+"""
+    bonito_parser(; kwargs...)
+
+Create a CommonMark parser with all extensions enabled (math, tables,
+admonitions, footnotes, strikethrough, raw HTML).
+
+    bonito_parser(source::String; kwargs...)
+
+Parse a markdown string with the full-featured parser.
+"""
+function bonito_parser(; kwargs...)
+    parser = CommonMark.Parser(; kwargs...)
+    CommonMark.enable!(parser, CommonMark.DollarMathRule())
+    CommonMark.enable!(parser, CommonMark.TableRule())
+    CommonMark.enable!(parser, CommonMark.AdmonitionRule())
+    CommonMark.enable!(parser, CommonMark.FootnoteRule())
+    CommonMark.enable!(parser, CommonMark.StrikethroughRule())
+    CommonMark.enable!(parser, CommonMark.RawContentRule())
+    CommonMark.enable!(parser, CommonMark.AttributeRule())
+    return parser
+end
+
+function bonito_parser(source::String; kwargs...)
+    parser = bonito_parser(; kwargs...)
+    return parser(source)
+end
+
+"""
+    CommonMarkDOM
+
+Wrapper around a DOM element produced by `commonmark_to_dom`.
+This is returned by `string_to_markdown` when CommonMark replacements
+are used, and `jsrender` dispatches on it to render the DOM.
+"""
+struct CommonMarkDOM
+    dom::Any
+end
+
+function jsrender(session::Session, cmd::CommonMarkDOM)
+    return jsrender(session, cmd.dom)
+end
+
+"""
+    commonmark_to_dom(ast::CommonMark.Node; replacements=Dict())
+
+Walk a CommonMark AST and produce Bonito DOM elements.
+
+Uses a stack-based approach:
+- On entering a container node: push a new children collector
+- On exiting a container node: pop children, create DOM element, push to parent
+- For leaf nodes: create element immediately, push to current collector
+
+`replacements` is a `Dict{Type, Function}` mapping CommonMark node types
+(e.g. `CommonMark.CodeBlock`, `CommonMark.Image`) to functions that receive
+the `CommonMark.Node` and return either a DOM element or `nothing` (to use default).
+"""
+function commonmark_to_dom(ast::CommonMark.Node; replacements=Dict{Any,Function}())
+    # Stack of children collectors. Each entry is a (node_type, children) pair.
+    stack = Tuple{Any, Vector{Any}}[(nothing, Any[])]
+
+    for (node, entering) in ast
+        t = node.t
+        T = typeof(t)
+
+        # Check for replacement
+        if haskey(replacements, T)
+            result = replacements[T](node)
+            if result !== nothing
+                # Non-container replacement: push result directly
+                if !entering || !CommonMark.is_container(t)
+                    push!(last(stack)[2], result)
+                    continue
+                end
+                # For container replacements that returned something,
+                # we still push it as a leaf (skip children)
+                push!(last(stack)[2], result)
+                continue
+            end
+            # result === nothing means "use default rendering"
+        end
+
+        if CommonMark.is_container(t)
+            if entering
+                push!(stack, (t, Any[]))
+            else
+                # Pop children and create element
+                (node_type, children_vec) = pop!(stack)
+                element = make_dom_element(node_type, node, children_vec)
+                push!(last(stack)[2], element)
+            end
+        else
+            # Leaf node — create element immediately
+            element = make_dom_leaf(t, node)
+            push!(last(stack)[2], element)
+        end
+    end
+
+    # The root Document's children are in the last stack entry
+    (_, root_children) = pop!(stack)
+    return CommonMarkDOM(DOM.div(root_children...; class="markdown-body"))
+end
+
+# ============================================================================
+# Container node → DOM element
+# ============================================================================
+
+function make_dom_element(t::CommonMark.Document, node, children)
+    # Document is the root — just return children as-is for the wrapper
+    return children
+end
+
+function make_dom_element(t::CommonMark.Heading, node, children)
+    level = t.level
+    id = length(children) == 1 && children[1] isa String ? children[1] : ""
+    return DOM.m("h$level", children...; id=id)
+end
+
+function make_dom_element(t::CommonMark.Paragraph, node, children)
+    return DOM.p(children...)
+end
+
+function make_dom_element(t::CommonMark.Strong, node, children)
+    return DOM.m("strong", children...)
+end
+
+function make_dom_element(t::CommonMark.Emph, node, children)
+    return DOM.m("em", children...)
+end
+
+function make_dom_element(t::CommonMark.Link, node, children)
+    return DOM.m("a", children...; href=t.destination)
+end
+
+function make_dom_element(t::CommonMark.Image, node, children)
+    alt_text = join(filter(c -> c isa String, children), "")
+    dest = t.destination
+    _, ext = splitext(dest)
+    if ext in (".mp4", ".webm", ".ogg")
+        return DOM.m("video", DOM.m("source"; src=dest, type="video/$(ext[2:end])"); autoplay=true, controls=true)
+    end
+    return DOM.m("img"; src=dest, alt=alt_text)
+end
+
+function make_dom_element(t::CommonMark.List, node, children)
+    ld = t.list_data
+    if ld.type === :ordered
+        if ld.start > 1
+            return DOM.m("ol", children...; start=string(ld.start))
+        else
+            return DOM.m("ol", children...)
+        end
+    else
+        return DOM.m("ul", children...)
+    end
+end
+
+function make_dom_element(t::CommonMark.Item, node, children)
+    return DOM.m("li", children...)
+end
+
+function make_dom_element(t::CommonMark.BlockQuote, node, children)
+    return DOM.m("blockquote", children...)
+end
+
+function make_dom_element(t::CommonMark.Table, node, children)
+    return DOM.m("table", children...)
+end
+
+function make_dom_element(t::CommonMark.TableHeader, node, children)
+    return DOM.m("thead", children...)
+end
+
+function make_dom_element(t::CommonMark.TableBody, node, children)
+    return DOM.m("tbody", children...)
+end
+
+function make_dom_element(t::CommonMark.TableRow, node, children)
+    return DOM.m("tr", children...)
+end
+
+function make_dom_element(t::CommonMark.TableCell, node, children)
+    tag = t.header ? "th" : "td"
+    align = t.align === :left ? "left" : t.align === :right ? "right" : t.align === :center ? "center" : ""
+    if isempty(align)
+        return DOM.m(tag, children...)
+    else
+        return DOM.m(tag, children...; style="text-align: $align")
+    end
+end
+
+function make_dom_element(t::CommonMark.Strikethrough, node, children)
+    return DOM.m("s", children...)
+end
+
+function make_dom_element(t::CommonMark.Admonition, node, children)
+    title = DOM.p(t.title; class="admonition-title")
+    return DOM.div(title, children...; class="admonition $(t.category)")
+end
+
+function make_dom_element(t::CommonMark.FootnoteDefinition, node, children)
+    return DOM.div(DOM.p(t.id; class="footnote-title"), children...;
+                   class="footnote", id="footnote-$(t.id)")
+end
+
+# Fallback for unknown container types
+function make_dom_element(t, node, children)
+    return DOM.div(children...)
+end
+
+# ============================================================================
+# Leaf node → DOM element
+# ============================================================================
+
+function make_dom_leaf(t::CommonMark.Text, node)
+    return node.literal
+end
+
+function make_dom_leaf(t::CommonMark.Code, node)
+    return DOM.m("code", node.literal)
+end
+
+function make_dom_leaf(t::CommonMark.CodeBlock, node)
+    info = t.info
+    if info == "latex"
+        return KaTeX(node.literal)
+    end
+    maybe_lang = !isempty(info) ? Any[:class => "language-$(info)"] : Any[]
+    return DOM.m("pre", DOM.m("code", node.literal; maybe_lang...))
+end
+
+function make_dom_leaf(t::CommonMark.Math, node)
+    return KaTeX(node.literal; display=t.display)
+end
+
+function make_dom_leaf(t::CommonMark.DisplayMath, node)
+    return KaTeX(node.literal; display=true)
+end
+
+function make_dom_leaf(t::CommonMark.SoftBreak, node)
+    return " "
+end
+
+function make_dom_leaf(t::CommonMark.LineBreak, node)
+    return DOM.m("br")
+end
+
+function make_dom_leaf(t::CommonMark.ThematicBreak, node)
+    return DOM.m_unesc("hr")
+end
+
+function make_dom_leaf(t::CommonMark.HtmlInline, node)
+    return DontEscape(node.literal)
+end
+
+function make_dom_leaf(t::CommonMark.HtmlBlock, node)
+    return DontEscape(node.literal)
+end
+
+function make_dom_leaf(t::CommonMark.FootnoteLink, node)
+    return DOM.m("a", string("[", t.id, "]"); href="#footnote-$(t.id)", class="footnote")
+end
+
+# Fallback for unknown leaf types
+function make_dom_leaf(t, node)
+    lit = node.literal
+    return isempty(lit) ? "" : lit
 end
