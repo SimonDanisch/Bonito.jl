@@ -14,7 +14,7 @@ Bonito.set_cleanup_time!(0.0)
     window = TestWindow()
     url = URI(online_url(server, "/"))
     @testset for i in 1:10
-        load(window.window, url)
+        ElectronCall.load(window.window, url)
         @test test_dom(window) # re-use from threading.jl
     end
     if app.session[].connection isa Bonito.DualWebsocket

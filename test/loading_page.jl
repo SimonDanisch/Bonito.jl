@@ -52,7 +52,11 @@ end
 
     try
         display(edisplay, app)
-        Bonito.wait_for_ready(app)
+        # Don't call wait_for_ready here - it would block until the handler completes,
+        # but the handler is blocked on take!(gate). Instead wait for the session to connect.
+        Bonito.wait_for(timeout=10) do
+            !isnothing(app.session[]) && isready(app.session[])
+        end
 
         # Loading page should be visible initially
         success = Bonito.wait_for(timeout=10) do

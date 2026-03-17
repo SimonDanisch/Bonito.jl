@@ -61,7 +61,7 @@ Bonito.configure_server!(proxy_url=nothing)
     end
     session = app.session[]
     @test session.connection isa Bonito.SubConnection
-    @test parent(session).connection isa Bonito.WebSocketConnection
+    @test parent(session).connection isa Bonito.AbstractWebsocketConnection
     @test isready(parent(session))
 end
 
