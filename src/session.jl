@@ -32,8 +32,11 @@ function init_session(session::Session)
     put!(session.connection_ready, true)
     # open the connection for e.g. subconnection, which just have an open flag
     open!(session.connection)
-    @assert isopen(session)
-    # We send all queued up messages once the onnection is open
+    if !isopen(session)
+        @debug "Session $(session.id) closed before init_session could run"
+        return
+    end
+    # We send all queued up messages once the connection is open
     if !isempty(session.message_queue) || !isempty(session.on_document_load)
         send(session, fused_messages!(session))
     end

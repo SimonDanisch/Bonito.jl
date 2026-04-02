@@ -186,6 +186,7 @@ function EWindow(args...; app=nothing, options=Dict{String, Any}(), electron_arg
         app = EC.Application(;
             additional_electron_args=electron_args,
             security=default_security_config(),
+            verbose=false,
         )
     end
     if isempty(args)
@@ -247,9 +248,14 @@ function Base.close(win::EWindow; close_app::Bool=false)
 end
 
 function Base.close(display::ElectronDisplay)
-    # Close the Bonito session/handler first so connections are properly shut down,
-    # then close the Electron window.
-    close(display.browserdisplay)
+    # Close the Bonito handler/session first so connections are properly shut down,
+    # then close the Electron window. Don't close the server - it's shared (GLOBAL_SERVER)
+    # and may be reused by subsequent displays.
+    bd = display.browserdisplay
+    if !isnothing(bd.handler)
+        close(bd.handler)
+        bd.handler = nothing
+    end
     close(display.window)
     return nothing
 end

@@ -243,7 +243,7 @@ end
 
     @testset "NoServer vs HTTPAssetServer" begin
         s = Bonito.get_server()
-        Bonito.configure_server!(proxy_url="http://localhost:$(s.port)")
+        s.proxy_url = "http://localhost:$(s.port)"
 
         servers = [
             (:NoServer, () -> NoServer()),
@@ -264,7 +264,7 @@ end
             @test result == :success
             close(window)
         end
-        Bonito.configure_server!(proxy_url=nothing)
+        s.proxy_url = ""
     end
 
     @testset "export_mode flag pattern" begin
@@ -527,7 +527,7 @@ end
 
     @testset "nested observable + asset server combinations" begin
         s = Bonito.get_server()
-        Bonito.configure_server!(proxy_url="http://localhost:$(s.port)")
+        s.proxy_url = "http://localhost:$(s.port)"
 
         servers = [
             (:NoServer, () -> NoServer()),
@@ -566,7 +566,7 @@ end
             @test result == :success
             close(window)
         end
-        Bonito.configure_server!(proxy_url=nothing)
+        s.proxy_url = ""
     end
 
 end

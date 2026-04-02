@@ -14,15 +14,10 @@ const TEST_APP = Ref{Union{Nothing, ElectronCall.Application}}(nothing)
 
 function get_test_app()
     if TEST_APP[] === nothing || !TEST_APP[].exists
-        security = if haskey(ENV, "GITHUB_ACTIONS")
-            ElectronCall.SecurityConfig(sandbox=false)
-        else
-            ElectronCall.development_config()
-        end
-        electron_args = Bonito.HTTPServer.default_electron_args()
         TEST_APP[] = ElectronCall.Application(;
-            additional_electron_args=electron_args,
-            security=security,
+            additional_electron_args=Bonito.HTTPServer.default_electron_args(),
+            security=Bonito.HTTPServer.default_security_config(),
+            verbose=false,
         )
     end
     return TEST_APP[]

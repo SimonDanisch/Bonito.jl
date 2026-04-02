@@ -7,17 +7,16 @@ inline_display = Bonito.App() do session, req
 end;
 Bonito.CURRENT_SESSION[] = nothing
 display(edisplay, inline_display);
-app = TestSession(URI("http://localhost:8555/show"))
-app.server = Bonito.GLOBAL_SERVER[]
-app.window = edisplay.window
+Bonito.wait_for_ready(inline_display)
+# Wrap in TestSession for test_current_session (needs evaljs + .dom).
+# Only set session and dom — not server/window, since those are owned by edisplay.
+app = TestSession(URI("http://localhost"))
 app.session = inline_display.session[]
-app.dom = dom;
-app.initialized = false
-wait(app)
+app.dom = dom
+app.initialized = true
 @testset "electron inline display" begin
     test_current_session(app)
 end
-close(app)
 
 @testset "Electron standalone" begin
     testsession(markdown_test_handler, port=8555) do app

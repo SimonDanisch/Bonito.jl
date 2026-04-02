@@ -56,6 +56,10 @@ Bonito.set_cleanup_time!(0.0)
     # browser display route & asset server
     @test Set(first.(server.routes.table)) == Set(["/browser-display", r"\Q/assets/\E(?:(?:(?:[\da-f]){40})(?:-.*))"])
     asset_server = server.routes.table[2][2]
+    # Force GC to trigger ChildAssetServer finalizers from any leaked sessions
+    GC.gc(true)
+    GC.gc(true)
+    Bonito.wait_for(() -> isempty(asset_server.registered_files); timeout=5)
     @test isempty(asset_server.registered_files)
 end
 Bonito.set_cleanup_time!(30/60/60)
@@ -124,7 +128,7 @@ edisplay = Bonito.use_electron_display(; app=get_test_app(), options=Dict{String
     @test isempty(subsub.session_objects)
 
     @test isempty(session.asset_server.parent.registered_files)
-
+    close(server)
 end
 
 @testset "cleanup comm" begin
