@@ -51,7 +51,7 @@ function OfflineSession()
     return Session(NoConnection(); asset_server=NoServer())
 end
 
-# Reuse the shared ElectronCall Application for all test windows
+# Reuse the shared Electron Application for all test windows
 function TestWindow(args...; options=Dict{String, Any}("show" => false, "focusOnWebView" => false))
     return Bonito.EWindow(args...; app=get_test_app(), options=options)
 end

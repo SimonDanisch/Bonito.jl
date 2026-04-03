@@ -186,14 +186,11 @@ function EWindow(args...; app=nothing, options=Dict{String, Any}(), electron_arg
         app = EC.Application(;
             additional_electron_args=electron_args,
             security=default_security_config(),
-            verbose=false,
         )
     end
     if isempty(args)
         window = EC.Window(app, options)
     else
-        # Merge options into the Window call as keyword arguments
-        # so they become BrowserWindow options (show, width, etc.)
         kw = Pair{Symbol,Any}[Symbol(k) => v for (k, v) in options]
         window = EC.Window(app, args...; kw...)
     end

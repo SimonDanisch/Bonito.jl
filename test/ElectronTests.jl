@@ -17,7 +17,6 @@ function get_test_app()
         TEST_APP[] = ElectronCall.Application(;
             additional_electron_args=Bonito.HTTPServer.default_electron_args(),
             security=Bonito.HTTPServer.default_security_config(),
-            verbose=false,
         )
     end
     return TEST_APP[]
