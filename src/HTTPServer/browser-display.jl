@@ -115,14 +115,14 @@ function has_html_display()
     return false
 end
 
-# Poor mans Require.jl for Electron
-const ELECTRON_PKG_ID = Base.PkgId(Base.UUID("a1bb12fb-d4d1-54b4-b10a-ee7951ef7ad3"), "Electron")
+# Lazy loading for ElectronCall - avoids hard dependency
+const ELECTRONCALL_PKG_ID = Base.PkgId(Base.UUID("8ddd578f-0c94-4c64-8c65-f083f291b266"), "ElectronCall")
 
-function Electron()
-    if haskey(Base.loaded_modules, ELECTRON_PKG_ID)
-        return Base.loaded_modules[ELECTRON_PKG_ID]
+function ElectronCall()
+    if haskey(Base.loaded_modules, ELECTRONCALL_PKG_ID)
+        return Base.loaded_modules[ELECTRONCALL_PKG_ID]
     else
-        error("Please Load Electron, if you want to use it!")
+        error("Please load ElectronCall if you want to use Electron windows!")
     end
 end
 
@@ -137,10 +137,8 @@ struct ElectronDisplay <: Base.Multimedia.AbstractDisplay
 end
 
 function default_electron_args()
-    # Not an exhaustive check, but we can add if needed
     if haskey(ENV, "GITHUB_ACTIONS")
         return [
-            # Security warning suppressions
             "--disable-web-security",
             "--allow-running-insecure-content",
             "--disable-features=VizDisplayCompositor",
@@ -148,37 +146,60 @@ function default_electron_args()
             "--ignore-ssl-errors",
             "--ignore-certificate-errors-spki-list",
             "--disable-extensions-http-throttling",
-            # Logging suppression
-            "--log-level=3",  # Only fatal errors
+            "--log-level=3",
             "--disable-logging",
             "--silent-debugger-extension-api",
-            "--no-sandbox",
             "--enable-logging",
             "--user-data-dir=$(mktempdir())",
             "--disable-features=AccessibilityObjectModel",
-            "--enable-unsafe-swiftshader",        # ← allow SwiftShader fallback
-            "--use-gl=swiftshader",               # ← explicitly request software GL
-            "--disable-gpu",                      # ← disable GPU to avoid GPU errors
+            "--enable-unsafe-swiftshader",
+            "--use-gl=swiftshader",
+            "--disable-gpu",
         ]
     else
         return ["--user-data-dir=$(mktempdir())"]
     end
 end
 
-function EWindow(args...; options=Dict{String, Any}(), electron_args=default_electron_args())
-    app = Electron().Application(;
-        additional_electron_args=electron_args,
+function default_security_config()
+    EC = ElectronCall()
+    # Bonito needs context_isolation=false because:
+    # - executeJavaScript must access page-level JS objects (Bonito, WEBSOCKET, etc.)
+    # - run(window, code) relies on shared context between page and Electron APIs
+    return EC.SecurityConfig(
+        context_isolation=false,
+        sandbox=false,
+        node_integration=false,
+        web_security=true,
     )
-    if isempty(args)
-        return EWindow(app, Electron().Window(app, options))
-    else
-        return EWindow(app, Electron().Window(app, args...; options=options))
-    end
 end
 
-function ElectronDisplay(; options=Dict{String, Any}(), devtools = false, electron_args=default_electron_args())
-    w = EWindow(; electron_args=electron_args, options=options)
-    devtools && Electron().toggle_devtools(w.window)
+"""
+    EWindow(args...; app=nothing, options=Dict{String, Any}(), electron_args=default_electron_args())
+
+Create an Electron window via ElectronCall. If `app` is provided, reuse that Application
+instead of creating a new one (avoids multiple Electron processes).
+"""
+function EWindow(args...; app=nothing, options=Dict{String, Any}(), electron_args=default_electron_args())
+    EC = ElectronCall()
+    if app === nothing
+        app = EC.Application(;
+            additional_electron_args=electron_args,
+            security=default_security_config(),
+        )
+    end
+    if isempty(args)
+        window = EC.Window(app, options)
+    else
+        kw = Pair{Symbol,Any}[Symbol(k) => v for (k, v) in options]
+        window = EC.Window(app, args...; kw...)
+    end
+    return EWindow(app, window)
+end
+
+function ElectronDisplay(; app=nothing, options=Dict{String, Any}(), devtools=false, electron_args=default_electron_args())
+    w = EWindow(; app=app, electron_args=electron_args, options=options)
+    devtools && ElectronCall().toggle_devtools(w.window)
     return ElectronDisplay(w, BrowserDisplay(; open_browser=false))
 end
 
@@ -188,14 +209,14 @@ function Base.display(display::ElectronDisplay, app::App)
     needs_load = Base.display(display.browserdisplay, app)
     url = online_url(display.browserdisplay)
     if needs_load
-        Electron().load(display.window.window, URI(url))
+        ElectronCall().load(display.window.window, URI(url))
     end
     wait_for_ready(app)
     return display
 end
 
-function use_electron_display(; options=Dict{String, Any}(), devtools = false, electron_args=default_electron_args())
-    disp = ElectronDisplay(; devtools = devtools, options=options, electron_args=electron_args)
+function use_electron_display(; app=nothing, options=Dict{String, Any}(), devtools=false, electron_args=default_electron_args())
+    disp = ElectronDisplay(; app=app, devtools=devtools, options=options, electron_args=electron_args)
     filter!(Base.Multimedia.displays) do x
         # remove all other ElectronDisplays
         if x isa ElectronDisplay
@@ -213,25 +234,25 @@ function Base.run(win::EWindow, args...)
     run(win.window, args...)
 end
 
-function Base.close(win::EWindow)
-    window = win.window
-    if window.app.exists
-        close(window.app)
+function Base.close(win::EWindow; close_app::Bool=false)
+    if win.window.exists
+        close(win.window)
     end
-    if window.exists
-        close(window)
-    end
-    if win.app.exists
+    if close_app && win.app.exists
         close(win.app)
-    end
-    if isopen(win.app.proc)
-        kill(win.app.proc)
     end
     return
 end
 
 function Base.close(display::ElectronDisplay)
+    # Close the Bonito handler/session first so connections are properly shut down,
+    # then close the Electron window. Don't close the server - it's shared (GLOBAL_SERVER)
+    # and may be reused by subsequent displays.
+    bd = display.browserdisplay
+    if !isnothing(bd.handler)
+        close(bd.handler)
+        bd.handler = nothing
+    end
     close(display.window)
-    close(display.browserdisplay)
     return nothing
 end
