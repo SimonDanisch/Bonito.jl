@@ -14,6 +14,11 @@ end
 # Where the Set{UInt} is the set of all ChildAssetServer's objectids that have registered the file
 mutable struct ChildAssetServer <: AbstractAssetServer
     parent::HTTPAssetServer
+    function ChildAssetServer(parent::HTTPAssetServer)
+        server = new(parent)
+        finalizer(close, server)
+        return server
+    end
 end
 
 const MATCH_HEX = r"[\da-f]"

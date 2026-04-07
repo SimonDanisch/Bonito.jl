@@ -376,7 +376,7 @@ function check_rate_limit(protected::ProtectedRoute, client_ip::String)
 
         # Check if exceeded max attempts
         if length(attempts) >= protected.max_attempts
-            @warn "Rate limit exceeded for IP" ip=client_ip attempts=length(attempts)
+            @debug "Rate limit exceeded for IP" ip=client_ip attempts=length(attempts)
             return false
         end
     end
@@ -399,7 +399,7 @@ function record_failed_attempt(protected::ProtectedRoute, client_ip::String)
     push!(protected.failed_attempts[client_ip], current_time)
 
     # Log failed attempt for security monitoring
-    @warn "Failed authentication attempt" ip=client_ip total_attempts=length(protected.failed_attempts[client_ip])
+    @debug "Failed authentication attempt" ip=client_ip total_attempts=length(protected.failed_attempts[client_ip])
 end
 
 """

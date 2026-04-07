@@ -1,7 +1,6 @@
 # Needs to be done before loading Bonito
 include("test-bundles.jl")
 using Bonito
-# ENV["JULIA_DEBUG"] = Bonito
 using Hyperscript, Markdown, Test, RelocatableFolders
 using Observables
 using Bonito: Session, evaljs, linkjs, div
@@ -10,7 +9,7 @@ using Bonito: onjs, JSString, Asset, jsrender
 using Bonito: @js_str, uuid, SerializationContext, serialize_binary
 using Bonito.DOM
 using Bonito.HTTP
-using Electron
+using ElectronCall
 using URIs
 using Random
 using Hyperscript: children
@@ -19,6 +18,7 @@ using Bonito.CodecZlib
 using Test
 using Bonito: jsrender
 include("ElectronTests.jl")
+include("test_helpers.jl")
 
 function wait_on_test_observable()
     global test_observable
@@ -33,40 +33,31 @@ end
 
 """
     test_value(app, statement)
-Executes statemen (js code, or julia function with 0 args),
+Executes statement (js code, or julia function with 0 args),
 And waits on `test_observable` to push a new value!
 Returns new value from `test_observable`
 """
 function test_value(app, statement)
-    # First start waiting on the test communication channel
-    # We do this async before scheduling the js, since otherwise there is a
-    # chance, that the event gets triggered before we have a chance to wait for it
-    # which would make use wait forever
     val_t = @async wait_on_test_observable()
-    # eval our js expression that is supposed to write something to test_observable
     if statement isa Bonito.JSCode
         Bonito.evaljs(app.session, statement)
     else
         statement()
     end
-    return fetch(val_t) # fetch the value!
+    return fetch(val_t)
 end
 
 function OfflineSession()
     return Session(NoConnection(); asset_server=NoServer())
 end
 
-global ELECTRON_OPTIONS = Dict{String, Any}(
-    "show" => false,  # Don't show the window immediately
-    "focusOnWebView" => false,  # Don't focus the webview
-)
-
-function TestWindow(args...)
-    return Bonito.EWindow(args...; options=ELECTRON_OPTIONS)
+# Reuse the shared Electron Application for all test windows
+function TestWindow(args...; options=Dict{String, Any}("show" => false, "focusOnWebView" => false))
+    return Bonito.EWindow(args...; app=get_test_app(), options=options)
 end
 
 @testset "Bonito" begin
-    global edisplay = Bonito.use_electron_display(; options=ELECTRON_OPTIONS, devtools=true)
+    global edisplay = Bonito.use_electron_display(; app=get_test_app(), options=Dict{String, Any}("show" => false, "focusOnWebView" => false), devtools=false)
     @testset "Default Connection" begin
         @testset "websocket-closing" begin
             include("websocket-closing.jl")
@@ -100,7 +91,6 @@ end
         @testset "widgets" begin
             include("widgets.jl")
         end
-        # @testset "various" begin; include("various.jl"); end
         @testset "markdown" begin
             include("markdown.jl")
         end
@@ -110,9 +100,12 @@ end
         @testset "handlers" begin
             include("handlers.jl")
         end
+        @testset "export" begin
+            include("export_tests.jl")
+        end
     end
     close(edisplay)
-    global edisplay = Bonito.use_electron_display(; options=ELECTRON_OPTIONS, devtools=true)
+    global edisplay = Bonito.use_electron_display(; app=get_test_app(), options=Dict{String, Any}("show" => false, "focusOnWebView" => false), devtools=false)
     @testset "Compression true + DualWebsocket" begin
         @testset "Compression + DualWebsocket" begin
             Bonito.use_compression!(true)
@@ -140,4 +133,6 @@ end
             end
         end
     end
+    close(edisplay)
+    close_test_app()
 end
