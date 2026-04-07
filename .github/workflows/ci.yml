@@ -42,6 +42,9 @@ jobs:
           version: ${{ matrix.version }}
           arch: x64
       - uses: julia-actions/cache@v1
+      - name: Use ElectronCall master
+        run: |
+          julia --project=@. -e 'using Pkg; Pkg.add(url="https://github.com/IanButterworth/ElectronCall.jl.git", rev="master")'
       - name: Run headless test
         uses: GabrielBB/xvfb-action@v1
         with:
