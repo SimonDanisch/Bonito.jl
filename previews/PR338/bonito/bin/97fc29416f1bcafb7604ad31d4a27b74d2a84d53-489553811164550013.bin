@@ -1,0 +1,9 @@
+’Ç,j“Ù$871caafc-4150-4daf-a5b9-543bd0e72420£subƒ§payload‘ÈÁk’Ç,j“Ù$da879a14-2620-4796-8073-118ed6394eb7£sub†ªsession_idÙ$da879a14-2620-4796-8073-118ed6394eb7¨messagesƒ§payload¨msg_type¡9¦caches§replaceÂ¨msg_type¢12¤htmlÈi“£div’Èi“£div’ÈÅi“¦script‘Ú™    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/4b29a8a109d601a7edfb26a92839bf48e80325ba-804850606256495446.bin').then(binary=> {
+            const observables = Bonito.Protocol.unpack_binary(binary, false)
+            observables.forEach(([id, objects, status]) => {
+                Bonito.Sessions.update_session_cache(id, objects, status);
+            });
+        });
+    })
+‚®data-jscall-id£166¤type¦moduleÇi“¥style‘ ®data-jscall-id£167®data-jscall-id£165È‹i“£div’Ç•i“¦script‘ÙjBonito.lock_loading(() => Bonito.init_session('da879a14-2620-4796-8073-118ed6394eb7', null, 'sub', false))‚®data-jscall-id£169¤type¦moduleÇÖi“£div“Ç i“£div‘¥false®data-jscall-id£162Çi“£div‘¡3®data-jscall-id£163Ç]i“£div‘Ç@i“¡p‘Ù&cos (generic function with 14 methods)®data-jscall-id£170®data-jscall-id£164‚¥class³my-2 flex flex-col ®data-jscall-id£161®data-jscall-id£168ƒ¥class¯bonito-fragment¢idÙ$da879a14-2620-4796-8073-118ed6394eb7®data-jscall-idºsubsession-application-dom±dom_node_selector¢69¨msg_type¡9¦caches
