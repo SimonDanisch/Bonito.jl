@@ -117,6 +117,10 @@ struct Asset <: AbstractAsset
 end
 
 
+struct Folder
+    path::String
+end
+
 struct Link <: AbstractAsset
     target::String
 end
