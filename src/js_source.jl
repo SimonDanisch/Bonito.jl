@@ -135,6 +135,23 @@ end
 function import_in_js(io::IO, session::Session, asset_server, asset::Asset)
     ref = import_js_url(asset_server, asset)
     if asset.es6module
+        # Register the module as a session import too, which makes Bonito
+        # emit `<script type="module" src=...>` in the document head. The
+        # browser then starts downloading + parsing as soon as it sees the
+        # head, in parallel with the rest of the page setup; by the time
+        # this `import(url)` runs from the session-bootstrap, the module
+        # is already in the registry and the dynamic-import resolves
+        # essentially instantly.
+        #
+        # Without this, every `$(es6module).then(...)` waited for the
+        # session-bootstrap bin to download → parse → execute → dispatch
+        # the dynamic import — adding ~2 s to first paint with anything
+        # MapLibre-sized in the chain.
+        #
+        # `imports` is a Set so duplicate interpolations just register
+        # once. Re-evaluating the same module via `import(url)` returns
+        # the same instance, so eager + dynamic import is consistent.
+        push!(session.imports, asset)
         print(io, "import($(ref))")
     else
         print(io, "Bonito.fetch_binary($(ref))")
