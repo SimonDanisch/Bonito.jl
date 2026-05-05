@@ -223,6 +223,12 @@ function relative_url(server::Server, url)
     if proxy_url == ""
         # Absolute URLS!
         return online_url(server, url)
+    elseif proxy_url == "."
+        # Server-absolute path — works from any current page depth, e.g. when
+        # routes are mounted at sub-paths like /p/<id>. (Returning a page-
+        # relative "./assets/..." would break for sub-routes because the asset
+        # handler does exact-path lookup against the registered "/assets/..." key.)
+        return startswith(url, "/") ? url : "/" * url
     else
         # absolute proxy URLS
         return join_url(proxy_url, url)
