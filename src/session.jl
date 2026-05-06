@@ -508,11 +508,18 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
                 body = Hyperscript.m("body", body_dom)
                 dom = Hyperscript.m("html", head, body; class="bonito-fragment")
             else
-                # Emit a "fragment"
-                head = DOM.div(session_style, global_styles...)
-                body = DOM.div(dom)
+                # Emit a "fragment". The wrapper divs are purely structural —
+                # they exist as DOM anchors for Bonito's reactive swap logic
+                # and the per-session stylesheet. style="display:contents"
+                # makes them transparent to the surrounding flex/grid layout
+                # so an Observable rendered into a flex container behaves the
+                # same as if the content were a direct child.
+                head = DOM.div(session_style, global_styles...; style="display:contents")
+                body = DOM.div(dom; style="display:contents")
                 dom = DOM.div(
-                    head, body; id=session.id, class="bonito-fragment", dataJscallId=dom_id
+                    head, body;
+                    id=session.id, class="bonito-fragment", dataJscallId=dom_id,
+                    style="display:contents",
                 )
             end
         else
