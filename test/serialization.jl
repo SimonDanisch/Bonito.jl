@@ -1,6 +1,6 @@
 using Bonito: Observable, Retain, CacheKey, decode_extension_and_addbits
 using Bonito: SerializationContext, serialize_cached, SessionCache
-using Bonito, MsgPack, Test
+using Bonito, Bonito.MsgPack, Test
 
 @testset "nested observable serialization order" begin
     # Test that nested observables are serialized in dependency order:

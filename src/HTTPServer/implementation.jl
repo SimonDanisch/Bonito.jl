@@ -311,11 +311,12 @@ end
 
 function Base.close(server::Server)
     isnothing(server.server) && return
+    @debug "Closing Server at $(server.url):$(server.port)"
     for (k, web_handler) in server.websocket_routes.table
         try
             close(web_handler)
         catch e
-            @warn "Error while closing websocket handler for route $(k)" exception=(e, Base.catch_backtrace())
+            @debug "Error while closing websocket handler for route $(k)" exception=(e, Base.catch_backtrace())
         end
     end
     close(server.server)
@@ -341,6 +342,7 @@ end
 
 function start(server::Server; verbose=-1, listener_kw...)
     isrunning(server) && return
+    @debug "Starting Server at $(server.url):$(server.port)"
     newport, http_server = try_listen(server.url, server.port, server, verbose; listener_kw...)
     if server.port != newport
         @warn "Port in use, using different port. New port: $(newport)"

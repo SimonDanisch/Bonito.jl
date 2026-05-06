@@ -24,8 +24,10 @@ servers = [(:NoServer, () -> NoServer()), (:HTTPAssetServer, () -> HTTPAssetServ
 path = joinpath(@__DIR__, "test.html")
 
 # We need to use a proxy url to not have relative URLS for HTTPAssetServer, when serving from a file.
+# Set it directly on the server to avoid configure_server! recreating the GLOBAL_SERVER
+# due to implicit listen_url change.
 s = Bonito.get_server()
-Bonito.configure_server!(proxy_url="http://localhost:$(s.port)")
+s.proxy_url = "http://localhost:$(s.port)"
 
 @testset "connection $(c) server: $(s)" for ((c, connection), (s, server)) in Iterators.product(connections, servers)
     app = App(export_test_app)
@@ -41,7 +43,7 @@ Bonito.configure_server!(proxy_url="http://localhost:$(s.port)")
     close(app)
 end
 rm(path; force=true)
-Bonito.configure_server!(proxy_url=nothing)
+s.proxy_url = ""
 
 
 # Finalizers and other problems have been closing our connection unintentional,
@@ -61,7 +63,7 @@ Bonito.configure_server!(proxy_url=nothing)
     end
     session = app.session[]
     @test session.connection isa Bonito.SubConnection
-    @test parent(session).connection isa Bonito.WebSocketConnection
+    @test parent(session).connection isa Bonito.AbstractWebsocketConnection
     @test isready(parent(session))
 end
 
