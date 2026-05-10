@@ -317,7 +317,15 @@ end
 
 function Base.close(server::Server)
     isnothing(server.server) && return
+    # Close any websocket handler that opted into the close protocol (i.e.
+    # has a `close(::HandlerType)` method). Pure-function handlers are
+    # skipped — they hold no per-route state, and any in-flight WebSocket
+    # connections they accepted get torn down by `close(server.server)`
+    # below. The previous version called `close` unconditionally and
+    # spammed `MethodError: no method matching close(::Function)` warnings
+    # on every test/server teardown.
     for (k, web_handler) in server.websocket_routes.table
+        applicable(close, web_handler) || continue
         try
             close(web_handler)
         catch e
