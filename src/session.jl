@@ -29,15 +29,24 @@ function wait_for_ready(session::Session; timeout=100)
 end
 
 function init_session(session::Session)
-    put!(session.connection_ready, true)
-    # open the connection for e.g. subconnection, which just have an open flag
-    open!(session.connection)
-    @assert isopen(session)
-    # We send all queued up messages once the onnection is open
-    if !isempty(session.message_queue) || !isempty(session.on_document_load)
-        send(session, fused_messages!(session))
+    # Hold deletion_lock across the open-and-flush so a concurrent send
+    # can't interleave between `isready` flipping true (line 34) and the
+    # queue drain (line 38). Without the lock, the concurrent send sees
+    # `isready==true`, takes the direct-write branch in `_send`, and its
+    # message can land on the wire BEFORE the queued setup messages —
+    # JS sees an UpdateObservable for a key whose registration arrives
+    # later. See test/race_conditions_audit.jl F10.
+    lock(root_session(session).deletion_lock) do
+        put!(session.connection_ready, true)
+        # open the connection for e.g. subconnection, which just have an open flag
+        open!(session.connection)
+        @assert isopen(session)
+        # We send all queued up messages once the onnection is open
+        if !isempty(session.message_queue) || !isempty(session.on_document_load)
+            send(session, fused_messages!(session))
+        end
+        session.status = OPEN
     end
-    session.status = OPEN
     return
 end
 
@@ -88,37 +97,48 @@ function get_session(session::Session, id::String)
 end
 
 function free(session::Session)
-    # don't double free!
-    session.status === CLOSED && return
-    # unregister all cached objects from root session
+    # `free` MUST take the root's deletion_lock itself — relying on callers
+    # was racy: `process_message`'s `GetSessionDOM` branch (and any future
+    # @async caller) can otherwise interleave with `close()` (which holds
+    # the lock), corrupting `session_objects` mid-iteration. The lock is
+    # reentrant, so callers that already hold it pay nothing extra.
+    # See test/race_conditions_audit.jl F1.
     root = root_session(session)
-    # If we're a child session, we need to remove all objects trackt in our root session:
-    if session !== root
-        # We need to remove our session from the parent first, otherwise `delete_cached!`
-        # will think our session still holds the value, which would prevent it from deleting
-        delete!(parent(session).children, session.id)
-        for key in keys(session.session_objects)
-            if haskey(root.session_objects, key)
-                delete_cached!(root, session, key)
+    lock(root.deletion_lock) do
+        # don't double free!
+        session.status === CLOSED && return
+        # unregister all cached objects from root session
+        # If we're a child session, we need to remove all objects trackt in our root session:
+        if session !== root
+            # We need to remove our session from the parent first, otherwise `delete_cached!`
+            # will think our session still holds the value, which would prevent it from deleting
+            delete!(parent(session).children, session.id)
+            # Snapshot the keys before iterating so concurrent renderers
+            # adding to session_objects (under the same lock — they wait
+            # until we exit) don't trip iteration.
+            for key in collect(keys(session.session_objects))
+                if haskey(root.session_objects, key)
+                    delete_cached!(root, session, key)
+                end
+            end
+        else
+            # If this is a root session, we don't do any refcounting anymore
+            # Since if root is over, everything is over.
+            # and just delete everything!
+            for key in collect(keys(session.session_objects))
+                force_delete!(session, key)
             end
         end
-    else
-        # If this is a root session, we don't do any refcounting anymore
-        # Since if root is over, everything is over.
-        # and just delete everything!
-        for key in keys(session.session_objects)
-            force_delete!(session, key)
-        end
-    end
 
-    # delete_cached! only deletes in the root session so we need to still empty the session_objects:
-    empty!(session.session_objects)
-    empty!(session.on_document_load)
-    empty!(session.message_queue)
-    # remove all listeners that where created for this session
-    foreach(off, session.deregister_callbacks)
-    empty!(session.deregister_callbacks)
-    session.status = CLOSED
+        # delete_cached! only deletes in the root session so we need to still empty the session_objects:
+        empty!(session.session_objects)
+        empty!(session.on_document_load)
+        empty!(session.message_queue)
+        # remove all listeners that where created for this session
+        foreach(off, session.deregister_callbacks)
+        empty!(session.deregister_callbacks)
+        session.status = CLOSED
+    end
     return
 end
 
@@ -130,11 +150,20 @@ end
 function Base.close(session::Session)
     lock(root_session(session).deletion_lock) do
         session.status === CLOSED && return
-        session.on_close[] = true
+        # Capture + clear listeners under the lock, then fire them OUTSIDE
+        # the lock so user `on(session.on_close)` handlers can do anything
+        # they like (including `evaljs_value` which spawns its own task to
+        # acquire deletion_lock) without deadlock or recursion. We also
+        # mark the session CLOSED before firing so a listener that
+        # re-enters `close()` short-circuits immediately on the guard
+        # above instead of recursing forever (test/race_conditions_audit.jl F12).
+        on_close_listeners = copy(session.on_close.listeners)
+        Observables.clear(session.on_close)
+
         while !isempty(session.children)
             close(last(first(session.children))) # child removes itself from parent!
         end
-        free(session)
+        free(session)   # sets session.status = CLOSED
         # unregister all cached objects from parent session
         root = root_session(session)
         # If we're a child session, we need to remove all objects tracked in our root session:
@@ -144,12 +173,22 @@ function Base.close(session::Session)
             isready(root) && evaljs(root, js"""Bonito.free_session($(session.id))""")
         end
         close(session.asset_server)
-        Observables.clear(session.on_close)
         session.current_app[] = nothing
         session.io_context[] = nothing
         close(session.inbox)
         session.status = CLOSED
         close(session.connection)
+
+        # Fire on_close listeners now — outside the lock, after the
+        # session is fully torn down. Listener exceptions are swallowed
+        # so one bad handler doesn't poison the close path.
+        for (_prio, f) in on_close_listeners
+            try
+                Base.invokelatest(f, true)
+            catch e
+                @warn "on_close listener threw" exception=(e, catch_backtrace())
+            end
+        end
     end
     return
 end
@@ -207,15 +246,26 @@ end
 Base.write(connection::FrontendConnection, sm::SerializedMessage) = write(connection, serialize_binary(sm))
 
 function _send(session::Session, sm::SerializedMessage, large::Bool)
+    # The check-then-act between `isready(session)` and `write(...)` is
+    # racy: a disconnect in the gap (or any write failure) used to throw
+    # out of `_send` AND lose the message — neither queued for replay nor
+    # on the wire. Wrap the write so a failure falls back to the queue,
+    # which `init_session` flushes on (re)connect. Test:
+    # test/race_conditions_audit.jl F11.
     if isready(session)
-        if large
-            write_large(session.connection, sm)
-        else
-            write(session.connection, sm)
+        try
+            if large
+                write_large(session.connection, sm)
+            else
+                write(session.connection, sm)
+            end
+            return
+        catch e
+            @debug "_send write failed; falling back to message_queue for replay" exception = (e, catch_backtrace())
+            # fall through to push!
         end
-    else
-        push!(session.message_queue, sm)
     end
+    push!(session.message_queue, sm)
 end
 
 
@@ -365,8 +415,13 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
         end
     end)
     value = comm[]
-    # manually free observable, since it exists outside session lifetimes
+    # Manually free observable, since it exists outside session lifetimes.
+    # `register_observable!` attaches a JSUpdateObservable listener bound
+    # to *the sub session*, so we have to call `remove_js_updates!(sub, comm)`
+    # explicitly — `force_delete!(root, ...)` only matches root-bound
+    # listeners and would leak a sub-bound one. See test/race_conditions_audit.jl F5.
     lock(root.deletion_lock) do
+        remove_js_updates!(session, comm)
         delete!(session.session_objects, comm.id)
         delete!(root.session_objects, comm.id)
     end
@@ -508,11 +563,18 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
                 body = Hyperscript.m("body", body_dom)
                 dom = Hyperscript.m("html", head, body; class="bonito-fragment")
             else
-                # Emit a "fragment"
-                head = DOM.div(session_style, global_styles...)
-                body = DOM.div(dom)
+                # Emit a "fragment". The wrapper divs are purely structural —
+                # they exist as DOM anchors for Bonito's reactive swap logic
+                # and the per-session stylesheet. style="display:contents"
+                # makes them transparent to the surrounding flex/grid layout
+                # so an Observable rendered into a flex container behaves the
+                # same as if the content were a direct child.
+                head = DOM.div(session_style, global_styles...; style="display:contents")
+                body = DOM.div(dom; style="display:contents")
                 dom = DOM.div(
-                    head, body; id=session.id, class="bonito-fragment", dataJscallId=dom_id
+                    head, body;
+                    id=session.id, class="bonito-fragment", dataJscallId=dom_id,
+                    style="display:contents",
                 )
             end
         else

@@ -79,7 +79,11 @@ end
 end
 
 function jsrender(session::Session, obs::Observable)
-    root_node = DOM.div()
+    # display:contents makes this wrapper transparent to flex/grid layout —
+    # the rendered content effectively becomes a child of the user's container.
+    # The element still exists in the DOM tree (Bonito uses it as the swap
+    # anchor via uuid lookup), it just doesn't generate a CSS box.
+    root_node = DOM.div(; style="display:contents")
     old_sub, html = render_subsession(session, obs[]; init=true)
     mark_displayed!(old_sub)
     on(session, obs) do data

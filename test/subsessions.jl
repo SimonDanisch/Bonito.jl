@@ -1,8 +1,15 @@
-@testset "Retain + Observable + Session cleanup" begin
-    global_obs = Bonito.Retain(Observable{Any}("hiii"))
+@testset "cache_globally! + Observable + Session cleanup" begin
+    # The global_obs is interpolated only from sub-sessions (via the
+    # `dom_obs1` reactive Observable). Without `cache_globally!`, the
+    # first sub to interpolate it would be its only owner and the
+    # JS-side reference would be freed when that sub closes — breaking
+    # the next interpolation. `cache_globally!` registers the root
+    # session as a permanent owner so it survives any sub close.
+    global_obs = Observable{Any}("hiii")
     for i in 1:5
         dom_obs1 = Observable{Any}(DOM.div("12345", js"$(global_obs).notify('hello')"))
         app = App() do s
+            Bonito.cache_globally!(s, global_obs)
             return DOM.div(dom_obs1)
         end
         display(edisplay, app)
@@ -10,16 +17,19 @@
         obs_id = first(app.session[].children)[2].id
         session = app.session[]
         @test length(session.children) == 1
-        @test Bonito.wait_for(()-> global_obs.value[] == "hello") == :success
+        @test Bonito.wait_for(()-> global_obs[] == "hello") == :success
         obs_sub = last(first(session.children)) # the session used to render dom_obs1
-        @test isnothing(obs_sub.session_objects[global_obs.value.id])
+        @test isnothing(obs_sub.session_objects[global_obs.id])
         root = Bonito.root_session(session)
-        @test root.session_objects[global_obs.value.id] == global_obs
+        # New shape: root.session_objects holds CachedEntry, not the obs directly.
+        @test root.session_objects[global_obs.id].object === global_obs
+        # Root must be in owners — that's what keeps the entry alive across sub-closes.
+        @test root.id in root.session_objects[global_obs.id].owners
         @test length(session.children) == 1
 
         dom_obs1[] = DOM.div("95384", js"""$(global_obs).notify('melo')""")
 
-        @test Bonito.wait_for(() -> global_obs.value[] == "melo") == :success
+        @test Bonito.wait_for(() -> global_obs[] == "melo") == :success
 
         # Sessions should be closed!
         @test isempty(obs_sub.session_objects)
@@ -27,8 +37,8 @@
         @test !isopen(obs_sub)
         @test length(session.children) == 1 # there should be a new session though
         obs_sub = last(first(session.children)) # the session used to render dom_obs1
-        @test isnothing(obs_sub.session_objects[global_obs.value.id])
-        @test haskey(session.parent.session_objects, global_obs.value.id)
+        @test isnothing(obs_sub.session_objects[global_obs.id])
+        @test haskey(session.parent.session_objects, global_obs.id)
     end
     @testset "no residuals" begin
         app = App(nothing)
@@ -39,13 +49,14 @@
         end
         @test result == :success
         js_objects = run(edisplay.window, "Bonito.Sessions.GLOBAL_OBJECT_CACHE")
-        @test keys(js_objects) == Set([global_obs.value.id]) # we used Retain for global_obs, so it should stay as long as root session is open
+        # `cache_globally!` ensures global_obs survives until the root session closes.
+        @test keys(js_objects) == Set([global_obs.id])
     end
 end
 Bonito.set_cleanup_time!(0.0)
 @testset "server cleanup" begin
-    # Close edisplay to remove Retain (gotta add a functionality to do this nonviolently)
-    # But this is also a good chance to test server cleanup :)
+    # Close edisplay so the root sessions free their owners and global_obs
+    # can finally be GC'd. Also exercises server-side cleanup.
     close(edisplay.window)
     server = edisplay.browserdisplay.server
     # It may take a while for close(edisplay.window) to remove the websocket route (by closing the socket)
@@ -85,7 +96,7 @@ edisplay = Bonito.use_electron_display(devtools=true, options=ELECTRON_OPTIONS)
     add_cached!(subsub, obs3)
 
     for obs in [obs1, obs2, obs3]
-        @test session.session_objects[obs.id] == obs
+        @test session.session_objects[obs.id].object === obs
         @test subsub.session_objects[obs.id] == nothing
     end
 
@@ -99,7 +110,7 @@ edisplay = Bonito.use_electron_display(devtools=true, options=ELECTRON_OPTIONS)
     end
 
     add_cached!(subsub, obs4)
-    @test session.session_objects[obs4.id] == obs4
+    @test session.session_objects[obs4.id].object === obs4
     @test subsub.session_objects[obs4.id] == nothing
     @test length(sub1.session_objects) == 2
     @test length(sub2.session_objects) == 2
@@ -107,7 +118,7 @@ edisplay = Bonito.use_electron_display(devtools=true, options=ELECTRON_OPTIONS)
     close(sub2)
 
     for obs in [obs1, obs2, obs3]
-        @test session.session_objects[obs.id] == obs
+        @test session.session_objects[obs.id].object === obs
         @test subsub.session_objects[obs.id] == nothing
     end
 

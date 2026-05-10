@@ -209,8 +209,9 @@ function uuid(session::Union{Nothing,Session}, node::Node)
             return string(rand(UInt64))
         else
             root = root_session(session) # counter needs to be unique to root session
-            root.dom_uuid_counter += 1
-            return string(root.dom_uuid_counter)
+            # Atomic so concurrent renders never hand out the same id; see
+            # test/race_conditions_audit.jl F6.
+            return string(Threads.atomic_add!(root.dom_uuid_counter, 1) + 1)
         end
     end
 end

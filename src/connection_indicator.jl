@@ -17,7 +17,10 @@ function jsrender(session::Session, indicator::ConnectionIndicator)
         "pointer-events" => "auto",
     )
 
-    # CSS for hover effects
+    # CSS for hover effects + offline banner. Banner uses a dedicated
+    # `.bonito-offline-banner` class so apps can re-style it via Bonito.Styles
+    # without overriding the LED. Hidden by default; the JS toggles
+    # `display:flex` when the JS-side websocket give-up fires.
     indicator_css = Styles(
         CSS(
             ".bonito-indicator:hover",
@@ -28,16 +31,66 @@ function jsrender(session::Session, indicator::ConnectionIndicator)
             ".bonito-indicator:active",
             "transform" => "scale(1.1)",
         ),
+        CSS(
+            ".bonito-offline-banner",
+            "display"          => "none",
+            "position"         => "fixed",
+            "top"              => "0",
+            "left"             => "0",
+            "right"            => "0",
+            "z-index"          => "10000",
+            "padding"          => "12px 20px",
+            "background"       => indicator.disconnected_color,
+            "color"            => "white",
+            "font-family"      => "system-ui, -apple-system, sans-serif",
+            "font-size"        => "14px",
+            "font-weight"      => "500",
+            "box-shadow"       => "0 2px 8px rgba(0,0,0,0.2)",
+            "align-items"      => "center",
+            "justify-content"  => "center",
+            "gap"              => "16px",
+        ),
+        CSS(
+            ".bonito-offline-banner.bonito-offline-active",
+            "display" => "flex",
+        ),
+        CSS(
+            ".bonito-offline-banner button",
+            "padding"          => "6px 16px",
+            "background"       => "white",
+            "color"            => indicator.disconnected_color,
+            "border"           => "none",
+            "border-radius"    => "4px",
+            "font-weight"      => "600",
+            "cursor"           => "pointer",
+            "font-size"        => "13px",
+        ),
+        CSS(
+            ".bonito-offline-banner button:hover",
+            "filter" => "brightness(0.95)",
+        ),
     )
 
     final_style = Styles(default_style, indicator.style)
 
-    # Create the LED element
+    # LED + offline banner. The banner is always rendered (display:none)
+    # so the JS can flip a class instead of injecting nodes mid-failure.
     led_element = DOM.div(;
         style=final_style,
         title="Disconnected",
         class="bonito-indicator",
     )
+
+    banner_element = if indicator.offline_banner
+        DOM.div(
+            DOM.span(indicator.offline_message),
+            DOM.button(indicator.offline_button_label;
+                       onclick="window.location.reload()"),
+            class="bonito-offline-banner",
+        )
+    else
+        nothing
+    end
 
     # JavaScript to register the indicator and handle state changes
     # Use onload to ensure the LED element exists in the DOM
@@ -57,30 +110,46 @@ function jsrender(session::Session, indicator::ConnectionIndicator)
             no_connection: "No connection (static mode) - Julia interaction disabled"
         };
 
+        // The banner toggles via classList; we look it up lazily so it works
+        // even if the indicator is registered before the banner is mounted.
+        function getBanner() {
+            return document.querySelector('.bonito-offline-banner');
+        }
+
         const indicatorObj = {
             onStatusChange: function(status) {
                 if (!led) return;
-                // Map status to color
                 const color = colors[status] || colors.disconnected;
                 led.style.backgroundColor = color;
                 led.style.boxShadow = '0 0 ' + ($(indicator.size) / 2) + 'px ' + color;
-
-                // Update tooltip
                 led.title = tooltips[status] || tooltips.disconnected;
+
+                // Show the banner only on the give-up state ("disconnected").
+                // "connecting" is the transient retry phase — banner stays
+                // hidden so a 2s blip doesn't flash a scary modal at the user.
+                const banner = getBanner();
+                if (banner) {
+                    if (status === "disconnected") {
+                        banner.classList.add('bonito-offline-active');
+                    } else {
+                        banner.classList.remove('bonito-offline-active');
+                    }
+                }
             }
         };
 
-        // Register with Bonito
         if (typeof Bonito !== 'undefined' && Bonito.register_connection_indicator) {
             Bonito.register_connection_indicator(indicatorObj);
         }
     }
     """
 
-    # Use onload to ensure the element is in the DOM before registering
     onload(session, led_element, indicator_script)
 
-    return jsrender(session, DOM.div(indicator_css, led_element))
+    children = banner_element === nothing ?
+        (indicator_css, led_element) :
+        (indicator_css, led_element, banner_element)
+    return jsrender(session, DOM.div(children...))
 end
 
 # Allow jsrender to handle nothing (no indicator)

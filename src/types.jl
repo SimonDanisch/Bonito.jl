@@ -240,6 +240,14 @@ struct ConnectionIndicator <: AbstractConnectionIndicator
     top::String
     right::String
     style::Styles
+    # When the JS-side websocket exhausts its retry budget (~30s by default)
+    # the LED alone is too easy to miss. With `offline_banner=true` (default)
+    # we also pop a fixed top banner with a Reload button so the operator gets
+    # an unambiguous prompt instead of a silently-dead page. Set false to
+    # restore the LED-only behavior.
+    offline_banner::Bool
+    offline_message::String
+    offline_button_label::String
 end
 
 function ConnectionIndicator(;
@@ -252,6 +260,14 @@ function ConnectionIndicator(;
     top::String="10px",
     right::String="10px",
     style::Styles=Styles(),
+    offline_banner::Bool=true,
+    # Phrased so a routine idle drop (laptop slept, tab backgrounded, server
+    # restarted) reads as "expected — just reload" instead of "something
+    # broke". "Paused" rather than "lost" because state on the server side
+    # generally survives a reload (apps that put their state in
+    # ServerState-style structs, like BonitoTeam, recover transparently).
+    offline_message::String="Connection paused after idle. Reload to reconnect.",
+    offline_button_label::String="Reload",
 )
     return ConnectionIndicator(
         connected_color,
@@ -263,6 +279,9 @@ function ConnectionIndicator(;
         top,
         right,
         style,
+        offline_banner,
+        offline_message,
+        offline_button_label,
     )
 end
 
@@ -291,8 +310,12 @@ mutable struct Session{Connection <: FrontendConnection}
     on_close::Observable{Bool}
     deregister_callbacks::Vector{Observables.ObserverFunction}
     session_objects::Dict{String, Any}
-    # For rendering Hyperscript.Node, and giving them a unique id inside the session
-    dom_uuid_counter::Int
+    # For rendering Hyperscript.Node, and giving them a unique id inside the session.
+    # Atomic because `uuid(session, node)` (rendering/hyperscript_integration.jl)
+    # is called from any task that touches a render — concurrent renders would
+    # otherwise hand out the same id to multiple nodes, causing JS-side DOM
+    # lookups by data-jscall-id to collide. See test/race_conditions_audit.jl F6.
+    dom_uuid_counter::Threads.Atomic{Int}
     # For rendering Styles
     style_counter::Int
     ignore_message::RefValue{Function}
@@ -324,7 +347,7 @@ mutable struct Session{Connection <: FrontendConnection}
             on_close::Observable{Bool},
             deregister_callbacks::Vector{Observables.ObserverFunction},
             session_objects::Dict{String, Any},
-            dom_uuid_counter::Int,
+            dom_uuid_counter::Int,   # caller passes plain Int; we wrap in Atomic below
             ignore_message::RefValue{Function},
             imports::OrderedSet{Asset},
             title::String,
@@ -349,7 +372,7 @@ mutable struct Session{Connection <: FrontendConnection}
             on_close,
             deregister_callbacks,
             session_objects,
-            dom_uuid_counter,
+            Threads.Atomic{Int}(dom_uuid_counter),
             1,
             ignore_message,
             imports,
