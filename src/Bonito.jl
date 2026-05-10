@@ -75,7 +75,7 @@ include("interactive.jl")
 include("terminal_output.jl")
 
 # Core functionality
-export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset, CSS, LoadingPage
+export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset, CSS, LoadingPage, rebundle!
 export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor
 export browser_display, configure_server!, Server, show_html, html, route!, online_url, use_electron_display
 export Observable, on, onany, bind_global

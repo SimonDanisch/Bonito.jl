@@ -242,6 +242,30 @@ function ES6Module(path)
     return asset
 end
 
+"""
+    rebundle!(asset::Asset)
+
+Force the next request for `asset` to re-bundle from source. Drops both
+the on-disk bundle (`asset.bundle_file`) and the in-memory cached bytes
+(`asset.bundle_data`). Useful while iterating on the JavaScript source
+of an `ES6Module(...)` — without this Bonito keeps serving the stale
+bundle even after you edit the underlying `.js`.
+
+```julia
+const ChartLib = Bonito.ES6Module("chart.js")
+# … edit chart.js …
+Bonito.rebundle!(ChartLib)   # next page reload picks up the new source
+```
+
+No-op for non-ES6 assets (they have no bundle to drop).
+"""
+function rebundle!(asset::Asset)
+    asset.es6module || return asset
+    isempty(String(asset.bundle_file)) || rm(String(asset.bundle_file); force = true)
+    empty!(asset.bundle_data)
+    return asset
+end
+
 function CDNSource(name; user=nothing, version=nothing)
     url = "https://esm.sh/"
     if !isnothing(user)

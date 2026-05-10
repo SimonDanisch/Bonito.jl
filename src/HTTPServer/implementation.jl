@@ -333,7 +333,13 @@ function try_listen(url, port, server, verbose; listener_kw...)
         httpserver = HTTP.listen!(url, port; verbose=verbose, listener_kw...) do stream::Stream
             Base.invokelatest(stream_handler, server, stream)
         end
-        return port, httpserver
+        # Ask the kernel what port we actually bound to. When the caller passed
+        # port=0 ("ephemeral"), HTTP.listen! succeeds on a kernel-assigned port
+        # but `port` here is still 0 — returning that would make every asset
+        # URL resolve to http://host:0/... → ERR_CONNECTION_REFUSED in the
+        # browser, with the symptom "Bonito is not defined" downstream.
+        actual_port = Int(Sockets.getsockname(httpserver.listener.server)[2])
+        return actual_port, httpserver
     catch e
         if e isa Base.IOError
             #address already in use
@@ -347,8 +353,13 @@ end
 
 function start(server::Server; verbose=-1, listener_kw...)
     isrunning(server) && return
-    newport, http_server = try_listen(server.url, server.port, server, verbose; listener_kw...)
-    if server.port != newport
+    requested = server.port
+    newport, http_server = try_listen(server.url, requested, server, verbose; listener_kw...)
+    if requested == 0
+        # port=0 means "give me any free port" — the kernel-assigned port is
+        # the expected outcome, not a fallback worth warning about.
+        server.port = newport
+    elseif requested != newport
         @warn "Port in use, using different port. New port: $(newport)"
         server.port = newport
     end
