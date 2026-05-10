@@ -41,11 +41,22 @@ export function lookup_global_object(key) {
 
 function is_still_referenced(id) {
     for (const session_id in SESSIONS) {
-        const [tracked_objects, allow_delete] = SESSIONS[session_id];
-        if (allow_delete && tracked_objects.has(id)) {
-            // don't free if a session still holds onto it
-            return true;
-        }
+        const [tracked_objects, status] = SESSIONS[session_id];
+        if (!tracked_objects.has(id)) continue;
+        // Any session that still has the id in its tracked set holds a
+        // reference. Previously this required `allow_delete` (i.e. the
+        // session had finished `done_initializing_session`), but that
+        // excluded "root" sessions — which never flip to allow_delete and
+        // live for the whole tab. The result was that an object held
+        // ONLY by the root + a transient sub-session got deleted from
+        // GLOBAL_OBJECT_CACHE the moment the sub-session was freed,
+        // leaving every later interpolation/click that referenced it
+        // looking up null. (See BonitoTeam's resume-flow regression:
+        // sidebar `aside` registers an onload click handler that
+        // interpolates `current_view` onto the root session; a body
+        // re-render frees the no-longer-tracked sub-session, which then
+        // wiped current_view from the cache.)
+        if (status === "delete" || status === "root") return true;
     }
     return false;
 }

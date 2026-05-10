@@ -3390,10 +3390,9 @@ function send_pingpong() {
 let timeout = null;
 function is_still_referenced(id) {
     for(const session_id in SESSIONS){
-        const [tracked_objects, allow_delete] = SESSIONS[session_id];
-        if (allow_delete && tracked_objects.has(id)) {
-            return true;
-        }
+        const [tracked_objects, status] = SESSIONS[session_id];
+        if (!tracked_objects.has(id)) continue;
+        if (status === "delete" || status === "root") return true;
     }
     return false;
 }

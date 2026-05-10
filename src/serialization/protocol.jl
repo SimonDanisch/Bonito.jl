@@ -34,13 +34,20 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         # for the regression demonstrating the race.
         root = root_session(session)
         lock(root.deletion_lock) do
-            obs = get(session.session_objects, data["id"], nothing)
-            if isnothing(obs)
+            # Sub sessions only carry markers (`nothing`) — the actual
+            # cached object lives on the root via CachedEntry. Try the
+            # session first (covers root) then fall back to root.
+            entry = get(session.session_objects, data["id"], nothing)
+            if entry === nothing && session !== root
+                entry = get(root.session_objects, data["id"], nothing)
+            end
+            if entry === nothing
                 # this is usually non fatal and may happen when old exported HTML gets reconnected
                 @debug "Observable $(data["id"]) not found"
             else
+                obj = entry isa CachedEntry ? entry.object : entry
                 # Observable can be wrapped inside Retain
-                _obs = obs isa Retain ? obs.value : obs
+                _obs = obj isa Retain ? obj.value : obj
                 Base.invokelatest(update_nocycle!, _obs, data["payload"])
             end
         end
