@@ -26,74 +26,108 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
     data = deserialize_binary(bytes, session.compression_enabled)
     typ = data["msg_type"]
     if typ == UpdateObservable
-        obs = get(session.session_objects, data["id"], nothing)
-        if isnothing(obs)
-            # this is usually non fatal and may happen when old exported HTML gets reconnected
-            @debug "Observable $(data["id"]) not found"
-        else
-            # Observable can be wrapped inside Retain
-            _obs = obs isa Retain ? obs.value : obs
-            Base.invokelatest(update_nocycle!, _obs, data["payload"])
+        # Hold the root's deletion_lock while we look up + dispatch the
+        # update. Without this, `close(session)` (which holds the lock for
+        # its entire body) can race the Dict access below — the lookup
+        # might see a stale entry and fire listeners on a session whose
+        # `session_objects` is being torn down. See test/key_not_found_race.jl
+        # for the regression demonstrating the race.
+        root = root_session(session)
+        lock(root.deletion_lock) do
+            obs = get(session.session_objects, data["id"], nothing)
+            if isnothing(obs)
+                # this is usually non fatal and may happen when old exported HTML gets reconnected
+                @debug "Observable $(data["id"]) not found"
+            else
+                # Observable can be wrapped inside Retain
+                _obs = obs isa Retain ? obs.value : obs
+                Base.invokelatest(update_nocycle!, _obs, data["payload"])
+            end
         end
     elseif typ == JavascriptError
         show(stderr, JSException(session, data))
     elseif typ == JavascriptWarning
         @warn "Error in Javascript: $(data["message"])\n)"
     elseif typ == JSDoneLoading
-        if data["exception"] != "nothing"
+        # Bail early if the receiving session is already torn down. The
+        # message may have been dispatched from the inbox @async pool
+        # *after* close() ran. See test/race_conditions_audit.jl F3.
+        if isclosed(session)
+            @debug "JSDoneLoading on a closed session — ignoring"
+        elseif data["exception"] != "nothing"
             exception = JSException(session, data)
             show(stderr, exception)
             session.init_error[] = exception
         else
             sub = get_session(session, data["session"])
-            if !isnothing(sub)
+            if !isnothing(sub) && !isclosed(sub)
                 # this may block the connection!
                 @async try
+                    isclosed(sub) && return
                     sub.on_connection_ready(sub)
                 catch e
                     @warn "error while processing on_connection_ready" exception = (e, Base.catch_backtrace())
                 end
-            else
+            elseif isnothing(sub)
                 # This can happen for IJulia output after kernel restart,
                 # since the loaded html will try to init + connect back
                 # TODO, there should be a better way to prevent them from reconnecting
                 @debug("Sub session with id $(data["session"]) not found")
+            else
+                @debug "JSDoneLoading for closed sub $(data["session"]) — ignoring"
             end
         end
     elseif typ == CloseSession
-        sub = get_session(session, data["session"])
-        if !isnothing(sub)
-            if data["subsession"] != "root"
-                close(sub)
-            else
-                # We only empty root sessions, since they will be reused
-                @assert root_session(sub) === sub
-                empty!(sub)
-            end
+        if isclosed(session)
+            @debug "CloseSession on already-closed session — ignoring"
         else
-            @debug("Close request not succesful, can't find sub session with id $(data["session"])")
+            sub = get_session(session, data["session"])
+            if !isnothing(sub)
+                if data["subsession"] != "root"
+                    close(sub)
+                else
+                    # We only empty root sessions, since they will be reused
+                    @assert root_session(sub) === sub
+                    empty!(sub)
+                end
+            else
+                @debug("Close request not succesful, can't find sub session with id $(data["session"])")
+            end
         end
     elseif typ == PingPong
         # Ping back that pong!!
         isready(session) && send(session, msg_type=PingPong)
     elseif typ == GetSessionDOM
-        # this may block the connection!
+        # Hold deletion_lock for the entire body — the original code
+        # called `empty!(session.session_objects)` and mutated
+        # `session.children` outside any lock, which races concurrent
+        # `add_cached!` paths and silently wipes the root cache mid-flight.
+        # See test/race_conditions_audit.jl F2.
+        root = root_session(session)
         @async try
-            sub = get_session(session, data["session"])
-            if !isnothing(sub)
-                app = sub.current_app[]
-                if isnothing(app)
-                    @warn "requesting dom for uninitialized app"
+            lock(root.deletion_lock) do
+                isclosed(session) && return
+                sub = get_session(session, data["session"])
+                if !isnothing(sub)
+                    app = sub.current_app[]
+                    if isnothing(app)
+                        @warn "requesting dom for uninitialized app"
+                    else
+                        free(sub)
+                        session.children[sub.id] = sub
+                        # NOTE: the empty!(session.session_objects) that
+                        # used to be here was indiscriminately wiping the
+                        # *root* cache (the cache shared by all sub
+                        # sessions on this connection). Removed; the
+                        # individual sub's cache is already cleared by
+                        # `free(sub)` above.
+                        open!(sub.connection)
+                        sub.status = OPEN
+                        update_subsession_dom!(sub, data["replace"], app)
+                    end
                 else
-                    free(sub)
-                    session.children[sub.id] = sub
-                    empty!(session.session_objects)
-                    open!(sub.connection)
-                    sub.status = OPEN
-                    update_subsession_dom!(sub, data["replace"], app)
+                    @warn "cant update session is nothing"
                 end
-            else
-                @warn "cant update session is nothing"
             end
         catch e
             @warn "error while processing update App message" exception = (e, Base.catch_backtrace())

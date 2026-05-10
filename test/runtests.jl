@@ -86,6 +86,12 @@ end
         @testset "subsessions" begin
             include("subsessions.jl")
         end
+        @testset "key_not_found_race" begin
+            include("key_not_found_race.jl")
+        end
+        @testset "race_conditions_audit" begin
+            include("race_conditions_audit.jl")
+        end
         @testset "connection-serving" begin
             include("connection-serving.jl")
         end

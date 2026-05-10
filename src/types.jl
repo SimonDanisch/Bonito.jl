@@ -291,8 +291,12 @@ mutable struct Session{Connection <: FrontendConnection}
     on_close::Observable{Bool}
     deregister_callbacks::Vector{Observables.ObserverFunction}
     session_objects::Dict{String, Any}
-    # For rendering Hyperscript.Node, and giving them a unique id inside the session
-    dom_uuid_counter::Int
+    # For rendering Hyperscript.Node, and giving them a unique id inside the session.
+    # Atomic because `uuid(session, node)` (rendering/hyperscript_integration.jl)
+    # is called from any task that touches a render — concurrent renders would
+    # otherwise hand out the same id to multiple nodes, causing JS-side DOM
+    # lookups by data-jscall-id to collide. See test/race_conditions_audit.jl F6.
+    dom_uuid_counter::Threads.Atomic{Int}
     # For rendering Styles
     style_counter::Int
     ignore_message::RefValue{Function}
@@ -324,7 +328,7 @@ mutable struct Session{Connection <: FrontendConnection}
             on_close::Observable{Bool},
             deregister_callbacks::Vector{Observables.ObserverFunction},
             session_objects::Dict{String, Any},
-            dom_uuid_counter::Int,
+            dom_uuid_counter::Int,   # caller passes plain Int; we wrap in Atomic below
             ignore_message::RefValue{Function},
             imports::OrderedSet{Asset},
             title::String,
@@ -349,7 +353,7 @@ mutable struct Session{Connection <: FrontendConnection}
             on_close,
             deregister_callbacks,
             session_objects,
-            dom_uuid_counter,
+            Threads.Atomic{Int}(dom_uuid_counter),
             1,
             ignore_message,
             imports,
