@@ -32,10 +32,61 @@ The `App` constructor accepts the following keyword arguments:
 
 ```julia
 App(handler;
-    title="Bonito App",  # Browser tab title
-    indicator=nothing    # Connection status indicator (nothing by default)
+    title="Bonito App",     # Browser tab title
+    indicator=nothing,       # Connection status indicator (nothing by default)
+    loading_page=nothing     # Loading page shown while handler runs (nothing by default)
 )
 ```
+
+## Loading Page
+
+When an app takes time to initialize (e.g. loading data, compiling code), users see a blank page. The `loading_page` option shows a loading spinner while the handler runs, then replaces it with the real content once ready.
+
+### Basic Usage
+
+```julia
+app = App(; loading_page=LoadingPage()) do session
+    data = expensive_setup()  # Takes a few seconds
+    return DOM.div(data)
+end
+```
+
+When `loading_page` is set, the app DOM is wrapped in an `Observable`. The loading page is displayed immediately, and the handler runs asynchronously. Once the handler returns, the loading page is replaced with the actual app content via Bonito's reactive subsession mechanism.
+
+### Customization
+
+`LoadingPage` accepts the following keyword arguments:
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `text` | `"Loading Bonito App"` | Text shown below the spinner |
+| `spinner` | `RippleSpinner()` | Spinner component to display |
+| `style` | `Styles()` | Additional CSS styles for the container |
+
+```julia
+# Custom loading message and spinner size
+app = App(; loading_page=LoadingPage(
+    text="Please wait...",
+    spinner=RippleSpinner(width=80)
+)) do session
+    return DOM.div("Hello World")
+end
+```
+
+### How It Works
+
+Under the hood, when `loading_page` is set:
+
+1. An `Observable{Any}` is created with the loading page as its initial value
+2. The Observable is rendered into the DOM (using Bonito's reactive subsession system)
+3. The app handler runs asynchronously via `@async`
+4. Once the handler completes, the Observable is updated with the real DOM
+5. Bonito's existing `update_session_dom!` replaces the loading page subsession with the real content
+
+When `loading_page=nothing` (the default), the app renders synchronously as before -- no Observable wrapping occurs.
+
+!!! note "Observables and Widgets"
+    All reactive features (Observables, Buttons, Sliders, etc.) work normally inside apps with `loading_page` enabled. The Observable wrapping is transparent to the handler's DOM.
 
 ## Connection Indicator
 

@@ -57,7 +57,7 @@ function OfflineSession()
 end
 
 global ELECTRON_OPTIONS = Dict{String, Any}(
-    "show" => true,  # Don't show the window immediately
+    "show" => false,  # Don't show the window immediately
     "focusOnWebView" => false,  # Don't focus the webview
 )
 
@@ -88,6 +88,11 @@ end
         end
         @testset "connection-serving" begin
             include("connection-serving.jl")
+        end
+        # loading_page must run before serialization, which closes the global
+        # Bonito server via testsession() and kills the edisplay window.
+        @testset "loading_page" begin
+            include("loading_page.jl")
         end
         @testset "serialization" begin
             include("serialization.jl")

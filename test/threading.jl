@@ -55,7 +55,7 @@ end
 # After closing the windows!
 Bonito.set_cleanup_time!(0.0)
 @testset "stresstest threading" begin
-    app = App(threaded=true) do session
+    app = App() do session
         dropdown1 = Bonito.Dropdown(["a", "b", "c"])
         dropdown2 = Bonito.Dropdown(["a2", "b2", "c2"]; index=2)
         img = Asset(joinpath(@__DIR__, "..", "docs", "src", "jupyterlab.png"))
