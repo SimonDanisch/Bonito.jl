@@ -1,4 +1,4 @@
-import { Retain, decode_binary } from "./Protocol.js";
+import { decode_binary } from "./Protocol.js";
 import PQueue from "https://esm.sh/p-queue";
 
 import {
@@ -29,11 +29,7 @@ export function lock_loading(f) {
 export function lookup_global_object(key) {
     const object = GLOBAL_OBJECT_CACHE[key];
     if (object) {
-        if (object instanceof Retain) {
-            return object.value;
-        } else {
-            return object;
-        }
+        return object;
     }
     console.warn(`Key ${key} not found! ${object}`);
     return null;
@@ -74,10 +70,6 @@ export function free_object(id) {
     if (data) {
         if (data instanceof Promise) {
             // Promise => Module. We don't free Modules, since they'll be cached by the active page anyways
-            return;
-        }
-        if (data instanceof Retain) {
-            // Retain is a reserved type to never free an object from a session
             return;
         }
         if (!is_still_referenced(id)) {

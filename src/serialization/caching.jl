@@ -36,7 +36,6 @@ function SerializationContext(session::Session)
     return SerializationContext(OrderedDict{String,Any}(), session)
 end
 
-object_identity(retain::Retain) = object_identity(retain.value)
 object_identity(obs::Observable) = obs.id
 object_identity(obj::Any) = string(hash(obj))
 
@@ -56,14 +55,6 @@ function register_observable!(session::Session, obs::Observable)
     return
 end
 
-
-function serialize_cached(context::SerializationContext, retain::Retain)
-    return add_cached!(context.session, context.message_cache, retain) do
-        obs = retain.value
-        register_observable!(context.session, obs)
-        return Retain(SerializedObservable(obs.id, serialize_cached(context, obs[])))
-    end
-end
 
 function serialize_cached(context::SerializationContext, obs::Observable)
     return add_cached!(context.session, context.message_cache, obs) do
@@ -188,9 +179,6 @@ function delete_cached!(root::Session, sub::Session, key::String)
     # This is the safety net that makes refcount-by-id robust.
     filter!(id -> get_session(root, id) !== nothing || id == root.id,
             entry.owners)
-    # Backwards-compat: legacy Retain wrapping inside the entry's object
-    # still means "never release until root closes".
-    entry.object isa Retain && return
     if isempty(entry.owners)
         pop!(root.session_objects, key)
         if entry.object isa Observable
@@ -207,12 +195,46 @@ function force_delete!(root::Session, key::String)
         return nothing
     end
     entry = pop!(root.session_objects, key)::CachedEntry
-    object = entry.object
-    if object isa Retain
-        object = object.value
+    if entry.object isa Observable
+        remove_js_updates!(root, entry.object)
     end
-    if object isa Observable
-        # unregister all listeners updating the session
-        remove_js_updates!(root, object)
+end
+
+"""
+    cache_globally!(session::Session, obs::Observable) -> obs
+
+Make `obs` survive sub-session closures by registering its root session
+as a permanent owner of the cache entry. Use when an Observable is only
+ever interpolated from sub-sessions but you want it to persist for the
+lifetime of the connection — without this call, the first sub to
+interpolate `obs` becomes its only owner and the JS-side reference is
+freed when that sub closes.
+
+Replaces the deprecated `Retain` wrapper.
+
+```julia
+global_obs = Observable("hi")
+app = App() do session
+    Bonito.cache_globally!(session, global_obs)
+    return DOM.div(map(_ -> DOM.span(global_obs), some_state))
+end
+```
+
+In the example above, `global_obs` is interpolated from the per-emission
+sub-session produced by `map(...)`. Without `cache_globally!`, each new
+emission would close the previous sub and free `global_obs` from the JS
+cache, breaking the interpolation. With it, `global_obs` is owned by
+`session` (the root) and lives until the connection closes.
+"""
+function cache_globally!(session::Session, obs::Observable)
+    root = root_session(session)
+    lock(root.deletion_lock) do
+        if haskey(root.session_objects, obs.id)
+            push!(root.session_objects[obs.id].owners, root.id)
+        else
+            register_observable!(root, obs)
+            root.session_objects[obs.id] = CachedEntry(obs, Set{String}((root.id,)))
+        end
     end
+    return obs
 end

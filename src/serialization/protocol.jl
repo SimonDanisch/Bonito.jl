@@ -46,9 +46,7 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
                 @debug "Observable $(data["id"]) not found"
             else
                 obj = entry isa CachedEntry ? entry.object : entry
-                # Observable can be wrapped inside Retain
-                _obs = obj isa Retain ? obj.value : obj
-                Base.invokelatest(update_nocycle!, _obs, data["payload"])
+                Base.invokelatest(update_nocycle!, obj, data["payload"])
             end
         end
     elseif typ == JavascriptError

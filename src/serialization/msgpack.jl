@@ -70,7 +70,7 @@ end
 
 const OBSERVABLE_TAG = Int8(101)
 const JSCODE_TAG = Int8(102)
-const RETAIN_TAG = Int8(103)
+# 103 was RETAIN_TAG — removed in the cache-refcount refactor
 const CACHE_KEY_TAG = Int8(104)
 const DOM_NODE_TAG = Int8(105)
 const SESSION_CACHE_TAG = Int8(106)
@@ -92,11 +92,6 @@ end
 MsgPack.msgpack_type(::Type{SerializedJSCode}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedJSCode)
     return MsgPack.Extension(JSCODE_TAG, pack([x.interpolated_objects, x.source, x.julia_file]))
-end
-
-MsgPack.msgpack_type(::Type{Retain}) = MsgPack.ExtensionType()
-function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::Retain)
-    return MsgPack.Extension(RETAIN_TAG, pack(x.value))
 end
 
 MsgPack.msgpack_type(::Type{CacheKey}) = MsgPack.ExtensionType()
@@ -157,9 +152,6 @@ function decode_extension_and_addbits(ext::MsgPack.Extension)
         elseif CACHE_KEY_TAG == ext.type
             key = MsgPack.unpack(ext.data)
             return CacheKey(key)
-        elseif RETAIN_TAG == ext.type
-            value = MsgPack.unpack(ext.data)
-            return Retain(decode_extension_and_addbits(value))
         elseif SESSION_CACHE_TAG == ext.type
             value = decode_extension_and_addbits(MsgPack.unpack(ext.data))
             return SessionCache(value...)

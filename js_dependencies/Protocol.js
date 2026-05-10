@@ -10,12 +10,6 @@ import {
     GLOBAL_OBJECT_CACHE,
 } from "./Sessions.js";
 
-export class Retain {
-    constructor(value) {
-        this.value = value;
-    }
-}
-
 /**
  * Context passed through msgpack decoding to track session state.
  * This allows extension decoders to register objects (like Observables)
@@ -124,7 +118,7 @@ register_ext(
 
 const OBSERVABLE_TAG = 101;
 const JSCODE_TAG = 102;
-const RETAIN_TAG = 103;
+// 103 was RETAIN_TAG — removed in the cache-refcount refactor.
 const CACHE_KEY_TAG = 104;
 const DOM_NODE_TAG = 105;
 const SESSION_CACHE_TAG = 106;
@@ -167,13 +161,6 @@ register_ext(JSCODE_TAG, (uint_8_array, context) => {
         console.log(source);
         throw err;
     }
-});
-
-register_ext(RETAIN_TAG, (uint_8_array, context) => {
-    const real_value = unpack(uint_8_array, context);
-    const retain = new Retain(real_value);
-    GLOBAL_OBJECT_CACHE[real_value.id] = retain;
-    return retain;
 });
 
 register_ext(CACHE_KEY_TAG, (uint_8_array, context) => {
