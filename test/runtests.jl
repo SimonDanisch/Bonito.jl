@@ -103,6 +103,12 @@ end
         @testset "serialization" begin
             include("serialization.jl")
         end
+        @testset "protocol_roundtrip" begin
+            include("protocol_roundtrip.jl")
+        end
+        @testset "session_io" begin
+            include("session_io.jl")
+        end
         @testset "widgets" begin
             include("widgets.jl")
         end
