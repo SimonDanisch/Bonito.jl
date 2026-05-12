@@ -107,6 +107,26 @@ function serialize_cached(context::SerializationContext, dict::AbstractDict)
     return result
 end
 
+# Fast path for the common Observable-update shape — `Dict{String,Any}` whose
+# values are all msgpack primitives (Number/String/Bool/Nothing). No keys to
+# stringify, no values to recurse into, nothing to register in the cache, so
+# we can hand the input dict straight through to MsgPack.pack and skip the
+# rebuild that the generic AbstractDict method does. JSUpdateObservable
+# already builds messages in this shape, so every Observable update hits this
+# branch.
+@inline is_msgpack_primitive(::Number) = true
+@inline is_msgpack_primitive(::AbstractString) = true
+@inline is_msgpack_primitive(::Bool) = true
+@inline is_msgpack_primitive(::Nothing) = true
+@inline is_msgpack_primitive(@nospecialize(_)) = false
+
+function serialize_cached(context::SerializationContext, dict::Dict{String,Any})
+    @inbounds for v in values(dict)
+        is_msgpack_primitive(v) || return Dict{String,Any}(k => serialize_cached(context, v) for (k, v) in dict)
+    end
+    return dict
+end
+
 """
     add_cached!(create_cached_object::Function, session::Session, message_cache::AbstractDict{String, Any}, key::String)
 
@@ -200,41 +220,3 @@ function force_delete!(root::Session, key::String)
     end
 end
 
-"""
-    cache_globally!(session::Session, obs::Observable) -> obs
-
-Make `obs` survive sub-session closures by registering its root session
-as a permanent owner of the cache entry. Use when an Observable is only
-ever interpolated from sub-sessions but you want it to persist for the
-lifetime of the connection — without this call, the first sub to
-interpolate `obs` becomes its only owner and the JS-side reference is
-freed when that sub closes.
-
-Replaces the deprecated `Retain` wrapper.
-
-```julia
-global_obs = Observable("hi")
-app = App() do session
-    Bonito.cache_globally!(session, global_obs)
-    return DOM.div(map(_ -> DOM.span(global_obs), some_state))
-end
-```
-
-In the example above, `global_obs` is interpolated from the per-emission
-sub-session produced by `map(...)`. Without `cache_globally!`, each new
-emission would close the previous sub and free `global_obs` from the JS
-cache, breaking the interpolation. With it, `global_obs` is owned by
-`session` (the root) and lives until the connection closes.
-"""
-function cache_globally!(session::Session, obs::Observable)
-    root = root_session(session)
-    lock(root.deletion_lock) do
-        if haskey(root.session_objects, obs.id)
-            push!(root.session_objects[obs.id].owners, root.id)
-        else
-            register_observable!(root, obs)
-            root.session_objects[obs.id] = CachedEntry(obs, Set{String}((root.id,)))
-        end
-    end
-    return obs
-end

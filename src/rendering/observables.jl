@@ -25,7 +25,9 @@ function (x::JSUpdateObservable)(@nospecialize(value))
         if !isclosed(x.session)
             is_large = value isa LargeUpdate
             data = is_large ? value.data : value
-            msg = Dict(:payload=>data, :id=>x.id, :msg_type=>UpdateObservable)
+            # String keys (not :symbols) avoid `string(k)` per key inside
+            # serialize_cached, which is hot path on every Observable update.
+            msg = Dict{String,Any}("payload" => data, "id" => x.id, "msg_type" => UpdateObservable)
             send(x.session, msg; large=is_large)
         end
     catch e

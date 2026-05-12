@@ -242,6 +242,15 @@ function Sockets.send(session::Session, message::Dict{Symbol}; large=false)
     _send(session, SerializedMessage(session, message), large)
 end
 
+# JSUpdateObservable now builds messages with String keys (avoids `string(k)`
+# in serialize_cached). Mirror the Symbol-key dispatch so the same code path
+# is taken.
+function Sockets.send(session::Session, message::Dict{String}; large=false)
+    session.ignore_message[](message)::Bool && return
+    collect_message!(message)
+    _send(session, SerializedMessage(session, message), large)
+end
+
 # Backwards compatibility for connections that dont expect a SerializedMessage but Vector{UInt8}
 Base.write(connection::FrontendConnection, sm::SerializedMessage) = write(connection, serialize_binary(sm))
 
