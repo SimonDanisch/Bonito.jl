@@ -278,6 +278,14 @@ struct ConnectionIndicator <: AbstractConnectionIndicator
     offline_banner::Bool
     offline_message::String
     offline_button_label::String
+    # Reactive slot for the most-recent server-side error on the session(s)
+    # rendering this indicator. Set by `record_session_error!` (the same
+    # places `Session.init_error[]` is set) and rendered into the indicator
+    # DOM via `map(render_error, indicator.error)`, so the cause shows up in
+    # the page itself instead of just the Julia logs. Holds the raw
+    # Exception object so a richer renderer can dispatch on type / inspect
+    # fields rather than parsing a stringified message.
+    error::Observable{Union{Nothing, Exception}}
 end
 
 function ConnectionIndicator(;
@@ -298,6 +306,7 @@ function ConnectionIndicator(;
     # ServerState-style structs, like BonitoTeam, recover transparently).
     offline_message::String="Connection paused after idle. Reload to reconnect.",
     offline_button_label::String="Reload",
+    error::Observable{Union{Nothing, Exception}}=Observable{Union{Nothing, Exception}}(nothing),
 )
     return ConnectionIndicator(
         connected_color,
@@ -312,6 +321,7 @@ function ConnectionIndicator(;
         offline_banner,
         offline_message,
         offline_button_label,
+        error,
     )
 end
 

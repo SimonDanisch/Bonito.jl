@@ -44,14 +44,34 @@ end
 App
 
 """
+    record_session_error!(session::Session, err::Exception)
+
+Record `err` as the session's most-recent failure. Sets `session.init_error[]`
+(which `isready(session)` re-throws by default, surfacing the cause to any
+waiter) and — if this session has a `current_app` with a `ConnectionIndicator`
+— pushes the error into `indicator.error[]`. That observable is rendered via
+`map(render_error, indicator.error)` into the indicator's DOM, so a connected
+browser sees the cause in the page without any custom protocol message.
+"""
+function record_session_error!(session::Session, err::Exception)
+    session.init_error[] = err
+    app = session.current_app[]
+    if !isnothing(app) && !isnothing(app.indicator) &&
+       hasproperty(app.indicator, :error)
+        app.indicator.error[] = err
+    end
+    return nothing
+end
+
+"""
     handle_render_error(f, session::Session) -> Node
 
 Run `f()` and return its (Node) result. If `f` throws, log the exception,
-record it on `session.init_error[]` (so `isready(session)` and any waiter
-on top of it surface the real cause), and return an error-HTML Node so the
-caller's downstream emit path (HTTP response, `show(io, dom)`, the
-UpdateSession message in `update_session_dom!`) doesn't have to know
-whether the render succeeded.
+record it via `record_session_error!` (so `isready(session)` / `wait_for_ready`
+surface the real cause and any indicator on the app picks it up reactively),
+and return an error-HTML Node so the caller's downstream emit path (HTTP
+response, `show(io, dom)`, the UpdateSession message in `update_session_dom!`)
+doesn't have to know whether the render succeeded.
 
 The single error boundary for app rendering. Sites above this one don't
 need their own try/catch — `rendered_dom` always returns a Node.
@@ -62,7 +82,7 @@ function handle_render_error(f, session::Session)
     catch err
         bt = Base.catch_backtrace()
         @error "Error rendering app" exception = (err, bt)
-        session.init_error[] = err
+        record_session_error!(session, err)
         return HTTPServer.err_to_html(err, bt)
     end
 end

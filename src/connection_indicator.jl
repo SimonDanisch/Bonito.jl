@@ -146,11 +146,45 @@ function jsrender(session::Session, indicator::ConnectionIndicator)
 
     onload(session, led_element, indicator_script)
 
+    # Reactive render of the server-side error slot. `record_session_error!`
+    # writes the live `Exception` into `indicator.error[]`; `map` derives a
+    # Hyperscript Node that Bonito's normal Observable-of-Node rendering
+    # swaps into the page when the value changes. Apps that want a richer
+    # error UI can construct their own `ConnectionIndicator` and overload
+    # `render_error`.
+    error_dom = map(render_error, indicator.error)
+
     children = banner_element === nothing ?
-        (indicator_css, led_element) :
-        (indicator_css, led_element, banner_element)
+        (indicator_css, led_element, error_dom) :
+        (indicator_css, led_element, banner_element, error_dom)
     return jsrender(session, DOM.div(children...))
 end
 
 # Allow jsrender to handle nothing (no indicator)
 jsrender(session::Session, ::Nothing) = nothing
+
+"""
+    render_error(err) -> Node
+
+Render a server-side error for display inside a `ConnectionIndicator`. Default
+shows nothing for `nothing` and a banner with the error type + message for an
+`Exception`. Override for richer per-app rendering by defining a method on
+your own indicator type or wrapping a `ConnectionIndicator` and supplying a
+different mapping function.
+"""
+render_error(::Nothing) = DOM.div(; style="display:none")
+function render_error(err::Exception)
+    return DOM.div(
+        DOM.div("Server error: ", string(typeof(err));
+                style="font-weight:600; margin-bottom:4px;"),
+        DOM.pre(sprint(showerror, err);
+                style="white-space:pre-wrap; margin:0; font-family:ui-monospace, monospace; font-size:13px;");
+        class="bonito-server-error",
+        style=string(
+            "position:fixed; top:48px; left:0; right:0; z-index:10001; ",
+            "padding:12px 20px; background:#7f1d1d; color:white; ",
+            "font-family:system-ui, -apple-system, sans-serif; font-size:14px; ",
+            "box-shadow:0 2px 8px rgba(0,0,0,0.2);",
+        ),
+    )
+end

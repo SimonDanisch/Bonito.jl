@@ -317,7 +317,13 @@ function Base.isready(session::Session; throw::Bool=true)
         if throw
             err = session.init_error[]
             session.init_error[] = nothing
-            isclosed(session) || close(session)
+            # Surface the error without tearing the WS down. The session may
+            # still be usable (a runtime listener crashed; the frontend init
+            # reported a problem; …) and any `JSUpdateObservable` carrying
+            # `indicator.error[] = err` needs the WS alive to reach the
+            # browser so the indicator can render the cause. If a caller
+            # decides the session is unrecoverable, they `close(session)`
+            # explicitly.
             Base.throw(err)
         else
             return false
@@ -494,7 +500,7 @@ function session_dom(session::Session, app::App; init=true, html_document=false)
         # without re-attempting the broken init bundle (`init=false`).
         bt = Base.catch_backtrace()
         @error "Error wrapping page" exception=(err, bt)
-        session.init_error[] = err
+        record_session_error!(session, err)
         return session_dom(session, HTTPServer.err_to_html(err, bt);
                            init=false, html_document=html_document)
     end

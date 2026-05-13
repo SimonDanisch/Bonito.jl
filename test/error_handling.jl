@@ -62,7 +62,7 @@ end
         end
     end
 
-    @testset "Base.isready surfaces init_error by default; throw=false silent" begin
+    @testset "Base.isready surfaces init_error by default; throw=false silent; no auto-close" begin
         app = App(_ -> throw(_ErrHandlingDemoErr("hi")))
         server = Server(app, "127.0.0.1", 0)
         try
@@ -71,19 +71,56 @@ end
             @test _wait_until(() -> !isnothing(app.session[]) &&
                                     !isnothing(app.session[].init_error[]))
             sess = app.session[]
-            # Default: isready throws + consumes (sticky-once).
+            # Default: isready throws + consumes the error on read (so subsequent
+            # callers don't keep getting the same exception). It does NOT close
+            # the session — leaving the WS up is what lets `indicator.error[]`
+            # JSUpdateObservable messages reach the browser.
             @test_throws _ErrHandlingDemoErr Base.isready(sess)
-            # After the throw consumed init_error, the second call returns false.
-            @test Base.isready(sess; throw=false) == false
-            @test Base.isready(sess) == false  # session is now closed; no more error to throw
+            @test isnothing(sess.init_error[])           # consumed
+            # Second call returns Bool, no throw.
+            r = Base.isready(sess; throw=false)
+            @test r isa Bool
 
-            # Re-stamp and confirm `throw=false` returns false without throwing.
+            # Re-stamp and confirm `throw=false` returns false without throwing
+            # AND that init_error stays set (only the throwing path consumes).
             sess.init_error[] = _ErrHandlingDemoErr("again")
             @test Base.isready(sess; throw=false) == false
-            @test sess.init_error[] isa _ErrHandlingDemoErr  # not consumed by throw=false
+            @test sess.init_error[] isa _ErrHandlingDemoErr
         finally
             close(server)
         end
+    end
+
+    @testset "record_session_error! mirrors error onto the app's ConnectionIndicator" begin
+        # Wire a ConnectionIndicator onto an app, set up a session pointing at
+        # it, call the helper, and check the observable carries the live
+        # Exception (not a stringified copy) — the JS-side renderer in
+        # `connection_indicator.jl` maps it through `render_error` so any
+        # custom indicator can dispatch on type.
+        indicator = Bonito.ConnectionIndicator()
+        @test indicator.error[] === nothing
+
+        app = App(_ -> Bonito.DOM.div("ok"); indicator=indicator)
+        sess = Session(Bonito.NoConnection(); asset_server=Bonito.NoServer())
+        sess.current_app[] = app
+        app.session[] = sess
+
+        err = _ErrHandlingDemoErr("propagate me")
+        Bonito.record_session_error!(sess, err)
+        @test sess.init_error[] === err
+        @test indicator.error[] === err          # SAME object, not a copy
+        @test indicator.error[].msg == "propagate me"
+
+        # If the app has no indicator, `record_session_error!` still records on
+        # `init_error[]` and just skips the indicator update.
+        indicatorless = App(_ -> Bonito.DOM.div("ok"))
+        sess2 = Session(Bonito.NoConnection(); asset_server=Bonito.NoServer())
+        sess2.current_app[] = indicatorless
+        indicatorless.session[] = sess2
+        Bonito.record_session_error!(sess2, _ErrHandlingDemoErr("no-indicator"))
+        @test sess2.init_error[] isa _ErrHandlingDemoErr
+        # Doesn't touch the original indicator
+        @test indicator.error[] === err
     end
 
     @testset "wait_for_ready throws original exception fast (no hang)" begin

@@ -62,7 +62,11 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         elseif data["exception"] != "nothing"
             exception = JSException(session, data)
             show(stderr, exception)
-            session.init_error[] = exception
+            # Route through the shared helper so the connection indicator's
+            # error observable picks up the cause. The WS is already up
+            # (we're processing a message it delivered), so the resulting
+            # JSUpdateObservable actually reaches the browser.
+            record_session_error!(session, exception)
         else
             sub = get_session(session, data["session"])
             if !isnothing(sub) && !isclosed(sub)
