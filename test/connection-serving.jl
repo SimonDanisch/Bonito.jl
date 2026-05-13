@@ -140,5 +140,14 @@ end
             obs,
         )
     end
-    export_static("test.html", app)
+    # Smoke-test that `export_static` doesn't crash with this app shape.
+    # Use a tempfile and clean up, otherwise the cwd-relative "test.html"
+    # it used to write leaks into whatever directory ran the suite.
+    out = tempname() * ".html"
+    try
+        export_static(out, app)
+        @test isfile(out) && filesize(out) > 0
+    finally
+        rm(out; force=true)
+    end
 end
