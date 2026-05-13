@@ -480,7 +480,22 @@ function session_dom(session::Session, app::App; init=true, html_document=false)
     if isnothing(dom)
         dom = DOM.div()
     end
-    return session_dom(session, dom; init=init, html_document=html_document)
+    try
+        return session_dom(session, dom; init=init, html_document=html_document)
+    catch err
+        # Page-wrap failure (msgpack pack error on the init bundle, broken
+        # asset, etc). The user handler already returned cleanly so it isn't
+        # *its* error, but we still need to surface the cause: stamp it on
+        # `session.init_error[]` so any caller waiting on `isready(session)`
+        # (wait_for_ready, bench, tests) sees it instead of timing out on a
+        # session stuck at UNINITIALIZED. Then ship a minimal error page
+        # without re-attempting the broken init bundle (`init=false`).
+        bt = Base.catch_backtrace()
+        @error "Error wrapping page" exception=(err, bt)
+        session.init_error[] = err
+        return session_dom(session, HTTPServer.err_to_html(err, bt);
+                           init=false, html_document=html_document)
+    end
 end
 
 isroot(session::Session) = session.parent === nothing

@@ -23,6 +23,11 @@ struct _ErrHandlingDemoErr <: Exception
 end
 Base.showerror(io::IO, e::_ErrHandlingDemoErr) = print(io, "_ErrHandlingDemoErr: ", e.msg)
 
+# A type with no msgpack mapping — packing one inside an evaljs queue forces a
+# failure during the page-wrap init bundle, AFTER the user handler returned
+# cleanly. Different code path than a handler-throws error.
+struct _ErrHandlingUnpackable end
+
 # Wait briefly for app.session[] to be set + an awaited condition to hold,
 # without depending on Bonito's `wait_for_ready` (which is itself under test).
 function _wait_until(cond; timeout=2.0)
@@ -100,6 +105,46 @@ end
             @test elapsed < 1.0   # not waiting for the timeout
             @test threw isa _ErrHandlingDemoErr
             @test threw.msg == "kaboom"
+        finally
+            close(server)
+        end
+    end
+
+    @testset "page-wrap failure (handler succeeds, init bundle can't pack)" begin
+        # User handler returns cleanly, but it queued an `evaljs` whose
+        # interpolated value has no msgpack mapping — the init-bundle pack
+        # in `session_dom(::Node)` throws AFTER the handler succeeded.
+        # Pre-fix: delegate's catch returned 500, init_error never set,
+        # `wait_for_ready` hung for the full timeout (UNINITIALIZED + no
+        # error visible from session state). Now: session_dom catches the
+        # wrap error, stamps `session.init_error[]`, and ships a minimal
+        # error page (`init=false` fallback) so the response is 200 with
+        # the cause inline AND `wait_for_ready` throws fast.
+        app = Bonito.App() do session
+            Bonito.evaljs(session, Bonito.js"console.log($(_ErrHandlingUnpackable()))")
+            return Bonito.DOM.div("won't appear")
+        end
+        server = Bonito.Server(app, "127.0.0.1", 0)
+        try
+            resp = HTTP.get("http://127.0.0.1:$(server.port)/";
+                            readtimeout=15, retry=false, status_exception=false)
+            @test resp.status == 200
+            body = String(resp.body)
+            @test occursin("MsgPack mapping", body) || occursin("_ErrHandlingUnpackable", body)
+
+            @test _wait_until(() -> !isnothing(app.session[]) &&
+                                    !isnothing(app.session[].init_error[]))
+            @test app.session[].init_error[] isa Exception
+
+            t0 = time()
+            threw = try
+                Bonito.wait_for_ready(app; timeout=5)
+                nothing
+            catch e
+                e
+            end
+            @test (time() - t0) < 1.0
+            @test threw isa Exception
         finally
             close(server)
         end
