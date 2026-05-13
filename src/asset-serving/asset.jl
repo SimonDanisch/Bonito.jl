@@ -185,12 +185,26 @@ function Asset(path_or_url::Union{String,Path}; name=nothing, es6module=false, c
         end
         bundle_data = read(bundle_file) # read the into memory to make it relocatable
         content_hash = RefValue{String}(hash_content(bundle_data))
+        # Tell Julia's precompile system that the package's compile-cache
+        # validity depends on these files. Without this, a downstream
+        # package like BonitoTeam that does `const ChatLib =
+        # ES6Module(...)` at module scope captures `bundle_data` into its
+        # precompile image; subsequent edits to the .js source don't
+        # invalidate the cache, and `using BonitoTeam` keeps serving the
+        # stale bundle even though the file on disk has the new bytes.
+        if !is_online(path_or_url) && !isempty(local_path)
+            Base.include_dependency(String(local_path))
+        end
+        !isempty(bundle_file) && Base.include_dependency(String(bundle_file))
     else
-
         bundle_file = ""
         bundle_data = UInt8[]
         content_hash = RefValue{String}("")
     end
+    # Non-module Assets read on demand from `local_path` at serve time, so
+    # they don't snapshot bytes into the precompile image — no
+    # include_dependency needed for those. (The HTTP handler in
+    # asset-serving/http.jl does `read(local_path(asset))` on each request.)
     return Asset(name, es6module, mediatype, real_online_path, local_path, bundle_file, bundle_data, content_hash)
 end
 
