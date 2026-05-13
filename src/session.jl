@@ -36,7 +36,14 @@ function init_session(session::Session)
     # BEFORE the queued setup messages — JS sees an UpdateObservable for a
     # key whose registration arrives later. See test/race_conditions_audit.jl F10.
     lock(root_session(session).deletion_lock) do
-        put!(session.connection_ready, true)
+        # `connection_ready` is a one-shot Channel{Bool}(1). A second
+        # init_session for the same session (websocket reconnect → fresh
+        # JSDoneLoading) would block on `put!` here, and — now that this
+        # block holds `deletion_lock` — deadlock every other lock-taker.
+        # Guard with `isready` so reconnects are a no-op on the signal.
+        if !isready(session.connection_ready)
+            put!(session.connection_ready, true)
+        end
         # open the connection for e.g. subconnection, which just have an open flag
         open!(session.connection)
         if !isopen(session)
@@ -521,11 +528,26 @@ function push_dependencies!(childs, session::Session)
         window.__define = undefined;
         window.__require = undefined;
     """)
+    # Dedupe asset emission at the page (root) level for the page's lifetime.
+    # Once a `<script type=module>` / `<link>` for an asset lands in the
+    # document, the browser keeps the module loaded for as long as the page
+    # is alive — even after the sub-session that emitted it closes (the tag
+    # is in the page's head, not in the sub's swappable DOM, and module
+    # registry entries are per-page). So we propagate every sub's `imports`
+    # into `root.imports` here and never decrement on sub-close (mirror in
+    # `free()` deliberately omitted). `root.imports` is cleared along with
+    # the rest of root state when the root session itself closes. Bounded
+    # by the application's distinct asset surface, not by user input.
+    # test/basics.jl "dependency second include" locks this in.
     if isroot(session)
         assets = session.imports
     else
-        # only render the assets that aren't already in root session
-        assets = setdiff(session.imports, root_session(session).imports)
+        root = root_session(session)
+        assets = lock(root.deletion_lock) do
+            new = setdiff(session.imports, root.imports)
+            union!(root.imports, new)
+            return new
+        end
     end
 
     assets_rendered = render_asset.(Ref(session), Ref(session.asset_server), assets)
