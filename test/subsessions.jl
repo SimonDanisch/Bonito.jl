@@ -44,11 +44,12 @@
 end
 Bonito.set_cleanup_time!(0.0)
 @testset "server cleanup" begin
-    # Close edisplay so the root sessions free their owners and global_obs
-    # can finally be GC'd. Also exercises server-side cleanup.
-    close(edisplay.window)
+    # Close the full display (window + handler/session). `close(::ElectronDisplay)`
+    # tears down the Bonito handler/session first (deregistering assets and
+    # websocket routes) and then the Electron window — so root sessions free
+    # their owners and global_obs can finally be GC'd.
     server = edisplay.browserdisplay.server
-    # It may take a while for close(edisplay.window) to remove the websocket route (by closing the socket)
+    close(edisplay)
     success = Bonito.wait_for(() -> isempty(server.websocket_routes.table); timeout=6)
     for (r, handler) in server.websocket_routes.table
         @show handler.session
@@ -57,12 +58,16 @@ Bonito.set_cleanup_time!(0.0)
     # browser display route & asset server
     @test Set(first.(server.routes.table)) == Set(["/browser-display", r"\Q/assets/\E(?:(?:(?:[\da-f]){40})(?:-.*))"])
     asset_server = server.routes.table[2][2]
+    # Force GC to trigger ChildAssetServer finalizers from any leaked sessions
+    GC.gc(true)
+    GC.gc(true)
+    Bonito.wait_for(() -> isempty(asset_server.registered_files); timeout=5)
     @test isempty(asset_server.registered_files)
 end
 Bonito.set_cleanup_time!(30/60/60)
 
 # Re-Create edisplay for other tests
-edisplay = Bonito.use_electron_display(devtools=true, options=ELECTRON_OPTIONS)
+edisplay = Bonito.use_electron_display(; app=get_test_app(), options=Dict{String, Any}("show" => false, "focusOnWebView" => false), devtools=false)
 
 @testset "subsession & freing" begin
     server = Server("0.0.0.0", 9433)
@@ -125,7 +130,7 @@ edisplay = Bonito.use_electron_display(devtools=true, options=ELECTRON_OPTIONS)
     @test isempty(subsub.session_objects)
 
     @test isempty(session.asset_server.parent.registered_files)
-
+    close(server)
 end
 
 @testset "cleanup comm" begin

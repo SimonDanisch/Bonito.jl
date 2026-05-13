@@ -52,14 +52,19 @@ function (connection::DualWebsocket)(context, websocket::WebSocket)
     try
         run_connection_loop(session, handler, websocket)
     finally
-        # This always needs to happen, which is why we need a try catch!
-        if allow_soft_close(CLEANUP_POLICY[])
-            @debug("Soft closing: $(session.id)")
-            soft_close(session)
-        else
-            @debug("Closing: $(session.id)")
-            # might as well close it immediately
-            close(session)
+        # Close our own handler so the other finally block can see it's dead.
+        close(handler)
+        # Only close/soft-close the session when both sockets are dead.
+        # Otherwise the first socket to disconnect kills the session
+        # while the other is still processing messages (e.g. JSDoneLoading).
+        if !isopen(connection.low_latency) && !isopen(connection.large_data)
+            if allow_soft_close(CLEANUP_POLICY[])
+                @debug("Soft closing: $(session.id)")
+                soft_close(session)
+            else
+                @debug("Closing: $(session.id)")
+                close(session)
+            end
         end
     end
 end

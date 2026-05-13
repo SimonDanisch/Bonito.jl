@@ -329,7 +329,7 @@ function Base.close(server::Server)
         try
             close(web_handler)
         catch e
-            @warn "Error while closing websocket handler for route $(k)" exception=(e, Base.catch_backtrace())
+            @debug "Error while closing websocket handler for route $(k)" exception=(e, Base.catch_backtrace())
         end
     end
     close(server.server)
