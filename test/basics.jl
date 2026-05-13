@@ -96,6 +96,9 @@ setup_connection(session::Session{DebugConnection}) = nothing
         end
         # Test that dependencies only get loaded one time!
         @test !occursin("-nouislider.min.js", html2)
+        # (the CSS filename in the bundle is `noUISlider.css`, not
+        # `nouislider.min.css`, so this assert passes vacuously — kept
+        # in case the asset name ever changes.)
         @test !occursin("nouislider.min.css", html2)
 
         id, session = first(open_session.children)

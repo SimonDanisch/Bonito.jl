@@ -59,10 +59,11 @@ WidgetsBase = "0.1"
 julia = "1.10"
 
 [extras]
+CommonMark = "a80b9123-70ca-4bc0-993e-6e3bcb318db6"
 ElectronCall = "8ddd578f-0c94-4c64-8c65-f083f291b266"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Pkg", "ElectronCall", "Random", "Test"]
+test = ["Pkg", "CommonMark", "ElectronCall", "Random", "Test"]

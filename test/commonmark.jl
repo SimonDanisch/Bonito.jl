@@ -1,5 +1,7 @@
 # CommonMark integration tests (no Electron required)
-using CommonMark
+# Re-export from Bonito since CommonMark is a direct dep of the package;
+# avoids having to add it to the active env when running tests outside Pkg.test.
+const CommonMark = Bonito.CommonMark
 
 @testset "CommonMark" begin
     @testset "bonito_parser" begin

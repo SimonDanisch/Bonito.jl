@@ -133,8 +133,8 @@ end
 const CACHE_CONTROL_IMMUTABLE = "public, max-age=31536000, immutable"
 const CACHE_CONTROL_MUTABLE   = "public, max-age=86400, must-revalidate"
 
-@inline _cache_control_for(asset::BinaryAsset) = CACHE_CONTROL_IMMUTABLE
-@inline _cache_control_for(asset::Asset)       =
+@inline cache_control_for(asset::BinaryAsset) = CACHE_CONTROL_IMMUTABLE
+@inline cache_control_for(asset::Asset)       =
     asset.es6module ? CACHE_CONTROL_IMMUTABLE : CACHE_CONTROL_MUTABLE
 
 function (server::HTTPAssetServer)(context)
@@ -152,7 +152,7 @@ function (server::HTTPAssetServer)(context)
         if asset isa BinaryAsset
             header = ["Access-Control-Allow-Origin" => "*",
                 "Content-Type" => asset.mime,
-                "Cache-Control" => _cache_control_for(asset)]
+                "Cache-Control" => cache_control_for(asset)]
             return HTTP.Response(200, header; body=asset.data)
         else
             data = nothing
@@ -166,7 +166,7 @@ function (server::HTTPAssetServer)(context)
             if !isnothing(data)
                 header = ["Access-Control-Allow-Origin" => "*",
                     "Content-Type" => file_mimetype(local_path(asset)),
-                    "Cache-Control" => _cache_control_for(asset),
+                    "Cache-Control" => cache_control_for(asset),
                 ]
                 return HTTP.Response(200, header, body = data)
             end
