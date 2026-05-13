@@ -101,7 +101,8 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         end
     elseif typ == PingPong
         # Ping back that pong!!
-        isready(session) && send(session, msg_type=PingPong)
+        # Heartbeat — `throw=false`: a recorded init_error shouldn't crash the ping handler.
+        isready(session; throw=false) && send(session, msg_type=PingPong)
     elseif typ == GetSessionDOM
         # Hold deletion_lock for the entire body — the original code
         # called `empty!(session.session_objects)` and mutated

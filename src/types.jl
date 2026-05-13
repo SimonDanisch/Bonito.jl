@@ -334,8 +334,14 @@ mutable struct Session{Connection <: FrontendConnection}
     on_document_load::Vector{JSCode}
     connection_ready::Channel{Bool}
     on_connection_ready::Function
-    # Should be checkd on connection_ready to see if an error occured
-    init_error::RefValue{Union{Nothing,JSException}}
+    # Recorded failure for this session: either a frontend init error (set by
+    # protocol.jl when JS reports an exception during init) or a render-time
+    # error (set by `handle_render_error` in `rendered_dom`'s catch). Surfaced
+    # by `isready(session)` (which throws it by default), so any `wait_for_ready`
+    # or runtime check learns the cause instead of seeing a silent closed
+    # session. Sites that only care about connection state opt out with
+    # `isready(session; throw=false)`.
+    init_error::RefValue{Union{Nothing,Exception}}
     js_comm::Observable{Union{Nothing, Dict{String, Any}}}
     on_close::Observable{Bool}
     deregister_callbacks::Vector{Observables.ObserverFunction}
@@ -376,7 +382,7 @@ mutable struct Session{Connection <: FrontendConnection}
             on_document_load::Vector{JSCode},
             connection_ready::Channel{Bool},
             on_connection_ready::Function,
-            init_error::Ref{Union{Nothing, JSException}},
+            init_error::Ref{Union{Nothing, Exception}},
             js_comm::Observable{Union{Nothing, Dict{String, Any}}},
             on_close::Observable{Bool},
             deregister_callbacks::Vector{Observables.ObserverFunction},
@@ -473,7 +479,7 @@ function Session(connection=default_connection();
                 on_document_load=JSCode[],
                 connection_ready=Channel{Bool}(1),
                 on_connection_ready=init_session,
-                init_error=Ref{Union{Nothing, JSException}}(nothing),
+                init_error=Ref{Union{Nothing, Exception}}(nothing),
                 js_comm=Observable{Union{Nothing, Dict{String, Any}}}(nothing),
                 on_close=Observable(false),
                 deregister_callbacks=Observables.ObserverFunction[],

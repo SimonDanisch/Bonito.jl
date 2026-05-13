@@ -7,7 +7,7 @@ function show_session(io::IO, session::Session{T}) where T
         println(io, "children: $(length(session.children))")
     end
     println(io, "  connection: $(isopen(session.connection) ? "open" : "closed")")
-    println(io, "  isready: $(isready(session))")
+    println(io, "  isready: $(isready(session; throw=false))")
     println(io, "  asset_server: $(typeof(session.asset_server))")
     println(io, "  queued messages: $(length(session.message_queue))")
     if !isnothing(session.init_error[])
@@ -170,7 +170,7 @@ function Base.close(session::Session)
         if session !== root
             # Close child session on js side as well
             # If not ready, we already lost connection to JS frontend, so no need to close things on the JS side
-            isready(root) && evaljs(root, js"""Bonito.free_session($(session.id))""")
+            isready(root; throw=false) && evaljs(root, js"""Bonito.free_session($(session.id))""")
         end
         close(session.asset_server)
         session.current_app[] = nothing
@@ -261,7 +261,11 @@ function _send(session::Session, sm::SerializedMessage, large::Bool)
     # on the wire. Wrap the write so a failure falls back to the queue,
     # which `init_session` flushes on (re)connect. Test:
     # test/race_conditions_audit.jl F11.
-    if isready(session)
+    # `throw=false`: queueing-vs-writing is a connection-state question; if a
+    # render error has been recorded we still want this message to land in the
+    # queue (where the page wrap's init bundle picks it up) rather than crash
+    # the surrounding render. External waiters surface the error themselves.
+    if isready(session; throw=false)
         try
             if large
                 write_large(session.connection, sm)
@@ -290,14 +294,34 @@ end
 
 Base.isopen(session::Session) = isopen(session.connection)
 
-function Base.isready(session::Session)
-    isclosed(session) && return false
+"""
+    isready(session::Session; throw::Bool=true) -> Bool
+
+`true` once the frontend has connected (`connection_ready` flipped) and the
+underlying connection is still open. `false` once the session has closed.
+
+If `session.init_error[]` is set (frontend init failed, or `rendered_dom`
+recorded a render-time error), the default behavior is to consume + throw
+that exception so the caller surfaces the real cause instead of seeing a
+silent closed session. Pass `throw=false` to opt out — used by sites that
+only care about the connection state (logging via `show_session`, the
+heartbeat ping, `_send`'s queue-or-write decision, `close`'s own evaljs
+guard, etc.). Opting out is explicit: any caller asking "is this session
+ready for usage" without that annotation cannot accidentally ignore a
+recorded failure.
+"""
+function Base.isready(session::Session; throw::Bool=true)
     if !isnothing(session.init_error[])
-        err = session.init_error[]
-        session.init_error[] = nothing
-        close(session)
-        throw(err)
+        if throw
+            err = session.init_error[]
+            session.init_error[] = nothing
+            isclosed(session) || close(session)
+            Base.throw(err)
+        else
+            return false
+        end
     end
+    isclosed(session) && return false
     return isready(session.connection_ready) && isopen(session)
 end
 

@@ -64,42 +64,35 @@ function show_html(io::IO, app::App; parent=CURRENT_SESSION[])
     ctx = get_io_context(io)
     session = nothing
     sub = nothing
-    try
-        if !isnothing(parent)
-            # We render in a subsession
-            sub = Session(parent; title=app.title)
+    # Render-time errors are caught inside `rendered_dom` via `handle_render_error`
+    # and become inline error HTML in the returned Node — no outer try/catch needed.
+    # The error is also recorded on the session's `init_error[]` so any caller
+    # later asking `isready(sub)` (REPL helper, test, bench) surfaces the cause.
+    if !isnothing(parent)
+        sub = Session(parent; title=app.title)
+        sub.io_context[] = ctx
+        dom = session_dom(sub, app)
+    else
+        session = Session(title=app.title)
+        if _use_parent_session(session)
+            CURRENT_SESSION[] = session
+            empty_app = App(nothing; indicator=app.indicator, loading_page=nothing)
+            sub = Session(session)
             sub.io_context[] = ctx
-            dom = session_dom(sub, app)
+            init_dom = session_dom(session, empty_app)
+            sub_dom = session_dom(sub, app)
+            dom = DOM.div(init_dom, sub_dom)
+            session.status = DISPLAYED
         else
-            session = Session(title=app.title)
-            if _use_parent_session(session)
-                CURRENT_SESSION[] = session
-                # Use indicator from user's app on parent wrapper (only root has indicator)
-                empty_app = App(nothing; indicator=app.indicator, loading_page=nothing)
-                sub = Session(session)
-                sub.io_context[] = ctx
-                init_dom = session_dom(session, empty_app)
-                sub_dom = session_dom(sub, app)
-                # first time rendering in a subsession, we combine init of parent session
-                # with the dom we're rendering right now
-                dom = DOM.div(init_dom, sub_dom)
-                session.status = DISPLAYED
-            else
-                sub = session
-                sub.io_context[] = ctx
-                dom = session_dom(session, app)
-            end
+            sub = session
+            sub.io_context[] = ctx
+            dom = session_dom(session, app)
         end
-        show(io, dom)
-        mark_displayed!(sub)
-        isnothing(session) || mark_displayed!(session)
-        return sub
-    catch err
-        # Use unified error handling - closes app session to prevent wait_for_ready hang
-        error_html = handle_app_error!(err, app, nothing)
-        show(io, error_html)
-        return sub
     end
+    show(io, dom)
+    mark_displayed!(sub)
+    isnothing(session) || mark_displayed!(session)
+    return sub
 end
 
 function Base.show(io::IO, ::Union{MIME"text/html", MIME"application/prs.juno.plotpane+html"}, app::App)
@@ -138,29 +131,28 @@ function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
     if !allow_soft_close()
         show(io, MIME"text/html"(), app)
     else
-        try
-            session = Session(title=app.title)
-            sub = Session(session)
-            sub.current_app[] = app
-            sub.io_context[] = get_io_context(io)
-            fetch_app = App(loading_page=nothing) do s
-                dom_node = DOM.div()
-                request = js"""
-                    Bonito.send_to_julia({
-                        msg_type: "13",
-                        session: $(sub.id),
-                        replace: $(uuid(sub, dom_node)),
-                    });
-                """
-                return DOM.div(request, dom_node)
-            end
-            dom = session_dom(session, fetch_app)
-            show(io, dom)
-            mark_displayed!(session)
-            mark_displayed!(sub)
-        catch err
-            error_html = handle_app_error!(err, app, nothing)
-            show(io, error_html)
+        # User-handler errors are absorbed by `handle_render_error` inside
+        # `rendered_dom` and become inline error HTML in the rendered DOM —
+        # so this path doesn't need its own try/catch. Infrastructure errors
+        # (Session ctor, IO failure on `show`) propagate as normal exceptions.
+        session = Session(title=app.title)
+        sub = Session(session)
+        sub.current_app[] = app
+        sub.io_context[] = get_io_context(io)
+        fetch_app = App(loading_page=nothing) do s
+            dom_node = DOM.div()
+            request = js"""
+                Bonito.send_to_julia({
+                    msg_type: "13",
+                    session: $(sub.id),
+                    replace: $(uuid(sub, dom_node)),
+                });
+            """
+            return DOM.div(request, dom_node)
         end
+        dom = session_dom(session, fetch_app)
+        show(io, dom)
+        mark_displayed!(session)
+        mark_displayed!(sub)
     end
 end

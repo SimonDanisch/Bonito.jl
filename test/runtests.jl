@@ -109,6 +109,9 @@ end
         @testset "session_io" begin
             include("session_io.jl")
         end
+        @testset "error_handling" begin
+            include("error_handling.jl")
+        end
         @testset "widgets" begin
             include("widgets.jl")
         end
