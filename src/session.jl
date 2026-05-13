@@ -7,7 +7,7 @@ function show_session(io::IO, session::Session{T}) where T
         println(io, "children: $(length(session.children))")
     end
     println(io, "  connection: $(isopen(session.connection) ? "open" : "closed")")
-    println(io, "  isready: $(isready(session))")
+    println(io, "  isready: $(isready(session; throw=false))")
     println(io, "  asset_server: $(typeof(session.asset_server))")
     println(io, "  queued messages: $(length(session.message_queue))")
     if !isnothing(session.init_error[])
@@ -29,15 +29,24 @@ function wait_for_ready(session::Session; timeout=100)
 end
 
 function init_session(session::Session)
-    put!(session.connection_ready, true)
-    # open the connection for e.g. subconnection, which just have an open flag
-    open!(session.connection)
-    @assert isopen(session)
-    # We send all queued up messages once the onnection is open
-    if !isempty(session.message_queue) || !isempty(session.on_document_load)
-        send(session, fused_messages!(session))
+    # Hold deletion_lock across the open-and-flush so a concurrent send
+    # can't interleave between `isready` flipping true (line 34) and the
+    # queue drain (line 38). Without the lock, the concurrent send sees
+    # `isready==true`, takes the direct-write branch in `_send`, and its
+    # message can land on the wire BEFORE the queued setup messages —
+    # JS sees an UpdateObservable for a key whose registration arrives
+    # later. See test/race_conditions_audit.jl F10.
+    lock(root_session(session).deletion_lock) do
+        put!(session.connection_ready, true)
+        # open the connection for e.g. subconnection, which just have an open flag
+        open!(session.connection)
+        @assert isopen(session)
+        # We send all queued up messages once the onnection is open
+        if !isempty(session.message_queue) || !isempty(session.on_document_load)
+            send(session, fused_messages!(session))
+        end
+        session.status = OPEN
     end
-    session.status = OPEN
     return
 end
 
@@ -88,37 +97,48 @@ function get_session(session::Session, id::String)
 end
 
 function free(session::Session)
-    # don't double free!
-    session.status === CLOSED && return
-    # unregister all cached objects from root session
+    # `free` MUST take the root's deletion_lock itself — relying on callers
+    # was racy: `process_message`'s `GetSessionDOM` branch (and any future
+    # @async caller) can otherwise interleave with `close()` (which holds
+    # the lock), corrupting `session_objects` mid-iteration. The lock is
+    # reentrant, so callers that already hold it pay nothing extra.
+    # See test/race_conditions_audit.jl F1.
     root = root_session(session)
-    # If we're a child session, we need to remove all objects trackt in our root session:
-    if session !== root
-        # We need to remove our session from the parent first, otherwise `delete_cached!`
-        # will think our session still holds the value, which would prevent it from deleting
-        delete!(parent(session).children, session.id)
-        for key in keys(session.session_objects)
-            if haskey(root.session_objects, key)
-                delete_cached!(root, session, key)
+    lock(root.deletion_lock) do
+        # don't double free!
+        session.status === CLOSED && return
+        # unregister all cached objects from root session
+        # If we're a child session, we need to remove all objects trackt in our root session:
+        if session !== root
+            # We need to remove our session from the parent first, otherwise `delete_cached!`
+            # will think our session still holds the value, which would prevent it from deleting
+            delete!(parent(session).children, session.id)
+            # Snapshot the keys before iterating so concurrent renderers
+            # adding to session_objects (under the same lock — they wait
+            # until we exit) don't trip iteration.
+            for key in collect(keys(session.session_objects))
+                if haskey(root.session_objects, key)
+                    delete_cached!(root, session, key)
+                end
+            end
+        else
+            # If this is a root session, we don't do any refcounting anymore
+            # Since if root is over, everything is over.
+            # and just delete everything!
+            for key in collect(keys(session.session_objects))
+                force_delete!(session, key)
             end
         end
-    else
-        # If this is a root session, we don't do any refcounting anymore
-        # Since if root is over, everything is over.
-        # and just delete everything!
-        for key in keys(session.session_objects)
-            force_delete!(session, key)
-        end
-    end
 
-    # delete_cached! only deletes in the root session so we need to still empty the session_objects:
-    empty!(session.session_objects)
-    empty!(session.on_document_load)
-    empty!(session.message_queue)
-    # remove all listeners that where created for this session
-    foreach(off, session.deregister_callbacks)
-    empty!(session.deregister_callbacks)
-    session.status = CLOSED
+        # delete_cached! only deletes in the root session so we need to still empty the session_objects:
+        empty!(session.session_objects)
+        empty!(session.on_document_load)
+        empty!(session.message_queue)
+        # remove all listeners that where created for this session
+        foreach(off, session.deregister_callbacks)
+        empty!(session.deregister_callbacks)
+        session.status = CLOSED
+    end
     return
 end
 
@@ -130,26 +150,45 @@ end
 function Base.close(session::Session)
     lock(root_session(session).deletion_lock) do
         session.status === CLOSED && return
-        session.on_close[] = true
+        # Capture + clear listeners under the lock, then fire them OUTSIDE
+        # the lock so user `on(session.on_close)` handlers can do anything
+        # they like (including `evaljs_value` which spawns its own task to
+        # acquire deletion_lock) without deadlock or recursion. We also
+        # mark the session CLOSED before firing so a listener that
+        # re-enters `close()` short-circuits immediately on the guard
+        # above instead of recursing forever (test/race_conditions_audit.jl F12).
+        on_close_listeners = copy(session.on_close.listeners)
+        Observables.clear(session.on_close)
+
         while !isempty(session.children)
             close(last(first(session.children))) # child removes itself from parent!
         end
-        free(session)
+        free(session)   # sets session.status = CLOSED
         # unregister all cached objects from parent session
         root = root_session(session)
         # If we're a child session, we need to remove all objects tracked in our root session:
         if session !== root
             # Close child session on js side as well
             # If not ready, we already lost connection to JS frontend, so no need to close things on the JS side
-            isready(root) && evaljs(root, js"""Bonito.free_session($(session.id))""")
+            isready(root; throw=false) && evaljs(root, js"""Bonito.free_session($(session.id))""")
         end
         close(session.asset_server)
-        Observables.clear(session.on_close)
         session.current_app[] = nothing
         session.io_context[] = nothing
         close(session.inbox)
         session.status = CLOSED
         close(session.connection)
+
+        # Fire on_close listeners now — outside the lock, after the
+        # session is fully torn down. Listener exceptions are swallowed
+        # so one bad handler doesn't poison the close path.
+        for (_prio, f) in on_close_listeners
+            try
+                Base.invokelatest(f, true)
+            catch e
+                @warn "on_close listener threw" exception=(e, catch_backtrace())
+            end
+        end
     end
     return
 end
@@ -203,19 +242,43 @@ function Sockets.send(session::Session, message::Dict{Symbol}; large=false)
     _send(session, SerializedMessage(session, message), large)
 end
 
+# JSUpdateObservable now builds messages with String keys (avoids `string(k)`
+# in serialize_cached). Mirror the Symbol-key dispatch so the same code path
+# is taken.
+function Sockets.send(session::Session, message::Dict{String}; large=false)
+    session.ignore_message[](message)::Bool && return
+    collect_message!(message)
+    _send(session, SerializedMessage(session, message), large)
+end
+
 # Backwards compatibility for connections that dont expect a SerializedMessage but Vector{UInt8}
 Base.write(connection::FrontendConnection, sm::SerializedMessage) = write(connection, serialize_binary(sm))
 
 function _send(session::Session, sm::SerializedMessage, large::Bool)
-    if isready(session)
-        if large
-            write_large(session.connection, sm)
-        else
-            write(session.connection, sm)
+    # The check-then-act between `isready(session)` and `write(...)` is
+    # racy: a disconnect in the gap (or any write failure) used to throw
+    # out of `_send` AND lose the message — neither queued for replay nor
+    # on the wire. Wrap the write so a failure falls back to the queue,
+    # which `init_session` flushes on (re)connect. Test:
+    # test/race_conditions_audit.jl F11.
+    # `throw=false`: queueing-vs-writing is a connection-state question; if a
+    # render error has been recorded we still want this message to land in the
+    # queue (where the page wrap's init bundle picks it up) rather than crash
+    # the surrounding render. External waiters surface the error themselves.
+    if isready(session; throw=false)
+        try
+            if large
+                write_large(session.connection, sm)
+            else
+                write(session.connection, sm)
+            end
+            return
+        catch e
+            @debug "_send write failed; falling back to message_queue for replay" exception = (e, catch_backtrace())
+            # fall through to push!
         end
-    else
-        push!(session.message_queue, sm)
     end
+    push!(session.message_queue, sm)
 end
 
 
@@ -231,14 +294,34 @@ end
 
 Base.isopen(session::Session) = isopen(session.connection)
 
-function Base.isready(session::Session)
-    isclosed(session) && return false
+"""
+    isready(session::Session; throw::Bool=true) -> Bool
+
+`true` once the frontend has connected (`connection_ready` flipped) and the
+underlying connection is still open. `false` once the session has closed.
+
+If `session.init_error[]` is set (frontend init failed, or `rendered_dom`
+recorded a render-time error), the default behavior is to consume + throw
+that exception so the caller surfaces the real cause instead of seeing a
+silent closed session. Pass `throw=false` to opt out — used by sites that
+only care about the connection state (logging via `show_session`, the
+heartbeat ping, `_send`'s queue-or-write decision, `close`'s own evaljs
+guard, etc.). Opting out is explicit: any caller asking "is this session
+ready for usage" without that annotation cannot accidentally ignore a
+recorded failure.
+"""
+function Base.isready(session::Session; throw::Bool=true)
     if !isnothing(session.init_error[])
-        err = session.init_error[]
-        session.init_error[] = nothing
-        close(session)
-        throw(err)
+        if throw
+            err = session.init_error[]
+            session.init_error[] = nothing
+            isclosed(session) || close(session)
+            Base.throw(err)
+        else
+            return false
+        end
     end
+    isclosed(session) && return false
     return isready(session.connection_ready) && isopen(session)
 end
 
@@ -365,8 +448,13 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
         end
     end)
     value = comm[]
-    # manually free observable, since it exists outside session lifetimes
+    # Manually free observable, since it exists outside session lifetimes.
+    # `register_observable!` attaches a JSUpdateObservable listener bound
+    # to *the sub session*, so we have to call `remove_js_updates!(sub, comm)`
+    # explicitly — `force_delete!(root, ...)` only matches root-bound
+    # listeners and would leak a sub-bound one. See test/race_conditions_audit.jl F5.
     lock(root.deletion_lock) do
+        remove_js_updates!(session, comm)
         delete!(session.session_objects, comm.id)
         delete!(root.session_objects, comm.id)
     end
@@ -392,7 +480,22 @@ function session_dom(session::Session, app::App; init=true, html_document=false)
     if isnothing(dom)
         dom = DOM.div()
     end
-    return session_dom(session, dom; init=init, html_document=html_document)
+    try
+        return session_dom(session, dom; init=init, html_document=html_document)
+    catch err
+        # Page-wrap failure (msgpack pack error on the init bundle, broken
+        # asset, etc). The user handler already returned cleanly so it isn't
+        # *its* error, but we still need to surface the cause: stamp it on
+        # `session.init_error[]` so any caller waiting on `isready(session)`
+        # (wait_for_ready, bench, tests) sees it instead of timing out on a
+        # session stuck at UNINITIALIZED. Then ship a minimal error page
+        # without re-attempting the broken init bundle (`init=false`).
+        bt = Base.catch_backtrace()
+        @error "Error wrapping page" exception=(err, bt)
+        session.init_error[] = err
+        return session_dom(session, HTTPServer.err_to_html(err, bt);
+                           init=false, html_document=html_document)
+    end
 end
 
 isroot(session::Session) = session.parent === nothing
@@ -508,11 +611,18 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
                 body = Hyperscript.m("body", body_dom)
                 dom = Hyperscript.m("html", head, body; class="bonito-fragment")
             else
-                # Emit a "fragment"
-                head = DOM.div(session_style, global_styles...)
-                body = DOM.div(dom)
+                # Emit a "fragment". The wrapper divs are purely structural —
+                # they exist as DOM anchors for Bonito's reactive swap logic
+                # and the per-session stylesheet. style="display:contents"
+                # makes them transparent to the surrounding flex/grid layout
+                # so an Observable rendered into a flex container behaves the
+                # same as if the content were a direct child.
+                head = DOM.div(session_style, global_styles...; style="display:contents")
+                body = DOM.div(dom; style="display:contents")
                 dom = DOM.div(
-                    head, body; id=session.id, class="bonito-fragment", dataJscallId=dom_id
+                    head, body;
+                    id=session.id, class="bonito-fragment", dataJscallId=dom_id,
+                    style="display:contents",
                 )
             end
         else

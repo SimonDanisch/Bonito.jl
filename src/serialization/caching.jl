@@ -7,11 +7,35 @@ struct SerializationContext
     session::Session
 end
 
+"""
+    CachedEntry(object, owners)
+
+Value stored in `root.session_objects` for objects that have been
+serialized to JS and cached for this connection. `owners` is the set of
+session ids (root + any sub) that have registered the key.
+
+Lifetime rule: the entry survives as long as `owners` (filtered to
+sessions still present in the live tree via `get_session(root, id)`) is
+non-empty. Sub-close decrements its id; root-close drops the whole
+cache. The `filter` step makes this self-healing — if a session vanished
+without a clean close, its dead id gets pruned and the entry can still
+be reclaimed.
+
+INVARIANT: every read or mutation of an entry's `owners` field happens
+under `root.deletion_lock` (the same lock that gates all
+`session_objects` access). Plain `Set` is fine because the lock is the
+synchronization boundary; per-entry locking would just be overhead.
+"""
+mutable struct CachedEntry
+    object::Any
+    owners::Set{String}
+end
+CachedEntry(object) = CachedEntry(object, Set{String}())
+
 function SerializationContext(session::Session)
     return SerializationContext(OrderedDict{String,Any}(), session)
 end
 
-object_identity(retain::Retain) = object_identity(retain.value)
 object_identity(obs::Observable) = obs.id
 object_identity(obj::Any) = string(hash(obj))
 
@@ -31,14 +55,6 @@ function register_observable!(session::Session, obs::Observable)
     return
 end
 
-
-function serialize_cached(context::SerializationContext, retain::Retain)
-    return add_cached!(context.session, context.message_cache, retain) do
-        obs = retain.value
-        register_observable!(context.session, obs)
-        return Retain(SerializedObservable(obs.id, serialize_cached(context, obs[])))
-    end
-end
 
 function serialize_cached(context::SerializationContext, obs::Observable)
     return add_cached!(context.session, context.message_cache, obs) do
@@ -91,6 +107,26 @@ function serialize_cached(context::SerializationContext, dict::AbstractDict)
     return result
 end
 
+# Fast path for the common Observable-update shape — `Dict{String,Any}` whose
+# values are all msgpack primitives (Number/String/Bool/Nothing). No keys to
+# stringify, no values to recurse into, nothing to register in the cache, so
+# we can hand the input dict straight through to MsgPack.pack and skip the
+# rebuild that the generic AbstractDict method does. JSUpdateObservable
+# already builds messages in this shape, so every Observable update hits this
+# branch.
+@inline is_msgpack_primitive(::Number) = true
+@inline is_msgpack_primitive(::AbstractString) = true
+@inline is_msgpack_primitive(::Bool) = true
+@inline is_msgpack_primitive(::Nothing) = true
+@inline is_msgpack_primitive(@nospecialize(_)) = false
+
+function serialize_cached(context::SerializationContext, dict::Dict{String,Any})
+    @inbounds for v in values(dict)
+        is_msgpack_primitive(v) || return Dict{String,Any}(k => serialize_cached(context, v) for (k, v) in dict)
+    end
+    return dict
+end
+
 """
     add_cached!(create_cached_object::Function, session::Session, message_cache::AbstractDict{String, Any}, key::String)
 
@@ -104,32 +140,37 @@ function add_cached!(create_cached_object::Function, session::Session, send_to_j
     lock(root.deletion_lock) do
         key = object_identity(object)::String
         result = CacheKey(key)
-        # If already in session, there's nothing we need to do, since we've done the work the first time we added the object
+        # If this session already tracks the key, nothing to do — we
+        # already added our id to root's `owners` set the first time.
         if haskey(session.session_objects, key)
             return result
         end
-        # Now, we have two code paths, depending on whether we have a child session or a root session
-        # we are root, so we simply cache the object (we already checked it's not cached yet)
-        if root === session
-            send_to_js[key] = create_cached_object()
-            session.session_objects[key] = object
-            return result
-        else
-            # This session is a child session.
-            # Now we need to figure out if the root session has the object cached already
-            # The root session has our object cached already.
-            session.session_objects[key] = nothing # session needs to reference this to "own" it
-            if haskey(root.session_objects, key)
-                # in this case, we just add the key to send to js, so that the JS side can associate the object with this session
-                send_to_js[key] = TrackingOnly(key)
-                return result
-            end
-            # Nobody has the object cached,
-            # so we add this session as the owner, but also add it to the root session
-            send_to_js[key] = create_cached_object()
-            root.session_objects[key] = object
-            return result
+        # Sub sessions keep a marker (value is meaningless — only the
+        # presence of the key matters; `free()` iterates these to
+        # decrement owner sets at close time).
+        if session !== root
+            session.session_objects[key] = nothing
         end
+        if haskey(root.session_objects, key)
+            # Root cache already holds this — just register `session.id`
+            # as a new owner and tell JS via TrackingOnly. The JS side
+            # already has the object in its global cache.
+            entry = root.session_objects[key]::CachedEntry
+            push!(entry.owners, session.id)
+            send_to_js[key] = TrackingOnly(key)
+        else
+            # First time anyone in this connection cached this object.
+            # IMPORTANT: call `create_cached_object` BEFORE inserting into
+            # `root.session_objects`. The closure transitively invokes
+            # `register_observable!`, which short-circuits when
+            # `haskey(root.session_objects, key)` is already true — so if
+            # we insert first, the JS-update listener never gets attached
+            # and JS notifies silently fail to reach Julia.
+            serialized = create_cached_object()
+            root.session_objects[key] = CachedEntry(object, Set{String}((session.id,)))
+            send_to_js[key] = serialized
+        end
+        return result
     end
 end
 
@@ -150,16 +191,18 @@ function delete_cached!(root::Session, sub::Session, key::String)
         @warn("Deleting key that doesn't belong to any cached object")
         return
     end
-    # We only free Retain, when the root session is closing!
-    root.session_objects[key] isa Retain && return
-    # We don't do reference counting, but we check if any child still holds a reference to the object we want to delete
-    has_ref = any(((id, s),)-> child_has_reference(s, key), root.children)
-    if !has_ref
-        # So only delete it if nobody has it anymore!
-        object = pop!(root.session_objects, key)
-        if object isa Observable
-            # unregister all listeners updating the session
-            remove_js_updates!(sub, object)
+    entry = root.session_objects[key]::CachedEntry
+    # Drop the closing sub from the owner set.
+    delete!(entry.owners, sub.id)
+    # Self-heal: prune any owners whose sessions no longer exist in the
+    # live tree (covers crashes / dropped WS where `free` never ran).
+    # This is the safety net that makes refcount-by-id robust.
+    filter!(id -> get_session(root, id) !== nothing || id == root.id,
+            entry.owners)
+    if isempty(entry.owners)
+        pop!(root.session_objects, key)
+        if entry.object isa Observable
+            remove_js_updates!(sub, entry.object)
         end
     end
 end
@@ -171,13 +214,9 @@ function force_delete!(root::Session, key::String)
         @warn("Deleting key that doesn't belong to any cached object")
         return nothing
     end
-    # We only free Retain, when the root session is closing!
-    object = pop!(root.session_objects, key)
-    if object isa Retain
-        object = object.value
-    end
-    if object isa Observable
-        # unregister all listeners updating the session
-        remove_js_updates!(root, object)
+    entry = pop!(root.session_objects, key)::CachedEntry
+    if entry.object isa Observable
+        remove_js_updates!(root, entry.object)
     end
 end
+

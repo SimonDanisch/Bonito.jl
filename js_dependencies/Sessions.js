@@ -1,4 +1,4 @@
-import { Retain, decode_binary } from "./Protocol.js";
+import { decode_binary } from "./Protocol.js";
 import PQueue from "https://esm.sh/p-queue";
 
 import {
@@ -29,11 +29,7 @@ export function lock_loading(f) {
 export function lookup_global_object(key) {
     const object = GLOBAL_OBJECT_CACHE[key];
     if (object) {
-        if (object instanceof Retain) {
-            return object.value;
-        } else {
-            return object;
-        }
+        return object;
     }
     console.warn(`Key ${key} not found! ${object}`);
     return null;
@@ -41,11 +37,22 @@ export function lookup_global_object(key) {
 
 function is_still_referenced(id) {
     for (const session_id in SESSIONS) {
-        const [tracked_objects, allow_delete] = SESSIONS[session_id];
-        if (allow_delete && tracked_objects.has(id)) {
-            // don't free if a session still holds onto it
-            return true;
-        }
+        const [tracked_objects, status] = SESSIONS[session_id];
+        if (!tracked_objects.has(id)) continue;
+        // Any session that still has the id in its tracked set holds a
+        // reference. Previously this required `allow_delete` (i.e. the
+        // session had finished `done_initializing_session`), but that
+        // excluded "root" sessions — which never flip to allow_delete and
+        // live for the whole tab. The result was that an object held
+        // ONLY by the root + a transient sub-session got deleted from
+        // GLOBAL_OBJECT_CACHE the moment the sub-session was freed,
+        // leaving every later interpolation/click that referenced it
+        // looking up null. (See BonitoTeam's resume-flow regression:
+        // sidebar `aside` registers an onload click handler that
+        // interpolates `current_view` onto the root session; a body
+        // re-render frees the no-longer-tracked sub-session, which then
+        // wiped current_view from the cache.)
+        if (status === "delete" || status === "root") return true;
     }
     return false;
 }
@@ -63,10 +70,6 @@ export function free_object(id) {
     if (data) {
         if (data instanceof Promise) {
             // Promise => Module. We don't free Modules, since they'll be cached by the active page anyways
-            return;
-        }
-        if (data instanceof Retain) {
-            // Retain is a reserved type to never free an object from a session
             return;
         }
         if (!is_still_referenced(id)) {

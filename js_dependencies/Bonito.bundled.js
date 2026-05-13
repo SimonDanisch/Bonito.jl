@@ -3202,9 +3202,10 @@ var ul = Te, bl = wt, wl = cl, gl = wt, pl = ne, xl = {
     constants: pl
 }, { Deflate: kl , deflate: vl , deflateRaw: El , gzip: yl  } = Rn, { Inflate: Sl , inflate: Al , inflateRaw: Rl , ungzip: zl  } = xl, ml = vl, Ol = Al;
 const UpdateObservable = "0";
-class Retain {
-    constructor(value){
-        this.value = value;
+class UnpackContext {
+    constructor(session_id, session_status){
+        this.session_id = session_id;
+        this.session_status = session_status;
     }
 }
 const OnjsCallback = "1";
@@ -3284,12 +3285,6 @@ function can_send_to_julia() {
 }
 function is_julia_responsive() {
     return Date.now() - CONNECTION.lastPing < 2 * 5000;
-}
-class UnpackContext {
-    constructor(session_id, session_status){
-        this.session_id = session_id;
-        this.session_status = session_status;
-    }
 }
 const EXTENSION_CODEC = new ExtensionCodec();
 window.EXTENSION_CODEC = EXTENSION_CODEC;
@@ -3373,27 +3368,16 @@ function lock_loading(f) {
 function lookup_global_object(key) {
     const object = GLOBAL_OBJECT_CACHE[key];
     if (object) {
-        if (object instanceof Retain) {
-            return object.value;
-        } else {
-            return object;
-        }
+        return object;
     }
     console.warn(`Key ${key} not found! ${object}`);
     return null;
 }
-function send_pingpong() {
-    send_to_julia({
-        msg_type: PingPong
-    });
-}
-let timeout = null;
 function is_still_referenced(id) {
     for(const session_id in SESSIONS){
-        const [tracked_objects, allow_delete] = SESSIONS[session_id];
-        if (allow_delete && tracked_objects.has(id)) {
-            return true;
-        }
+        const [tracked_objects, status] = SESSIONS[session_id];
+        if (!tracked_objects.has(id)) continue;
+        if (status === "delete" || status === "root") return true;
     }
     return false;
 }
@@ -3408,9 +3392,6 @@ function free_object(id) {
     const data = GLOBAL_OBJECT_CACHE[id];
     if (data) {
         if (data instanceof Promise) {
-            return;
-        }
-        if (data instanceof Retain) {
             return;
         }
         if (!is_still_referenced(id)) {
@@ -3464,6 +3445,12 @@ function track_deleted_sessions() {
         DELETE_OBSERVER = observer;
     }
 }
+function send_pingpong() {
+    send_to_julia({
+        msg_type: PingPong
+    });
+}
+let timeout = null;
 function send_pings() {
     clearTimeout(timeout);
     if (!can_send_to_julia()) {
@@ -3581,6 +3568,10 @@ class Observable {
         this.#callbacks.push(callback);
     }
 }
+register_ext(104, (uint_8_array, context)=>{
+    const key = unpack(uint_8_array, context);
+    return lookup_global_object(key);
+});
 function close_session(session_id) {
     const session = SESSIONS[session_id];
     if (!session) {
@@ -3645,14 +3636,6 @@ function update_or_replace(node, new_html, replace) {
         node.append(new_html);
     }
 }
-function ensure_session_exists(session_id, session_status) {
-    if (!(session_id in SESSIONS)) {
-        SESSIONS[session_id] = [
-            new Set(),
-            session_status
-        ];
-    }
-}
 function update_session_dom(message) {
     lock_loading(()=>{
         const { session_id , session_status , messages , html , dom_node_selector , replace  } = message;
@@ -3664,6 +3647,14 @@ function update_session_dom(message) {
             send_done_loading(session_id, error);
         });
     });
+}
+function ensure_session_exists(session_id, session_status) {
+    if (!(session_id in SESSIONS)) {
+        SESSIONS[session_id] = [
+            new Set(),
+            session_status
+        ];
+    }
 }
 function track_in_session(session_id, key, session_status) {
     ensure_session_exists(session_id, session_status);
@@ -3681,42 +3672,11 @@ function register_in_session_cache(session_id, key, object, session_status) {
         GLOBAL_OBJECT_CACHE[key] = object;
     }
 }
-function update_session_cache(session_id, new_jl_objects, session_status) {
-    function update_cache(tracked_objects) {
-        for (const [key, new_object] of new_jl_objects){
-            tracked_objects.add(key);
-            if (!(key in GLOBAL_OBJECT_CACHE)) {
-                GLOBAL_OBJECT_CACHE[key] = new_object;
-            }
-        }
-    }
-    const session = SESSIONS[session_id];
-    if (session) {
-        update_cache(session[0]);
-    } else {
-        const tracked_items = new Set();
-        SESSIONS[session_id] = [
-            tracked_items,
-            session_status
-        ];
-        update_cache(tracked_items);
-    }
-}
 register_ext(101, (uint_8_array, context)=>{
     const [id, value] = unpack(uint_8_array, context);
     const obs = new Observable(id, value);
     register_in_session_cache(context.session_id, id, obs, context.session_status);
     return obs;
-});
-register_ext(103, (uint_8_array, context)=>{
-    const real_value = unpack(uint_8_array, context);
-    const retain = new Retain(real_value);
-    GLOBAL_OBJECT_CACHE[real_value.id] = retain;
-    return retain;
-});
-register_ext(104, (uint_8_array, context)=>{
-    const key = unpack(uint_8_array, context);
-    return lookup_global_object(key);
 });
 register_ext(109, (uint_8_array, context)=>{
     const key = unpack(uint_8_array, context);
@@ -3803,7 +3763,6 @@ function unpack_binary(binary, compression_enabled) {
     }
 }
 const mod = {
-    Retain: Retain,
     base64encode: base64encode,
     base64decode: base64decode,
     decode_base64_message: decode_base64_message,
@@ -3827,6 +3786,27 @@ function init_session(session_id, message_promise, session_status, compression) 
             throw error;
         });
     });
+}
+function update_session_cache(session_id, new_jl_objects, session_status) {
+    function update_cache(tracked_objects) {
+        for (const [key, new_object] of new_jl_objects){
+            tracked_objects.add(key);
+            if (!(key in GLOBAL_OBJECT_CACHE)) {
+                GLOBAL_OBJECT_CACHE[key] = new_object;
+            }
+        }
+    }
+    const session = SESSIONS[session_id];
+    if (session) {
+        update_cache(session[0]);
+    } else {
+        const tracked_items = new Set();
+        SESSIONS[session_id] = [
+            tracked_items,
+            session_status
+        ];
+        update_cache(tracked_items);
+    }
 }
 const mod1 = {
     SESSIONS: SESSIONS,

@@ -86,6 +86,12 @@ end
         @testset "subsessions" begin
             include("subsessions.jl")
         end
+        @testset "key_not_found_race" begin
+            include("key_not_found_race.jl")
+        end
+        @testset "race_conditions_audit" begin
+            include("race_conditions_audit.jl")
+        end
         @testset "connection-serving" begin
             include("connection-serving.jl")
         end
@@ -97,10 +103,22 @@ end
         @testset "serialization" begin
             include("serialization.jl")
         end
+        @testset "protocol_roundtrip" begin
+            include("protocol_roundtrip.jl")
+        end
+        @testset "session_io" begin
+            include("session_io.jl")
+        end
+        @testset "error_handling" begin
+            include("error_handling.jl")
+        end
         @testset "widgets" begin
             include("widgets.jl")
         end
         # @testset "various" begin; include("various.jl"); end
+        @testset "commonmark" begin
+            include("commonmark.jl")
+        end
         @testset "markdown" begin
             include("markdown.jl")
         end

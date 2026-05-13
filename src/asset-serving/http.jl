@@ -111,9 +111,16 @@ end
 
 function (server::HTTPAssetServer)(context)
     path = URIs.URI(context.request.target).path
-    rf = server.registered_files
-    if haskey(rf, path)
-        _, asset = rf[path]
+    # Hold server.lock around the Dict access — `close(::ChildAssetServer)`
+    # mutates `registered_files` (delete!) under the same lock; without
+    # this guard, a concurrent close can corrupt the Dict mid-fetch (or
+    # delete the entry between our haskey and getindex). See
+    # test/race_conditions_audit.jl F4.
+    asset = lock(server.lock) do
+        rf = server.registered_files
+        haskey(rf, path) ? rf[path][2] : nothing
+    end
+    if asset !== nothing
         if asset isa BinaryAsset
             header = ["Access-Control-Allow-Origin" => "*",
                 "Content-Type" => asset.mime]

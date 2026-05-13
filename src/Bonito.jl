@@ -10,6 +10,7 @@ using Hyperscript
 using Hyperscript: Node, children, tag
 using Observables
 using Markdown
+using CommonMark
 using HTTP
 using Base64
 using MsgPack
@@ -71,9 +72,10 @@ include("connection_indicator.jl")
 include("tailwind-dashboard.jl")
 
 include("interactive.jl")
+include("terminal_output.jl")
 
 # Core functionality
-export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset, CSS, LoadingPage
+export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset, CSS, LoadingPage, rebundle!
 export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor
 export browser_display, configure_server!, Server, show_html, html, route!, online_url, use_electron_display
 export Observable, on, onany, bind_global
@@ -89,6 +91,8 @@ export ProtectedRoute, User, SingleUser, AbstractPasswordStore, FolderServer
 export ConnectionIndicator, AbstractConnectionIndicator
 export get_metadata, set_metadata!
 export cleanup_globals
+export RichText, TerminalOutput, ANSI_CSS, ansi_to_html, has_ansi_codes, append_html!
+export bonito_parser, commonmark_to_dom
 
 function has_html_display()
     for display in Base.Multimedia.displays

@@ -223,6 +223,12 @@ function relative_url(server::Server, url)
     if proxy_url == ""
         # Absolute URLS!
         return online_url(server, url)
+    elseif proxy_url == "."
+        # Server-absolute path — works from any current page depth, e.g. when
+        # routes are mounted at sub-paths like /p/<id>. (Returning a page-
+        # relative "./assets/..." would break for sub-routes because the asset
+        # handler does exact-path lookup against the registered "/assets/..." key.)
+        return startswith(url, "/") ? url : "/" * url
     else
         # absolute proxy URLS
         return join_url(proxy_url, url)
@@ -311,7 +317,15 @@ end
 
 function Base.close(server::Server)
     isnothing(server.server) && return
+    # Close any websocket handler that opted into the close protocol (i.e.
+    # has a `close(::HandlerType)` method). Pure-function handlers are
+    # skipped — they hold no per-route state, and any in-flight WebSocket
+    # connections they accepted get torn down by `close(server.server)`
+    # below. The previous version called `close` unconditionally and
+    # spammed `MethodError: no method matching close(::Function)` warnings
+    # on every test/server teardown.
     for (k, web_handler) in server.websocket_routes.table
+        applicable(close, web_handler) || continue
         try
             close(web_handler)
         catch e
@@ -327,7 +341,13 @@ function try_listen(url, port, server, verbose; listener_kw...)
         httpserver = HTTP.listen!(url, port; verbose=verbose, listener_kw...) do stream::Stream
             Base.invokelatest(stream_handler, server, stream)
         end
-        return port, httpserver
+        # Ask the kernel what port we actually bound to. When the caller passed
+        # port=0 ("ephemeral"), HTTP.listen! succeeds on a kernel-assigned port
+        # but `port` here is still 0 — returning that would make every asset
+        # URL resolve to http://host:0/... → ERR_CONNECTION_REFUSED in the
+        # browser, with the symptom "Bonito is not defined" downstream.
+        actual_port = Int(Sockets.getsockname(httpserver.listener.server)[2])
+        return actual_port, httpserver
     catch e
         if e isa Base.IOError
             #address already in use
@@ -341,8 +361,13 @@ end
 
 function start(server::Server; verbose=-1, listener_kw...)
     isrunning(server) && return
-    newport, http_server = try_listen(server.url, server.port, server, verbose; listener_kw...)
-    if server.port != newport
+    requested = server.port
+    newport, http_server = try_listen(server.url, requested, server, verbose; listener_kw...)
+    if requested == 0
+        # port=0 means "give me any free port" — the kernel-assigned port is
+        # the expected outcome, not a fallback worth warning about.
+        server.port = newport
+    elseif requested != newport
         @warn "Port in use, using different port. New port: $(newport)"
         server.port = newport
     end

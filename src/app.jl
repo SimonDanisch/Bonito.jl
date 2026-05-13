@@ -44,79 +44,33 @@ end
 App
 
 """
-    handle_app_error!(err, app::App, parent_session=nothing)
+    handle_render_error(f, session::Session) -> Node
 
-Unified error handling for App rendering errors.
-- Logs the error
-- Closes the app's session if it was created (prevents wait_for_ready hanging)
-- If session was never set, creates a closed dummy session (prevents wait_for_ready hanging)
-- Returns error HTML node
-- If parent_session is provided and ready, sends error to browser via evaljs
+Run `f()` and return its (Node) result. If `f` throws, log the exception,
+record it on `session.init_error[]` (so `isready(session)` and any waiter
+on top of it surface the real cause), and return an error-HTML Node so the
+caller's downstream emit path (HTTP response, `show(io, dom)`, the
+UpdateSession message in `update_session_dom!`) doesn't have to know
+whether the render succeeded.
+
+The single error boundary for app rendering. Sites above this one don't
+need their own try/catch — `rendered_dom` always returns a Node.
 """
-function handle_app_error!(err, app::Union{App, Nothing}, parent_session=nothing)
-    bt = Base.catch_backtrace()
-    @error "Error rendering app" exception = (err, bt)
-
-    # Handle app session to prevent wait_for_ready from hanging
-    if !isnothing(app)
-        if !isnothing(app.session[])
-            # Close the session if it was created
-            try
-                close(app.session[])
-            catch close_err
-                @debug "Error closing session" exception = close_err
-            end
-        else
-            # Session was never set - create a closed dummy session
-            # so wait_for_ready doesn't wait forever
-            try
-                dummy = Session(NoConnection())
-                dummy.status = CLOSED
-                app.session[] = dummy
-            catch
-                # If even creating a dummy session fails, wait_for_ready will timeout
-            end
-        end
-    end
-
-    # Generate error HTML
-    error_html = HTTPServer.err_to_html(err, bt)
-
-    # If we have a ready parent session, try to send error to browser via evaljs
-    # This bypasses the rendering pipeline that might be broken
-    if !isnothing(parent_session) && isready(parent_session)
-        try
-            error_html_str = sprint(io -> show(io, MIME"text/html"(), error_html))
-            # Construct JSCode manually since @js_str isn't defined yet at include time
-            js_code = JSCode([
-                JSString("const target = document.getElementById('subsession-application-dom'); if (target) { target.innerHTML = "),
-                error_html_str,
-                JSString("; }")
-            ])
-            evaljs(parent_session, js_code)
-        catch err2
-            @error "Failed to display error in browser" exception = (err2, Base.catch_backtrace())
-        end
-    end
-
-    return error_html
-end
-
-function update_app!(parent::Session, new_app::App)
-    root = root_session(parent)
-    @assert root === parent "never call this function with a subsession"
+function handle_render_error(f, session::Session)
     try
-        update_session_dom!(parent, "subsession-application-dom", new_app)
+        return f()
     catch err
-        handle_app_error!(err, new_app, parent)
+        bt = Base.catch_backtrace()
+        @error "Error rendering app" exception = (err, bt)
+        session.init_error[] = err
+        return HTTPServer.err_to_html(err, bt)
     end
 end
-
 
 function rendered_dom(session::Session, app::App, target=HTTP.Request(); apply_jsrender=true)
     app.session[] = session
     session.current_app[] = app
-    try
+    return handle_render_error(session) do
         dom = Base.invokelatest(app.handler, session, target)
         if apply_jsrender
             dom = Base.invokelatest(jsrender, session, dom)
@@ -127,10 +81,19 @@ function rendered_dom(session::Session, app::App, target=HTTP.Request(); apply_j
             dom = DOM.div(dom, indicator_dom)
         end
         return dom
-    catch err
-        html = HTTPServer.err_to_html(err, Base.catch_backtrace())
-        return jsrender(session, html)
     end
+end
+
+# Live-update a sub-app inside an already-displayed parent session. The render
+# path through `update_session_dom!` → `render_subsession` → `session_dom` →
+# `rendered_dom` is wrapped by `handle_render_error`, so an erroring `new_app`
+# produces an UpdateSession message containing the error DOM. The browser
+# swaps it in the same way it would have swapped a successful render. No
+# try/catch needed here.
+function update_app!(parent::Session, new_app::App)
+    @assert root_session(parent) === parent "never call this function with a subsession"
+    update_session_dom!(parent, "subsession-application-dom", new_app)
+    return new_app
 end
 
 function bind_global(session::Session, var::AbstractObservable{T}) where T
@@ -192,7 +155,8 @@ function update_app!(handler::DisplayHandler, app::App)
     # the connection is open, so we can just use it to update the dom!
     old_session = handler.current_app.session[]
     handler.current_app = app
-    if isready(handler.session)
+    # `throw=false`: branching on connection state, not waiting for ready.
+    if isready(handler.session; throw=false)
         if !isnothing(old_session)
             close(old_session)
         end
@@ -205,45 +169,37 @@ function update_app!(handler::DisplayHandler, app::App)
 end
 
 function HTTPServer.apply_handler(handler::DisplayHandler, context)
-    try
-        # we only allow one open tab/browser to show the browser display
-        # Multiple sessions wouldn't be too hard, but that means we'd need manage multiple right here
-        # And this is already complicated enough!
-        # so, if we serve the display handler url, it means to start fresh
-        # But if UNINITIALIZED, it's simply the first request to the page!
-        parent = handler.session
-        not_initialized = parent.status != UNINITIALIZED
-        changed_compression = parent.compression_enabled != default_compression()
-        ForcedCon = FORCED_CONNECTION[]
-        changed_connection = !isnothing(ForcedCon) && !(parent.connection isa ForcedCon)
-        # We need to create a new session if either of these happen
-        if not_initialized || changed_compression || changed_connection
-            @debug("creating new Session for unititialized display handler")
-            parent = HTTPSession(handler.server) # new session
-            handler.session = parent
-        end
-        sub = Session(parent)
-        # Use indicator from user's app on the parent wrapper (only root has indicator)
-        parent_dom = session_dom(parent, App(nothing; indicator=handler.current_app.indicator, loading_page=nothing); html_document=true)
-        sub_dom = session_dom(sub, handler.current_app)
-
-        # first time rendering in a subsession, we put the
-        # subsession dom as a bonito fragment into the parent body
-        _, parent_body, _ = find_head_body(parent_dom)
-        push!(children(parent_body), sub_dom)
-        html_str = sprint(io -> print_as_page(io, parent_dom))
-        # The closing time is calculated from here
-        # If after 20s after rendering and sending the HTML to the browser
-        # no connection is established, it will be assumed that the browser never connected
-        mark_displayed!(parent)
-        mark_displayed!(sub)
-        return html(html_str)
-    catch err
-        # Use unified error handling - closes app session to prevent wait_for_ready hang
-        error_html = handle_app_error!(err, handler.current_app, nothing)
-        html_str = sprint(io -> print_as_page(io, error_html))
-        return html(html_str)
+    # we only allow one open tab/browser to show the browser display
+    # Multiple sessions wouldn't be too hard, but that means we'd need manage multiple right here
+    # And this is already complicated enough!
+    # so, if we serve the display handler url, it means to start fresh
+    # But if UNINITIALIZED, it's simply the first request to the page!
+    parent = handler.session
+    not_initialized = parent.status != UNINITIALIZED
+    changed_compression = parent.compression_enabled != default_compression()
+    ForcedCon = FORCED_CONNECTION[]
+    changed_connection = !isnothing(ForcedCon) && !(parent.connection isa ForcedCon)
+    if not_initialized || changed_compression || changed_connection
+        @debug("creating new Session for unititialized display handler")
+        parent = HTTPSession(handler.server)
+        handler.session = parent
     end
+    sub = Session(parent)
+    # Render-time errors are absorbed by `handle_render_error` inside
+    # `rendered_dom` — we get back a valid Node either way (success DOM or
+    # inline error HTML) and the page wrap finishes normally. Infrastructure
+    # failures (Session ctor, find_head_body, sprint, …) propagate to the
+    # HTTPServer's `delegate` which returns a 500.
+    parent_dom = session_dom(parent, App(nothing; indicator=handler.current_app.indicator, loading_page=nothing); html_document=true)
+    sub_dom = session_dom(sub, handler.current_app)
+    _, parent_body, _ = find_head_body(parent_dom)
+    push!(children(parent_body), sub_dom)
+    html_str = sprint(io -> print_as_page(io, parent_dom))
+    # The closing time is calculated from here. If after 20s no connection is
+    # established the browser is assumed to have never connected.
+    mark_displayed!(parent)
+    mark_displayed!(sub)
+    return html(html_str)
 end
 
 function wait_for_ready(app::App; timeout=100)

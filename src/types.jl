@@ -146,6 +146,33 @@ mutable struct SubConnection <: FrontendConnection
     isopen::Bool
 end
 
+"""
+    SessionIO <: IO
+
+Reusable IO scratch space for streaming nested msgpack Extension payloads. Held
+on the owning `Session` so the IOBuffers that back nested-extension packing
+(SerializedMessage → cache/data extensions → inner objects extension) are
+allocated once per session and reused for every outbound message.
+
+Internally:
+* `output` — the destination IOBuffer (set per top-level pack call).
+* `scratches` — a per-depth stack of reusable scratch IOBuffers; lazily grown,
+  reset (capacity preserved) on each reuse via `reset_for_reuse!`.
+* `depth` — current nesting depth; `0` writes go to `output`, `>=1` go to
+  `scratches[depth]`.
+* `lock` — single-task happy path on a `ReentrantLock`. Bonito.send is normally
+  serialized through one Task but yield points within a packing call could let
+  another Task try to use the same `SessionIO`, so we guard it.
+"""
+mutable struct SessionIO <: IO
+    output::Union{Nothing, IOBuffer}
+    scratches::Vector{IOBuffer}
+    depth::Int
+    lock::Base.ReentrantLock
+end
+
+SessionIO() = SessionIO(nothing, IOBuffer[], 0, Base.ReentrantLock())
+
 struct SessionCache
     session_id::String
     # Must preserve insertion order for nested observable serialization.
@@ -158,6 +185,9 @@ struct SerializedMessage
     cache::SessionCache
     data::Any
     compression::Bool
+    # Captured from the originating Session so pack_type can stream through the
+    # session's reusable scratch buffers without allocating per-message.
+    pack_io::SessionIO
 end
 
 struct BinaryMessage
@@ -240,6 +270,14 @@ struct ConnectionIndicator <: AbstractConnectionIndicator
     top::String
     right::String
     style::Styles
+    # When the JS-side websocket exhausts its retry budget (~30s by default)
+    # the LED alone is too easy to miss. With `offline_banner=true` (default)
+    # we also pop a fixed top banner with a Reload button so the operator gets
+    # an unambiguous prompt instead of a silently-dead page. Set false to
+    # restore the LED-only behavior.
+    offline_banner::Bool
+    offline_message::String
+    offline_button_label::String
 end
 
 function ConnectionIndicator(;
@@ -252,6 +290,14 @@ function ConnectionIndicator(;
     top::String="10px",
     right::String="10px",
     style::Styles=Styles(),
+    offline_banner::Bool=true,
+    # Phrased so a routine idle drop (laptop slept, tab backgrounded, server
+    # restarted) reads as "expected — just reload" instead of "something
+    # broke". "Paused" rather than "lost" because state on the server side
+    # generally survives a reload (apps that put their state in
+    # ServerState-style structs, like BonitoTeam, recover transparently).
+    offline_message::String="Connection paused after idle. Reload to reconnect.",
+    offline_button_label::String="Reload",
 )
     return ConnectionIndicator(
         connected_color,
@@ -263,6 +309,9 @@ function ConnectionIndicator(;
         top,
         right,
         style,
+        offline_banner,
+        offline_message,
+        offline_button_label,
     )
 end
 
@@ -285,14 +334,24 @@ mutable struct Session{Connection <: FrontendConnection}
     on_document_load::Vector{JSCode}
     connection_ready::Channel{Bool}
     on_connection_ready::Function
-    # Should be checkd on connection_ready to see if an error occured
-    init_error::RefValue{Union{Nothing,JSException}}
+    # Recorded failure for this session: either a frontend init error (set by
+    # protocol.jl when JS reports an exception during init) or a render-time
+    # error (set by `handle_render_error` in `rendered_dom`'s catch). Surfaced
+    # by `isready(session)` (which throws it by default), so any `wait_for_ready`
+    # or runtime check learns the cause instead of seeing a silent closed
+    # session. Sites that only care about connection state opt out with
+    # `isready(session; throw=false)`.
+    init_error::RefValue{Union{Nothing,Exception}}
     js_comm::Observable{Union{Nothing, Dict{String, Any}}}
     on_close::Observable{Bool}
     deregister_callbacks::Vector{Observables.ObserverFunction}
     session_objects::Dict{String, Any}
-    # For rendering Hyperscript.Node, and giving them a unique id inside the session
-    dom_uuid_counter::Int
+    # For rendering Hyperscript.Node, and giving them a unique id inside the session.
+    # Atomic because `uuid(session, node)` (rendering/hyperscript_integration.jl)
+    # is called from any task that touches a render — concurrent renders would
+    # otherwise hand out the same id to multiple nodes, causing JS-side DOM
+    # lookups by data-jscall-id to collide. See test/race_conditions_audit.jl F6.
+    dom_uuid_counter::Threads.Atomic{Int}
     # For rendering Styles
     style_counter::Int
     ignore_message::RefValue{Function}
@@ -308,6 +367,10 @@ mutable struct Session{Connection <: FrontendConnection}
     threadid::Int
     # User metadata storage - accessed via root session
     metadata::Dict{Symbol, Any}
+    # Reusable scratch IO for streaming nested msgpack Extension payloads —
+    # one per session, captured by every SerializedMessage built from this
+    # session so pack_type can avoid per-message IOBuffer allocs.
+    pack_io::SessionIO
 
     function Session(
             parent::Union{Session, Nothing},
@@ -319,12 +382,12 @@ mutable struct Session{Connection <: FrontendConnection}
             on_document_load::Vector{JSCode},
             connection_ready::Channel{Bool},
             on_connection_ready::Function,
-            init_error::Ref{Union{Nothing, JSException}},
+            init_error::Ref{Union{Nothing, Exception}},
             js_comm::Observable{Union{Nothing, Dict{String, Any}}},
             on_close::Observable{Bool},
             deregister_callbacks::Vector{Observables.ObserverFunction},
             session_objects::Dict{String, Any},
-            dom_uuid_counter::Int,
+            dom_uuid_counter::Int,   # caller passes plain Int; we wrap in Atomic below
             ignore_message::RefValue{Function},
             imports::OrderedSet{Asset},
             title::String,
@@ -349,7 +412,7 @@ mutable struct Session{Connection <: FrontendConnection}
             on_close,
             deregister_callbacks,
             session_objects,
-            dom_uuid_counter,
+            Threads.Atomic{Int}(dom_uuid_counter),
             1,
             ignore_message,
             imports,
@@ -362,7 +425,8 @@ mutable struct Session{Connection <: FrontendConnection}
             OrderedDict{HTMLElement,OrderedSet{CSS}}(),
             inbox,
             Threads.threadid(),
-            Dict{Symbol, Any}()
+            Dict{Symbol, Any}(),
+            SessionIO()
         )
 
         task = Task() do
@@ -415,7 +479,7 @@ function Session(connection=default_connection();
                 on_document_load=JSCode[],
                 connection_ready=Channel{Bool}(1),
                 on_connection_ready=init_session,
-                init_error=Ref{Union{Nothing, JSException}}(nothing),
+                init_error=Ref{Union{Nothing, Exception}}(nothing),
                 js_comm=Observable{Union{Nothing, Dict{String, Any}}}(nothing),
                 on_close=Observable(false),
                 deregister_callbacks=Observables.ObserverFunction[],

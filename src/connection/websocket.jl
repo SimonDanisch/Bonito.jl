@@ -153,7 +153,14 @@ function allow_soft_close(policy::DefaultCleanupPolicy=CLEANUP_POLICY[])
 end
 
 function cleanup_server(server::Server)
-    remove = Set{FrontendConnection}()
+    # Lock-order discipline: `close(session)` acquires `deletion_lock`,
+    # whose body eventually calls `delete_websocket_route!` which takes
+    # `server.websocket_routes.lock`. Holding `websocket_routes.lock`
+    # *while* calling close therefore inverts the order any user-initiated
+    # close uses (deletion_lock → routes_lock) — the two paths can
+    # deadlock. Snapshot the to-close set under routes_lock, RELEASE it,
+    # then close. See test/race_conditions_audit.jl F7.
+    remove = FrontendConnection[]
     lock(server.websocket_routes.lock) do
         for (route, connection) in server.websocket_routes.table
             if connection isa FrontendConnection
@@ -163,10 +170,14 @@ function cleanup_server(server::Server)
                 end
             end
         end
-        for connection in remove
-            if !isnothing(connection.session)
-                session = connection.session
+    end
+    for connection in remove
+        session = connection.session
+        if !isnothing(session)
+            try
                 close(session)
+            catch e
+                @warn "cleanup_server: close(session) raised" exception=(e, Base.catch_backtrace())
             end
         end
     end

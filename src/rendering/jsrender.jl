@@ -36,14 +36,21 @@ end
 
 function render_mime(session::Session, m::MIME"text/plain", @nospecialize(value))
     if value isa AbstractString
-        return DOM.span(convert(String, value))
+        str = convert(String, value)
+        if has_ansi_codes(str)
+            return jsrender(session, RichText(str))
+        end
+        return DOM.span(str)
     end
     if session.io_context[] isa Nothing
-        ctx = IOContext(Base.stdout, :limit => true)
+        ctx = IOContext(Base.stdout, :limit => true, :color => true)
     else
         ctx = session.io_context[]
     end
     val = Base.invokelatest(repr, m, value; context=ctx)
+    if has_ansi_codes(val)
+        return jsrender(session, RichText(val))
+    end
     return DOM.span(val; style="white-space: pre-wrap", class="text-plain")
 end
 
