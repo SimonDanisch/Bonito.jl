@@ -640,8 +640,6 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
             pushfirst!(children(body), jsrender(session, init_connection))
         end
 
-        push_dependencies!(children(head), session)
-
         if init
             msgs = get_messages!(session)
             type = issubsession ? "sub" : "root"
@@ -651,6 +649,16 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
             """
             pushfirst!(children(body), inline_code(session, session.asset_server, init_session))
         end
+
+        # `push_dependencies!` MUST come after `get_messages!` — message
+        # serialization is what triggers `print_js_code` for any
+        # `$(es6module)` interpolations inside `js"..."` blocks, and that
+        # is what registers the asset into `session.imports`. If we ran
+        # `push_dependencies!` first, those modules would be missing from
+        # the head and the browser couldn't start parsing them in
+        # parallel with the bootstrap bin — every `$(es6module).then`
+        # would pay the full dynamic-import-after-bin-runs latency.
+        push_dependencies!(children(head), session)
 
         if !issubsession
             pushfirst!(children(head), Bonito_import)

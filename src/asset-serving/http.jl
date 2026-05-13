@@ -109,6 +109,29 @@ function js_to_local_stacktrace(server::HTTPAssetServer, line::AbstractString)
     return replace(line, ASSET_URL_REGEX => to_url)
 end
 
+# Cache-Control profiles for the two asset shapes we serve. The URLs we
+# emit are content-keyed in different ways, which determines whether
+# `immutable` is safe:
+#
+#   * BinaryAsset            → URL key is hash(asset.data); URL changes
+#                              whenever bytes change. Safe to mark
+#                              immutable.
+#   * Asset with es6module=true → URL has a `?<content_hash>` query suffix
+#                              from `asset.content_hash`. Same property.
+#                              Safe to mark immutable.
+#   * Plain Asset            → URL key is hash(abspath(local_path)) only.
+#                              The path is stable; the file's bytes are
+#                              not. Marking immutable would freeze a
+#                              stale copy in browser caches across
+#                              deploys. Use a moderate max-age so deploys
+#                              propagate within a day.
+const CACHE_CONTROL_IMMUTABLE = "public, max-age=31536000, immutable"
+const CACHE_CONTROL_MUTABLE   = "public, max-age=86400, must-revalidate"
+
+@inline _cache_control_for(asset::BinaryAsset) = CACHE_CONTROL_IMMUTABLE
+@inline _cache_control_for(asset::Asset)       =
+    asset.es6module ? CACHE_CONTROL_IMMUTABLE : CACHE_CONTROL_MUTABLE
+
 function (server::HTTPAssetServer)(context)
     path = URIs.URI(context.request.target).path
     # Hold server.lock around the Dict access — `close(::ChildAssetServer)`
@@ -123,7 +146,8 @@ function (server::HTTPAssetServer)(context)
     if asset !== nothing
         if asset isa BinaryAsset
             header = ["Access-Control-Allow-Origin" => "*",
-                "Content-Type" => asset.mime]
+                "Content-Type" => asset.mime,
+                "Cache-Control" => _cache_control_for(asset)]
             return HTTP.Response(200, header; body=asset.data)
         else
             data = nothing
@@ -137,6 +161,7 @@ function (server::HTTPAssetServer)(context)
             if !isnothing(data)
                 header = ["Access-Control-Allow-Origin" => "*",
                     "Content-Type" => file_mimetype(local_path(asset)),
+                    "Cache-Control" => _cache_control_for(asset),
                 ]
                 return HTTP.Response(200, header, body = data)
             end
