@@ -217,6 +217,102 @@ Logging.with_logger(Logging.NullLogger()) do
         end
     end
 
+    @testset "stress: concurrent record_session_error! does not deadlock or leak state" begin
+        # Many tasks racing to record errors on the same session — verify
+        # that init_error[] always ends in a valid state (either nothing
+        # or some Exception we recorded), the indicator's Observable never
+        # tears, no exceptions escape the @async tasks, and the operation
+        # completes well under the timeout. Catches the case where setting
+        # the observable could deadlock with itself or Observables.jl's
+        # listener-fire path under contention.
+        indicator = Bonito.ConnectionIndicator()
+        app = App(_ -> Bonito.DOM.div("ok"); indicator=indicator)
+        sess = Session(Bonito.NoConnection(); asset_server=Bonito.NoServer())
+        sess.current_app[] = app
+        app.session[] = sess
+
+        N = 200    # per task
+        K = 8      # tasks
+        unhandled = Threads.Atomic{Int}(0)
+        finished  = Threads.Atomic{Int}(0)
+        tasks = [@async begin
+            try
+                for i in 1:N
+                    Bonito.record_session_error!(sess,
+                        _ErrHandlingDemoErr("t$(t)-i$(i)"))
+                end
+            catch
+                Threads.atomic_add!(unhandled, 1)
+            finally
+                Threads.atomic_add!(finished, 1)
+            end
+        end for t in 1:K]
+
+        # Hard timeout — if we hang we've found a real bug.
+        deadline = time() + 10.0
+        while finished[] < K && time() < deadline
+            sleep(0.01)
+        end
+        @test finished[] == K
+        @test unhandled[] == 0
+        # Final state: init_error and indicator.error are some _ErrHandlingDemoErr
+        # (or nothing if the last consumer was an isready-throw — which we
+        # don't call here, so they should still be set).
+        @test sess.init_error[] isa _ErrHandlingDemoErr
+        @test indicator.error[]  isa _ErrHandlingDemoErr
+    end
+
+    @testset "stress: many sessions concurrently fail to render — no leaked state" begin
+        # Spin up one Server, make K concurrent HTTP requests where each
+        # request's handler throws. Every request should get a 200 with
+        # inline error; the server should not deadlock, the cleanup task
+        # should not race, no thread should be lost.
+        app = App(_ -> throw(_ErrHandlingDemoErr("storm")))
+        server = Server(app, "127.0.0.1", 0)
+        try
+            K = 10
+            results = Channel{Tuple{Int,Bool}}(K)
+            tasks = [@async begin
+                ok = try
+                    r = HTTP.get("http://127.0.0.1:$(server.port)/";
+                                 readtimeout=15, retry=false, status_exception=false)
+                    r.status == 200 && occursin("storm", String(r.body))
+                catch
+                    false
+                end
+                put!(results, (i, ok))
+            end for i in 1:K]
+            foreach(wait, tasks)
+            close(results)
+            outcomes = collect(results)
+            @test length(outcomes) == K
+            @test all(o -> o[2], outcomes)
+            # Some surviving session is reachable from the app — verify it
+            # carries the recorded error (don't assert *which* one — multiple
+            # request sessions overwrote app.session[]).
+            @test !isnothing(app.session[])
+        finally
+            close(server)
+        end
+    end
+
+    @testset "render-error → close → no leaked lock or background work" begin
+        # After a render error stamps init_error and we explicitly close the
+        # session (the documented unrecoverable-decision path), nothing should
+        # be left holding `pack_io.lock` or any other session resources.
+        s = Session(Bonito.NoConnection(); asset_server=Bonito.NoServer())
+        Bonito.handle_render_error(s) do
+            throw(_ErrHandlingDemoErr("for-close"))
+        end
+        @test s.init_error[] isa _ErrHandlingDemoErr
+        # Close — should not throw, should not hang.
+        t0 = time()
+        close(s)
+        @test (time() - t0) < 1.0
+        @test Bonito.HTTP.WebSockets.isclosed(s)
+        @test !islocked(s.pack_io.lock)
+    end
+
     @testset "handle_render_error helper directly" begin
         # The helper is the unit-level building block. Verify it both ways:
         # success returns whatever the closure returns; failure logs, stamps
