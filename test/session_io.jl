@@ -23,11 +23,11 @@ const _SESSION_IO_DEMO_MSG = Dict{String,Any}(
 # halfway through `pack_extension!` and check the scratch state recovers.
 struct _Unpackable end
 
-make_session() = Session(NoConnection(); asset_server=NoServer())
+make_io_session() = Session(NoConnection(); asset_server=NoServer())
 
 @testset "SessionIO" begin
     @testset "buffer reuse: identical bytes across repeated sends" begin
-        s = make_session()
+        s = make_io_session()
         m = _SESSION_IO_DEMO_MSG
         bytes_first = serialize_binary(SerializedMessage(s, m))
         # Same session, same message — the scratch buffers were grown and reset.
@@ -45,7 +45,7 @@ make_session() = Session(NoConnection(); asset_server=NoServer())
         # Each Session owns its own pack_io. Two sessions packing the SAME
         # message in lockstep should both produce their own-session shape and
         # never accidentally share state.
-        s1, s2 = make_session(), make_session()
+        s1, s2 = make_io_session(), make_io_session()
         m = _SESSION_IO_DEMO_MSG
         # Interleave: pack on s1, s2, s1, s2, s2, s1 — order shouldn't matter.
         b1a = serialize_binary(SerializedMessage(s1, m))
@@ -66,7 +66,7 @@ make_session() = Session(NoConnection(); asset_server=NoServer())
         # for SerializedMessage gets called with `io::SessionIO`, not
         # `io::IOBuffer`. The nested path must use the active SessionIO
         # context, not try to bootstrap a new one onto its captured pack_io.
-        s = make_session()
+        s = make_io_session()
         sm1 = SerializedMessage(s, Dict{String,Any}(
             "msg_type" => Bonito.UpdateObservable, "id" => "a", "payload" => 1))
         sm2 = SerializedMessage(s, Dict{String,Any}(
@@ -86,7 +86,7 @@ make_session() = Session(NoConnection(); asset_server=NoServer())
         # next send doesn't deadlock) and the SessionIO state must reset on
         # next entry — depth back to 0, scratches reset — otherwise the next
         # message would inherit dirty bytes.
-        s = make_session()
+        s = make_io_session()
         bad = Dict{String,Any}(
             "msg_type" => Bonito.UpdateObservable, "id" => "bad", "payload" => _Unpackable())
         sm_bad = SerializedMessage(s, bad)
@@ -110,7 +110,7 @@ make_session() = Session(NoConnection(); asset_server=NoServer())
         # Multiple tasks sending on the same Session race for pack_io.lock.
         # A correct implementation produces one valid output per send and
         # never leaves the SessionIO in a half-written state.
-        s = make_session()
+        s = make_io_session()
         m = _SESSION_IO_DEMO_MSG
         expected = serialize_binary(SerializedMessage(s, m))
         results = Channel{Vector{UInt8}}(64)
@@ -135,7 +135,7 @@ make_session() = Session(NoConnection(); asset_server=NoServer())
         # stale bytes past its real size — reset_for_reuse! must reset
         # io.size / io.ptr, not just truncate (which would keep capacity but
         # also stale data past the new size if size were left untouched).
-        s = make_session()
+        s = make_io_session()
         big = Dict{String,Any}(
             "msg_type" => Bonito.UpdateObservable, "id" => "big", "payload" => rand(Float32, 4096))
         small = Dict{String,Any}(
@@ -145,7 +145,7 @@ make_session() = Session(NoConnection(); asset_server=NoServer())
         # Compare to a fresh-session bytes for the same small payload — if
         # stale big bytes leaked, the small-after-big would be longer or
         # have different contents than small-on-a-fresh-session.
-        s_fresh = make_session()
+        s_fresh = make_io_session()
         # Use the same session id so the embedded id matches.
         s_fresh.id = s.id
         bytes_small_clean = serialize_binary(SerializedMessage(s_fresh, small))

@@ -15,7 +15,7 @@
 # like `Session()` ctor failures (returns 500). User-handler errors never
 # reach it.
 
-using Test, Bonito, HTTP
+using Test, Bonito, HTTP, Logging
 using Bonito: Server, App, Session
 
 struct _ErrHandlingDemoErr <: Exception
@@ -40,6 +40,15 @@ function _wait_until(cond; timeout=2.0)
 end
 
 @testset "error handling" begin
+# Every sub-testset in this file intentionally triggers a handler/render
+# exception so we can verify the recovery path (init_error stamping,
+# indicator update, no-hang `wait_for_ready`). Bonito's library code
+# logs each of those via `@error "Error rendering app"` / `@error "Error
+# wrapping page"`, which is the right behavior at runtime — but in the
+# test log it looks like the suite is exploding. Silence it locally so
+# the actual test summary stays readable; tests still assert the error
+# was caught and surfaced through the documented mechanisms.
+Logging.with_logger(Logging.NullLogger()) do
     @testset "handler throws → 200 with inline error, init_error sticky" begin
         app = App() do session
             throw(_ErrHandlingDemoErr("boom"))
@@ -223,4 +232,5 @@ end
         @test s2.init_error[] isa _ErrHandlingDemoErr
         @test s2.init_error[].msg == "inner"
     end
-end
+end  # Logging.with_logger
+end  # @testset "error handling"

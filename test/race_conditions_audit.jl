@@ -24,7 +24,7 @@ using Bonito: Session, NoConnection, NoServer, add_cached!, process_message,
               UpdateObservable, JSDoneLoading, GetSessionDOM, free, CLOSED,
               MsgPack, Observable, on, root_session
 
-fresh_offline_session() = Session(NoConnection(); asset_server = NoServer())
+audit_offline_session() = Session(NoConnection(); asset_server = NoServer())
 
 # Outer wrapper: nested @testset failures get *recorded* and the file
 # keeps going; top-level @testset failures *throw* and abort include().
@@ -40,7 +40,7 @@ fresh_offline_session() = Session(NoConnection(); asset_server = NoServer())
     failures = Threads.Atomic{Int}(0)
     n_iter_with_keyerror = Threads.Atomic{Int}(0)
     for _ in 1:n_iter
-        session = fresh_offline_session()
+        session = audit_offline_session()
         # Larger dict widens the race window — each free() spends more time
         # iterating + popping, so the two tasks overlap reliably.
         for _ in 1:200
@@ -121,7 +121,7 @@ end
 # concurrent renders can both produce the same id, which collides on the
 # JS side (`data-jscall-id="42"` resolves to whichever was inserted last).
 @testset "F6: dom_uuid_counter must produce unique ids under concurrent renders" begin
-    session = fresh_offline_session()
+    session = audit_offline_session()
     n_threads    = 16
     n_per_thread = 2_000
 
@@ -151,7 +151,7 @@ end
     keys_dropped  = Threads.Atomic{Int}(0)
 
     for _ in 1:n_iter
-        root = fresh_offline_session()
+        root = audit_offline_session()
         # Set up a child sub the GetSessionDOM handler can target.
         sub = Session(root)
         # Provision an "app" so update_subsession_dom doesn't bail out
@@ -205,7 +205,7 @@ end
     callback_after_close = Threads.Atomic{Int}(0)
 
     for _ in 1:n_iter
-        root = fresh_offline_session()
+        root = audit_offline_session()
         sub  = Session(root)
         sub.current_app[] = Bonito.App(()->DOM.div("noop"))
         # Override on_connection_ready so we can detect it firing.
@@ -247,7 +247,7 @@ end
     n_iter = 50
     leaked = Threads.Atomic{Int}(0)
     for _ in 1:n_iter
-        root = fresh_offline_session()
+        root = audit_offline_session()
         sub  = Session(root)
         comm = Observable{Any}(nothing)
         # Register through the same path evaljs_value uses (caching.jl:19-32).
@@ -455,7 +455,7 @@ end
 # We verify by counting how often the listener fires. Once is correct;
 # more than once means re-entry happened.
 @testset "F12: on_close listener that calls close() must not re-enter" begin
-    session = fresh_offline_session()
+    session = audit_offline_session()
     fire_count = Ref(0)
     on(session.on_close) do _v
         fire_count[] += 1
