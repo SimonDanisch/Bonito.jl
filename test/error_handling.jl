@@ -90,11 +90,16 @@ Logging.with_logger(Logging.NullLogger()) do
             r = Base.isready(sess; throw=false)
             @test r isa Bool
 
-            # Re-stamp and confirm `throw=false` returns false without throwing
-            # AND that init_error stays set (only the throwing path consumes).
+            # Re-stamp and confirm `throw=false` is a pure connection-state
+            # check: it ignores `init_error[]` entirely. This matters for
+            # `_send`'s queue-or-write decision — once an error is recorded,
+            # we still want the `JSUpdateObservable` carrying
+            # `indicator.error[] = err` to go out on the wire, not get
+            # silently queued because the session has a recorded failure.
             sess.init_error[] = _ErrHandlingDemoErr("again")
-            @test Base.isready(sess; throw=false) == false
-            @test sess.init_error[] isa _ErrHandlingDemoErr
+            r = Base.isready(sess; throw=false)
+            @test r isa Bool                            # never throws
+            @test sess.init_error[] isa _ErrHandlingDemoErr  # not consumed
         finally
             close(server)
         end

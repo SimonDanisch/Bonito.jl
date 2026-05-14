@@ -320,21 +320,24 @@ ready for usage" without that annotation cannot accidentally ignore a
 recorded failure.
 """
 function Base.isready(session::Session; throw::Bool=true)
-    if !isnothing(session.init_error[])
-        if throw
-            err = session.init_error[]
-            session.init_error[] = nothing
-            # Surface the error without tearing the WS down. The session may
-            # still be usable (a runtime listener crashed; the frontend init
-            # reported a problem; …) and any `JSUpdateObservable` carrying
-            # `indicator.error[] = err` needs the WS alive to reach the
-            # browser so the indicator can render the cause. If a caller
-            # decides the session is unrecoverable, they `close(session)`
-            # explicitly.
-            Base.throw(err)
-        else
-            return false
-        end
+    # `throw=true` (default) surfaces a recorded init/render error first, then
+    # falls through to the connection check. The throw is consume-on-read so
+    # the same exception doesn't fire on every poll. We don't close the session
+    # — runtime errors leave the WS alive on purpose, so the
+    # `JSUpdateObservable` carrying `indicator.error[] = err` reaches the
+    # browser and any further runtime traffic (evaljs_value, observable
+    # updates, …) keeps flowing. Callers decide whether the session is
+    # unrecoverable and call `close(session)` explicitly if so.
+    #
+    # `throw=false` answers "is the WS ready right now?" only — used by
+    # `_send`'s queue-or-write decision, the heartbeat, `show_session`, etc.
+    # Those callers want the live connection state regardless of any
+    # recorded failure, so they don't get blocked sending updates (notably
+    # the indicator-error update itself) when init_error is set.
+    if throw && !isnothing(session.init_error[])
+        err = session.init_error[]
+        session.init_error[] = nothing
+        Base.throw(err)
     end
     isclosed(session) && return false
     return isready(session.connection_ready) && isopen(session)
