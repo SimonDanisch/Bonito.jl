@@ -452,23 +452,15 @@ mutable struct Session{Connection <: FrontendConnection}
         end
         bind(inbox, task)
         schedule(task)
-        # Safety-net finalizer for sessions that get GC'd without explicit
-        # close. The expected lifecycle is `close(session)` on the way out
-        # (session.jl), which tears down the asset_server, inbox, and
-        # connection. If the user drops a Session reference without close,
-        # we still want those torn down — but the finalizer must NOT block.
-        # Defer to a fresh task: `@async` only schedules, no Julia-level
-        # lock taken. See asset-serving/http.jl for the full rationale on
-        # why finalizers must be lock-free.
-        finalizer(session) do s
-            isclosed(s) && return
-            @async try
-                close(s)
-            catch e
-                @debug "deferred close from finalizer failed" exception=(e, catch_backtrace())
-            end
-            nothing
-        end
+        # No Session-level finalizer: when a Session is dropped without
+        # explicit close, its internal cycle (Session → inbox → bound
+        # task → closure → Session) is GC-collectable on its own — Julia
+        # collects unreachable cycles, so the closure capture isn't a
+        # GC root. The orphan-cleanup that matters (releasing the child
+        # asset_server's refcount contributions on the parent server)
+        # is done by `finalizer(::ChildAssetServer)` in
+        # asset-serving/http.jl, which fires when the Session-led cycle
+        # is collected. We don't need a second finalizer here.
         return session
     end
 end

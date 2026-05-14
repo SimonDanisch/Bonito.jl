@@ -22,24 +22,45 @@ end
 # so close is O(this child's files) — not O(all files in the parent) like the
 # old design that scanned every entry's objectid set.
 #
-# No finalizer: cleanup is logical (memory + dict entries), not a real
-# resource (no socket / file handle / process). The owning Session calls
-# `close` on its asset_server in `Base.close(::Session)`. If a Session is
-# GC'd without explicit close, its child's entries linger until the parent
-# server closes — a bounded leak with no security or correctness impact.
-# A Session-level finalizer in `types.jl` provides a defensive `@async close`
-# safety net for that case (see `Session(...)` ctor).
+# Finalizer: schedules `close(self)` via `@async`. Required because a Session
+# can become unreachable without ever being explicitly closed — at which
+# point its `asset_server::ChildAssetServer` is also collectable, and this
+# finalizer is the only thing that releases the refcount contributions on
+# the parent. The internal Session→inbox→bound-task→closure→Session cycle
+# does NOT keep a Session alive (Julia's GC collects unreachable cycles),
+# so the orphan-without-close case is real. Examples: the DisplayHandler
+# update path that replaces a not-yet-ready session and drops the old one;
+# tests that construct Sessions without owning them past test scope; bare
+# `ChildAssetServer` constructions in scratch code. Without this finalizer
+# those entries leak until the parent server closes.
 #
-# Why no finalizer here: a finalizer that takes `parent.lock` is unsound —
-# the GC may run finalizers on a task currently in `wait()`, and a slow-lock
-# from there either yields ("task switch not allowed from inside gc
+# Why `@async` and not direct `close`: the GC may run finalizers on a task
+# currently in `wait()`, and `close` takes `parent.lock`. A slow-lock from
+# that context either yields ("task switch not allowed from inside gc
 # finalizer") or push!es the current task onto a second wait queue,
-# corrupting the linked list ("val already in a list"). Avoiding the
-# finalizer entirely is structural, not a workaround.
+# corrupting the linked list ("val already in a list"). `@async` only
+# `schedule`s — no Julia-level lock taken — so the actual lock-acquiring
+# work runs on a fresh task, fully decoupled from the GC.
 mutable struct ChildAssetServer <: AbstractAssetServer
     parent::HTTPAssetServer
     files::Set{String}
-    ChildAssetServer(parent::HTTPAssetServer) = new(parent, Set{String}())
+    function ChildAssetServer(parent::HTTPAssetServer)
+        child = new(parent, Set{String}())
+        finalizer(child) do c
+            # `@async close(c)` would silently swallow any exception from
+            # close — nobody waits on this task, so errors vanish (and the
+            # cleanup wouldn't actually happen). Wrap explicitly: log on
+            # failure, never propagate (the finalizer must complete cleanly
+            # — it's running on whatever task the GC interrupted).
+            @async try
+                close(c)
+            catch e
+                @warn "ChildAssetServer finalizer close failed" exception=(e, catch_backtrace())
+            end
+            nothing
+        end
+        return child
+    end
 end
 
 const MATCH_HEX = r"[\da-f]"
