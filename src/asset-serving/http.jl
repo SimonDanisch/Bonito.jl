@@ -1,24 +1,45 @@
 using .HTTPServer: has_route, get_route, route!
 
+# Per-asset registry on the parent server. `refcount` is the number of live
+# `ChildAssetServer`s that have registered this path; `asset` is the actual
+# data being served. When refcount drops to zero (last child closed) the
+# entry is removed and the bytes become collectible.
+struct AssetEntry
+    refcount::Int
+    asset::AbstractAsset
+end
+
 mutable struct HTTPAssetServer <: AbstractAssetServer
-    # Reference count the files/binary assets, so we can clean them up for child sessions
-    registered_files::Dict{String,Tuple{Set{UInt}, AbstractAsset}}
+    # Single source of truth: every served asset, keyed by its content URL.
+    # Refcount is incremented by `register!(child, asset)` and decremented by
+    # `close(child)`. Mutated only under `lock`.
+    files::Dict{String, AssetEntry}
     server::Server
     lock::ReentrantLock
 end
 
-# AssetServer that uses HTTPAssetServer to host the files
-# We need to have this, to keep track of files that are registered by child sessions
-# So we can clean them up if the child session gets closed.
-# We track them in the parent via `registered_files::Dict{String,Tuple{Set{UInt},Union{String, BinaryAsset}}}`
-# Where the Set{UInt} is the set of all ChildAssetServer's objectids that have registered the file
+# A handle owned by a single `Session`. Holds the set of paths IT registered,
+# so close is O(this child's files) — not O(all files in the parent) like the
+# old design that scanned every entry's objectid set.
+#
+# No finalizer: cleanup is logical (memory + dict entries), not a real
+# resource (no socket / file handle / process). The owning Session calls
+# `close` on its asset_server in `Base.close(::Session)`. If a Session is
+# GC'd without explicit close, its child's entries linger until the parent
+# server closes — a bounded leak with no security or correctness impact.
+# A Session-level finalizer in `types.jl` provides a defensive `@async close`
+# safety net for that case (see `Session(...)` ctor).
+#
+# Why no finalizer here: a finalizer that takes `parent.lock` is unsound —
+# the GC may run finalizers on a task currently in `wait()`, and a slow-lock
+# from there either yields ("task switch not allowed from inside gc
+# finalizer") or push!es the current task onto a second wait queue,
+# corrupting the linked list ("val already in a list"). Avoiding the
+# finalizer entirely is structural, not a workaround.
 mutable struct ChildAssetServer <: AbstractAssetServer
     parent::HTTPAssetServer
-    function ChildAssetServer(parent::HTTPAssetServer)
-        server = new(parent)
-        finalizer(close, server)
-        return server
-    end
+    files::Set{String}
+    ChildAssetServer(parent::HTTPAssetServer) = new(parent, Set{String}())
 end
 
 const MATCH_HEX = r"[\da-f]"
@@ -40,7 +61,7 @@ function HTTPAssetServer(server::Server)
         if has_route(server.routes, key)
             return ChildAssetServer(get_route(server.routes, key))
         else
-            http = HTTPAssetServer(Dict{String,Tuple{Set{UInt},AbstractAsset}}(), server, ReentrantLock())
+            http = HTTPAssetServer(Dict{String,AssetEntry}(), server, ReentrantLock())
             route!(server, HTTP_ASSET_ROUTE_KEY => http)
             return ChildAssetServer(http)
         end
@@ -53,46 +74,73 @@ Base.similar(s::ChildAssetServer) = ChildAssetServer(s.parent)
 function Base.close(server::HTTPAssetServer)
     @debug "Closing HTTPAssetServer"
     HTTPServer.delete_route!(server.server, HTTP_ASSET_ROUTE_KEY)
-    empty!(server.registered_files)
+    lock(server.lock) do
+        empty!(server.files)
+    end
 end
 
+# Release this child's claim on every path it registered. Each path's refcount
+# drops by 1; when a refcount hits 0 (last holder gone) the entry is dropped.
+# Idempotent: a second close is a no-op (the child's own `files` set is empty).
 function Base.close(server::ChildAssetServer)
-    lock(server.parent.lock) do
-        id = objectid(server)
-        to_delete = Set{String}()
-        reg_files = server.parent.registered_files
-        for (key, (refs, _)) in reg_files
-            delete!(refs, id)
-            isempty(refs) && push!(to_delete, key)
+    parent = server.parent
+    lock(parent.lock) do
+        for path in server.files
+            entry = get(parent.files, path, nothing)
+            entry === nothing && continue
+            if entry.refcount <= 1
+                delete!(parent.files, path)
+            else
+                parent.files[path] = AssetEntry(entry.refcount - 1, entry.asset)
+            end
         end
-        foreach(key -> delete!(reg_files, key), to_delete)
+        empty!(server.files)
     end
 end
 
-function refs_and_url(server, asset::AbstractAsset)
-    key = "/assets/" * unique_file_key(asset)
-    refs, _ = get!(server.registered_files, key) do
-        return (Set{UInt}(), asset)
+# Caller must hold `parent.lock`. Registers `asset` under its content key
+# (incrementing refcount if it already exists), records the path on `child`,
+# and returns the URL the browser should fetch.
+function register!(parent::HTTPAssetServer, child::ChildAssetServer, asset::AbstractAsset)
+    path = "/assets/" * unique_file_key(asset)
+    if path in child.files
+        # This child already holds a ref — don't double-count.
+        entry = parent.files[path]
+        return entry, path
     end
-    if asset isa Asset && asset.es6module
-        key = key * "?" * asset.content_hash[]
-    end
-    return refs, HTTPServer.relative_url(server.server, key)
+    entry = get(parent.files, path, nothing)
+    entry = entry === nothing ?
+        AssetEntry(1, asset) :
+        AssetEntry(entry.refcount + 1, entry.asset)
+    parent.files[path] = entry
+    push!(child.files, path)
+    return entry, path
 end
 
 function url(server::HTTPAssetServer, asset::AbstractAsset)
     is_online(asset) && return online_path(asset)
+    # Bare HTTPAssetServer (no child) — register a single ref under a synthetic
+    # holder by inserting directly. Used by code paths that talk to the parent
+    # without owning a child handle (e.g. `js_to_local_url`).
     lock(server.lock) do
-        return refs_and_url(server, asset)[2]
+        path = "/assets/" * unique_file_key(asset)
+        if !haskey(server.files, path)
+            server.files[path] = AssetEntry(1, asset)
+        end
+        suffix = (asset isa Asset && asset.es6module) ?
+            "?" * asset.content_hash[] : ""
+        return HTTPServer.relative_url(server.server, path * suffix)
     end
 end
 
 function url(child::ChildAssetServer, asset::AbstractAsset)
-    lock(child.parent.lock) do
-        is_online(asset) && return online_path(asset)
-        refs, _url = refs_and_url(child.parent, asset)
-        push!(refs, objectid(child))
-        return _url
+    is_online(asset) && return online_path(asset)
+    parent = child.parent
+    lock(parent.lock) do
+        _, path = register!(parent, child, asset)
+        suffix = (asset isa Asset && asset.es6module) ?
+            "?" * asset.content_hash[] : ""
+        return HTTPServer.relative_url(parent.server, path * suffix)
     end
 end
 
@@ -102,8 +150,8 @@ function js_to_local_url(server::HTTPAssetServer, url::AbstractString)
         return url
     else
         key = URIs.URI(m[1]).path
-        _, asset = server.registered_files[string(key)]
-        return local_path(asset) * ":" * m[2]
+        entry = lock(() -> server.files[string(key)], server.lock)
+        return local_path(entry.asset) * ":" * m[2]
     end
 end
 
@@ -140,13 +188,12 @@ const CACHE_CONTROL_MUTABLE   = "public, max-age=86400, must-revalidate"
 function (server::HTTPAssetServer)(context)
     path = URIs.URI(context.request.target).path
     # Hold server.lock around the Dict access — `close(::ChildAssetServer)`
-    # mutates `registered_files` (delete!) under the same lock; without
-    # this guard, a concurrent close can corrupt the Dict mid-fetch (or
-    # delete the entry between our haskey and getindex). See
-    # test/race_conditions_audit.jl F4.
+    # mutates `files` (delete!) under the same lock; without this guard, a
+    # concurrent close can corrupt the Dict mid-fetch (or delete the entry
+    # between our haskey and getindex). See test/race_conditions_audit.jl F4.
     asset = lock(server.lock) do
-        rf = server.registered_files
-        haskey(rf, path) ? rf[path][2] : nothing
+        entry = get(server.files, path, nothing)
+        entry === nothing ? nothing : entry.asset
     end
     if asset !== nothing
         if asset isa BinaryAsset

@@ -67,32 +67,34 @@ audit_offline_session() = Session(NoConnection(); asset_server = NoServer())
 end
 
 # ── F4 ─────────────────────────────────────────────────────────────────────
-# `(server::HTTPAssetServer)(context)` reads `registered_files` outside
+# `(server::HTTPAssetServer)(context)` reads `files` outside
 # the lock; `close(child::ChildAssetServer)` mutates it under the lock.
 # Concurrent close + handler invocation races a Dict mutation against
 # Dict reads. We bypass HTTP.jl by exercising the exact handler hot path
-# (`haskey` + `getindex`) since that's where the race lives.
+# (`get` under lock) since that's where the race lives.
 @testset "F4: HTTPAssetServer handler must take server.lock" begin
-    using Bonito: BinaryAsset
+    using Bonito: BinaryAsset, AssetEntry, register!
     # Spin up a real Bonito.Server so we can get an honest HTTPAssetServer.
     srv = Bonito.Server(Bonito.App(()->DOM.div("noop")), "127.0.0.1", 0)
     parent = Bonito.HTTPAssetServer(srv)         # returns a ChildAssetServer
     asset_server = parent.parent                  # the real HTTPAssetServer
 
     # Drive the actual patched handler hot path concurrently with
-    # `close(child)`. With the F4 fix, the handler reads `registered_files`
-    # under `server.lock` (asset-serving/http.jl ~119), which serializes
-    # against the `delete!` in `Base.close(::ChildAssetServer)`.
+    # `close(child)`. With the F4 fix, the handler reads `files` under
+    # `server.lock` (asset-serving/http.jl), which serializes against the
+    # refcount-decrement / delete! in `Base.close(::ChildAssetServer)`.
     n_iter   = 200
     failures = Threads.Atomic{Int}(0)
     for _ in 1:n_iter
         child = Bonito.ChildAssetServer(asset_server)
         keys_set = String[]
-        for i in 1:50
-            path = "/assets/race-$(rand(UInt32))-$(i).bin"
-            push!(keys_set, path)
-            asset = BinaryAsset(b"hello", "application/octet-stream")
-            asset_server.registered_files[path] = (Set{UInt}([objectid(child)]), asset)
+        # Use the public register! API so the new refcount discipline holds.
+        lock(asset_server.lock) do
+            for i in 1:50
+                asset = BinaryAsset(rand(UInt8, 16), "application/octet-stream")
+                _, path = register!(asset_server, child, asset)
+                push!(keys_set, path)
+            end
         end
 
         # Race close() vs. the patched lookup pattern.
@@ -101,8 +103,8 @@ end
             for k in keys_set
                 # Mirrors the patched handler in asset-serving/http.jl:
                 lock(asset_server.lock) do
-                    rf = asset_server.registered_files
-                    haskey(rf, k) ? rf[k][2] : nothing
+                    entry = get(asset_server.files, k, nothing)
+                    entry === nothing ? nothing : entry.asset
                 end
             end
         catch _
@@ -113,6 +115,78 @@ end
     @info "F4 summary" failures=failures[]
     try close(srv) catch end
     @test failures[] == 0
+end
+
+# ── F4b ────────────────────────────────────────────────────────────────────
+# Finalizers must not slow-lock. The GC may run finalizers on a task
+# currently inside `wait()`; entering `slowlock` from there either yields
+# ("task switch not allowed from inside gc finalizer") or push!es the
+# current task onto a *second* wait queue, corrupting the linked list
+# ("val already in a list"). The pre-refactor design registered
+# `finalizer(close, ::ChildAssetServer)` and `close` took `parent.lock`.
+# Under suite-level memory pressure (loading_page leaving sessions
+# unfinalized + race_conditions_audit allocating, all on the same Julia
+# process), this surfaced as stderr noise during the suite run.
+#
+# Post-refactor, ChildAssetServer has no finalizer at all (Session.close
+# handles cleanup; a Session-level @async-close finalizer is the orphan
+# safety net). This test pins that contract: pile up many orphaned children
+# while a worker holds the lock + force GC, and assert no finalizer-error
+# lines land on stderr.
+@testset "F4b: finalizers must not slow-lock asset_server.lock" begin
+    srv = Bonito.Server(Bonito.App(()->DOM.div("noop")), "127.0.0.1", 0)
+    parent = Bonito.HTTPAssetServer(srv).parent
+
+    captured = String[]
+    old_stderr = stderr
+    pipe = Pipe()
+    redirect_stderr(pipe)
+    reader = @async begin
+        try
+            while !eof(pipe)
+                push!(captured, readline(pipe))
+            end
+        catch end
+    end
+
+    try
+        for batch in 1:10
+            for _ in 1:200
+                child = Bonito.ChildAssetServer(parent)
+                # Touch parent.files via the public API so each orphan
+                # actually has refcount entries to leak.
+                lock(parent.lock) do
+                    for i in 1:5
+                        Bonito.register!(parent, child,
+                            BinaryAsset(rand(UInt8, 8), "application/octet-stream"))
+                    end
+                end
+            end
+            # Hold the lock contended while we force GC; finalizers (if any
+            # were still installed by accident) would fire here under
+            # contention and emit the failure mode.
+            busy = Threads.@spawn lock(parent.lock) do
+                sleep(0.02)
+            end
+            sleep(0.001)
+            GC.gc(true)
+            wait(busy)
+        end
+    finally
+        close(Base.pipe_writer(pipe))
+        sleep(0.3)
+        redirect_stderr(old_stderr)
+        try close(pipe) catch end
+    end
+
+    n_finalizer_errs = count(l -> occursin("error in running finalizer", l), captured)
+    n_val_in_list    = count(l -> occursin("val already in a list", l), captured)
+    n_no_switch      = count(l -> occursin("task switch not allowed", l), captured)
+    @info "F4b summary" finalizer_errs=n_finalizer_errs val_in_list=n_val_in_list no_switch=n_no_switch
+    try close(srv) catch end
+    @test n_finalizer_errs == 0
+    @test n_val_in_list    == 0
+    @test n_no_switch      == 0
 end
 
 # ── F6 ─────────────────────────────────────────────────────────────────────
