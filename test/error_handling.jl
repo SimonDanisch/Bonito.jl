@@ -313,6 +313,131 @@ Logging.with_logger(Logging.NullLogger()) do
         @test !islocked(s.pack_io.lock)
     end
 
+    @testset "reconnect after stale error: no deadlock, error stays sticky" begin
+        # Realistic flow: a render error stamps `init_error` and
+        # `indicator.error[]`, the browser receives the JSUpdateObservable for
+        # the indicator, the user reloads the tab. The reconnect lands a
+        # JSDoneLoading on a session whose `connection_ready` channel is
+        # already filled. Pre-fix that re-`put!`'d the channel — it would
+        # block forever because Channel{Bool}(1) is already full, and since
+        # `init_session` holds `deletion_lock`, the entire session deadlocks.
+        # The current guard `if !isready(connection_ready)` makes reconnect a
+        # no-op on the signal. Verify the whole chain is sound under repeated
+        # reconnects, with a stale error still in flight.
+        indicator = Bonito.ConnectionIndicator()
+        app = App(_ -> Bonito.DOM.div("ok"); indicator=indicator)
+        sess = Session(Bonito.NoConnection(); asset_server=Bonito.NoServer())
+        sess.current_app[] = app
+        app.session[] = sess
+
+        err = _ErrHandlingDemoErr("stale-on-reconnect")
+        Bonito.record_session_error!(sess, err)
+        @test sess.init_error[] === err
+        @test indicator.error[] === err
+
+        # First "connect" — flips connection_ready and (with a real
+        # connection) would set status=OPEN. NoConnection never reports
+        # `isopen`, so init_session exits early without touching status,
+        # which is irrelevant to the contract under test. What matters:
+        # init_session must NOT touch init_error (it doesn't take the
+        # throwing isready path). The stale error must remain visible to
+        # any caller that asks the session for its readiness.
+        Bonito.init_session(sess)
+        @test isready(sess.connection_ready)         # Channel signal flipped
+        @test sess.init_error[] === err
+        @test indicator.error[] === err
+
+        # Simulate 5 browser reconnects firing back-to-back. Each must
+        # complete fast (no deadlock on the Channel{Bool}(1) re-put) and
+        # leave the error untouched.
+        t0 = time()
+        for _ in 1:5
+            Bonito.init_session(sess)
+        end
+        @test (time() - t0) < 1.0
+        @test sess.init_error[] === err
+        @test indicator.error[] === err
+
+        # Hammer it concurrently — multiple inbox tasks can in principle
+        # deliver overlapping JSDoneLoadings. Verify we don't lose the
+        # deletion_lock and don't lose the recorded error.
+        K = 16
+        done = Threads.Atomic{Int}(0)
+        tasks = [@async begin
+            try
+                Bonito.init_session(sess)
+            finally
+                Threads.atomic_add!(done, 1)
+            end
+        end for _ in 1:K]
+        deadline = time() + 5.0
+        while done[] < K && time() < deadline
+            sleep(0.01)
+        end
+        @test done[] == K
+        @test sess.init_error[] === err
+        @test indicator.error[] === err
+        @test !islocked(sess.deletion_lock)
+
+        # And the contract for `isready`: throwing form still surfaces the
+        # original cause exactly once, then the slot consumes.
+        @test_throws _ErrHandlingDemoErr Base.isready(sess)
+        @test isnothing(sess.init_error[])
+        # Indicator observable is a separate channel (browser-facing); not
+        # consumed by the Julia-side isready throw.
+        @test indicator.error[] === err
+    end
+
+    @testset "soak: error → recover → error → recover loop is stable" begin
+        # Run the full failure → record → consume cycle many times on a single
+        # long-lived session. Catches GC-pressure / observable-listener-leak /
+        # lock-acquire-leak issues that only manifest after thousands of
+        # iterations. We're not testing correctness of any single step (other
+        # tests cover that) — we're testing that nothing accumulates.
+        indicator = Bonito.ConnectionIndicator()
+        app = App(_ -> Bonito.DOM.div("ok"); indicator=indicator)
+        sess = Session(Bonito.NoConnection(); asset_server=Bonito.NoServer())
+        sess.current_app[] = app
+        app.session[] = sess
+        # Keep a reference to the underlying ObserverFunction list so we can
+        # sanity-check the indicator isn't growing without bound.
+        listeners_before = length(indicator.error.listeners)
+
+        N = 1000
+        unhandled = Threads.Atomic{Int}(0)
+        t0 = time()
+        for i in 1:N
+            try
+                Bonito.record_session_error!(sess, _ErrHandlingDemoErr("iter $i"))
+                # Simulate the recovery probe: isready(throw=true) consumes.
+                try
+                    Base.isready(sess)
+                catch
+                    # expected
+                end
+            catch
+                Threads.atomic_add!(unhandled, 1)
+            end
+        end
+        elapsed = time() - t0
+        @test unhandled[] == 0
+        # After N iterations of (record → isready-consume), init_error is empty
+        # but indicator.error still carries the most recent (it's a separate
+        # channel, intentionally — see other tests).
+        @test isnothing(sess.init_error[])
+        @test indicator.error[] isa _ErrHandlingDemoErr
+        # No listener leak — we never registered or deregistered, so the count
+        # must be unchanged.
+        @test length(indicator.error.listeners) == listeners_before
+        # Loose throughput sanity bound — should run in <1s per ~1k iters on
+        # any modern machine. If it doesn't, GC is choking, which is itself
+        # the bug.
+        @test elapsed < 5.0
+        # Lock isn't stuck.
+        @test !islocked(sess.deletion_lock)
+        @test !islocked(sess.pack_io.lock)
+    end
+
     @testset "handle_render_error helper directly" begin
         # The helper is the unit-level building block. Verify it both ways:
         # success returns whatever the closure returns; failure logs, stamps
