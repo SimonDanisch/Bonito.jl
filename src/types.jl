@@ -141,11 +141,6 @@ end
 abstract type FrontendConnection end
 abstract type AbstractAssetServer end
 
-mutable struct SubConnection <: FrontendConnection
-    connection::FrontendConnection
-    isopen::Bool
-end
-
 """
     SessionIO <: IO
 
@@ -326,143 +321,189 @@ function ConnectionIndicator(;
 end
 
 """
-A web session with a user
+Root-only session state. One `RootSession` exists per real connection (per
+session tree). Holds the OS-level connection, the receive inbox, deletion
+lock, msgpack scratch IO, and other resources that subsessions share via
+their parent chain rather than duplicating per-sub.
+
+A subsession's "where do I belong" is its parent `Session`; a root's is
+this `RootSession`. The two cases are mutually exclusive — encoded by
+the `Session.parent_or_root::Union{RootSession{Con}, Session{Con}}` field.
+"""
+mutable struct RootSession{Connection <: FrontendConnection}
+    connection::Connection
+    inbox::Channel{Vector{UInt8}}
+    js_comm::Observable{Union{Nothing, Dict{String, Any}}}
+    # For rendering Hyperscript.Node and giving them a unique id inside the
+    # session tree. Atomic because `uuid(session, node)` (in
+    # rendering/hyperscript_integration.jl) is called from any task that touches
+    # a render — concurrent renders would otherwise hand out the same id to
+    # multiple nodes, causing JS-side DOM lookups by data-jscall-id to collide.
+    # See test/race_conditions_audit.jl F6.
+    dom_uuid_counter::Threads.Atomic{Int}
+    compression_enabled::Bool
+    deletion_lock::Base.ReentrantLock
+    threadid::Int
+    # User metadata storage. Always accessed via the root.
+    metadata::Dict{Symbol, Any}
+end
+
+"""
+A web session — the root of a session tree, or a subsession attached to a
+parent. The `parent_or_root` field encodes which: a `RootSession{Con}` for a
+root, a parent `Session{Con}` for a subsession (`isroot(s)` discriminates).
+
+Subsessions are intentionally lightweight: they share the root's connection,
+inbox, locks, and msgpack scratch via the parent chain. They allocate only
+their own per-render state (asset_server handle, on_close, session_objects,
+imports, stylesheets, etc.).
 """
 mutable struct Session{Connection <: FrontendConnection}
+    # Set at construction, never reassigned (Julia 1.8+ `const` field).
+    # - `RootSession{Con}`  → this session is the root of the tree
+    # - `Session{Con}`      → this session is a sub; field points to its parent
+    const parent_or_root::Union{RootSession{Connection}, Session{Connection}}
     status::SessionStatus
     closing_time::Float64
-    parent::Union{Session, Nothing}
-    children::Dict{String, Session{SubConnection}}
+    children::Dict{String, Session{Connection}}
     id::String
-    # The connection to the JS frontend.
-    # Currently can be IJuliaConnection, WebsocketConnection, PlutoConnection, NoConnection
-    connection::Connection
-    # The way we serve any file asset
+    # The way we serve any file asset.
     asset_server::AbstractAssetServer
+    # Outgoing messages waiting for the connection to come up. Each session has
+    # its own queue; `init_session` flushes per-session on the JS-side ready signal.
     message_queue::Vector{SerializedMessage}
-    # Code that gets evalued last after all other messages, when session gets connected
+    # Code that gets evalued last after all other messages, when this session
+    # gets connected.
     on_document_load::Vector{JSCode}
+    # One-shot signal flipped when this session's frontend reports ready.
     connection_ready::Channel{Bool}
     on_connection_ready::Function
     # Recorded failure for this session: either a frontend init error (set by
     # protocol.jl when JS reports an exception during init) or a render-time
     # error (set by `handle_render_error` in `rendered_dom`'s catch). Surfaced
-    # by `isready(session)` (which throws it by default), so any `wait_for_ready`
-    # or runtime check learns the cause instead of seeing a silent closed
-    # session. Sites that only care about connection state opt out with
-    # `isready(session; throw=false)`.
-    init_error::RefValue{Union{Nothing,Exception}}
-    js_comm::Observable{Union{Nothing, Dict{String, Any}}}
+    # by `isready(session)` (which throws it by default), so any
+    # `wait_for_ready` or runtime check learns the cause instead of seeing a
+    # silent closed session. Sites that only care about connection state opt
+    # out with `isready(session; throw=false)`.
+    init_error::RefValue{Union{Nothing, Exception}}
     on_close::Observable{Bool}
     deregister_callbacks::Vector{Observables.ObserverFunction}
     session_objects::Dict{String, Any}
-    # For rendering Hyperscript.Node, and giving them a unique id inside the session.
-    # Atomic because `uuid(session, node)` (rendering/hyperscript_integration.jl)
-    # is called from any task that touches a render — concurrent renders would
-    # otherwise hand out the same id to multiple nodes, causing JS-side DOM
-    # lookups by data-jscall-id to collide. See test/race_conditions_audit.jl F6.
-    dom_uuid_counter::Threads.Atomic{Int}
-    # For rendering Styles
-    style_counter::Int
+    # Per-session message filter — `_send` consults this to drop outgoing
+    # messages when the export pipeline is recording state.
     ignore_message::RefValue{Function}
+    # For rendering Styles.
+    style_counter::Int
     imports::OrderedSet{Asset}
     global_stylesheets::OrderedSet{Styles}
     title::String
-    compression_enabled::Bool
-    deletion_lock::Base.ReentrantLock
     current_app::RefValue{Any}
     io_context::RefValue{Union{Nothing, IOContext}}
     stylesheets::OrderedDict{HTMLElement, OrderedSet{CSS}}
-    inbox::Channel{Vector{UInt8}}
-    threadid::Int
-    # User metadata storage - accessed via root session
-    metadata::Dict{Symbol, Any}
-    # Reusable scratch IO for streaming nested msgpack Extension payloads —
-    # one per session, captured by every SerializedMessage built from this
-    # session so pack_type can avoid per-message IOBuffer allocs.
+    # Reusable scratch IO for streaming nested msgpack Extension payloads.
+    # Per-session because pack hot-paths take this lock — root-shared would
+    # serialize concurrent renders across sub-sessions unnecessarily.
     pack_io::SessionIO
+end
 
-    function Session(
-            parent::Union{Session, Nothing},
-            children::Dict{String, Session{SubConnection}},
-            id::String,
-            connection::Connection,
-            asset_server::AbstractAssetServer,
-            message_queue::Vector{SerializedMessage},
-            on_document_load::Vector{JSCode},
-            connection_ready::Channel{Bool},
-            on_connection_ready::Function,
-            init_error::Ref{Union{Nothing, Exception}},
-            js_comm::Observable{Union{Nothing, Dict{String, Any}}},
-            on_close::Observable{Bool},
-            deregister_callbacks::Vector{Observables.ObserverFunction},
-            session_objects::Dict{String, Any},
-            dom_uuid_counter::Int,   # caller passes plain Int; we wrap in Atomic below
-            ignore_message::RefValue{Function},
-            imports::OrderedSet{Asset},
-            title::String,
-            compression_enabled::Bool,
-            n_inbox = Inf
-        ) where {Connection}
-        inbox = Channel{Vector{UInt8}}(n_inbox)
-        session = new{Connection}(
-            UNINITIALIZED,
-            time(),
-            parent,
-            children,
-            id,
-            connection,
-            asset_server,
-            message_queue,
-            on_document_load,
-            connection_ready,
-            on_connection_ready,
-            init_error,
-            js_comm,
-            on_close,
-            deregister_callbacks,
-            session_objects,
-            Threads.Atomic{Int}(dom_uuid_counter),
-            1,
-            ignore_message,
-            imports,
-            OrderedSet{Styles}(),
-            title,
-            compression_enabled,
-            Base.ReentrantLock(),
-            RefValue{Any}(nothing),
-            RefValue{Union{Nothing,IOContext}}(nothing),
-            OrderedDict{HTMLElement,OrderedSet{CSS}}(),
-            inbox,
-            Threads.threadid(),
-            Dict{Symbol, Any}(),
-            SessionIO()
-        )
+# ───── Lineage / accessors ─────────────────────────────────────────────────
 
-        task = Task() do
-            for message in inbox
-                @async try
-                    process_message(session, message)
-                catch e
-                    @warn "error while processing received msg" exception = (
-                        e, Base.catch_backtrace()
-                    )
-                end
-            end
-        end
-        bind(inbox, task)
-        schedule(task)
-        # No Session-level finalizer: when a Session is dropped without
-        # explicit close, its internal cycle (Session → inbox → bound
-        # task → closure → Session) is GC-collectable on its own — Julia
-        # collects unreachable cycles, so the closure capture isn't a
-        # GC root. The orphan-cleanup that matters (releasing the child
-        # asset_server's refcount contributions on the parent server)
-        # is done by `finalizer(::ChildAssetServer)` in
-        # asset-serving/http.jl, which fires when the Session-led cycle
-        # is collected. We don't need a second finalizer here.
-        return session
+"""
+    isroot(s::Session) -> Bool
+
+True if `s` is the root of its session tree (its `parent_or_root` is the
+`RootSession`, not a parent `Session`).
+"""
+isroot(s::Session) = getfield(s, :parent_or_root) isa RootSession
+
+"""
+    parent(s::Session) -> Union{Session, Nothing}
+
+Parent session, or `nothing` for roots. Matches the old `session.parent`
+semantics so callers don't need to change.
+"""
+function Base.parent(s::Session)
+    p = getfield(s, :parent_or_root)
+    return p isa Session ? p : nothing
+end
+
+"""
+    root_session(s::Session) -> Session
+
+The root `Session` of `s`'s session tree. Returns `s` itself if `s` is a root.
+"""
+function root_session(s::Session{Con}) where {Con}
+    cur = s
+    while !isroot(cur)
+        cur = getfield(cur, :parent_or_root)::Session{Con}
     end
+    return cur
+end
+
+"""
+    root_data(s::Session) -> RootSession
+
+The `RootSession` shared by everything in `s`'s session tree. Convenience for
+accessing root-only state (connection, inbox, locks, ...).
+"""
+function root_data(s::Session{Con}) where {Con}
+    return getfield(root_session(s), :parent_or_root)::RootSession{Con}
+end
+
+# ───── Convenience accessors for root-only fields ──────────────────────────
+
+inbox(s::Session)               = root_data(s).inbox
+connection(s::Session)          = root_data(s).connection
+js_comm(s::Session)             = root_data(s).js_comm
+dom_uuid_counter(s::Session)    = root_data(s).dom_uuid_counter
+compression_enabled(s::Session) = root_data(s).compression_enabled
+deletion_lock(s::Session)       = root_data(s).deletion_lock
+threadid_of(s::Session)         = root_data(s).threadid
+metadata_dict(s::Session)       = root_data(s).metadata
+
+# ───── getproperty / setproperty! shim ─────────────────────────────────────
+# Existing call sites use `session.foo` for fields that have moved to
+# RootSession. Route them through `root_data` so we don't have to rewrite
+# every caller in this refactor.
+
+const ROOT_ONLY_FIELDS = (
+    :connection, :inbox, :js_comm, :dom_uuid_counter,
+    :compression_enabled, :deletion_lock, :threadid, :metadata,
+)
+
+function Base.getproperty(s::Session, f::Symbol)
+    if f === :parent
+        return parent(s)
+    end
+    if f in ROOT_ONLY_FIELDS
+        return getfield(root_data(s), f)
+    end
+    return getfield(s, f)
+end
+
+function Base.setproperty!(s::Session, f::Symbol, v)
+    if f === :parent_or_root
+        error("Session.parent_or_root is `const`; set via the constructor")
+    end
+    if f === :parent
+        error("Session.parent is computed from parent_or_root; set via the constructor")
+    end
+    if f in ROOT_ONLY_FIELDS
+        return setfield!(root_data(s), f, v)
+    end
+    return setfield!(s, f, v)
+end
+
+function Base.propertynames(s::Session, private::Bool=false)
+    direct = (
+        :parent_or_root, :parent, :status, :closing_time, :children, :id,
+        :asset_server, :message_queue, :on_document_load, :connection_ready,
+        :on_connection_ready, :init_error, :on_close, :deregister_callbacks,
+        :session_objects, :ignore_message, :style_counter, :imports,
+        :global_stylesheets, :title, :current_app, :io_context, :stylesheets,
+        :pack_io,
+    )
+    return (direct..., ROOT_ONLY_FIELDS...)
 end
 
 struct BinaryAsset <: AbstractAsset
@@ -491,55 +532,128 @@ function JSException(session::Session, js_data::AbstractDict)
     return JSException(js_data["exception"], js_data["message"], stacktrace)
 end
 
-function Session(connection=default_connection();
-                id=string(uuid4()),
-                asset_server=default_asset_server(),
-                message_queue=SerializedMessage[],
-                on_document_load=JSCode[],
-                connection_ready=Channel{Bool}(1),
-                on_connection_ready=init_session,
-                init_error=Ref{Union{Nothing, Exception}}(nothing),
-                js_comm=Observable{Union{Nothing, Dict{String, Any}}}(nothing),
-                on_close=Observable(false),
-                deregister_callbacks=Observables.ObserverFunction[],
-                session_objects=Dict{String, Any}(),
-                imports=OrderedSet{Asset}(),
-                title="Bonito App",
-                compression_enabled=default_compression())
+"""
+    Session(connection::FrontendConnection=default_connection(); kwargs...) -> Session
 
-    return Session(
-        nothing,
-        Dict{String, Session{SubConnection}}(),
-        id,
+Construct a new root session. Allocates a fresh `RootSession` (holding the
+connection, inbox, locks, msgpack scratch, etc.), spawns the inbox-reader
+task, and returns the wrapping `Session`.
+"""
+function Session(connection::Connection=default_connection();
+                 id=string(uuid4()),
+                 asset_server=default_asset_server(),
+                 message_queue=SerializedMessage[],
+                 on_document_load=JSCode[],
+                 connection_ready=Channel{Bool}(1),
+                 on_connection_ready=init_session,
+                 init_error=Ref{Union{Nothing, Exception}}(nothing),
+                 js_comm=Observable{Union{Nothing, Dict{String, Any}}}(nothing),
+                 on_close=Observable(false),
+                 deregister_callbacks=Observables.ObserverFunction[],
+                 session_objects=Dict{String, Any}(),
+                 imports=OrderedSet{Asset}(),
+                 title="Bonito App",
+                 compression_enabled=default_compression(),
+                 ignore_message=RefValue{Function}(x -> false),
+                 n_inbox=Inf) where {Connection <: FrontendConnection}
+    inbox = Channel{Vector{UInt8}}(n_inbox)
+    root_state = RootSession{Connection}(
         connection,
+        inbox,
+        js_comm,
+        Threads.Atomic{Int}(0),
+        compression_enabled,
+        Base.ReentrantLock(),
+        Threads.threadid(),
+        Dict{Symbol, Any}(),
+    )
+    session = Session{Connection}(
+        root_state,                                     # parent_or_root
+        UNINITIALIZED,                                  # status
+        time(),                                         # closing_time
+        Dict{String, Session{Connection}}(),            # children
+        id,
         asset_server,
         message_queue,
         on_document_load,
         connection_ready,
         on_connection_ready,
         init_error,
-        js_comm,
         on_close,
         deregister_callbacks,
         session_objects,
-        0,
-        RefValue{Function}(x-> false),
+        ignore_message,
+        1,                                              # style_counter
         imports,
+        OrderedSet{Styles}(),                           # global_stylesheets
         title,
-        compression_enabled,
+        RefValue{Any}(nothing),                         # current_app
+        RefValue{Union{Nothing, IOContext}}(nothing),   # io_context
+        OrderedDict{HTMLElement, OrderedSet{CSS}}(),    # stylesheets
+        SessionIO(),                                    # pack_io
     )
+    # Inbox reader task. Captures `session` by reference so `process_message`
+    # can find it. The Channel keeps the task alive (via `bind`); the task
+    # exits when the channel is closed by `close(session)`. Julia's GC
+    # collects the resulting Session ↔ inbox ↔ task ↔ closure cycle once
+    # nothing outside it holds the session.
+    task = Task() do
+        for message in inbox
+            @async try
+                process_message(session, message)
+            catch e
+                @warn "error while processing received msg" exception = (
+                    e, Base.catch_backtrace()
+                )
+            end
+        end
+    end
+    bind(inbox, task)
+    schedule(task)
+    return session
 end
 
-function Session(parent_session::Session;
-    asset_server=similar(parent_session.asset_server),
-    on_connection_ready=init_session, title=parent_session.title)
+"""
+    Session(parent_session::Session; kwargs...) -> Session
+
+Create a sub-session attached to `parent_session`. Sub-sessions reuse the
+root's connection, inbox, locks, and msgpack scratch via the parent chain;
+only their per-render state (asset_server handle, on_close, session_objects,
+imports, stylesheets) is allocated fresh. No inbox task is spawned for subs.
+"""
+function Session(parent_session::Session{Connection};
+                 asset_server=similar(parent_session.asset_server),
+                 on_connection_ready=init_session,
+                 title=parent_session.title) where {Connection <: FrontendConnection}
     root = root_session(parent_session)
-    return lock(root.deletion_lock) do
-        connection = SubConnection(root)
-        session = Session(connection; asset_server=asset_server, on_connection_ready=on_connection_ready, title=title)
-        session.parent = parent_session
-        parent_session.children[session.id] = session
-        return session
+    return lock(deletion_lock(root)) do
+        sub = Session{Connection}(
+            parent_session,                                  # parent_or_root
+            UNINITIALIZED,
+            time(),
+            Dict{String, Session{Connection}}(),             # children
+            string(uuid4()),                                 # id
+            asset_server,
+            SerializedMessage[],                             # message_queue
+            JSCode[],                                        # on_document_load
+            Channel{Bool}(1),                                # connection_ready
+            on_connection_ready,
+            Ref{Union{Nothing, Exception}}(nothing),         # init_error
+            Observable(false),                               # on_close
+            Observables.ObserverFunction[],                  # deregister_callbacks
+            Dict{String, Any}(),                             # session_objects
+            RefValue{Function}(x -> false),                  # ignore_message
+            1,                                               # style_counter
+            OrderedSet{Asset}(),                             # imports
+            OrderedSet{Styles}(),                            # global_stylesheets
+            title,
+            RefValue{Any}(nothing),                          # current_app
+            RefValue{Union{Nothing, IOContext}}(nothing),    # io_context
+            OrderedDict{HTMLElement, OrderedSet{CSS}}(),     # stylesheets
+            SessionIO(),                                     # pack_io
+        )
+        parent_session.children[sub.id] = sub
+        return sub
     end
 end
 
@@ -609,7 +723,11 @@ mutable struct App
         loading_task = Base.RefValue{Union{Nothing, Task}}(nothing)
         app = new(n_handler, session, title, indicator, loading_page, loading_task)
         app.handler = create_handler(app, n_handler, loading_page)
-        finalizer(close, app)
+        # No finalizer. Session lifetime is owned by `root.children` (or by a
+        # buffer like `DisplayHandler.previous_session` / the observable
+        # double-buffer in `jsrender(::Session, ::Observable)`); those owners
+        # close the session when they replace it. The App itself just holds
+        # a back-ref via `app.session[]`; dropping the App is harmless.
         return app
     end
 end

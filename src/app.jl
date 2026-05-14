@@ -136,9 +136,17 @@ function HTTPServer.apply_handler(app::App, context)
 end
 
 function Base.close(app::App)
-    session = app.session[]
-    # Needs to be async because of finalizers (todo, figure out better ways!)
-    !isnothing(session) && free(session)
+    # NOTE: this used to call `free(session)`, but `free` only removes the
+    # session from `parent.children` and clears bookkeeping — it does NOT
+    # close `session.asset_server`. Calling it from App's finalizer (when
+    # the App was dropped without explicit close, e.g. update_app! replacing
+    # `handler.current_app`) silently leaked refcounts on the parent
+    # HTTPAssetServer.
+    #
+    # Now, App.close just drops the back-reference. The session itself is
+    # owned by whoever else holds it (root.children, the DisplayHandler's
+    # previous_session buffer, the observable double-buffer), and those
+    # owners are responsible for the eventual close cascade.
     app.session[] = nothing
 end
 
@@ -147,9 +155,17 @@ mutable struct DisplayHandler
     server::HTTPServer.Server
     route::String
     current_app::App
+    # Double-buffer: the previously-displayed app's session is kept alive
+    # for one more swap so an in-flight browser fetch for its assets still
+    # resolves. Closed when the next swap arrives, or on `close(handler)`.
+    previous_session::Union{Session, Nothing}
 end
 
 function Base.close(handler::DisplayHandler)
+    if !isnothing(handler.previous_session)
+        close(handler.previous_session)
+        handler.previous_session = nothing
+    end
     close(handler.session)
 end
 
@@ -166,7 +182,7 @@ end
 
 function DisplayHandler(server::HTTPServer.Server, app::App; route="/browser-display")
     session = HTTPSession(server)
-    handler = DisplayHandler(session, server, route, app)
+    handler = DisplayHandler(session, server, route, app, nothing)
     route!(server, route => handler)
     return handler
 end
@@ -177,9 +193,15 @@ function update_app!(handler::DisplayHandler, app::App)
     handler.current_app = app
     # `throw=false`: branching on connection state, not waiting for ready.
     if isready(handler.session; throw=false)
-        if !isnothing(old_session)
-            close(old_session)
+        # Double-buffer: close the older session (two swaps back), promote
+        # `old_session` to the previous slot. The browser may still be
+        # mid-fetch on `old_session`'s assets when we mount the new app —
+        # leaving it alive for one more swap gives those fetches a live
+        # ChildAssetServer to resolve against.
+        if !isnothing(handler.previous_session)
+            close(handler.previous_session)
         end
+        handler.previous_session = old_session
         update_app!(handler.session, app)
         return false
     else
@@ -201,6 +223,17 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
     changed_connection = !isnothing(ForcedCon) && !(parent.connection isa ForcedCon)
     if not_initialized || changed_compression || changed_connection
         @debug("creating new Session for unititialized display handler")
+        # Close the old root before replacing it. Otherwise its children +
+        # asset_server refcount contributions leak — this is exactly what
+        # the subsessions "server cleanup" test catches under
+        # Compression+DualWebsocket (which flips both globals between the
+        # two test passes, taking this branch). We also drop any buffered
+        # `previous_session` since it's a sub of the now-stale root.
+        if !isnothing(handler.previous_session)
+            close(handler.previous_session)
+            handler.previous_session = nothing
+        end
+        close(handler.session)
         parent = HTTPSession(handler.server)
         handler.session = parent
     end

@@ -60,8 +60,8 @@ function init_session(session::Session)
 end
 
 session(session::Session) = session
-Base.parent(session::Session) = session.parent
-root_session(session::Session) = isnothing(parent(session)) ? session : root_session(parent(session))
+# `Base.parent`, `isroot`, `root_session`, `root_data` are defined in types.jl
+# (they need to be visible alongside the Session struct).
 
 """
     get_metadata(session, key::Symbol)
@@ -146,6 +146,12 @@ function free(session::Session)
         # remove all listeners that where created for this session
         foreach(off, session.deregister_callbacks)
         empty!(session.deregister_callbacks)
+        # Asset/CSS bookkeeping that accumulated across this session's lifetime.
+        # The WGLMakie memory-leak test asserts these are empty after close;
+        # historically they leaked because nothing emptied them on the close path.
+        empty!(session.imports)
+        empty!(session.global_stylesheets)
+        empty!(session.stylesheets)
         session.status = CLOSED
     end
     return
@@ -157,15 +163,27 @@ function soft_close(session::Session)
 end
 
 function Base.close(session::Session)
-    lock(root_session(session).deletion_lock) do
+    if isroot(session)
+        close_root_session(session)
+    else
+        close_subsession(session)
+    end
+    return
+end
+
+# Close path for the ROOT of a session tree. Tears down OS-level resources
+# (the WS connection, the inbox channel) in addition to the per-session state
+# that `close_subsession` handles.
+function close_root_session(session::Session)
+    lock(deletion_lock(session)) do
         session.status === CLOSED && return
         # Capture + clear listeners under the lock, then fire them OUTSIDE
         # the lock so user `on(session.on_close)` handlers can do anything
         # they like (including `evaljs_value` which spawns its own task to
         # acquire deletion_lock) without deadlock or recursion. We also
-        # mark the session CLOSED before firing so a listener that
-        # re-enters `close()` short-circuits immediately on the guard
-        # above instead of recursing forever (test/race_conditions_audit.jl F12).
+        # mark the session CLOSED before firing so a listener that re-enters
+        # `close()` short-circuits immediately on the guard above instead of
+        # recursing forever (test/race_conditions_audit.jl F12).
         on_close_listeners = copy(session.on_close.listeners)
         Observables.clear(session.on_close)
 
@@ -173,24 +191,47 @@ function Base.close(session::Session)
             close(last(first(session.children))) # child removes itself from parent!
         end
         free(session)   # sets session.status = CLOSED
-        # unregister all cached objects from parent session
-        root = root_session(session)
-        # If we're a child session, we need to remove all objects tracked in our root session:
-        if session !== root
-            # Close child session on js side as well
-            # If not ready, we already lost connection to JS frontend, so no need to close things on the JS side
-            isready(root; throw=false) && evaljs(root, js"""Bonito.free_session($(session.id))""")
-        end
         close(session.asset_server)
         session.current_app[] = nothing
         session.io_context[] = nothing
-        close(session.inbox)
+        close(inbox(session))
         session.status = CLOSED
-        close(session.connection)
+        close(connection(session))
 
-        # Fire on_close listeners now — outside the lock, after the
-        # session is fully torn down. Listener exceptions are swallowed
-        # so one bad handler doesn't poison the close path.
+        for (_prio, f) in on_close_listeners
+            try
+                Base.invokelatest(f, true)
+            catch e
+                @warn "on_close listener threw" exception=(e, catch_backtrace())
+            end
+        end
+    end
+    return
+end
+
+# Close path for a SUBSESSION. Releases this subsession's per-render state
+# and its `asset_server` refcount contributions. Does NOT touch the root's
+# inbox or WS connection — those belong to the root and outlive any one sub.
+function close_subsession(session::Session)
+    root = root_session(session)
+    lock(deletion_lock(root)) do
+        session.status === CLOSED && return
+        on_close_listeners = copy(session.on_close.listeners)
+        Observables.clear(session.on_close)
+
+        while !isempty(session.children)
+            close(last(first(session.children)))
+        end
+        free(session)   # sets session.status = CLOSED
+        # Tell JS to drop its mirror of this sub-session.
+        # If the connection isn't ready (still initializing or already torn down),
+        # skip the message — there's nothing to tell.
+        isready(root; throw=false) && evaljs(root, js"""Bonito.free_session($(session.id))""")
+        close(session.asset_server)
+        session.current_app[] = nothing
+        session.io_context[] = nothing
+        session.status = CLOSED
+
         for (_prio, f) in on_close_listeners
             try
                 Base.invokelatest(f, true)
@@ -301,7 +342,14 @@ function HTTP.WebSockets.isclosed(session::Session)
     return session.status === CLOSED
 end
 
-Base.isopen(session::Session) = isopen(session.connection)
+function Base.isopen(session::Session)
+    # A session is "open" iff it hasn't been individually closed AND the
+    # root's transport is still alive. The status check handles the
+    # subsession-closed-but-root-still-alive case (we no longer wrap subs
+    # in their own SubConnection with a per-sub `isopen` flag).
+    session.status === CLOSED && return false
+    return isopen(connection(session))
+end
 
 """
     isready(session::Session; throw::Bool=true) -> Bool
@@ -516,8 +564,6 @@ function session_dom(session::Session, app::App; init=true, html_document=false)
     end
 end
 
-isroot(session::Session) = session.parent === nothing
-
 function push_dependencies!(childs, session::Session)
     require_off = DOM.script("""
         window.__define = window.define;
@@ -664,7 +710,13 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         if !isnothing(init_server)
             pushfirst!(children(body), jsrender(session, init_server))
         end
-        init_connection = setup_connection(session)
+        # Only roots get connection-init JS injected. Subsessions share
+        # the root's transport — running setup_connection for them would
+        # re-register the WS route under the sub's id, overwriting the
+        # WebSocketConnection.session field with the sub. The old design
+        # encoded this as `Session{SubConnection}` dispatching to a no-op;
+        # we now branch explicitly on isroot.
+        init_connection = isroot(session) ? setup_connection(session) : nothing
         if !isnothing(init_connection)
             pushfirst!(children(body), jsrender(session, init_connection))
         end

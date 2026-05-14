@@ -118,21 +118,20 @@ end
 end
 
 # ── F4b ────────────────────────────────────────────────────────────────────
-# Finalizers must not slow-lock. The GC may run finalizers on a task
-# currently inside `wait()`; entering `slowlock` from there either yields
-# ("task switch not allowed from inside gc finalizer") or push!es the
-# current task onto a *second* wait queue, corrupting the linked list
-# ("val already in a list"). The pre-refactor design registered
-# `finalizer(close, ::ChildAssetServer)` and `close` took `parent.lock`.
-# Under suite-level memory pressure (loading_page leaving sessions
-# unfinalized + race_conditions_audit allocating, all on the same Julia
-# process), this surfaced as stderr noise during the suite run.
+# Regression-prevention: finalizers must not slow-lock. The GC may run
+# finalizers on a task currently inside `wait()`; entering `slowlock` from
+# there either yields ("task switch not allowed from inside gc finalizer")
+# or push!es the current task onto a *second* wait queue, corrupting the
+# linked list ("val already in a list"). The pre-refactor design registered
+# `finalizer(close, ::ChildAssetServer)` and `close` took `parent.lock`,
+# which surfaced as stderr noise under memory pressure.
 #
-# Post-refactor, ChildAssetServer has no finalizer at all (Session.close
-# handles cleanup; a Session-level @async-close finalizer is the orphan
-# safety net). This test pins that contract: pile up many orphaned children
-# while a worker holds the lock + force GC, and assert no finalizer-error
-# lines land on stderr.
+# Post-refactor, `ChildAssetServer` has no finalizer at all — its lifetime
+# is owned by the enclosing `Session`, which closes it explicitly via
+# `close_subsession` / `close_root_session`. This test pins that contract
+# by hammering construction + GC under lock contention and asserting no
+# finalizer-related stderr lines appear. If anyone re-adds a finalizer
+# that takes a lock, the test will start failing again.
 @testset "F4b: finalizers must not slow-lock asset_server.lock" begin
     srv = Bonito.Server(Bonito.App(()->DOM.div("noop")), "127.0.0.1", 0)
     parent = Bonito.HTTPAssetServer(srv).parent
@@ -485,9 +484,9 @@ end
     # Real server bound to an ephemeral port. App is irrelevant — the
     # cleanup task only inspects websocket_routes.
     srv = Bonito.Server(Bonito.App(()->DOM.div("noop")), "127.0.0.1", 0)
-    # Construct a Session backed by a SubConnection routed through srv.
-    # We just need ONE Session whose `close` path will hit
-    # `delete_websocket_route!`.
+    # Construct a Session whose `close` path will hit
+    # `delete_websocket_route!`. NoConnection is fine for this race —
+    # what matters is the lock-order discipline, not the transport type.
     s_root = Session(Bonito.NoConnection(); asset_server = Bonito.NoServer())
 
     completed = Threads.Atomic{Int}(0)

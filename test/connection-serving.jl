@@ -62,7 +62,11 @@ s.proxy_url = ""
         GC.gc()
     end
     session = app.session[]
-    @test session.connection isa Bonito.SubConnection
+    # Subsessions no longer have their own SubConnection — they share the
+    # root's WS connection via the parent chain. Assert the structural
+    # property: app's session is a sub, root's connection is a real WS.
+    @test !Bonito.isroot(session)
+    @test session.connection === parent(session).connection
     @test parent(session).connection isa Bonito.AbstractWebsocketConnection
     @test isready(parent(session))
 end

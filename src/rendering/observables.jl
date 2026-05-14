@@ -86,14 +86,31 @@ function jsrender(session::Session, obs::Observable)
     # The element still exists in the DOM tree (Bonito uses it as the swap
     # anchor via uuid lookup), it just doesn't generate a CSS box.
     root_node = DOM.div(; style="display:contents")
-    old_sub, html = render_subsession(session, obs[]; init=true)
-    mark_displayed!(old_sub)
+    prev_sub, html = render_subsession(session, obs[]; init=true)
+    mark_displayed!(prev_sub)
+    # Double-buffer: keep the immediately-previous subsession alive across
+    # one render so an in-flight browser fetch for its assets (e.g. a
+    # threejs ES6 module the user just swapped away from) still resolves
+    # against a live `ChildAssetServer`. The "older" subsession — two
+    # renders back — is only closed when a new render arrives, by which
+    # time the browser has either finished fetching its assets or stopped
+    # caring (DOM removal cancels in-flight imports).
+    older_sub = nothing
     on(session, obs) do data
         new_sub = update_session_dom!(session, uuid(session, root_node), data; replace=false)
-        if new_sub !== old_sub
-            close(old_sub)
-            old_sub = new_sub
+        if new_sub !== prev_sub
+            older_sub !== nothing && close(older_sub)
+            older_sub = prev_sub
+            prev_sub = new_sub
         end
+        return
+    end
+    # When the parent session itself closes, drop both held subs. Listener
+    # exceptions are swallowed in close, but we keep handles separate so
+    # GC reclaims immediately.
+    on(session.on_close) do _
+        older_sub !== nothing && close(older_sub)
+        prev_sub !== nothing && close(prev_sub)
         return
     end
     push!(children(root_node), html)
