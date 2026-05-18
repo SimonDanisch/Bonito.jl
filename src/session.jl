@@ -209,24 +209,47 @@ function close_root_session(session::Session)
     return
 end
 
-# Close path for a SUBSESSION. Releases this subsession's per-render state
-# and its `asset_server` refcount contributions. Does NOT touch the root's
-# inbox or WS connection — those belong to the root and outlive any one sub.
-function close_subsession(session::Session)
+# Reactive teardown for a sub whose DOM has been swapped out but whose
+# `ChildAssetServer` should stay alive for one more render so in-flight
+# bundle fetches resolve. `free()` sets status=CLOSED, which makes
+# `JSUpdateObservable` and `init_session` bail — that's what closes the
+# race where a late JSDoneLoading round-trip would flush queued
+# UpdateObservables at DOM nodes JS already removed. The caller's
+# eventual `close(session)` (one render later via double-buffer) finishes
+# the job; everything below is idempotent over this detach.
+function detach_subsession!(session::Session)
     root = root_session(session)
     lock(deletion_lock(root)) do
         session.status === CLOSED && return
+        for child in values(session.children)
+            detach_subsession!(child)
+        end
+        free(session)
+        # on_close fires in close_subsession; asset_server stays open
+        # until then so in-flight fetches resolve.
+    end
+    return
+end
+
+# Subsession close. Idempotent over `detach_subsession!`: if detach
+# already ran, this picks up the asset_server, JS notify, and on_close
+# listeners. Does NOT touch the root's inbox or WS connection — those
+# belong to the root and outlive any one sub.
+function close_subsession(session::Session)
+    root = root_session(session)
+    lock(deletion_lock(root)) do
+        # Capture + clear listeners before any work so a re-entrant close
+        # bails on the cleared set instead of looping.
         on_close_listeners = copy(session.on_close.listeners)
         Observables.clear(session.on_close)
-
         while !isempty(session.children)
             close(last(first(session.children)))
         end
-        free(session)   # sets session.status = CLOSED
-        # Tell JS to drop its mirror of this sub-session.
-        # If the connection isn't ready (still initializing or already torn down),
-        # skip the message — there's nothing to tell.
+        free(session)   # no-op if detach already CLOSED us
+        # JS-side free; skip if the connection isn't ready (still
+        # initializing or already torn down).
         isready(root; throw=false) && evaljs(root, js"""Bonito.free_session($(session.id))""")
+        # ChildAssetServer.close is idempotent.
         close(session.asset_server)
         session.current_app[] = nothing
         session.io_context[] = nothing

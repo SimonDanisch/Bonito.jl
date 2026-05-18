@@ -55,6 +55,9 @@ include("session.jl")
 include("rendering/rendering.jl")
 
 include("asset-serving/asset-serving.jl")
+# KeyedList depends on `ES6Module` (defined in asset-serving), `Observable`,
+# `Session`, `dom_in_js`, and `jsrender` — all of which are loaded by now.
+include("rendering/keyed_list.jl")
 include("connection/connection.jl")
 include("registry.jl")
 
@@ -76,6 +79,7 @@ include("terminal_output.jl")
 
 # Core functionality
 export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset, CSS, LoadingPage, rebundle!
+export KeyedList
 export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor
 export browser_display, configure_server!, Server, show_html, html, route!, online_url, use_electron_display
 export Observable, on, onany, bind_global

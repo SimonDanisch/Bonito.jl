@@ -21,12 +21,17 @@ end
 
 function (x::JSUpdateObservable)(@nospecialize(value))
     try
-        # Sent an update event
-        if !isclosed(x.session)
+        # Lock-protected check-then-send so a concurrent
+        # jsrender(::Session, ::Observable) listener can't slip a
+        # detach_subsession! between our liveness check and our write —
+        # which would put a stale UpdateObservable on the wire after the
+        # UpdateSession that freed its target on JS.
+        lock(deletion_lock(root_session(x.session))) do
+            isclosed(x.session) && return
             is_large = value isa LargeUpdate
             data = is_large ? value.data : value
-            # String keys (not :symbols) avoid `string(k)` per key inside
-            # serialize_cached, which is hot path on every Observable update.
+            # String keys (not Symbols) avoid `string(k)` per key inside
+            # serialize_cached, hot on every Observable update.
             msg = Dict{String,Any}("payload" => data, "id" => x.id, "msg_type" => UpdateObservable)
             send(x.session, msg; large=is_large)
         end
@@ -88,20 +93,32 @@ function jsrender(session::Session, obs::Observable)
     root_node = DOM.div(; style="display:contents")
     prev_sub, html = render_subsession(session, obs[]; init=true)
     mark_displayed!(prev_sub)
-    # Double-buffer: keep the immediately-previous subsession alive across
-    # one render so an in-flight browser fetch for its assets (e.g. a
-    # threejs ES6 module the user just swapped away from) still resolves
-    # against a live `ChildAssetServer`. The "older" subsession — two
-    # renders back — is only closed when a new render arrives, by which
-    # time the browser has either finished fetching its assets or stopped
-    # caring (DOM removal cancels in-flight imports).
+    # Double-buffer: keep the previous sub alive across one render so an
+    # in-flight asset fetch (e.g. a threejs ES6 module) still resolves
+    # against a live `ChildAssetServer`. The older sub (two renders back)
+    # closes when the next render arrives.
     older_sub = nothing
     on(session, obs) do data
-        new_sub = update_session_dom!(session, uuid(session, root_node), data; replace=false)
-        if new_sub !== prev_sub
-            older_sub !== nothing && close(older_sub)
-            older_sub = prev_sub
-            prev_sub = new_sub
+        # Atomic displacement: hold deletion_lock across update_session_dom!
+        # AND detach so a concurrent JSUpdateObservable (which also takes
+        # the lock) either runs before this body — its send is on the wire
+        # before the new UpdateSession — or after detach, sees status=CLOSED
+        # on prev_sub, and bails. Without the lock a stale UpdateObservable
+        # can land on JS after the UpdateSession that freed its target.
+        lock(deletion_lock(root_session(session))) do
+            new_sub = update_session_dom!(session, uuid(session, root_node), data; replace=false)
+            if new_sub !== prev_sub
+                older_sub !== nothing && close(older_sub)
+                # Detach the just-displaced sub: its DOM is gone on JS
+                # (update_or_replace cleared the wrapper), so any of its
+                # reactive bindings still firing would target removed nodes
+                # ("Cannot set properties of null" / "Timeout waiting for
+                # DOM node"). asset_server stays alive; full close happens
+                # one render later when prev_sub is displaced from older_sub.
+                detach_subsession!(prev_sub)
+                older_sub = prev_sub
+                prev_sub = new_sub
+            end
         end
         return
     end

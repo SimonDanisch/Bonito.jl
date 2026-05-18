@@ -87,6 +87,35 @@ export function free_object(id) {
 
 let DELETE_OBSERVER = undefined;
 
+/**
+ * Atomically move `node` to land before `ref` in `parent` (ref=null →
+ * last). Preserves the moving subtree's identity (iframe load, focus,
+ * scroll, Bonito subsession bindings) by swapping the tracked status to
+ * "moving" so the deletion observer ignores the transient detach.
+ *
+ * Native `Element.moveBefore()` (Chromium 133+, Firefox 144+) would do
+ * this without firing the observer at all, but Chromium <133 (Electron 38
+ * ≈ Chromium 130) ships an early stub that still fires removedNodes —
+ * defeating the point and not feature-detectable. Fallback is correct on
+ * every browser; re-enable native once the floor is Chromium 133+.
+ */
+export function move_dom_node(node, parent, ref) {
+    const id = node.id;
+    if (!id || !(id in SESSIONS)) {
+        // Fresh node (no tracked sub) — observer doesn't care.
+        parent.insertBefore(node, ref);
+        return;
+    }
+    // Defer the restore: insertBefore = remove + insert and the observer
+    // microtask runs AFTER this function returns. A synchronous restore
+    // would flip the status back to "delete" before the observer sees
+    // the "moving" sentinel and skip close_session.
+    const restore = SESSIONS[id][1];
+    SESSIONS[id][1] = "moving";
+    parent.insertBefore(node, ref);
+    setTimeout(() => { SESSIONS[id][1] = restore; }, 0);
+}
+
 export function track_deleted_sessions() {
     if (!DELETE_OBSERVER) {
         const observer = new MutationObserver(function (mutations) {

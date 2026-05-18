@@ -3404,6 +3404,19 @@ function free_object(id) {
     return;
 }
 let DELETE_OBSERVER = undefined;
+function move_dom_node(node, parent, ref) {
+    const id = node.id;
+    if (!id || !(id in SESSIONS)) {
+        parent.insertBefore(node, ref);
+        return;
+    }
+    const restore = SESSIONS[id][1];
+    SESSIONS[id][1] = "moving";
+    parent.insertBefore(node, ref);
+    setTimeout(()=>{
+        SESSIONS[id][1] = restore;
+    }, 0);
+}
 function track_deleted_sessions() {
     if (!DELETE_OBSERVER) {
         const observer = new MutationObserver(function(mutations) {
@@ -3444,39 +3457,6 @@ function track_deleted_sessions() {
         });
         DELETE_OBSERVER = observer;
     }
-}
-function send_pingpong() {
-    send_to_julia({
-        msg_type: PingPong
-    });
-}
-let timeout = null;
-function send_pings() {
-    clearTimeout(timeout);
-    if (!can_send_to_julia()) {
-        return;
-    }
-    send_pingpong();
-    timeout = setTimeout(send_pings, PING_INTERVAL);
-}
-function send_error(message, exception) {
-    console.error(message);
-    console.error(exception);
-    send_to_julia({
-        msg_type: JavascriptError,
-        message: message,
-        exception: String(exception),
-        stacktrace: exception === null ? "" : clean_stack(exception.stack)
-    });
-}
-function send_done_loading(session, exception) {
-    send_to_julia({
-        msg_type: JSDoneLoading,
-        session,
-        message: "",
-        exception: exception === null ? "nothing" : String(exception),
-        stacktrace: exception === null ? "" : clean_stack(exception.stack)
-    });
 }
 function done_initializing_session(session_id) {
     if (!(session_id in SESSIONS)) {
@@ -3521,52 +3501,15 @@ register_ext(102, (uint_8_array, context)=>{
         throw err;
     }
 });
-function encode_binary(data, compression_enabled) {
-    if (compression_enabled) {
-        return ml(pack(data));
-    } else {
-        return pack(data);
-    }
-}
-function send_to_julia(message) {
-    const { send_message , status , compression_enabled  } = CONNECTION;
-    if (send_message !== undefined && status === "open") {
-        send_message(encode_binary(message, compression_enabled));
-    } else if (status === "connecting") {
-        CONNECTION.queue.push(message);
-    } else {
-        console.log(`Trying to send messages while connection is offline: ${status}`);
-    }
-}
-class Observable {
-    #callbacks = [];
-    constructor(id, value){
-        this.id = id;
-        this.value = value;
-    }
-    notify(value, dont_notify_julia) {
-        this.value = value;
-        this.#callbacks.forEach((callback)=>{
-            try {
-                const deregister = callback(value);
-                if (deregister == false) {
-                    this.#callbacks.splice(this.#callbacks.indexOf(callback), 1);
-                }
-            } catch (exception) {
-                send_error("Error during running onjs callback\n" + "Callback:\n" + callback.toString(), exception);
-            }
-        });
-        if (!dont_notify_julia) {
-            send_to_julia({
-                msg_type: UpdateObservable,
-                id: this.id,
-                payload: value
-            });
-        }
-    }
-    on(callback) {
-        this.#callbacks.push(callback);
-    }
+function send_error(message, exception) {
+    console.error(message);
+    console.error(exception);
+    send_to_julia({
+        msg_type: JavascriptError,
+        message: message,
+        exception: String(exception),
+        stacktrace: exception === null ? "" : clean_stack(exception.stack)
+    });
 }
 register_ext(104, (uint_8_array, context)=>{
     const key = unpack(uint_8_array, context);
@@ -3636,6 +3579,14 @@ function update_or_replace(node, new_html, replace) {
         node.append(new_html);
     }
 }
+function ensure_session_exists(session_id, session_status) {
+    if (!(session_id in SESSIONS)) {
+        SESSIONS[session_id] = [
+            new Set(),
+            session_status
+        ];
+    }
+}
 function update_session_dom(message) {
     lock_loading(()=>{
         const { session_id , session_status , messages , html , dom_node_selector , replace  } = message;
@@ -3648,14 +3599,6 @@ function update_session_dom(message) {
         });
     });
 }
-function ensure_session_exists(session_id, session_status) {
-    if (!(session_id in SESSIONS)) {
-        SESSIONS[session_id] = [
-            new Set(),
-            session_status
-        ];
-    }
-}
 function track_in_session(session_id, key, session_status) {
     ensure_session_exists(session_id, session_status);
     const tracked_objects = SESSIONS[session_id][0];
@@ -3664,20 +3607,6 @@ function track_in_session(session_id, key, session_status) {
         console.warn(`TrackingOnly: Key ${key} not found in GLOBAL_OBJECT_CACHE`);
     }
 }
-function register_in_session_cache(session_id, key, object, session_status) {
-    ensure_session_exists(session_id, session_status);
-    const tracked_objects = SESSIONS[session_id][0];
-    tracked_objects.add(key);
-    if (!(key in GLOBAL_OBJECT_CACHE)) {
-        GLOBAL_OBJECT_CACHE[key] = object;
-    }
-}
-register_ext(101, (uint_8_array, context)=>{
-    const [id, value] = unpack(uint_8_array, context);
-    const obs = new Observable(id, value);
-    register_in_session_cache(context.session_id, id, obs, context.session_status);
-    return obs;
-});
 register_ext(109, (uint_8_array, context)=>{
     const key = unpack(uint_8_array, context);
     track_in_session(context.session_id, key, context.session_status);
@@ -3712,6 +3641,53 @@ register_ext(108, (uint_8_array, context)=>{
     div.innerHTML = html;
     return div;
 });
+function encode_binary(data, compression_enabled) {
+    if (compression_enabled) {
+        return ml(pack(data));
+    } else {
+        return pack(data);
+    }
+}
+function send_to_julia(message) {
+    const { send_message , status , compression_enabled  } = CONNECTION;
+    if (send_message !== undefined && status === "open") {
+        send_message(encode_binary(message, compression_enabled));
+    } else if (status === "connecting") {
+        CONNECTION.queue.push(message);
+    } else {
+        console.log(`Trying to send messages while connection is offline: ${status}`);
+    }
+}
+class Observable {
+    #callbacks = [];
+    constructor(id, value){
+        this.id = id;
+        this.value = value;
+    }
+    notify(value, dont_notify_julia) {
+        this.value = value;
+        this.#callbacks.forEach((callback)=>{
+            try {
+                const deregister = callback(value);
+                if (deregister == false) {
+                    this.#callbacks.splice(this.#callbacks.indexOf(callback), 1);
+                }
+            } catch (exception) {
+                send_error("Error during running onjs callback\n" + "Callback:\n" + callback.toString(), exception);
+            }
+        });
+        if (!dont_notify_julia) {
+            send_to_julia({
+                msg_type: UpdateObservable,
+                id: this.id,
+                payload: value
+            });
+        }
+    }
+    on(callback) {
+        this.#callbacks.push(callback);
+    }
+}
 register_ext(106, (uint_8_array, context)=>{
     const [session_id, session_status, packed_objects_ext] = decode(uint_8_array);
     ensure_session_exists(session_id, session_status);
@@ -3787,6 +3763,14 @@ function init_session(session_id, message_promise, session_status, compression) 
         });
     });
 }
+function register_in_session_cache(session_id, key, object, session_status) {
+    ensure_session_exists(session_id, session_status);
+    const tracked_objects = SESSIONS[session_id][0];
+    tracked_objects.add(key);
+    if (!(key in GLOBAL_OBJECT_CACHE)) {
+        GLOBAL_OBJECT_CACHE[key] = object;
+    }
+}
 function update_session_cache(session_id, new_jl_objects, session_status) {
     function update_cache(tracked_objects) {
         for (const [key, new_object] of new_jl_objects){
@@ -3816,6 +3800,7 @@ const mod1 = {
     lookup_global_object: lookup_global_object,
     force_free_object: force_free_object,
     free_object: free_object,
+    move_dom_node: move_dom_node,
     track_deleted_sessions: track_deleted_sessions,
     done_initializing_session: done_initializing_session,
     init_session: init_session,
@@ -3829,11 +3814,40 @@ const mod1 = {
     register_in_session_cache: register_in_session_cache,
     update_session_cache: update_session_cache
 };
+register_ext(101, (uint_8_array, context)=>{
+    const [id, value] = unpack(uint_8_array, context);
+    const obs = new Observable(id, value);
+    register_in_session_cache(context.session_id, id, obs, context.session_status);
+    return obs;
+});
+function send_pingpong() {
+    send_to_julia({
+        msg_type: PingPong
+    });
+}
+let timeout = null;
+function send_pings() {
+    clearTimeout(timeout);
+    if (!can_send_to_julia()) {
+        return;
+    }
+    send_pingpong();
+    timeout = setTimeout(send_pings, PING_INTERVAL);
+}
 function send_warning(message) {
     console.warn(message);
     send_to_julia({
         msg_type: JavascriptWarning,
         message: message
+    });
+}
+function send_done_loading(session, exception) {
+    send_to_julia({
+        msg_type: JSDoneLoading,
+        session,
+        message: "",
+        exception: exception === null ? "nothing" : String(exception),
+        stacktrace: exception === null ? "" : clean_stack(exception.stack)
     });
 }
 function send_close_session(session, subsession) {
