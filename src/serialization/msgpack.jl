@@ -134,12 +134,6 @@ end
 # call `real_unsafe_write` directly on the IO; forward to the active buffer.
 @inline real_unsafe_write(s::SessionIO, data::Array) = real_unsafe_write(current_buffer(s), data)
 
-# Hook MsgPack's fast-path `write_be(::IOBuffer, ::Primitive)` so primitive
-# writes through SessionIO still hit the SROA'd direct-buffer store, not the
-# generic `write(io, hton(x))` fallback that allocates a Ref.
-@inline MsgPack.write_be(s::SessionIO, x::MsgPack.Primitive) =
-    MsgPack.write_be(current_buffer(s), x)
-
 @inline function reset_for_reuse!(io::IOBuffer)
     # No public IOBuffer API resets size+ptr without dropping the backing
     # Memory's capacity (`take!` empties it, `truncate(io,0)` resizes it to 0).
@@ -179,8 +173,6 @@ function pack_extension!(f, s::SessionIO, tag::Int8)
     reset_for_reuse!(scratch)
     return nothing
 end
-
-# ── SessionCache / SerializedMessage stream-pack fast paths ────────────────
 
 MsgPack.msgpack_type(::Type{SessionCache}) = MsgPack.ExtensionType()
 
