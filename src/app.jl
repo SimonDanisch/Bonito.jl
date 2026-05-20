@@ -238,6 +238,12 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
         handler.session = parent
     end
     sub = Session(parent)
+    # The page wrapper (`<title>` etc.) is rendered from the parent session,
+    # so carry the displayed app's title onto it — otherwise `display(disp,
+    # app)` pages always show the default "Bonito App" regardless of the
+    # `title=` passed to `App(...)` (only the `route!(server, "/" => app)`
+    # path set it before).
+    parent.title = handler.current_app.title
     # Render-time errors are absorbed by `handle_render_error` inside
     # `rendered_dom` — we get back a valid Node either way (success DOM or
     # inline error HTML) and the page wrap finishes normally. Infrastructure

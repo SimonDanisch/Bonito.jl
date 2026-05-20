@@ -115,15 +115,24 @@ function has_html_display()
     return false
 end
 
-# Lazy loading for ElectronCall - avoids hard dependency
-const ELECTRONCALL_PKG_ID = Base.PkgId(Base.UUID("8ddd578f-0c94-4c64-8c65-f083f291b266"), "ElectronCall")
+# Electron windows are driven through whichever compatible backend the user
+# has loaded — `ElectronCall` (the maintained fork) or `Electron` itself.
+# No package extension is needed: Bonito never dispatches on backend types
+# (`EWindow` / `ElectronDisplay` are Bonito's own structs and hold the
+# backend objects as `Any`), and every backend call is a dynamic
+# `current_electron().Foo(...)`. So we just look up whichever backend module
+# is currently loaded. The backend stays an opt-in, hard-dependency-free
+# `using` on the caller's side (ElectronCall is a test-only `[extras]` dep).
+const ELECTRON_BACKENDS = ("ElectronCall", "Electron")
 
-function ElectronCall()
-    if haskey(Base.loaded_modules, ELECTRONCALL_PKG_ID)
-        return Base.loaded_modules[ELECTRONCALL_PKG_ID]
-    else
-        error("Please load ElectronCall if you want to use Electron windows!")
+function current_electron()
+    for name in ELECTRON_BACKENDS
+        for (id, mod) in Base.loaded_modules
+            id.name == name && return mod
+        end
     end
+    error("No Electron backend loaded — run `using ElectronCall` " *
+          "(or `using Electron`) before opening Electron windows.")
 end
 
 struct EWindow
@@ -162,7 +171,7 @@ function default_electron_args()
 end
 
 function default_security_config()
-    EC = ElectronCall()
+    EC = current_electron()
     # Bonito needs context_isolation=false because:
     # - executeJavaScript must access page-level JS objects (Bonito, WEBSOCKET, etc.)
     # - run(window, code) relies on shared context between page and Electron APIs
@@ -181,7 +190,7 @@ Create an Electron window via ElectronCall. If `app` is provided, reuse that App
 instead of creating a new one (avoids multiple Electron processes).
 """
 function EWindow(args...; app=nothing, options=Dict{String, Any}(), electron_args=default_electron_args())
-    EC = ElectronCall()
+    EC = current_electron()
     if app === nothing
         app = EC.Application(;
             additional_electron_args=electron_args,
@@ -199,7 +208,7 @@ end
 
 function ElectronDisplay(; app=nothing, options=Dict{String, Any}(), devtools=false, electron_args=default_electron_args())
     w = EWindow(; app=app, electron_args=electron_args, options=options)
-    devtools && ElectronCall().toggle_devtools(w.window)
+    devtools && current_electron().toggle_devtools(w.window)
     return ElectronDisplay(w, BrowserDisplay(; open_browser=false))
 end
 
@@ -209,7 +218,7 @@ function Base.display(display::ElectronDisplay, app::App)
     needs_load = Base.display(display.browserdisplay, app)
     url = online_url(display.browserdisplay)
     if needs_load
-        ElectronCall().load(display.window.window, URI(url))
+        current_electron().load(display.window.window, URI(url))
     end
     wait_for_ready(app)
     return display
