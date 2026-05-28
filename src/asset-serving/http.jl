@@ -198,6 +198,57 @@ const CACHE_CONTROL_MUTABLE   = "public, max-age=86400, must-revalidate"
 @inline cache_control_for(asset::Asset)       =
     asset.es6module ? CACHE_CONTROL_IMMUTABLE : CACHE_CONTROL_MUTABLE
 
+# Parse a single `Range: bytes=start-end` header against a known total size.
+# Returns 0-based inclusive `(start, stop)` clamped to the resource, or
+# `nothing` when there's no satisfiable range (caller serves the full 200).
+# Handles the open-ended (`bytes=500-`) and suffix (`bytes=-500`) forms.
+function parse_byte_range(range_header::AbstractString, total::Integer)
+    m = match(r"^bytes=(\d*)-(\d*)$", strip(range_header))
+    m === nothing && return nothing
+    s_str, e_str = m.captures[1], m.captures[2]
+    if isempty(s_str)
+        isempty(e_str) && return nothing          # "bytes=-" is invalid
+        n = parse(Int, e_str)
+        n <= 0 && return nothing
+        start = max(0, Int(total) - n)
+        stop  = Int(total) - 1
+    else
+        start = parse(Int, s_str)
+        stop  = isempty(e_str) ? Int(total) - 1 : min(parse(Int, e_str), Int(total) - 1)
+    end
+    (total == 0 || start > stop || start >= total) && return nothing
+    return (start, stop)
+end
+
+# Serve a resource with HTTP Range support. Exactly one of `data` (in-memory
+# bytes) / `file` (path on disk, read lazily so large media isn't slurped
+# whole) is non-nothing. Browsers require `206 Partial Content` + `Content-Range`
+# to play and seek `<video>`/`<audio>`; `Accept-Ranges: bytes` advertises it on
+# the full 200 too.
+function serve_asset(request, data::Union{Vector{UInt8},Nothing},
+                     file::Union{String,Nothing}, content_type, cache_control)
+    total = data === nothing ? Int(filesize(file)) : length(data)
+    headers = Pair{String,String}[
+        "Access-Control-Allow-Origin" => "*",
+        "Content-Type"  => content_type,
+        "Cache-Control" => cache_control,
+        "Accept-Ranges" => "bytes",
+    ]
+    rng = parse_byte_range(HTTP.header(request, "Range", ""), total)
+    if rng === nothing
+        body = data === nothing ? read(file) : data
+        return HTTP.Response(200, headers; body=body)
+    end
+    start, stop = rng
+    len = stop - start + 1
+    body = data === nothing ?
+        open(io -> (seek(io, start); read(io, len)), file) :
+        data[start+1:stop+1]
+    push!(headers, "Content-Range" => "bytes $start-$stop/$total")
+    push!(headers, "Content-Length" => string(len))
+    return HTTP.Response(206, headers; body=body)
+end
+
 function (server::HTTPAssetServer)(context)
     path = URIs.URI(context.request.target).path
     # Hold server.lock around the Dict access — `close(::ChildAssetServer)`
@@ -208,31 +259,17 @@ function (server::HTTPAssetServer)(context)
         entry = get(server.files, path, nothing)
         entry === nothing ? nothing : entry.asset
     end
-    if asset !== nothing
-        if asset isa BinaryAsset
-            header = ["Access-Control-Allow-Origin" => "*",
-                "Content-Type" => asset.mime,
-                "Cache-Control" => cache_control_for(asset)]
-            return HTTP.Response(200, header; body=asset.data)
-        else
-            data = nothing
-            if !isempty(asset.bundle_data)
-                data = asset.bundle_data
-            else
-                if isfile(local_path(asset))
-                    data = read(local_path(asset))
-                end
-            end
-            if !isnothing(data)
-                header = ["Access-Control-Allow-Origin" => "*",
-                    "Content-Type" => file_mimetype(local_path(asset)),
-                    "Cache-Control" => cache_control_for(asset),
-                ]
-                return HTTP.Response(200, header, body = data)
-            end
-        end
+    asset === nothing && return HTTP.Response(404)
+    if asset isa BinaryAsset
+        return serve_asset(context.request, asset.data, nothing,
+                           asset.mime, cache_control_for(asset))
+    elseif !isempty(asset.bundle_data)
+        return serve_asset(context.request, asset.bundle_data, nothing,
+                           file_mimetype(local_path(asset)), cache_control_for(asset))
+    elseif isfile(local_path(asset))
+        return serve_asset(context.request, nothing, local_path(asset),
+                           file_mimetype(local_path(asset)), cache_control_for(asset))
     end
-
     return HTTP.Response(404)
 end
 

@@ -63,3 +63,24 @@ function jsrender(session::Session, @nospecialize(value))
         return rendered
     end
 end
+
+# Render a `Task` as a spinner that swaps in the task's result once it
+# finishes. Lets you drop an `@async`-produced value straight into the DOM:
+#
+#     DOM.div(@async expensive_thing())
+#
+# The spinner shows immediately; when the task completes the result is rendered
+# in place via the reactive `Observable` path (so an `Asset`, a DOM node, a
+# number — anything jsrender-able — works). A failed task renders its error
+# rather than spinning forever.
+function jsrender(session::Session, task::Task)
+    obs = Observable{Any}(RippleSpinner())
+    Base.errormonitor(@async begin
+        obs[] = try
+            fetch(task)
+        catch e
+            DOM.div("Error: " * sprint(showerror, e); style="color: var(--error-color, red)")
+        end
+    end)
+    return jsrender(session, obs)
+end

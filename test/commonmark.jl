@@ -69,6 +69,29 @@ end
         @test occursin("image.png", html)
     end
 
+    @testset "raw HTML in markdown round-trips through jsrender (DontEscape)" begin
+        # Regression: CommonMark's HtmlBlock / HtmlInline produce a
+        # `DontEscape` wrapper so the Hyperscript serializer prints the
+        # raw HTML. Without a `jsrender(::Session, ::DontEscape)` method
+        # the session-aware path falls into the mime fallback and emits
+        # `<span class="text-plain">Bonito.DontEscape("<img …>")</span>`.
+        # Test both block-level and inline raw HTML; both must pass
+        # through verbatim, not as a repr'd string.
+        for src in [
+                "Before\n\n<img width=\"95%\" src=\"https://example.com/foo.jpg\">\n\nAfter\n",
+                "Some <em>inline</em> <span class=\"x\">raw</span> html.\n",
+            ]
+            dom = Bonito.commonmark_to_dom(Bonito.bonito_parser(src))
+            # Session-aware render path — this is where BonitoBook /
+            # any live session actually serializes markdown cells.
+            session = Bonito.Session()
+            rendered = Bonito.jsrender(session, dom)
+            html = string(rendered)
+            @test !occursin("DontEscape", html)
+            @test !occursin("text-plain", html)
+        end
+    end
+
     @testset "commonmark_to_dom lists" begin
         # Ordered list
         dom = Bonito.commonmark_to_dom(Bonito.bonito_parser("1. First\n2. Second\n"))

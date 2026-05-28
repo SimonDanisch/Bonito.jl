@@ -103,6 +103,17 @@ function Hyperscript.printescaped(io::IO, x::DontEscape, escapes)
     print(io, x.x)
 end
 
+# DontEscape's whole purpose is to be serialised by `Hyperscript.printescaped`
+# above, with no HTML-escaping. But `render_node` walks every child through
+# `jsrender(session, elem)` first, and without a method for `DontEscape` the
+# default mime fallback kicks in: it `repr`s the object and wraps the result
+# in a `<span class="text-plain">` — i.e. the rendered output literally shows
+# `Bonito.DontEscape("<img ...>")` instead of passing the raw HTML through.
+# Returning the value unchanged keeps it in the children list so the final
+# Hyperscript serialization can hit the `printescaped` overload.
+jsrender(session::Session, x::DontEscape) = x
+jsrender(x::DontEscape) = x
+
 function attribute_render(session::Session, parent, attribute::String, jss::JSCode)
     # add js after parent gets loaded
     func = js"""(() => {
