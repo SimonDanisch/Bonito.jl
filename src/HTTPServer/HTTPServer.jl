@@ -2,7 +2,9 @@ module HTTPServer
 
 using HTTP
 using HTTP: Response, Request
-using HTTP.Streams: Stream
+# HTTP.jl 2.0 dropped the `HTTP.Streams` submodule; `Stream` now lives at the
+# top level of HTTP.
+using HTTP: Stream
 import Sockets: send, TCPServer
 using Sockets
 using ..Bonito: App, update_app!, get_server

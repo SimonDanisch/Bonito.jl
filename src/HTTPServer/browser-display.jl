@@ -94,12 +94,15 @@ function Base.display(display::BrowserDisplay, app::App)
                 handler.session.status = Bonito.DISPLAYED
                 # if open_browser, we need to let the caller wait!
                 wait_for(()-> isready(handler.session))
-                wait_for_ready(app)
+                # Showing the app only needs the session ready, not the handler
+                # finished — blocking on the loading_task would hang ~timeout for
+                # any loading_page app with a slow handler.
+                wait_for_ready(app; wait_loading_task=false)
             end
         end
         return true
     else
-        wait_for_ready(app)
+        wait_for_ready(app; wait_loading_task=false)
         return false
     end
 end
@@ -220,7 +223,10 @@ function Base.display(display::ElectronDisplay, app::App)
     if needs_load
         current_electron().load(display.window.window, URI(url))
     end
-    wait_for_ready(app)
+    # Wait for the session to be ready, but not for the app handler to finish:
+    # a loading_page app shows its spinner immediately while the handler runs
+    # in the background, so blocking here would hang ~timeout (see wait_for_ready).
+    wait_for_ready(app; wait_loading_task=false)
     return display
 end
 

@@ -14,7 +14,7 @@ mutable struct Server
     # "." -> relative urls to the site it's served to
     # "" -> use local url (e.g 0.0.0.0:8081)
     proxy_url::Union{String, Nothing}
-    server::Union{Nothing, HTTP.Servers.Server}
+    server::Union{Nothing, HTTP.Server}
     routes::Routes
     websocket_routes::Routes
     protocol::String
@@ -235,14 +235,42 @@ function relative_url(server::Server, url)
     end
 end
 
+# HTTP.jl 2.0 removed the `HTTP.WebSockets.upgrade(stream)` helper that let a
+# regular HTTP stream handler hand a single connection over to the WebSocket
+# protocol. The 2.0 `HTTP.WebSockets` server owns its own listener, which would
+# force websockets onto a *separate* port — incompatible with Bonito serving
+# HTTP and websockets (route-dispatched) on a single port.
+#
+# We reconstruct the old single-port behaviour by hijacking the raw connection
+# the HTTP server already parsed the upgrade request from. WebSocket clients
+# (per RFC 6455) never send frames before they receive the 101 response, so the
+# server's read buffer is drained after the handshake request and the raw
+# `conn` can safely back the websocket — this is exactly how HTTP.jl 2.0's own
+# `_serve_ws_conn!` operates internally.
+function ws_upgrade(application::Server, stream::Stream)
+    WS = HTTP.WebSockets
+    conn = stream.tracked.conn
+    request = stream.message
+    # A throwaway per-connection WS server carries the handshake config and the
+    # route-dispatching handler. `check_origin = true` preserves the permissive
+    # behaviour of the 1.x `upgrade` (Bonito connects from VSCode webviews,
+    # Electron, notebooks, … whose Origin won't match Host).
+    ws_server = WS.Server(;
+        address="127.0.0.1:0",
+        handler=ws -> delegate(application.websocket_routes, application, request, ws),
+        check_origin=(_...) -> true,
+    )
+    response = WS._upgrade_response(request, ws_server)
+    WS._write_ws_response!(conn, response)
+    response.status == 101 || return
+    WS._serve_ws_session!(ws_server, conn, request, response)
+    return
+end
+
 function stream_handler(application::Server, stream::Stream)
     if HTTP.WebSockets.isupgrade(stream.message)
         try
-            HTTP.WebSockets.upgrade(stream; binary=true) do ws
-                delegate(
-                    application.websocket_routes, application, stream.message, ws
-                )
-            end
+            ws_upgrade(application, stream)
             return
         catch e
             # When browser closes we may get an io error here!
@@ -312,7 +340,9 @@ function Server(
 end
 
 function isrunning(server::Server)
-    return !isnothing(server.server) && !istaskdone(server.server.task)
+    # HTTP.jl 2.0 renamed the server's background task field from `task` to
+    # `serve_task`.
+    return !isnothing(server.server) && !istaskdone(server.server.serve_task)
 end
 
 function Base.close(server::Server)
@@ -336,24 +366,38 @@ function Base.close(server::Server)
 end
 
 
+# HTTP.jl 2.0 binds the listener on a background task via Reseau, so a port
+# clash surfaces as a `TaskFailedException` wrapping a `Reseau` `OpError` /
+# `SystemError` (errno `EADDRINUSE`) instead of the 1.x `Base.IOError` with
+# `UV_EADDRINUSE`. Walk the wrapped causes and recognise both shapes.
+function is_address_in_use(e)
+    e isa Base.IOError && return e.code == Base.UV_EADDRINUSE
+    e isa Base.SystemError && return e.errnum == Base.Libc.EADDRINUSE
+    if e isa TaskFailedException
+        return is_address_in_use(e.task.result)
+    end
+    # Reseau's OpError (and similar wrappers) carry the underlying cause in `.err`.
+    if hasproperty(e, :err)
+        return is_address_in_use(getproperty(e, :err))
+    end
+    return false
+end
+
 function try_listen(url, port, server, verbose; listener_kw...)
     try
-        httpserver = HTTP.listen!(url, port; verbose=verbose, listener_kw...) do stream::Stream
+        httpserver = HTTP.listen!(url, port; listener_kw...) do stream::Stream
             Base.invokelatest(stream_handler, server, stream)
         end
-        # Ask the kernel what port we actually bound to. When the caller passed
+        # Ask the server what port we actually bound to. When the caller passed
         # port=0 ("ephemeral"), HTTP.listen! succeeds on a kernel-assigned port
         # but `port` here is still 0 — returning that would make every asset
         # URL resolve to http://host:0/... → ERR_CONNECTION_REFUSED in the
         # browser, with the symptom "Bonito is not defined" downstream.
-        actual_port = Int(Sockets.getsockname(httpserver.listener.server)[2])
+        actual_port = HTTP.port(httpserver)
         return actual_port, httpserver
     catch e
-        if e isa Base.IOError
-            #address already in use
-            if e.code == Base.UV_EADDRINUSE
-                return try_listen(url, port+1, server, verbose; listener_kw...)
-            end
+        if is_address_in_use(e)
+            return try_listen(url, port+1, server, verbose; listener_kw...)
         end
         rethrow(e)
     end
@@ -381,15 +425,15 @@ end
 Wait on the server task, i.e. block execution by bringing the server event loop to the foreground.
 """
 function Base.wait(server::Server)
-    wait(server.server.task)
+    wait(server.server.serve_task)
 end
 
 function get_error(server::Server)
     # Running server has no problems!
     isrunning(server) && return nothing
-    !istaskfailed(server.server.task) && return nothing
+    !istaskfailed(server.server.serve_task) && return nothing
     try
-        return fetch(server.server.task)
+        return fetch(server.server.serve_task)
     catch e
         return e
     end

@@ -261,19 +261,37 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
     return html(html_str)
 end
 
-function wait_for_ready(app::App; timeout=100)
+"""
+    wait_for_ready(app::App; timeout=100, wait_loading_task=true)
+
+Block until `app`'s session has connected and is ready (`isready`). When
+`wait_loading_task=true` (the default) also block until the app handler has
+finished — i.e. for a `loading_page` app, until the real content has replaced
+the loading page.
+
+Display paths pass `wait_loading_task=false`: showing the app only needs the
+session to be ready, NOT the handler to be done. Blocking on the handler there
+would defeat the whole point of `loading_page` (show a spinner *while* a slow
+handler runs) and would deterministically hit `timeout` whenever the handler
+is slow — see the "shown then replaced" loading-page test, whose handler is
+intentionally blocked until after `display` returns.
+"""
+function wait_for_ready(app::App; timeout=100, wait_loading_task=true)
     success = wait_for(()-> !isnothing(app.session[]); timeout=timeout)
     success !== :success && return nothing
     isclosed(app.session[]) && return nothing
     wait_for(timeout=timeout) do
         isready(app.session[]) || isclosed(app.session[])
     end
-    task = app.loading_task[]
-    if !isnothing(task)
-        wait_for(; timeout=timeout) do
-            istaskdone(task)
+    if wait_loading_task
+        task = app.loading_task[]
+        if !isnothing(task)
+            wait_for(; timeout=timeout) do
+                istaskdone(task)
+            end
         end
     end
+    return
 end
 
 function jsrender(session::Session, app::App)
