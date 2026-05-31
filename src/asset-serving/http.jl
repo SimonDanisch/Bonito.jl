@@ -260,7 +260,11 @@ function (server::HTTPAssetServer)(context)
         entry === nothing ? nothing : entry.asset
     end
     asset === nothing && return HTTP.Response(404)
-    if asset isa BinaryAsset
+    if asset isa RemoteAsset
+        # A proxied (worker) asset: serve cached bytes or fetch the range from
+        # the worker. Defined in asset-serving/proxy.jl.
+        return serve_remote_asset(context.request, asset)
+    elseif asset isa BinaryAsset
         return serve_asset(context.request, asset.data, nothing,
                            asset.mime, cache_control_for(asset))
     elseif !isempty(asset.bundle_data)

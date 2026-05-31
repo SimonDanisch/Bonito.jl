@@ -1,3 +1,5 @@
+timed_wait(t, x) = @time "time: $(t)" Bonito.wait_for_ready(x)
+
 @testset "LoadingPage Construction" begin
     # Default: no loading page
     app1 = App(() -> DOM.div("hello"))
@@ -31,7 +33,7 @@ end
         return DOM.div("no loading page"; class="no-lp")
     end
     display(edisplay, app)
-    Bonito.wait_for_ready(app)
+    timed_wait("no loading_page preserves behavior", app)
     success = Bonito.wait_for() do
         evaljs_value(app.session[], js"""
             document.querySelector('.no-lp') !== null
@@ -50,7 +52,7 @@ end
         return DOM.div("Real Content"; class="real-content")
     end
 
-    try
+    @time "shown then replaced" try
         display(edisplay, app)
         # Don't call wait_for_ready here - it would block until the handler completes,
         # but the handler is blocked on take!(gate). Instead wait for the session to connect.
@@ -106,7 +108,7 @@ end
         return DOM.div("Fast Content"; class="fast-content")
     end
     display(edisplay, app)
-    Bonito.wait_for_ready(app)
+    timed_wait(" fast handler (no visible loading)", app)
 
     success = Bonito.wait_for(timeout=10) do
         evaljs_value(app.session[], js"""
@@ -130,7 +132,7 @@ end
         return DOM.div(obs_val; class="obs-container")
     end
     display(edisplay, app)
-    Bonito.wait_for_ready(app)
+    timed_wait("observables in real DOM", app)
 
     # Wait for real content to appear
     success = Bonito.wait_for(timeout=10) do
@@ -171,7 +173,7 @@ end
         return DOM.div(button; class="widget-container")
     end
     display(edisplay, app)
-    Bonito.wait_for_ready(app)
+    timed_wait("LoadingPage - widgets work", app)
 
     # Wait for button to render
     success = Bonito.wait_for(timeout=10) do
@@ -198,7 +200,7 @@ end
         error("Intentional test error")
     end
     display(edisplay, app)
-    Bonito.wait_for_ready(app)
+    timed_wait("LoadingPage - error in handler", app)
 
     # Should show error content, not loading page
     success = Bonito.wait_for(timeout=10) do
@@ -213,7 +215,7 @@ end
 @testset "LoadingPage - dom object constructor" begin
     app = App(DOM.div("Static DOM"; class="static-dom"); loading_page=LoadingPage())
     display(edisplay, app)
-    Bonito.wait_for_ready(app)
+    timed_wait("LoadingPage - dom object constructor", app)
 
     success = Bonito.wait_for(timeout=10) do
         evaljs_value(app.session[], js"""
@@ -268,7 +270,7 @@ end
         return DOM.div("Done"; class="custom-done")
     end
     display(edisplay, app)
-    Bonito.wait_for_ready(app)
+    timed_wait("LoadingPage - custom text and spinner", app)
 
     # Check that eventually real content appears
     success = Bonito.wait_for(timeout=15) do

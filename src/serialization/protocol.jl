@@ -24,6 +24,28 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         return
     end
     data = deserialize_binary(bytes, session.compression_enabled)
+    # Hand the original `bytes` through so the decoded-frame entry point can
+    # forward them to a remote (worker) RemoteSession verbatim — no re-encode
+    # on the host, no separate `deliver` shape on the worker; the worker's own
+    # inbox path runs the exact same decompress/unpack/dispatch.
+    return process_message(session, data; bytes)
+end
+
+# Decoded-frame entry point. Split out from the bytes path so a proxied worker
+# session can be handed an already-decoded frame (forwarded by the host's
+# `route_to_remote`) without a re-encode/decode round trip.
+function process_message(session::Session, data::AbstractDict;
+                         bytes::Union{Nothing, AbstractVector{UInt8}} = nothing)
+    # A proxied worker session's frames — its observable updates (object id) and
+    # session lifecycle (`JSDoneLoading`/`CloseSession`/`GetSessionDOM`, session
+    # id) — carry ids namespaced to that worker. Forward them verbatim and let
+    # the worker handle them against its real session tree; the server keeps no
+    # mirror of the worker's objects/sessions, it just relays by namespace. A
+    # no-op (returns false) for the server's own frames, whose ids never match a
+    # registered worker prefix. When the matched RemoteSession declares a
+    # `forward_bytes` callback AND `bytes` is the original frame, the raw bytes
+    # are shipped instead of the decoded data — see `route_to_remote`.
+    route_to_remote(session, data; bytes) && return
     typ = data["msg_type"]
     if typ == UpdateObservable
         # Hold the root's deletion_lock while we look up + dispatch the

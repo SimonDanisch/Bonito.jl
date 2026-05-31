@@ -222,7 +222,13 @@ function uuid(session::Union{Nothing,Session}, node::Node)
             root = root_session(session) # counter needs to be unique to root session
             # Atomic so concurrent renders never hand out the same id; see
             # test/race_conditions_audit.jl F6.
-            return string(Threads.atomic_add!(root.dom_uuid_counter, 1) + 1)
+            raw = string(Threads.atomic_add!(root.dom_uuid_counter, 1) + 1)
+            # A proxied (worker) session's dom ids share the browser's one
+            # `data-jscall-id` namespace with the host's — and both counters
+            # start at 1, so they WOULD collide. Prefix with the worker
+            # namespace (empty/zero-cost for normal sessions). See connection/proxy.jl.
+            prefix = id_prefix(connection(session))
+            return isempty(prefix) ? raw : string(prefix, "/", raw)
         end
     end
 end

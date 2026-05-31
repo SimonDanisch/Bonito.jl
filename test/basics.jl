@@ -1,3 +1,16 @@
+@testset "Slider value snapping" begin
+    # A `value=` that isn't bit-exact on the grid must snap to the nearest tick
+    # (or clamp), not crash with `invalid index: nothing`. Regression for
+    # `Slider(range(0, 2π, 100); value=π)` & friends.
+    @test Bonito.Slider(1:10).index[]            == 1     # default = first
+    @test Bonito.Slider(1:10; value=5).index[]   == 5     # exact match
+    @test Bonito.Slider(1:10; value=0).index[]   == 1     # below range → clamp low
+    @test Bonito.Slider(1:10; value=99).index[]  == 10    # above range → clamp high
+    @test Bonito.Slider(0:0.1:1; value=0.7000001).value[] ≈ 0.7  # float not bit-exact → nearest
+    @test Bonito.Slider(range(0, 2π, length=100); value=π).index[] == 50
+    @test Bonito.Slider([:a, :b, :c]; value=:b).index[] == 2      # non-numeric exact
+end
+
 @testset "basic session rendering" begin
     # Use no connection, since otherwise the session will be added to
     # The global running HTTP server

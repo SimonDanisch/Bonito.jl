@@ -3,6 +3,7 @@ Base.close(::AbstractAssetServer) = nothing
 include("asset.jl")
 include("no-server.jl")
 include("http.jl")
+include("proxy.jl")
 
 function import_js_url(asset_server::Nothing, asset::Asset)
     return "'$(url(asset_server, asset))'"

@@ -77,6 +77,9 @@ end
         @testset "subsessions" begin
             include("subsessions.jl")
         end
+        @testset "proxy" begin
+            include("proxy.jl")
+        end
         @testset "key_not_found_race" begin
             include("key_not_found_race.jl")
         end

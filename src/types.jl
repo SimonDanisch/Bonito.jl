@@ -632,7 +632,7 @@ function Session(parent_session::Session{Connection};
             UNINITIALIZED,
             time(),
             Dict{String, Session{Connection}}(),             # children
-            string(uuid4()),                                 # id
+            proxied_session_id(parent_session),              # id (namespaced if proxied)
             asset_server,
             SerializedMessage[],                             # message_queue
             JSCode[],                                        # on_document_load

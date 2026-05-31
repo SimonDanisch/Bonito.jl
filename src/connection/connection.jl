@@ -51,8 +51,10 @@ function write_large(ws, binary)
 end
 
 include("websocket-handler.jl")
+include("websocket-io.jl")
 include("websocket.jl")
 include("dual-websocket.jl")
 include("ijulia.jl")
 include("pluto.jl")
 include("no-connection.jl")
+include("proxy.jl")

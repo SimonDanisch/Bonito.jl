@@ -266,9 +266,25 @@ struct Slider{T} <: AbstractSlider{T}
     attributes::Dict{Symbol,Any}
 end
 
+# Index of the grid point that best matches `value`. Exact match wins; for real
+# numbers we snap to the nearest point and clamp, because a float range rarely
+# contains a requested default bit-exactly — `Slider(range(0, 2π, 100); value=π)`
+# (or an out-of-range default) should pick the closest tick, not crash. Mirrors
+# the tolerant behaviour `setindex!(::Slider, value)` already has.
+function slider_value_index(values::AbstractVector, value)
+    isempty(values) && throw(ArgumentError("Slider: `values` must be non-empty"))
+    exact = findfirst((==)(value), values)
+    exact === nothing || return exact
+    if value isa Real && eltype(values) <: Real
+        return argmin(abs.(values .- value))
+    end
+    @warn "Slider: value $(value) not in values; defaulting to the first element"
+    return firstindex(values)
+end
+
 function Slider(values::AbstractArray{T}; value=first(values), kw...) where {T}
     values_obs = convert(Observable{Vector{T}}, values)
-    initial_idx = findfirst((==)(value), values_obs[])
+    initial_idx = slider_value_index(values_obs[], value)
     index = Observable(initial_idx)
     value_obs = Observable(values_obs[][initial_idx])
     return Slider(values_obs, value_obs, index, Dict{Symbol,Any}(kw))
