@@ -235,42 +235,17 @@ function relative_url(server::Server, url)
     end
 end
 
-# HTTP.jl 2.0 removed the `HTTP.WebSockets.upgrade(stream)` helper that let a
-# regular HTTP stream handler hand a single connection over to the WebSocket
-# protocol. The 2.0 `HTTP.WebSockets` server owns its own listener, which would
-# force websockets onto a *separate* port — incompatible with Bonito serving
-# HTTP and websockets (route-dispatched) on a single port.
-#
-# We reconstruct the old single-port behaviour by hijacking the raw connection
-# the HTTP server already parsed the upgrade request from. WebSocket clients
-# (per RFC 6455) never send frames before they receive the 101 response, so the
-# server's read buffer is drained after the handshake request and the raw
-# `conn` can safely back the websocket — this is exactly how HTTP.jl 2.0's own
-# `_serve_ws_conn!` operates internally.
-function ws_upgrade(application::Server, stream::Stream)
-    WS = HTTP.WebSockets
-    conn = stream.tracked.conn
-    request = stream.message
-    # A throwaway per-connection WS server carries the handshake config and the
-    # route-dispatching handler. `check_origin = true` preserves the permissive
-    # behaviour of the 1.x `upgrade` (Bonito connects from VSCode webviews,
-    # Electron, notebooks, … whose Origin won't match Host).
-    ws_server = WS.Server(;
-        address="127.0.0.1:0",
-        handler=ws -> delegate(application.websocket_routes, application, request, ws),
-        check_origin=(_...) -> true,
-    )
-    response = WS._upgrade_response(request, ws_server)
-    WS._write_ws_response!(conn, response)
-    response.status == 101 || return
-    WS._serve_ws_session!(ws_server, conn, request, response)
-    return
-end
-
 function stream_handler(application::Server, stream::Stream)
     if HTTP.WebSockets.isupgrade(stream.message)
         try
-            ws_upgrade(application, stream)
+            # `check_origin = true` keeps the permissive 1.x behaviour: Bonito
+            # connects from VSCode webviews, Electron, notebooks, … whose Origin
+            # won't match Host. `upgrade` keeps HTTP and websockets on a single
+            # (route-dispatched) port and drains any bytes buffered with the
+            # handshake into the codec.
+            HTTP.WebSockets.upgrade(stream; check_origin = (_...) -> true) do ws
+                delegate(application.websocket_routes, application, stream.message, ws)
+            end
             return
         catch e
             # When browser closes we may get an io error here!
