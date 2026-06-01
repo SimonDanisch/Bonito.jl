@@ -37,6 +37,7 @@ const {
     OBJECT_FREEING_LOCK,
     free_object,
     force_free_object,
+    move_dom_node,
 } = Sessions;
 
 function update_node_attribute(node, attribute, value) {
@@ -222,6 +223,7 @@ const Bonito = {
     init_session,
     free_session,
     lock_loading,
+    move_dom_node,
     // Util
     update_node_attribute,
     update_dom_node,
@@ -269,6 +271,7 @@ export {
     init_session,
     free_session,
     lock_loading,
+    move_dom_node,
     // Util
     update_node_attribute,
     update_dom_node,
