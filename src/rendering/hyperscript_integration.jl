@@ -115,11 +115,11 @@ jsrender(session::Session, x::DontEscape) = x
 jsrender(x::DontEscape) = x
 
 function attribute_render(session::Session, parent, attribute::String, jss::JSCode)
-    # add js after parent gets loaded
-    func = js"""(() => {
-        $(parent)[$attribute] = $(jss)
-    })()"""
-    # preserve func.file
+    # `jss` often ends in `;` (e.g. Button onclick is `event=>obs.notify(true);`),
+    # which would be invalid inside `(...)` if we wrapped it as a call argument —
+    # so we inline the handler into a block-statement guard instead.
+    src = String(something(jss.file, ""))
+    func = js"""{const e=$(parent);if(e){e[$attribute]=$(jss)}else{console.warn('Bonito: skip '+$attribute+' from '+$src)}}"""
     evaljs(session, JSCode(func.source, jss.file))
     return ""
 end

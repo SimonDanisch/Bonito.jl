@@ -76,7 +76,6 @@ include("tailwind-dashboard.jl")
 
 include("interactive.jl")
 include("terminal_output.jl")
-include("floating_window.jl")
 
 # Core functionality
 export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset, CSS, LoadingPage, rebundle!
