@@ -14,30 +14,49 @@
 #   * init          worker renders a self-contained bundle (DOM fragment + a
 #                   binary of init messages); host embeds the fragment and drives
 #                   `Bonito.init_session(prefix, …)` via `on_document_load`.
-#   * worker→browser  observable updates: raw relay through `on_send`.
+#   * worker→browser  observable updates: raw relay through `proxy_send(driver, …)`.
 #   * browser→worker  updates/lifecycle: host routes by id-prefix / session id
-#                   (`route_to_remote`) and forwards the decoded frame to the
-#                   worker, where the REAL observables live.
+#                   (`route_to_remote`) and `proxy_forward`s the decoded frame to
+#                   the worker, where the REAL observables live.
 #
-# `ProxyConnection`/`ProxyAssetServer` are transport-agnostic: the in-process
-# `embed_app` wires the sinks with direct calls; a remote driver (BonitoTeam)
-# wires them to a websocket. Either way the worker code is identical.
+# `ProxyConnection`/`ProxyAssetServer`/`RemoteSession`/`RemoteAsset` are
+# transport-agnostic: they carry a `driver` value and dispatch the proxy verbs
+# (`proxy_send`/`proxy_forward`/`proxy_asset_add`/`proxy_asset_remove`/
+# `proxy_fetch`). The in-process `embed_app` driver implements them as direct
+# calls; a remote driver (BonitoTeam) implements them over a websocket. Either
+# way the worker code is identical.
 
 # ── Worker side: the connection ─────────────────────────────────────────────
 
-mutable struct ProxyConnection <: FrontendConnection
+# ── Proxy driver protocol ───────────────────────────────────────────────────
+# A proxy "driver" is the transport-specific glue between a proxied worker
+# session and the host that fronts the browser. Rather than store closures in the
+# proxy types (JS-style `obj.on_send(x)` callbacks), each type carries a driver
+# value and the transport overloads these verbs with multiple dispatch. The
+# in-process `embed_app` driver wires them as direct calls; a remote driver
+# (BonitoTeam) wires them to a websocket — the worker code is identical either way.
+#
+# Worker-side verbs (the proxied session lives here):
+function proxy_send end          # (driver, bytes::Vector{UInt8})          -> Nothing      ship a frame to the browser
+function proxy_asset_add end     # (driver, key, mime, total, cached)      -> Nothing      a proxied asset went 0→1
+function proxy_asset_remove end  # (driver, key)                           -> Nothing      … and 1→0
+# Host-side verbs (the browser socket lives here):
+function proxy_forward end       # (driver, data::AbstractDict)            -> Nothing      relay a decoded browser frame to the worker
+function proxy_fetch end         # (driver, key, start::Int, stop::Int)    -> Vector{UInt8} pull an asset byte range from the worker
+
+mutable struct ProxyConnection{D} <: FrontendConnection
     # Per-session namespace prepended to this session's observable ids so they
     # can't collide with the host's (or another worker's) ids in the browser's
     # one global cache. Equal to the worker session's id.
     prefix::String
-    # Host-bound sink for outbound frames (worker → browser). Gets the final
-    # serialized bytes; the host relays them onto the browser socket verbatim.
-    on_send::Function          # (bytes::Vector{UInt8}) -> Nothing
+    # Transport driver. Outbound frames (worker → browser) go through
+    # `proxy_send(driver, bytes)`; the driver relays them onto the browser socket.
+    driver::D
     open::Threads.Atomic{Bool}
 end
 
-ProxyConnection(prefix::AbstractString, on_send::Function) =
-    ProxyConnection(String(prefix), on_send, Threads.Atomic{Bool}(true))
+ProxyConnection(prefix::AbstractString, driver) =
+    ProxyConnection(String(prefix), driver, Threads.Atomic{Bool}(true))
 
 # Default: normal sessions don't namespace. Only `ProxyConnection` carries a
 # prefix — keeping `cache_key` byte-identical to the old behavior elsewhere.
@@ -54,7 +73,7 @@ function proxied_session_id(parent::Session)
 end
 
 function Base.write(c::ProxyConnection, bytes::AbstractVector{UInt8})
-    c.open[] && c.on_send(collect(bytes))
+    c.open[] && proxy_send(c.driver, collect(bytes))
     return nothing
 end
 Base.isopen(c::ProxyConnection) = c.open[]
@@ -62,7 +81,7 @@ Base.close(c::ProxyConnection) = (c.open[] = false; nothing)
 
 # The host owns the browser transport; a proxied session injects no connection
 # JS of its own (that would try to open a second socket).
-setup_connection(::Session{ProxyConnection}) = nothing
+setup_connection(::Session{<:ProxyConnection}) = nothing
 
 # ── Worker side: render an App into a proxied session ───────────────────────
 
@@ -78,7 +97,7 @@ struct ProxyRender
 end
 
 """
-    render_proxied(app, prefix; compression, on_send, on_asset) -> ProxyRender
+    render_proxied(app, prefix; compression, driver, asset_server) -> ProxyRender
 
 Render `app` into a fresh proxied root `Session` (id == `prefix`). Produces the
 DOM fragment as HTML and ships the session's init messages as one binary via the
@@ -86,13 +105,13 @@ DOM fragment as HTML and ships the session's init messages as one binary via the
 host drives `init_session` itself (so it works even when the host mounts the
 fragment via innerHTML, where inline scripts don't execute).
 
-`on_send(bytes)` relays a frame to the browser; `asset_server` is a
-`ProxyAssetServer` whose add/remove sinks the driver has wired to the host.
+`driver` is the transport: `proxy_send(driver, bytes)` relays a frame to the
+browser. `asset_server` is a `ProxyAssetServer` built over the same `driver` (so
+its 0→1 / 1→0 transitions dispatch `proxy_asset_add` / `proxy_asset_remove`).
 """
 function render_proxied(app::App, prefix::AbstractString;
-                        compression::Bool, on_send::Function,
-                        asset_server::ProxyAssetServer)
-    conn = ProxyConnection(prefix, on_send)
+                        compression::Bool, driver, asset_server::ProxyAssetServer)
+    conn = ProxyConnection(prefix, driver)
     session = Session(conn;
                       id = String(prefix),
                       asset_server = asset_server,
@@ -111,27 +130,17 @@ end
 
 const REMOTE_ROUTES_KEY = :bonito_remote_routes
 
-# One registered proxied session on the host. `to_worker` forwards a decoded
-# browser control frame to the worker (in-process: straight into the worker's
-# `process_message`). `forward_bytes`, when set, is preferred for remote
-# drivers: it ships the raw browser bytes to the worker so the worker's own
-# inbox path (decompress + unpack + dispatch) runs identically to how a
-# direct-WS session would handle them — no re-encode round-trip, no separate
-# `deliver`-shaped worker entry point.
-struct RemoteSession
-    id::String                  # worker session id == observable-id prefix
-    to_worker::Function         # (data::AbstractDict) -> Nothing
-    forward_bytes::Union{Nothing, Function}  # (bytes::Vector{UInt8}) -> Nothing
+# One registered proxied session on the host, keyed by the worker's namespace
+# prefix. Inbound browser frames for it are forwarded via `proxy_forward(driver,
+# data)` — in-process: straight into the worker's `process_message`; remote: the
+# decoded frame re-packed onto the worker's websocket, where its own inbox path
+# (decompress + unpack + dispatch) runs identically to a direct-WS session.
+struct RemoteSession{D}
+    id::String          # worker session id == observable-id prefix
+    driver::D           # host-side driver; inbound browser frames route through
+                        # `proxy_forward(driver, data)` to where the real observables live
 end
-
-# Backward-compat: in-process driver (`embed_app`) only needs `to_worker`.
-RemoteSession(id::AbstractString, to_worker) =
-    RemoteSession(String(id), to_worker, nothing)
-
-# Remote driver entry point: provide `forward_bytes` to ship raw bytes through.
-RemoteSession(id::AbstractString; to_worker = _ -> nothing,
-                                  forward_bytes = nothing) =
-    RemoteSession(String(id), to_worker, forward_bytes)
+RemoteSession(id::AbstractString, driver) = RemoteSession(String(id), driver)
 
 function remote_routes(root::Session)
     return get!(() -> Dict{String,RemoteSession}(), metadata_dict(root), REMOTE_ROUTES_KEY)
@@ -167,24 +176,17 @@ function remote_route_id(data::AbstractDict)
 end
 
 """
-    route_to_remote(session, data; bytes=nothing) -> Bool
+    route_to_remote(session, data) -> Bool
 
 If `data` belongs to a registered proxied (worker) session — recognised purely
 by its id being the worker's namespace prefix (the worker's root session id) or
 starting with `prefix/` (its observables, subsessions, dom nodes) — forward the
-frame to that worker and return `true`. The server holds no mirror of the
-worker's sessions/objects; this namespace match is the whole routing table.
-Returns `false` for the server's own frames (whose ids never carry a worker
-prefix), which then fall through to normal local handling.
-
-When `bytes` is the original (still-compressed) browser frame AND the matched
-`RemoteSession` has a `forward_bytes` callback, those raw bytes are forwarded
-verbatim — the worker then runs decompress + unpack + dispatch on its own
-inbox path, exactly as a direct-WS session would. Falls back to the `to_worker`
-data callback for in-process drivers / pre-`forward_bytes` callers.
+decoded frame to that worker via `proxy_forward(driver, data)` and return `true`.
+The server holds no mirror of the worker's sessions/objects; this namespace match
+is the whole routing table. Returns `false` for the server's own frames (whose
+ids never carry a worker prefix), which then fall through to normal local handling.
 """
-function route_to_remote(session::Session, data::AbstractDict;
-                         bytes::Union{Nothing, AbstractVector{UInt8}} = nothing)
+function route_to_remote(session::Session, data::AbstractDict)
     root = root_session(session)
     routes = get(metadata_dict(root), REMOTE_ROUTES_KEY, nothing)
     (routes === nothing || isempty(routes)) && return false
@@ -192,11 +194,7 @@ function route_to_remote(session::Session, data::AbstractDict;
     id isa AbstractString || return false
     for rs in values(routes)
         if id == rs.id || startswith(id, rs.id * "/")
-            if bytes !== nothing && rs.forward_bytes !== nothing
-                rs.forward_bytes(bytes)
-            else
-                rs.to_worker(data)
-            end
+            proxy_forward(rs.driver, data)
             return true
         end
     end
@@ -232,30 +230,36 @@ the worker session. The worker's observables stay live in this process, so the
 embedded app is fully interactive. Tears down (drops the browser-side session,
 closes the worker session, deregisters the route) when `host` closes.
 
-This is the reference in-process driver; a remote driver swaps the three sinks
-for a transport but renders the worker app the same way.
+This is the reference in-process driver (`InProcessProxy`); a remote driver
+overloads the same proxy verbs over a transport but renders the app the same way.
 """
+# The in-process driver: the host session both fronts the browser AND owns the
+# worker session in this process, so every proxy verb is a direct call. (A remote
+# driver — BonitoTeam — implements the same verbs over a websocket.) `registry`
+# and `worker_session` are back-filled once `render_proxied` has built them.
+mutable struct InProcessProxy
+    host::Session
+    registry::Union{Nothing,ProxyAssetRegistry}
+    worker_session::Union{Nothing,Session}
+end
+InProcessProxy(host::Session) = InProcessProxy(host, nothing, nothing)
+
+proxy_send(d::InProcessProxy, bytes) = (write(connection(d.host), bytes); nothing)
+proxy_asset_add(d::InProcessProxy, key, mime, total, cached) =
+    (register_proxy_asset!(d.host.asset_server, RemoteAsset(key, mime, total, cached, d)); nothing)
+proxy_asset_remove(d::InProcessProxy, key) = (release_proxy_asset!(d.host.asset_server, key); nothing)
+proxy_forward(d::InProcessProxy, data) = (process_message(d.worker_session, data); nothing)
+proxy_fetch(d::InProcessProxy, key, start, stop) = read_proxy_asset(d.registry, key, start, stop)
+
 function embed_app(host::Session, app::App)
     prefix = string(uuid4())
-    on_send = bytes -> write(connection(host), bytes)
-    # Worker asset events drive a bridge ChildAssetServer on the host (in-process:
-    # the host's own asset server). Lazy fetches read straight from the worker
-    # registry; a remote driver swaps that closure for a Malt remote_call.
-    bridge = host.asset_server
-    local registry::ProxyAssetRegistry
-    on_add = (key, mime, total, cached) -> register_proxy_asset!(
-        bridge, RemoteAsset(key, mime, total, cached,
-                            (s, e) -> read_proxy_asset(registry, key, s, e)))
-    on_remove = key -> release_proxy_asset!(bridge, key)
-    asset_server = ProxyAssetServer(on_add, on_remove)
-    registry = asset_server.registry
-    pr = render_proxied(app, prefix;
-                        compression = compression_enabled(host),
-                        on_send = on_send, asset_server = asset_server)
-    # Browser → worker: forward the decoded frame straight into the worker
-    # session, where the real observables live (we're already on an @async
-    # per-message task from the host's inbox reader).
-    register_remote!(host, RemoteSession(prefix, data -> process_message(pr.session, data)))
+    driver = InProcessProxy(host)
+    asset_server = ProxyAssetServer(driver)
+    driver.registry = asset_server.registry          # proxy_fetch reads it
+    pr = render_proxied(app, prefix; compression = compression_enabled(host),
+                        driver = driver, asset_server = asset_server)
+    driver.worker_session = pr.session                # proxy_forward routes browser→worker here
+    register_remote!(host, RemoteSession(prefix, driver))
     on(host.on_close) do _
         unregister_remote!(host, prefix)
         # Drop the worker session's objects from the browser's global cache.

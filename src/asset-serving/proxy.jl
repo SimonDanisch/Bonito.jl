@@ -11,8 +11,8 @@
 # `ChildAssetServer` refcount scheme: a shared registry of `key => (refcount,
 # asset)`, with each session (root + every `similar`-ed subsession) holding the
 # keys it references. The host hears only the net transitions:
-#   * 0→1 (first worker session to reference a key) → `on_add(key, …)`
-#   * 1→0 (last release)                            → `on_remove(key)`
+#   * 0→1 (first worker session to reference a key) → `proxy_asset_add(driver, …)`
+#   * 1→0 (last release)                            → `proxy_asset_remove(driver, key)`
 # The host applies those to one bridge `ChildAssetServer`, storing a `RemoteAsset`
 # per key. `close` of that bridge child (host-session teardown / worker drop)
 # drops everything at once — the safety net.
@@ -39,22 +39,20 @@ const PROXY_EAGER_MAX = 256 * 1024
 # Shared registry across one proxied session tree's asset servers. Holds the
 # refcount + the actual asset (so the worker can serve bytes on demand) and the
 # host-bound add/remove sinks.
-mutable struct ProxyAssetRegistry
-    on_add::Function     # (key, mime, total, cached::Union{Nothing,Vector{UInt8}}) -> Nothing
-    on_remove::Function  # (key) -> Nothing
+mutable struct ProxyAssetRegistry{D}
+    driver::D            # transport: 0→1 fires `proxy_asset_add`, 1→0 `proxy_asset_remove`
     entries::Dict{String,Tuple{Int,AbstractAsset}}
     lock::ReentrantLock
 end
-ProxyAssetRegistry(on_add::Function, on_remove::Function) =
-    ProxyAssetRegistry(on_add, on_remove, Dict{String,Tuple{Int,AbstractAsset}}(), ReentrantLock())
+ProxyAssetRegistry(driver) =
+    ProxyAssetRegistry(driver, Dict{String,Tuple{Int,AbstractAsset}}(), ReentrantLock())
 
 mutable struct ProxyAssetServer <: AbstractAssetServer
     registry::ProxyAssetRegistry
     keys::Set{String}     # keys THIS (sub)session holds a ref on
 end
 ProxyAssetServer(registry::ProxyAssetRegistry) = ProxyAssetServer(registry, Set{String}())
-ProxyAssetServer(on_add::Function, on_remove::Function) =
-    ProxyAssetServer(ProxyAssetRegistry(on_add, on_remove))
+ProxyAssetServer(driver) = ProxyAssetServer(ProxyAssetRegistry(driver))
 
 # Subsessions share the registry (so the refcount spans the whole tree) but get
 # their own key set — exactly the HTTPAssetServer↔ChildAssetServer relationship.
@@ -86,7 +84,7 @@ function url(server::ProxyAssetServer, asset::AbstractAsset)
                 reg.entries[key] = (1, asset)
                 total = proxy_asset_size(asset)
                 cached = total <= PROXY_EAGER_MAX ? proxy_asset_bytes(asset) : nothing
-                reg.on_add(key, proxy_asset_mime(asset), total, cached)   # 0→1
+                proxy_asset_add(reg.driver, key, proxy_asset_mime(asset), total, cached)   # 0→1
             else
                 reg.entries[key] = (entry[1] + 1, entry[2])
             end
@@ -106,7 +104,7 @@ function Base.close(server::ProxyAssetServer)
             entry === nothing && continue
             if entry[1] <= 1
                 delete!(reg.entries, key)
-                reg.on_remove(key)   # 1→0
+                proxy_asset_remove(reg.driver, key)   # 1→0
             else
                 reg.entries[key] = (entry[1] - 1, entry[2])
             end
@@ -122,12 +120,12 @@ end
 # (eager / init bundle); otherwise `fetch(start, stop)` pulls the byte range from
 # the worker (lazy — wired to a `Malt.remote_call` by the proxy driver). `total`
 # is the full length (known from the worker at add time) for range math.
-struct RemoteAsset <: AbstractAsset
+struct RemoteAsset{D} <: AbstractAsset
     key::String
     mime::String
     total::Int
     cached::Union{Nothing,Vector{UInt8}}
-    fetch::Function      # (start::Int, stop::Int) -> Vector{UInt8}
+    driver::D            # host-side; `proxy_fetch(driver, key, start, stop)` pulls a byte range
 end
 
 mediatype(asset::RemoteAsset) = Symbol(HTTPServer.mimetype_to_extension(asset.mime))
@@ -145,11 +143,11 @@ function serve_remote_asset(request, asset::RemoteAsset)
     ]
     rng = parse_byte_range(HTTP.header(request, "Range", ""), asset.total)
     if rng === nothing
-        body = asset.cached === nothing ? asset.fetch(0, asset.total - 1) : asset.cached
+        body = asset.cached === nothing ? proxy_fetch(asset.driver, asset.key, 0, asset.total - 1) : asset.cached
         return HTTP.Response(200, headers; body=body)
     end
     start, stop = rng
-    body = asset.cached === nothing ? asset.fetch(start, stop) : asset.cached[(start+1):(stop+1)]
+    body = asset.cached === nothing ? proxy_fetch(asset.driver, asset.key, start, stop) : asset.cached[(start+1):(stop+1)]
     push!(headers, "Content-Range"  => "bytes $start-$stop/$(asset.total)")
     push!(headers, "Content-Length" => string(stop - start + 1))
     return HTTP.Response(206, headers; body=body)

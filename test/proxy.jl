@@ -30,6 +30,23 @@ Base.isopen(::CaptureConnection) = true
 Base.close(::CaptureConnection) = nothing
 Bonito.setup_connection(::Session{CaptureConnection}) = nothing
 
+# Driver stand-ins for the dispatched proxy verbs (these replace the old closure
+# sinks — the test overloads the verbs on tiny driver types).
+mutable struct CaptureDriver
+    added::Vector{String}
+    removed::Vector{String}
+end
+CaptureDriver() = CaptureDriver(String[], String[])
+Bonito.proxy_asset_add(d::CaptureDriver, key, mime, total, cached) = (push!(d.added, key); nothing)
+Bonito.proxy_asset_remove(d::CaptureDriver, key) = (push!(d.removed, key); nothing)
+
+struct NoFetchDriver end
+Bonito.proxy_fetch(::NoFetchDriver, key, s, e) = error("should not fetch")
+struct RangeFetchDriver
+    bytes::Vector{UInt8}
+end
+Bonito.proxy_fetch(d::RangeFetchDriver, key, s, e) = d.bytes[(s+1):(e+1)]
+
 # Decode a SerializedMessage the way the JS side does: EXT(SERIALIZED_MESSAGE_TAG)
 # → [session_id, status, cacheExt, dataExt]; the data ext wraps the actual
 # message dict. Accepts either raw frame bytes or an already-unpacked extension
@@ -121,31 +138,29 @@ end
     end
 
     @testset "asset refcount: add on 0→1, remove on 1→0, shared across subsessions" begin
-        added = String[]; removed = String[]
-        on_add = (key, mime, total, cached) -> push!(added, key)
-        on_remove = key -> push!(removed, key)
-        root_as = ProxyAssetServer(on_add, on_remove)
+        drv = CaptureDriver()
+        root_as = ProxyAssetServer(drv)
         sub_as  = similar(root_as)                  # shares the registry
         asset = BinaryAsset(UInt8[1,2,3,4], "application/octet-stream")
         key = unique_file_key(asset)
 
         url(root_as, asset)
-        @test added == [key]                        # 0→1 once
+        @test drv.added == [key]                    # 0→1 once
         url(sub_as, asset)
-        @test added == [key]                        # 2nd referencing session: no new add
+        @test drv.added == [key]                    # 2nd referencing session: no new add
         url(root_as, asset)                          # same session re-reference: no-op
-        @test added == [key]
+        @test drv.added == [key]
 
         close(root_as)
-        @test isempty(removed)                       # sub still holds a ref
+        @test isempty(drv.removed)                   # sub still holds a ref
         close(sub_as)
-        @test removed == [key]                       # 1→0 once
+        @test drv.removed == [key]                   # 1→0 once
     end
 
     @testset "RemoteAsset serves cached bytes and lazy ranges" begin
         bytes = collect(UInt8, 1:20)
-        # eager / cached
-        ra = RemoteAsset("k1", "application/octet-stream", length(bytes), bytes, (s,e)->error("should not fetch"))
+        # eager / cached → proxy_fetch must NOT be called
+        ra = RemoteAsset("k1", "application/octet-stream", length(bytes), bytes, NoFetchDriver())
         full = serve_remote_asset(Request("GET", "/assets/k1"), ra)
         @test full.status == 200
         @test full.body == bytes
@@ -154,9 +169,8 @@ end
         @test ranged.body == bytes[6:10]
         @test header(ranged, "Content-Range") == "bytes 5-9/20"
 
-        # lazy: no cached bytes, fetch closure pulls the range (mirrors a Malt call)
-        fetched = RemoteAsset("k2", "application/octet-stream", length(bytes), nothing,
-                              (s, e) -> bytes[(s+1):(e+1)])
+        # lazy: no cached bytes, proxy_fetch pulls the range (mirrors a Malt call)
+        fetched = RemoteAsset("k2", "application/octet-stream", length(bytes), nothing, RangeFetchDriver(bytes))
         lazy = serve_remote_asset(Request("GET", "/assets/k2", ["Range" => "bytes=0-3"]), fetched)
         @test lazy.status == 206
         @test lazy.body == bytes[1:4]
