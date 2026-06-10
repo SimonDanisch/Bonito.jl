@@ -159,14 +159,22 @@ mutable struct DisplayHandler
     # for one more swap so an in-flight browser fetch for its assets still
     # resolves. Closed when the next swap arrives, or on `close(handler)`.
     previous_session::Union{Session, Nothing}
+    # Serializes `apply_handler` (and `update_app!`): both read-then-replace
+    # `session`/`previous_session`. Two concurrent GETs would otherwise close
+    # each other's session mid-render and leak one replacement (B24).
+    lock::ReentrantLock
 end
+DisplayHandler(session, server, route, current_app, previous_session) =
+    DisplayHandler(session, server, route, current_app, previous_session, ReentrantLock())
 
 function Base.close(handler::DisplayHandler)
-    if !isnothing(handler.previous_session)
-        close(handler.previous_session)
-        handler.previous_session = nothing
+    lock(handler.lock) do
+        if !isnothing(handler.previous_session)
+            close(handler.previous_session)
+            handler.previous_session = nothing
+        end
+        close(handler.session)
     end
-    close(handler.session)
 end
 
 function HTTPSession(server::HTTPServer.Server)
@@ -188,25 +196,29 @@ function DisplayHandler(server::HTTPServer.Server, app::App; route="/browser-dis
 end
 
 function update_app!(handler::DisplayHandler, app::App)
-    # the connection is open, so we can just use it to update the dom!
-    old_session = handler.current_app.session[]
-    handler.current_app = app
-    # `throw=false`: branching on connection state, not waiting for ready.
-    if isready(handler.session; throw=false)
-        # Double-buffer: close the older session (two swaps back), promote
-        # `old_session` to the previous slot. The browser may still be
-        # mid-fetch on `old_session`'s assets when we mount the new app —
-        # leaving it alive for one more swap gives those fetches a live
-        # ChildAssetServer to resolve against.
-        if !isnothing(handler.previous_session)
-            close(handler.previous_session)
+    # Serialize with `apply_handler` (B24) — both read-then-replace
+    # `session`/`previous_session`.
+    lock(handler.lock) do
+        # the connection is open, so we can just use it to update the dom!
+        old_session = handler.current_app.session[]
+        handler.current_app = app
+        # `throw=false`: branching on connection state, not waiting for ready.
+        if isready(handler.session; throw=false)
+            # Double-buffer: close the older session (two swaps back), promote
+            # `old_session` to the previous slot. The browser may still be
+            # mid-fetch on `old_session`'s assets when we mount the new app —
+            # leaving it alive for one more swap gives those fetches a live
+            # ChildAssetServer to resolve against.
+            if !isnothing(handler.previous_session)
+                close(handler.previous_session)
+            end
+            handler.previous_session = old_session
+            update_app!(handler.session, app)
+            return false
+        else
+            # Need to wait for someone to actually visit http://.../browser-display
+            return true # needs loading!
         end
-        handler.previous_session = old_session
-        update_app!(handler.session, app)
-        return false
-    else
-        # Need to wait for someone to actually visit http://.../browser-display
-        return true # needs loading!
     end
 end
 
@@ -216,49 +228,55 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
     # And this is already complicated enough!
     # so, if we serve the display handler url, it means to start fresh
     # But if UNINITIALIZED, it's simply the first request to the page!
-    parent = handler.session
-    not_initialized = parent.status != UNINITIALIZED
-    changed_compression = parent.compression_enabled != default_compression()
-    ForcedCon = FORCED_CONNECTION[]
-    changed_connection = !isnothing(ForcedCon) && !(parent.connection isa ForcedCon)
-    if not_initialized || changed_compression || changed_connection
-        @debug("creating new Session for unititialized display handler")
-        # Close the old root before replacing it. Otherwise its children +
-        # asset_server refcount contributions leak — this is exactly what
-        # the subsessions "server cleanup" test catches under
-        # Compression+DualWebsocket (which flips both globals between the
-        # two test passes, taking this branch). We also drop any buffered
-        # `previous_session` since it's a sub of the now-stale root.
-        if !isnothing(handler.previous_session)
-            close(handler.previous_session)
-            handler.previous_session = nothing
+    # The check-then-act on `handler.session` (read status, maybe close +
+    # replace) is racy under two concurrent GETs — they'd close each other's
+    # session mid-render and leak a replacement (B24). Hold `handler.lock`
+    # across the whole read-replace-render region.
+    lock(handler.lock) do
+        parent = handler.session
+        not_initialized = parent.status != UNINITIALIZED
+        changed_compression = parent.compression_enabled != default_compression()
+        ForcedCon = FORCED_CONNECTION[]
+        changed_connection = !isnothing(ForcedCon) && !(parent.connection isa ForcedCon)
+        if not_initialized || changed_compression || changed_connection
+            @debug("creating new Session for unititialized display handler")
+            # Close the old root before replacing it. Otherwise its children +
+            # asset_server refcount contributions leak — this is exactly what
+            # the subsessions "server cleanup" test catches under
+            # Compression+DualWebsocket (which flips both globals between the
+            # two test passes, taking this branch). We also drop any buffered
+            # `previous_session` since it's a sub of the now-stale root.
+            if !isnothing(handler.previous_session)
+                close(handler.previous_session)
+                handler.previous_session = nothing
+            end
+            close(handler.session)
+            parent = HTTPSession(handler.server)
+            handler.session = parent
         end
-        close(handler.session)
-        parent = HTTPSession(handler.server)
-        handler.session = parent
+        sub = Session(parent)
+        # The page wrapper (`<title>` etc.) is rendered from the parent session,
+        # so carry the displayed app's title onto it — otherwise `display(disp,
+        # app)` pages always show the default "Bonito App" regardless of the
+        # `title=` passed to `App(...)` (only the `route!(server, "/" => app)`
+        # path set it before).
+        parent.title = handler.current_app.title
+        # Render-time errors are absorbed by `handle_render_error` inside
+        # `rendered_dom` — we get back a valid Node either way (success DOM or
+        # inline error HTML) and the page wrap finishes normally. Infrastructure
+        # failures (Session ctor, find_head_body, sprint, …) propagate to the
+        # HTTPServer's `delegate` which returns a 500.
+        parent_dom = session_dom(parent, App(nothing; indicator=handler.current_app.indicator, loading_page=nothing); html_document=true)
+        sub_dom = session_dom(sub, handler.current_app)
+        _, parent_body, _ = find_head_body(parent_dom)
+        push!(children(parent_body), sub_dom)
+        html_str = sprint(io -> print_as_page(io, parent_dom))
+        # The closing time is calculated from here. If after 20s no connection is
+        # established the browser is assumed to have never connected.
+        mark_displayed!(parent)
+        mark_displayed!(sub)
+        return html(html_str)
     end
-    sub = Session(parent)
-    # The page wrapper (`<title>` etc.) is rendered from the parent session,
-    # so carry the displayed app's title onto it — otherwise `display(disp,
-    # app)` pages always show the default "Bonito App" regardless of the
-    # `title=` passed to `App(...)` (only the `route!(server, "/" => app)`
-    # path set it before).
-    parent.title = handler.current_app.title
-    # Render-time errors are absorbed by `handle_render_error` inside
-    # `rendered_dom` — we get back a valid Node either way (success DOM or
-    # inline error HTML) and the page wrap finishes normally. Infrastructure
-    # failures (Session ctor, find_head_body, sprint, …) propagate to the
-    # HTTPServer's `delegate` which returns a 500.
-    parent_dom = session_dom(parent, App(nothing; indicator=handler.current_app.indicator, loading_page=nothing); html_document=true)
-    sub_dom = session_dom(sub, handler.current_app)
-    _, parent_body, _ = find_head_body(parent_dom)
-    push!(children(parent_body), sub_dom)
-    html_str = sprint(io -> print_as_page(io, parent_dom))
-    # The closing time is calculated from here. If after 20s no connection is
-    # established the browser is assumed to have never connected.
-    mark_displayed!(parent)
-    mark_displayed!(sub)
-    return html(html_str)
 end
 
 function wait_for_ready(app::App; timeout=100)

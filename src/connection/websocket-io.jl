@@ -81,7 +81,15 @@ function Base.close(io::WebSocketIO)
         # `bytesavailable(IOBuffer)` returns 0 (it counts unread bytes from
         # the current position, not the total writes pending).
         position(io.outbuf) > 0 && send_frame!(io.ws, take!(io.outbuf))
-    catch
+    catch e
+        # The peer may already be gone — a transport-closed error on the final
+        # flush is expected and fine to ignore. Anything else is a real bug we
+        # must not swallow (B35): no bare `catch end`.
+        if e isa Union{HTTP.WebSockets.WebSocketError, Base.IOError, EOFError}
+            @debug "WebSocketIO close: final flush failed (peer closed)" exception = e
+        else
+            rethrow()
+        end
     end
     return nothing
 end

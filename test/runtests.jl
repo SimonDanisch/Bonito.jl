@@ -62,6 +62,9 @@ end
         @testset "websocket-closing" begin
             include("websocket-closing.jl")
         end
+        @testset "reconnect" begin
+            include("reconnect.jl")
+        end
         @testset "components" begin
             include("components.jl")
         end
@@ -85,6 +88,12 @@ end
         end
         @testset "race_conditions_audit" begin
             include("race_conditions_audit.jl")
+        end
+        @testset "stability_core" begin
+            include("stability_core.jl")
+        end
+        @testset "stability_assets" begin
+            include("stability_assets.jl")
         end
         @testset "connection-serving" begin
             include("connection-serving.jl")

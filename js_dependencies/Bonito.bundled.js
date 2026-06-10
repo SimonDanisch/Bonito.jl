@@ -3271,7 +3271,9 @@ function on_connection_open(send_message_callback, compression_enabled, enable_p
     CONNECTION.status = "open";
     CONNECTION.compression_enabled = compression_enabled;
     notify_indicator_status();
-    CONNECTION.queue.forEach((message)=>send_to_julia(message));
+    const pending = CONNECTION.queue;
+    CONNECTION.queue = [];
+    pending.forEach((message)=>send_to_julia(message));
     if (enable_pings) {
         send_pings();
     }
@@ -3279,6 +3281,29 @@ function on_connection_open(send_message_callback, compression_enabled, enable_p
 function on_connection_close() {
     CONNECTION.status = "closed";
     notify_indicator_status();
+    arm_reconnect_triggers();
+}
+let reconnect_triggers_armed = false;
+function arm_reconnect_triggers() {
+    if (reconnect_triggers_armed) {
+        return;
+    }
+    if (typeof window === "undefined" || !window.addEventListener) {
+        return;
+    }
+    reconnect_triggers_armed = true;
+    const try_revive = ()=>{
+        if (CONNECTION.status === "open" || CONNECTION.status === "connecting" || CONNECTION.status === "no_connection") {
+            return;
+        }
+        if (typeof window !== "undefined" && window.WEBSOCKET && typeof window.WEBSOCKET.retry_connection === "function") {
+            CONNECTION.status = "connecting";
+            notify_indicator_status();
+            window.WEBSOCKET.retry_connection();
+        }
+    };
+    window.addEventListener("online", try_revive);
+    window.addEventListener("focus", try_revive);
 }
 function can_send_to_julia() {
     return CONNECTION.status === "open";
@@ -3359,11 +3384,18 @@ register_ext(99, (uint_8_array, context)=>{
 });
 const SESSIONS = {};
 const GLOBAL_OBJECT_CACHE = {};
+const FREED_SESSION_TOMBSTONES = new Set();
+function tombstone_session(session_id) {
+    FREED_SESSION_TOMBSTONES.add(session_id);
+    setTimeout(()=>FREED_SESSION_TOMBSTONES.delete(session_id), 30000);
+}
 const OBJECT_FREEING_LOCK = new l({
     concurrency: 1
 });
 function lock_loading(f) {
-    OBJECT_FREEING_LOCK.add(f);
+    OBJECT_FREEING_LOCK.add(f).catch((error)=>{
+        send_error("Error inside object-freeing-locked task", error);
+    });
 }
 function lookup_global_object(key) {
     const object = GLOBAL_OBJECT_CACHE[key];
@@ -3375,9 +3407,10 @@ function lookup_global_object(key) {
 }
 function is_still_referenced(id) {
     for(const session_id in SESSIONS){
-        const [tracked_objects, status] = SESSIONS[session_id];
-        if (!tracked_objects.has(id)) continue;
-        if (status === "delete" || status === "root") return true;
+        const [tracked_objects] = SESSIONS[session_id];
+        if (tracked_objects.has(id)) {
+            return true;
+        }
     }
     return false;
 }
@@ -3410,11 +3443,22 @@ function move_dom_node(node, parent, ref) {
         parent.insertBefore(node, ref);
         return;
     }
-    const restore = SESSIONS[id][1];
-    SESSIONS[id][1] = "moving";
+    const entry = SESSIONS[id];
+    if (entry[1] !== "moving") {
+        entry[2] = entry[1];
+    }
+    entry[1] = "moving";
+    const token = (entry[3] || 0) + 1;
+    entry[3] = token;
     parent.insertBefore(node, ref);
     setTimeout(()=>{
-        SESSIONS[id][1] = restore;
+        const current = SESSIONS[id];
+        if (!current || current[3] !== token) {
+            return;
+        }
+        current[1] = current[2];
+        current[2] = undefined;
+        current[3] = undefined;
     }, 0);
 }
 function track_deleted_sessions() {
@@ -3458,6 +3502,39 @@ function track_deleted_sessions() {
         DELETE_OBSERVER = observer;
     }
 }
+function send_pingpong() {
+    send_to_julia({
+        msg_type: PingPong
+    });
+}
+let timeout = null;
+function send_pings() {
+    clearTimeout(timeout);
+    if (!can_send_to_julia()) {
+        return;
+    }
+    send_pingpong();
+    timeout = setTimeout(send_pings, PING_INTERVAL);
+}
+function send_error(message, exception) {
+    console.error(message);
+    console.error(exception);
+    send_to_julia({
+        msg_type: JavascriptError,
+        message: message,
+        exception: String(exception),
+        stacktrace: exception === null ? "" : clean_stack(exception.stack)
+    });
+}
+function send_done_loading(session, exception) {
+    send_to_julia({
+        msg_type: JSDoneLoading,
+        session,
+        message: "",
+        exception: exception === null ? "nothing" : String(exception),
+        stacktrace: exception === null ? "" : clean_stack(exception.stack)
+    });
+}
 function done_initializing_session(session_id) {
     if (!(session_id in SESSIONS)) {
         console.warn(`Session ${session_id} got deleted before done initializing!`);
@@ -3475,8 +3552,7 @@ function init_session_from_msgs(session_id, messages) {
         done_initializing_session(session_id);
     } catch (error) {
         send_done_loading(session_id, error);
-        console.error(error.stack);
-        throw error;
+        console.error(error.stack || error);
     }
 }
 register_ext(102, (uint_8_array, context)=>{
@@ -3501,16 +3577,6 @@ register_ext(102, (uint_8_array, context)=>{
         throw err;
     }
 });
-function send_error(message, exception) {
-    console.error(message);
-    console.error(exception);
-    send_to_julia({
-        msg_type: JavascriptError,
-        message: message,
-        exception: String(exception),
-        stacktrace: exception === null ? "" : clean_stack(exception.stack)
-    });
-}
 register_ext(104, (uint_8_array, context)=>{
     const key = unpack(uint_8_array, context);
     return lookup_global_object(key);
@@ -3545,6 +3611,7 @@ function free_session(session_id) {
         }
         const [tracked_objects, status] = session;
         delete SESSIONS[session_id];
+        tombstone_session(session_id);
         tracked_objects.forEach(free_object);
         tracked_objects.clear();
     });
@@ -3573,40 +3640,125 @@ function update_or_replace(node, new_html, replace) {
     if (replace) {
         node.parentNode.replaceChild(new_html, node);
     } else {
-        while(node.childElementCount > 0){
+        while(node.firstChild){
             node.removeChild(node.firstChild);
         }
         node.append(new_html);
     }
 }
-function ensure_session_exists(session_id, session_status) {
-    if (!(session_id in SESSIONS)) {
-        SESSIONS[session_id] = [
-            new Set(),
-            session_status
-        ];
-    }
-}
 function update_session_dom(message) {
-    lock_loading(()=>{
-        const { session_id , session_status , messages , html , dom_node_selector , replace  } = message;
-        ensure_session_exists(session_id, session_status || "sub");
-        return on_node_available(dom_node_selector, 1).then((dom)=>{
+    const { session_id , session_status , messages , html , dom_node_selector , replace  } = message;
+    ensure_session_exists(session_id, session_status || "sub");
+    return on_node_available(dom_node_selector, 1).then((dom)=>{
+        lock_loading(()=>{
             update_or_replace(dom, html, replace);
             init_session_from_msgs(session_id, messages);
-        }).catch((error)=>{
-            send_done_loading(session_id, error);
         });
+    }).catch((error)=>{
+        send_done_loading(session_id, error);
     });
+}
+function ensure_session_exists(session_id, session_status) {
+    if (session_id in SESSIONS) {
+        return;
+    }
+    if (FREED_SESSION_TOMBSTONES.has(session_id)) {
+        console.warn(`Ignoring (re)creation of freed session ${session_id} (tombstoned)`);
+        return;
+    }
+    SESSIONS[session_id] = [
+        new Set(),
+        session_status
+    ];
 }
 function track_in_session(session_id, key, session_status) {
     ensure_session_exists(session_id, session_status);
-    const tracked_objects = SESSIONS[session_id][0];
+    const session = SESSIONS[session_id];
+    if (!session) {
+        console.warn(`track_in_session for freed session ${session_id} ignored`);
+        return;
+    }
+    const tracked_objects = session[0];
     tracked_objects.add(key);
     if (!(key in GLOBAL_OBJECT_CACHE)) {
         console.warn(`TrackingOnly: Key ${key} not found in GLOBAL_OBJECT_CACHE`);
     }
 }
+function register_in_session_cache(session_id, key, object, session_status) {
+    ensure_session_exists(session_id, session_status);
+    const session = SESSIONS[session_id];
+    if (!session) {
+        console.warn(`register_in_session_cache for freed session ${session_id} ignored`);
+        return;
+    }
+    const tracked_objects = session[0];
+    tracked_objects.add(key);
+    if (!(key in GLOBAL_OBJECT_CACHE)) {
+        GLOBAL_OBJECT_CACHE[key] = object;
+    }
+}
+function decode_binary(binary, compression_enabled) {
+    return unpack_binary(binary, compression_enabled);
+}
+function init_session(session_id, message_promise, session_status, compression) {
+    SESSIONS[session_id] = [
+        new Set(),
+        session_status
+    ];
+    track_deleted_sessions();
+    lock_loading(()=>{
+        return Promise.resolve(message_promise).then((binary)=>{
+            const messages = binary ? decode_binary(binary, compression) : [];
+            init_session_from_msgs(session_id, messages);
+        }).catch((error)=>{
+            send_done_loading(session_id, error);
+            console.error(error.stack || error);
+        });
+    });
+}
+function update_session_cache(session_id, new_jl_objects, session_status) {
+    function update_cache(tracked_objects) {
+        for (const [key, new_object] of new_jl_objects){
+            tracked_objects.add(key);
+            if (!(key in GLOBAL_OBJECT_CACHE)) {
+                GLOBAL_OBJECT_CACHE[key] = new_object;
+            }
+        }
+    }
+    const session = SESSIONS[session_id];
+    if (session) {
+        update_cache(session[0]);
+    } else {
+        const tracked_items = new Set();
+        SESSIONS[session_id] = [
+            tracked_items,
+            session_status
+        ];
+        update_cache(tracked_items);
+    }
+}
+const mod = {
+    SESSIONS: SESSIONS,
+    GLOBAL_OBJECT_CACHE: GLOBAL_OBJECT_CACHE,
+    OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK,
+    lock_loading: lock_loading,
+    lookup_global_object: lookup_global_object,
+    force_free_object: force_free_object,
+    free_object: free_object,
+    move_dom_node: move_dom_node,
+    track_deleted_sessions: track_deleted_sessions,
+    done_initializing_session: done_initializing_session,
+    init_session: init_session,
+    close_session: close_session,
+    free_session: free_session,
+    on_node_available: on_node_available,
+    update_or_replace: update_or_replace,
+    update_session_dom: update_session_dom,
+    ensure_session_exists: ensure_session_exists,
+    track_in_session: track_in_session,
+    register_in_session_cache: register_in_session_cache,
+    update_session_cache: update_session_cache
+};
 register_ext(109, (uint_8_array, context)=>{
     const key = unpack(uint_8_array, context);
     track_in_session(context.session_id, key, context.session_status);
@@ -3641,53 +3793,6 @@ register_ext(108, (uint_8_array, context)=>{
     div.innerHTML = html;
     return div;
 });
-function encode_binary(data, compression_enabled) {
-    if (compression_enabled) {
-        return ml(pack(data));
-    } else {
-        return pack(data);
-    }
-}
-function send_to_julia(message) {
-    const { send_message , status , compression_enabled  } = CONNECTION;
-    if (send_message !== undefined && status === "open") {
-        send_message(encode_binary(message, compression_enabled));
-    } else if (status === "connecting") {
-        CONNECTION.queue.push(message);
-    } else {
-        console.log(`Trying to send messages while connection is offline: ${status}`);
-    }
-}
-class Observable {
-    #callbacks = [];
-    constructor(id, value){
-        this.id = id;
-        this.value = value;
-    }
-    notify(value, dont_notify_julia) {
-        this.value = value;
-        this.#callbacks.forEach((callback)=>{
-            try {
-                const deregister = callback(value);
-                if (deregister == false) {
-                    this.#callbacks.splice(this.#callbacks.indexOf(callback), 1);
-                }
-            } catch (exception) {
-                send_error("Error during running onjs callback\n" + "Callback:\n" + callback.toString(), exception);
-            }
-        });
-        if (!dont_notify_julia) {
-            send_to_julia({
-                msg_type: UpdateObservable,
-                id: this.id,
-                payload: value
-            });
-        }
-    }
-    on(callback) {
-        this.#callbacks.push(callback);
-    }
-}
 register_ext(106, (uint_8_array, context)=>{
     const [session_id, session_status, packed_objects_ext] = decode(uint_8_array);
     ensure_session_exists(session_id, session_status);
@@ -3703,33 +3808,36 @@ register_ext(107, (uint_8_array, context)=>{
     return unpack(packed_data_ext.data, ctx);
 });
 function base64encode(data_as_uint8array) {
-    const base64_promise = new Promise((resolve)=>{
+    const base64_promise = new Promise((resolve, reject)=>{
         const reader = new FileReader();
         reader.onload = ()=>{
             const len = 37;
             const base64url = reader.result;
             resolve(base64url.slice(len, base64url.length));
         };
-        reader.readAsDataURL(new Blob([
-            data_as_uint8array
-        ]));
+        reader.onerror = ()=>{
+            reject(reader.error || new Error("FileReader failed during base64encode"));
+        };
+        reader.onabort = ()=>{
+            reject(new Error("FileReader aborted during base64encode"));
+        };
+        try {
+            reader.readAsDataURL(new Blob([
+                data_as_uint8array
+            ]));
+        } catch (error) {
+            reject(error);
+        }
     });
     return base64_promise;
 }
 function base64decode(base64_str) {
-    return new Promise((resolve)=>{
-        fetch("data:application/octet-stream;base64," + base64_str).then((response)=>{
-            response.arrayBuffer().then((array)=>{
-                resolve(new Uint8Array(array));
-            });
-        });
+    return new Promise((resolve, reject)=>{
+        fetch("data:application/octet-stream;base64," + base64_str).then((response)=>response.arrayBuffer()).then((array)=>resolve(new Uint8Array(array))).catch(reject);
     });
 }
 function decode_base64_message(base64_string, compression_enabled) {
     return base64decode(base64_string).then((x)=>decode_binary(x, compression_enabled));
-}
-function decode_binary(binary, compression_enabled) {
-    return unpack_binary(binary, compression_enabled);
 }
 function unpack_binary(binary, compression_enabled) {
     if (compression_enabled) {
@@ -3738,7 +3846,14 @@ function unpack_binary(binary, compression_enabled) {
         return unpack(binary);
     }
 }
-const mod = {
+function encode_binary(data, compression_enabled) {
+    if (compression_enabled) {
+        return ml(pack(data));
+    } else {
+        return pack(data);
+    }
+}
+const mod1 = {
     base64encode: base64encode,
     base64decode: base64decode,
     decode_base64_message: decode_base64_message,
@@ -3746,108 +3861,74 @@ const mod = {
     unpack_binary: unpack_binary,
     encode_binary: encode_binary
 };
-function init_session(session_id, message_promise, session_status, compression) {
-    SESSIONS[session_id] = [
-        new Set(),
-        session_status
-    ];
-    track_deleted_sessions();
-    lock_loading(()=>{
-        return Promise.resolve(message_promise).then((binary)=>{
-            const messages = binary ? decode_binary(binary, compression) : [];
-            init_session_from_msgs(session_id, messages);
-        }).catch((error)=>{
-            send_done_loading(session_id, error);
-            console.error(error.stack);
-            throw error;
-        });
-    });
-}
-function register_in_session_cache(session_id, key, object, session_status) {
-    ensure_session_exists(session_id, session_status);
-    const tracked_objects = SESSIONS[session_id][0];
-    tracked_objects.add(key);
-    if (!(key in GLOBAL_OBJECT_CACHE)) {
-        GLOBAL_OBJECT_CACHE[key] = object;
-    }
-}
-function update_session_cache(session_id, new_jl_objects, session_status) {
-    function update_cache(tracked_objects) {
-        for (const [key, new_object] of new_jl_objects){
-            tracked_objects.add(key);
-            if (!(key in GLOBAL_OBJECT_CACHE)) {
-                GLOBAL_OBJECT_CACHE[key] = new_object;
+function send_to_julia(message) {
+    const { send_message , status , compression_enabled  } = CONNECTION;
+    if (send_message !== undefined && status === "open") {
+        const sent = send_message(encode_binary(message, compression_enabled));
+        if (sent === false || sent === undefined) {
+            CONNECTION.queue.push(message);
+            if (CONNECTION.status === "open") {
+                CONNECTION.status = "closed";
+                notify_indicator_status();
+                arm_reconnect_triggers();
             }
         }
-    }
-    const session = SESSIONS[session_id];
-    if (session) {
-        update_cache(session[0]);
+    } else if (status === "no_connection") {
+        console.log("Trying to send messages while in no_connection (static) mode");
     } else {
-        const tracked_items = new Set();
-        SESSIONS[session_id] = [
-            tracked_items,
-            session_status
-        ];
-        update_cache(tracked_items);
+        CONNECTION.queue.push(message);
     }
 }
-const mod1 = {
-    SESSIONS: SESSIONS,
-    GLOBAL_OBJECT_CACHE: GLOBAL_OBJECT_CACHE,
-    OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK,
-    lock_loading: lock_loading,
-    lookup_global_object: lookup_global_object,
-    force_free_object: force_free_object,
-    free_object: free_object,
-    move_dom_node: move_dom_node,
-    track_deleted_sessions: track_deleted_sessions,
-    done_initializing_session: done_initializing_session,
-    init_session: init_session,
-    close_session: close_session,
-    free_session: free_session,
-    on_node_available: on_node_available,
-    update_or_replace: update_or_replace,
-    update_session_dom: update_session_dom,
-    ensure_session_exists: ensure_session_exists,
-    track_in_session: track_in_session,
-    register_in_session_cache: register_in_session_cache,
-    update_session_cache: update_session_cache
-};
+class Observable {
+    #callbacks = [];
+    constructor(id, value){
+        this.id = id;
+        this.value = value;
+    }
+    notify(value, dont_notify_julia) {
+        this.value = value;
+        const callbacks = this.#callbacks.slice();
+        const to_remove = [];
+        callbacks.forEach((callback)=>{
+            try {
+                const deregister = callback(value);
+                if (deregister == false) {
+                    to_remove.push(callback);
+                }
+            } catch (exception) {
+                send_error("Error during running onjs callback\n" + "Callback:\n" + callback.toString(), exception);
+            }
+        });
+        to_remove.forEach((callback)=>{
+            const idx = this.#callbacks.indexOf(callback);
+            if (idx !== -1) {
+                this.#callbacks.splice(idx, 1);
+            }
+        });
+        if (!dont_notify_julia) {
+            send_to_julia({
+                msg_type: UpdateObservable,
+                id: this.id,
+                payload: value
+            });
+        }
+    }
+    on(callback) {
+        this.#callbacks.push(callback);
+    }
+}
 register_ext(101, (uint_8_array, context)=>{
     const [id, value] = unpack(uint_8_array, context);
-    const obs = new Observable(id, value);
+    const existing = GLOBAL_OBJECT_CACHE[id];
+    const obs = existing instanceof Observable ? existing : new Observable(id, value);
     register_in_session_cache(context.session_id, id, obs, context.session_status);
     return obs;
 });
-function send_pingpong() {
-    send_to_julia({
-        msg_type: PingPong
-    });
-}
-let timeout = null;
-function send_pings() {
-    clearTimeout(timeout);
-    if (!can_send_to_julia()) {
-        return;
-    }
-    send_pingpong();
-    timeout = setTimeout(send_pings, PING_INTERVAL);
-}
 function send_warning(message) {
     console.warn(message);
     send_to_julia({
         msg_type: JavascriptWarning,
         message: message
-    });
-}
-function send_done_loading(session, exception) {
-    send_to_julia({
-        msg_type: JSDoneLoading,
-        session,
-        message: "",
-        exception: exception === null ? "nothing" : String(exception),
-        stacktrace: exception === null ? "" : clean_stack(exception.stack)
     });
 }
 function send_close_session(session, subsession) {
@@ -3919,8 +4000,8 @@ function onany(observables, f) {
     });
 }
 const { send_error: send_error1 , send_warning: send_warning1 , process_message: process_message1 , on_connection_open: on_connection_open1 , on_connection_close: on_connection_close1 , on_connection_connecting: on_connection_connecting1 , send_close_session: send_close_session1 , send_pingpong: send_pingpong1 , can_send_to_julia: can_send_to_julia1 , send_to_julia: send_to_julia1 , register_connection_indicator: register_connection_indicator1 , unregister_connection_indicator: unregister_connection_indicator1 , set_no_connection: set_no_connection1 , ConnectionStatus: ConnectionStatus1  } = mod2;
-const { base64decode: base64decode1 , base64encode: base64encode1 , decode_binary: decode_binary1 , encode_binary: encode_binary1 , decode_base64_message: decode_base64_message1  } = mod;
-const { init_session: init_session1 , free_session: free_session1 , lookup_global_object: lookup_global_object1 , update_or_replace: update_or_replace1 , lock_loading: lock_loading1 , OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK1 , free_object: free_object1 , force_free_object: force_free_object1 , move_dom_node: move_dom_node1  } = mod1;
+const { base64decode: base64decode1 , base64encode: base64encode1 , decode_binary: decode_binary1 , encode_binary: encode_binary1 , decode_base64_message: decode_base64_message1  } = mod1;
+const { init_session: init_session1 , free_session: free_session1 , lookup_global_object: lookup_global_object1 , update_or_replace: update_or_replace1 , lock_loading: lock_loading1 , OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK1 , free_object: free_object1 , force_free_object: force_free_object1 , move_dom_node: move_dom_node1  } = mod;
 function update_node_attribute(node, attribute, value) {
     if (node) {
         if (attribute === "class") {
@@ -3967,6 +4048,10 @@ function load_script(url, global_name) {
                 }
             }, delay);
         };
+        if (existing_script && existing_script.dataset.loaded === "true") {
+            waitForGlobal();
+            return;
+        }
         script.addEventListener("load", ()=>{
             script.dataset.loaded = "true";
             waitForGlobal();
@@ -4019,7 +4104,7 @@ function generate_state_key(v) {
     }
 }
 const Bonito = {
-    Protocol: mod,
+    Protocol: mod1,
     base64decode: base64decode1,
     base64encode: base64encode1,
     decode_binary: decode_binary1,
@@ -4040,7 +4125,7 @@ const Bonito = {
     unregister_connection_indicator: unregister_connection_indicator1,
     set_no_connection: set_no_connection1,
     ConnectionStatus: ConnectionStatus1,
-    Sessions: mod1,
+    Sessions: mod,
     init_session: init_session1,
     free_session: free_session1,
     lock_loading: lock_loading1,
@@ -4059,6 +4144,6 @@ const Bonito = {
     generate_state_key
 };
 window.Bonito = Bonito;
-export { mod as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, fetch_binary as fetch_binary, load_script as load_script, mod2 as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, on_connection_connecting1 as on_connection_connecting, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, register_connection_indicator1 as register_connection_indicator, unregister_connection_indicator1 as unregister_connection_indicator, set_no_connection1 as set_no_connection, ConnectionStatus1 as ConnectionStatus, mod1 as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, move_dom_node1 as move_dom_node, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany, OBJECT_FREEING_LOCK1 as OBJECT_FREEING_LOCK, can_send_to_julia1 as can_send_to_julia, free_object1 as free_object, send_to_julia1 as send_to_julia, throttle_function as throttle_function };
+export { mod1 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, fetch_binary as fetch_binary, load_script as load_script, mod2 as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, on_connection_connecting1 as on_connection_connecting, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, register_connection_indicator1 as register_connection_indicator, unregister_connection_indicator1 as unregister_connection_indicator, set_no_connection1 as set_no_connection, ConnectionStatus1 as ConnectionStatus, mod as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, move_dom_node1 as move_dom_node, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany, OBJECT_FREEING_LOCK1 as OBJECT_FREEING_LOCK, can_send_to_julia1 as can_send_to_julia, free_object1 as free_object, send_to_julia1 as send_to_julia, throttle_function as throttle_function };
 export { generate_state_key as generate_state_key };
 

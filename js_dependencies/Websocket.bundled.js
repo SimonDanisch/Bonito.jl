@@ -82,6 +82,8 @@ class Websocket {
                 console.log(`Waiting ${delay / 1000}s before retry...`);
                 self.#retry_timeout_id = setTimeout(attempt_connection, delay);
                 delay = Math.min(delay * 2, max_delay);
+            } else if (!self.isopen()) {
+                give_up();
             }
         }
         attempt_connection();
@@ -98,28 +100,33 @@ class Websocket {
             console.log("CONNECTED!!: ", this_ws.url);
             this_ws.#onopen_callbacks.forEach((f)=>f());
             ws.onmessage = function(evt) {
-                new Promise((resolve)=>{
-                    const binary = new Uint8Array(evt.data);
-                    if (binary.length === 1 && binary[0] === 0) {
-                        return resolve(null);
-                    }
-                    const isLargeTransfer = binary.length > 10240;
-                    if (isLargeTransfer && typeof Bonito !== 'undefined' && Bonito.notify_data_transfer) {
-                        Bonito.notify_data_transfer(true);
-                    }
-                    Bonito.lock_loading(()=>{
+                const binary = new Uint8Array(evt.data);
+                if (binary.length === 1 && binary[0] === 0) {
+                    return;
+                }
+                const isLargeTransfer = binary.length > 10240;
+                if (isLargeTransfer && typeof Bonito !== 'undefined' && Bonito.notify_data_transfer) {
+                    Bonito.notify_data_transfer(true);
+                }
+                Bonito.lock_loading(()=>{
+                    return Promise.resolve().then(()=>{
                         Bonito.process_message(Bonito.decode_binary(binary, this_ws.compression_enabled));
+                    }).catch((error)=>{
+                        Bonito.send_error("Error while decoding/processing incoming websocket message", error);
+                    }).finally(()=>{
                         if (isLargeTransfer && typeof Bonito !== 'undefined' && Bonito.notify_data_transfer) {
                             Bonito.notify_data_transfer(false);
                         }
                     });
-                    return resolve(null);
                 });
             };
         };
         ws.onclose = function(evt) {
             console.log("closed websocket connection, code:", evt.code);
             console.log(evt);
+            if (typeof Bonito !== 'undefined' && Bonito.on_connection_connecting) {
+                Bonito.on_connection_connecting();
+            }
             if (!this_ws.#is_retrying) {
                 this_ws.retry_connection();
             }

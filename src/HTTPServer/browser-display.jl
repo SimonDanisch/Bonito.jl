@@ -18,11 +18,15 @@ function server(display::BrowserDisplay)
 end
 
 function Base.close(display::BrowserDisplay)
-    if !isnothing(display.server)
-        close(display.server)
-    end
+    # B26: do NOT close `display.server` — `server(display)` hands out the
+    # shared `GLOBAL_SERVER`, so closing it here tears down every other
+    # display/route on the page (ElectronDisplay's close deliberately avoids
+    # this). Only the per-display handler/session is ours to close. If the
+    # display owns a non-global server, the caller is responsible for closing
+    # it.
     if !isnothing(display.handler)
         close(display.handler)
+        display.handler = nothing
     end
     return
 end

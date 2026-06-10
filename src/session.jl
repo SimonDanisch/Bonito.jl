@@ -29,32 +29,66 @@ function wait_for_ready(session::Session; timeout=100)
 end
 
 function init_session(session::Session)
-    # Hold deletion_lock across the open-and-flush so a concurrent send
-    # can't interleave between `isready` flipping true and the queue drain.
-    # Without the lock, the concurrent send sees `isready==true`, takes the
-    # direct-write branch in `_send`, and its message can land on the wire
-    # BEFORE the queued setup messages — JS sees an UpdateObservable for a
-    # key whose registration arrives later. See test/race_conditions_audit.jl F10.
-    lock(root_session(session).deletion_lock) do
-        # `connection_ready` is a one-shot Channel{Bool}(1). A second
-        # init_session for the same session (websocket reconnect → fresh
-        # JSDoneLoading) would block on `put!` here, and — now that this
-        # block holds `deletion_lock` — deadlock every other lock-taker.
-        # Guard with `isready` so reconnects are a no-op on the signal.
-        if !isready(session.connection_ready)
-            put!(session.connection_ready, true)
-        end
+    root = root_session(session)
+    # Ordering invariant (F10/B4): the queued setup messages (object
+    # registrations + on_document_load) MUST reach the wire BEFORE any later
+    # direct `_send`. `_send` gates writes on `isready(session)`, which is
+    # `connection_ready` (the one-shot Channel) AND `isopen`. So as long as
+    # `connection_ready` is NOT yet signaled, every concurrent `_send` queues
+    # rather than writes. We exploit that to keep ordering WITHOUT holding the
+    # lock across the (potentially blocking, backpressured) init-bundle socket
+    # write (B36): drain + status flip under the lock, write the bundle with
+    # the lock RELEASED, then re-acquire and signal `connection_ready` (+ flush
+    # anything that queued during the write). The lock is now only held across
+    # in-memory work, never across a slow socket write.
+    fused = lock(root.deletion_lock) do
         # open the connection for e.g. subconnection, which just have an open flag
         open!(session.connection)
         if !isopen(session)
             @debug "Session $(session.id) closed before init_session could run"
-            return
+            return nothing
         end
-        # We send all queued up messages once the connection is open
+        session.status = OPEN
+        # Snapshot + drain the queued setup messages while holding the lock so
+        # we don't race `get_messages!`'s `empty!`. `connection_ready` is still
+        # un-signaled, so concurrent `_send`s queue behind us (they take the
+        # same lock and, once we release it, see `isready == false` because
+        # `connection_ready` hasn't been put! yet, so they queue rather than
+        # overtake this bundle).
+        if !isempty(session.message_queue) || !isempty(session.on_document_load)
+            return SerializedMessage(session, fused_messages!(session))
+        end
+        return nothing
+    end
+    # Blocking socket write OUTSIDE the lock, so a slow/backpressured client no
+    # longer stalls every other lock taker (B36). We write the serialized
+    # bundle DIRECTLY to the connection rather than via `_send`: `_send` would
+    # see `isready == false` (connection_ready not yet signaled) and queue it.
+    # If the direct write fails (disconnect mid-init), re-queue the bundle so a
+    # later reconnect replays it.
+    if fused !== nothing
+        try
+            write(session.connection, fused)
+        catch e
+            @debug "init_session bundle write failed; re-queueing for replay" exception = (e, catch_backtrace())
+            lock(root.deletion_lock) do
+                isclosed(session) || push!(session.message_queue, fused)
+            end
+        end
+    end
+    # Now signal ready and flush anything a concurrent `_send` queued while the
+    # bundle was being written — those messages must go out AFTER the bundle,
+    # which is exactly the order we get here. `connection_ready` is a one-shot
+    # Channel{Bool}(1); a reconnect's second init_session would block on `put!`,
+    # so guard with `isready`.
+    lock(root.deletion_lock) do
+        isclosed(session) && return
+        if !isready(session.connection_ready)
+            put!(session.connection_ready, true)
+        end
         if !isempty(session.message_queue) || !isempty(session.on_document_load)
             send(session, fused_messages!(session))
         end
-        session.status = OPEN
     end
     return
 end
@@ -157,9 +191,42 @@ function free(session::Session)
     return
 end
 
+# B29: empty a *root* session for reuse — free its cached objects and queued
+# state but keep the connection and status alive (unlike `free`, which sets
+# CLOSED). Mirrors the root branch of `free` minus the status transition.
+function Base.empty!(session::Session)
+    root = root_session(session)
+    root === session || error("empty!(::Session) is only valid for root sessions")
+    lock(deletion_lock(root)) do
+        session.status === CLOSED && return
+        for key in collect(keys(session.session_objects))
+            force_delete!(session, key)
+        end
+        empty!(session.session_objects)
+        empty!(session.on_document_load)
+        empty!(session.message_queue)
+        foreach(off, session.deregister_callbacks)
+        empty!(session.deregister_callbacks)
+        empty!(session.imports)
+        empty!(session.global_stylesheets)
+        empty!(session.stylesheets)
+    end
+    return session
+end
+
 function soft_close(session::Session)
-    session.status = SOFT_CLOSED
-    session.closing_time = time()
+    # Guard against resurrecting a session that was explicitly CLOSED by user
+    # code (B6). The WS handler's `finally` calls `soft_close` unconditionally;
+    # without this guard a CLOSED session would flip to SOFT_CLOSED, `isclosed`
+    # would report false again, and late `_send`s would queue into a
+    # never-drained queue. Take the lock so the CLOSED-check and the status
+    # write are atomic w.r.t. a concurrent `close()`.
+    lock(deletion_lock(root_session(session))) do
+        session.status === CLOSED && return
+        session.status = SOFT_CLOSED
+        session.closing_time = time()
+    end
+    return
 end
 
 function Base.close(session::Session)
@@ -175,16 +242,18 @@ end
 # (the WS connection, the inbox channel) in addition to the per-session state
 # that `close_subsession` handles.
 function close_root_session(session::Session)
-    lock(deletion_lock(session)) do
-        session.status === CLOSED && return
+    # Capture the listeners we'll fire AFTER releasing the lock. `nothing`
+    # signals "already closed, fire nothing" so a re-entrant close is a no-op.
+    on_close_listeners = lock(deletion_lock(session)) do
+        session.status === CLOSED && return nothing
         # Capture + clear listeners under the lock, then fire them OUTSIDE
         # the lock so user `on(session.on_close)` handlers can do anything
         # they like (including `evaljs_value` which spawns its own task to
-        # acquire deletion_lock) without deadlock or recursion. We also
+        # acquire deletion_lock) without deadlock or recursion (B5). We also
         # mark the session CLOSED before firing so a listener that re-enters
         # `close()` short-circuits immediately on the guard above instead of
         # recursing forever (test/race_conditions_audit.jl F12).
-        on_close_listeners = copy(session.on_close.listeners)
+        listeners = copy(session.on_close.listeners)
         Observables.clear(session.on_close)
 
         while !isempty(session.children)
@@ -197,13 +266,16 @@ function close_root_session(session::Session)
         close(inbox(session))
         session.status = CLOSED
         close(connection(session))
-
-        for (_prio, f) in on_close_listeners
-            try
-                Base.invokelatest(f, true)
-            catch e
-                @warn "on_close listener threw" exception=(e, catch_backtrace())
-            end
+        return listeners
+    end
+    # OUTSIDE the lock: status is already CLOSED, so a listener calling
+    # `evaljs_value` (which spawns a task taking deletion_lock) can proceed.
+    on_close_listeners === nothing && return
+    for (_prio, f) in on_close_listeners
+        try
+            Base.invokelatest(f, true)
+        catch e
+            @warn "on_close listener threw" exception=(e, catch_backtrace())
         end
     end
     return
@@ -237,10 +309,17 @@ end
 # belong to the root and outlive any one sub.
 function close_subsession(session::Session)
     root = root_session(session)
-    lock(deletion_lock(root)) do
+    on_close_listeners = lock(deletion_lock(root)) do
+        # NOTE: we must NOT bail on `status === CLOSED` here — `detach_subsession!`
+        # deliberately sets CLOSED (via `free`) while leaving the asset_server
+        # open and on_close UNFIRED, expecting this function to finish the job
+        # one render later. Re-entrancy is instead bounded by clearing
+        # `on_close.listeners`: a second `close_subsession` captures an empty
+        # listener set and fires nothing (the rest of the body is idempotent —
+        # `free`, `close(asset_server)`, the JS free_session send).
         # Capture + clear listeners before any work so a re-entrant close
         # bails on the cleared set instead of looping.
-        on_close_listeners = copy(session.on_close.listeners)
+        listeners = copy(session.on_close.listeners)
         Observables.clear(session.on_close)
         while !isempty(session.children)
             close(last(first(session.children)))
@@ -254,13 +333,17 @@ function close_subsession(session::Session)
         session.current_app[] = nothing
         session.io_context[] = nothing
         session.status = CLOSED
-
-        for (_prio, f) in on_close_listeners
-            try
-                Base.invokelatest(f, true)
-            catch e
-                @warn "on_close listener threw" exception=(e, catch_backtrace())
-            end
+        return listeners
+    end
+    # Fire on_close OUTSIDE the lock (B5): a listener may call `evaljs_value`,
+    # which spawns a task that takes deletion_lock — firing under the lock
+    # would deadlock.
+    on_close_listeners === nothing && return
+    for (_prio, f) in on_close_listeners
+        try
+            Base.invokelatest(f, true)
+        catch e
+            @warn "on_close listener threw" exception=(e, catch_backtrace())
         end
     end
     return
@@ -292,7 +375,15 @@ end
 function collect_messages(f)
     empty!(COLLECTED_MESSAGES)
     COLLECT_MESSAGES[] = true
-    f()
+    # MUST reset the flag in a `finally` (B16): otherwise a throw in `f()` (or
+    # even a normal return before this was guarded) left `COLLECT_MESSAGES[]`
+    # true process-wide, so EVERY subsequent outbound message got deep-decoded
+    # and retained forever in `COLLECTED_MESSAGES` (unbounded memory growth).
+    try
+        f()
+    finally
+        COLLECT_MESSAGES[] = false
+    end
     msgs = copy(COLLECTED_MESSAGES)
     len = length(msgs)
     s = Session(NoConnection(); asset_server=NoServer())
@@ -328,30 +419,47 @@ end
 Base.write(connection::FrontendConnection, sm::SerializedMessage) = write(connection, serialize_binary(sm))
 
 function _send(session::Session, sm::SerializedMessage, large::Bool)
-    # The check-then-act between `isready(session)` and `write(...)` is
-    # racy: a disconnect in the gap (or any write failure) used to throw
-    # out of `_send` AND lose the message — neither queued for replay nor
-    # on the wire. Wrap the write so a failure falls back to the queue,
-    # which `init_session` flushes on (re)connect. Test:
-    # test/race_conditions_audit.jl F11.
+    # The ready-check and the write/queue decision MUST be atomic w.r.t. the
+    # UNINITIALIZED→OPEN transition (B4). `init_session` flushes the queue and
+    # flips the session OPEN while holding `deletion_lock`; without the lock
+    # here, three interleavings lose or reorder messages:
+    #   (a) we see not-ready, init flushes + goes OPEN, then we push → the
+    #       message strands in the queue until a reconnect that may not come;
+    #   (b) we see ready in the gap between `put!(connection_ready)` and the
+    #       flush → our direct write overtakes the queued registration
+    #       messages (the F10 reordering the lock was meant to prevent);
+    #   (c) `push!` races `get_messages!`'s `empty!` (called unlocked from
+    #       `update_session_dom!`) → the message is erased unsent.
+    # Holding `deletion_lock` across the decision + the write/push serializes
+    # all of these against init_session, free, and get_messages!. The write is
+    # non-blocking for the WS handler (it only buffers/sends one frame); the
+    # blocking init-bundle write lives in init_session (B36), not here.
+    #
     # `throw=false`: queueing-vs-writing is a connection-state question; if a
     # render error has been recorded we still want this message to land in the
     # queue (where the page wrap's init bundle picks it up) rather than crash
     # the surrounding render. External waiters surface the error themselves.
-    if isready(session; throw=false)
-        try
-            if large
-                write_large(session.connection, sm)
-            else
-                write(session.connection, sm)
+    lock(deletion_lock(root_session(session))) do
+        if isready(session; throw=false)
+            try
+                if large
+                    write_large(session.connection, sm)
+                else
+                    write(session.connection, sm)
+                end
+                return
+            catch e
+                # A write failure (disconnect mid-write) must fall back to the
+                # queue for replay, not propagate out and lose the message
+                # (B2/F11). `Base.write(::WebSocketHandler)` now rethrows on a
+                # failed send so this catch actually fires.
+                @debug "_send write failed; falling back to message_queue for replay" exception = (e, catch_backtrace())
+                # fall through to push!
             end
-            return
-        catch e
-            @debug "_send write failed; falling back to message_queue for replay" exception = (e, catch_backtrace())
-            # fall through to push!
         end
+        push!(session.message_queue, sm)
     end
-    push!(session.message_queue, sm)
+    return
 end
 
 
@@ -538,14 +646,20 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
     end)
     value = comm[]
     # Manually free observable, since it exists outside session lifetimes.
-    # `register_observable!` attaches a JSUpdateObservable listener bound
-    # to *the sub session*, so we have to call `remove_js_updates!(sub, comm)`
-    # explicitly — `force_delete!(root, ...)` only matches root-bound
-    # listeners and would leak a sub-bound one. See test/race_conditions_audit.jl F5.
+    # `register_observable!` attaches a JSUpdateObservable listener keyed by the
+    # observable's cache key, so we must strip it explicitly here — the
+    # session's own `free()` won't, since this comm lives outside the session
+    # lifetime. See test/race_conditions_audit.jl F5.
+    # Registration is keyed by `cache_key(session, comm)`, NOT `comm.id` — on a
+    # ProxyConnection session those differ (the key is `prefix/comm.id`).
+    # Deleting by `comm.id` left a leaked CachedEntry per call on proxied
+    # sessions (B27). Use the same key the registration used. `remove_js_updates!`
+    # also matches by key (the JSUpdateObservable's `.id` is the cache key).
+    key = cache_key(session, comm)
     lock(root.deletion_lock) do
-        remove_js_updates!(session, comm)
-        delete!(session.session_objects, comm.id)
-        delete!(root.session_objects, comm.id)
+        remove_js_updates!(key, comm)
+        delete!(session.session_objects, key)
+        delete!(root.session_objects, key)
     end
     Observables.clear(comm) # cleanup
     result == :closed && return
@@ -634,8 +748,13 @@ function push_dependencies!(childs, session::Session)
 end
 
 function mark_displayed!(session::Session)
-    session.status = DISPLAYED
-    session.closing_time = time()
+    # Don't overwrite a CLOSED session with DISPLAYED (B6) — `isclosed` would
+    # flip back to false on a freed session. Atomic with a concurrent close.
+    lock(deletion_lock(root_session(session))) do
+        session.status === CLOSED && return
+        session.status = DISPLAYED
+        session.closing_time = time()
+    end
     return
 end
 

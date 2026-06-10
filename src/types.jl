@@ -555,7 +555,11 @@ function Session(connection::Connection=default_connection();
                  title="Bonito App",
                  compression_enabled=default_compression(),
                  ignore_message=RefValue{Function}(x -> false),
-                 n_inbox=Inf) where {Connection <: FrontendConnection}
+                 n_inbox=1024) where {Connection <: FrontendConnection}
+    # Finite inbox capacity (B22): an unbounded `Channel(Inf)` let a flooding
+    # frontend — or a wedged reader (e.g. deletion_lock contention) — grow the
+    # inbox without limit, pinning memory and spawning unbounded work. A
+    # bounded buffer applies backpressure to the WS read loop's `put!` instead.
     inbox = Channel{Vector{UInt8}}(n_inbox)
     root_state = RootSession{Connection}(
         connection,
@@ -598,8 +602,17 @@ function Session(connection::Connection=default_connection();
     # collects the resulting Session ↔ inbox ↔ task ↔ closure cycle once
     # nothing outside it holds the session.
     task = Task() do
+        # Process inbox messages SEQUENTIALLY (B22). The old per-message
+        # `@async` removed all ordering guarantees: an `UpdateObservable`
+        # could be overtaken by a later message and a stale value would win.
+        # The branches that genuinely need to run off the reader (so they
+        # don't block the connection — `JSDoneLoading`'s `on_connection_ready`,
+        # `GetSessionDOM`) already spawn their own `@async` *inside*
+        # `process_message`, so sequential dispatch here keeps ordering for
+        # the synchronous branches (notably UpdateObservable) without stalling
+        # on the slow ones.
         for message in inbox
-            @async try
+            try
                 process_message(session, message)
             catch e
                 @warn "error while processing received msg" exception = (
@@ -692,8 +705,14 @@ function loading_page_handler(app, loadingpage, handler, session, request)
     app.loading_task[] = @async try
         obs[] = handler(session, request)
     catch err
-        @debug "Error rendering app with loading_page" exception = (err, Base.catch_backtrace())
-        obs[] = HTTPServer.err_to_html(err, Base.catch_backtrace())
+        # B32: record the error on the session (mirrors the synchronous path's
+        # `handle_render_error`) so `isready`/`wait_for_ready`/the connection
+        # indicator learn the handler failed — otherwise waiters see a "healthy"
+        # session that merely shows an error div, and the failure is invisible.
+        bt = Base.catch_backtrace()
+        @error "Error rendering app with loading_page" exception = (err, bt)
+        err isa Exception && record_session_error!(session, err)
+        obs[] = HTTPServer.err_to_html(err, bt)
     end
     return DOM.div(obs)
 end

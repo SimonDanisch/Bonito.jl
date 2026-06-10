@@ -162,7 +162,18 @@ function add_cached!(create_cached_object::Function, session::Session, send_to_j
         result = CacheKey(key)
         # If this session already tracks the key, nothing to do — we
         # already added our id to root's `owners` set the first time.
-        if haskey(session.session_objects, key)
+        # For root, `session.session_objects` IS the entry store, so a bare
+        # `haskey` is true even when root never registered as an owner (the
+        # entry may have been created by a sub-session). In that case root
+        # must still become an owner, otherwise the entry is evicted when the
+        # sub closes while root's DOM still references the CacheKey (B13).
+        # Check membership in the entry's `owners` set for root instead.
+        if session === root
+            entry = get(root.session_objects, key, nothing)
+            if entry isa CachedEntry && root.id in entry.owners
+                return result
+            end
+        elseif haskey(session.session_objects, key)
             return result
         end
         # Sub sessions keep a marker (value is meaningless — only the
@@ -199,9 +210,14 @@ function child_has_reference(child::Session, key)
     return any(((id, s),)-> child_has_reference(s, key), child.children)
 end
 
-function remove_js_updates!(session::Session, observable::Observable)
+# Match the updater by its cache-key id, not by session: the
+# JSUpdateObservable was registered by the FIRST session to serialize the
+# observable (see `register_observable!`), which is not necessarily the last
+# owner to close. Filtering by `f.session === session` therefore leaks
+# updaters (retaining closed Sessions) across connection cycles (B14).
+function remove_js_updates!(key::String, observable::Observable)
     filter!(observable.listeners) do (prio, f)
-        !(f isa JSUpdateObservable && f.session === session)
+        !(f isa JSUpdateObservable && f.id == key)
     end
 end
 
@@ -222,7 +238,7 @@ function delete_cached!(root::Session, sub::Session, key::String)
     if isempty(entry.owners)
         pop!(root.session_objects, key)
         if entry.object isa Observable
-            remove_js_updates!(sub, entry.object)
+            remove_js_updates!(key, entry.object)
         end
     end
 end
@@ -236,7 +252,7 @@ function force_delete!(root::Session, key::String)
     end
     entry = pop!(root.session_objects, key)::CachedEntry
     if entry.object isa Observable
-        remove_js_updates!(root, entry.object)
+        remove_js_updates!(key, entry.object)
     end
 end
 

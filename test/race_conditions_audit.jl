@@ -312,7 +312,7 @@ end
 # orphaned listener can fire. We verify the listener IS removed before
 # the comm Observable is cleared.
 @testset "F5: evaljs_value cleanup removes the JSUpdateObservable listener" begin
-    using Bonito: JSUpdateObservable, remove_js_updates!
+    using Bonito: JSUpdateObservable, remove_js_updates!, cache_key
     # Exercise the patched cleanup pattern from session.jl `evaljs_value`:
     # `remove_js_updates!(sub, comm)` BEFORE the bare delete!s, so the
     # sub-bound JSUpdateObservable listener gets stripped (rather than
@@ -330,7 +330,8 @@ end
         @assert had_listener "setup didn't attach JSUpdateObservable"
 
         # Patched cleanup pattern (mirrors session.jl evaljs_value):
-        remove_js_updates!(sub, comm)
+        # remove_js_updates! now matches by cache-key id (B14), not by session.
+        remove_js_updates!(cache_key(sub, comm), comm)
         delete!(sub.session_objects, comm.id)
         delete!(root.session_objects, comm.id)
         still_has = any(((p,f),)-> f isa JSUpdateObservable, comm.listeners)

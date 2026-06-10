@@ -16,6 +16,11 @@ function Deno()
     end
 end
 
+# Hard cap on a single `deno bundle` invocation. A hung deno (network fetch of
+# a remote import that never returns, etc.) would otherwise pin the calling
+# task forever (B45).
+const DENO_BUNDLE_TIMEOUT = 120.0
+
 function deno_bundle(path_to_js::AbstractString, output_file::String)
     iswriteable = filemode(output_file) & Base.S_IWUSR != 0
     # bundles shipped as part of a package end up as read only
@@ -28,10 +33,24 @@ function deno_bundle(path_to_js::AbstractString, output_file::String)
     exe = Deno_jll.deno()
     stdout = IOBuffer()
     err = IOBuffer()
-    try
-        run(pipeline(`$exe bundle $(path_to_js)`; stdout=stdout, stderr=err))
+    proc = try
+        run(pipeline(`$exe bundle $(path_to_js)`; stdout=stdout, stderr=err); wait=false)
     catch e
+        # B45: when stderr is empty, the discarded Julia exception was the only
+        # diagnostic — include it so the failure isn't reported as "".
         err_str = String(take!(err))
+        isempty(err_str) && (err_str = sprint(showerror, e))
+        return false, err_str
+    end
+    # B45: enforce a timeout. `timedwait` polls without blocking the scheduler.
+    finished = timedwait(() -> process_exited(proc), DENO_BUNDLE_TIMEOUT; pollint=0.1)
+    if finished !== :ok
+        kill(proc)
+        return false, "deno bundle timed out after $(DENO_BUNDLE_TIMEOUT)s for $(path_to_js)"
+    end
+    if !success(proc)
+        err_str = String(take!(err))
+        isempty(err_str) && (err_str = "deno bundle exited with code $(proc.exitcode)")
         return false, err_str
     end
     dir = dirname(output_file)

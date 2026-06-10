@@ -102,6 +102,13 @@ class Websocket {
                 console.log(`Waiting ${delay / 1000}s before retry...`);
                 self.#retry_timeout_id = setTimeout(attempt_connection, delay);
                 delay = Math.min(delay * 2, max_delay);
+            } else if (!self.isopen()) {
+                // J7: we ran out of time between the deadline check above and
+                // here (or the socket is mid-CONNECTING with no time left).
+                // Without this branch we'd return leaving #is_retrying stuck
+                // true, so every future reconnect attempt would early-out as
+                // "Already retrying connection". Give up cleanly to reset state.
+                give_up();
             }
         }
 
@@ -125,30 +132,45 @@ class Websocket {
             this_ws.#onopen_callbacks.forEach((f) => f());
 
             ws.onmessage = function (evt) {
-                new Promise((resolve) => {
-                    const binary = new Uint8Array(evt.data);
-                    if (binary.length === 1 && binary[0] === 0) {
-                        // test write
-                        return resolve(null);
-                    }
-                    // Notify indicator of data transfer for large messages (> 10KB)
-                    const isLargeTransfer = binary.length > 10240;
-                    if (isLargeTransfer && typeof Bonito !== 'undefined' && Bonito.notify_data_transfer) {
-                        Bonito.notify_data_transfer(true);
-                    }
-                    Bonito.lock_loading(() => {
-                        Bonito.process_message(
-                            Bonito.decode_binary(
-                                binary,
-                                this_ws.compression_enabled
-                            )
-                        );
-                        // Signal end of transfer
-                        if (isLargeTransfer && typeof Bonito !== 'undefined' && Bonito.notify_data_transfer) {
-                            Bonito.notify_data_transfer(false);
-                        }
-                    });
-                    return resolve(null);
+                const binary = new Uint8Array(evt.data);
+                if (binary.length === 1 && binary[0] === 0) {
+                    // test write
+                    return;
+                }
+                // Notify indicator of data transfer for large messages (> 10KB)
+                const isLargeTransfer = binary.length > 10240;
+                if (isLargeTransfer && typeof Bonito !== 'undefined' && Bonito.notify_data_transfer) {
+                    Bonito.notify_data_transfer(true);
+                }
+                // J6: decode_binary (msgpack) and the JSCODE_TAG eval that runs
+                // during decode can throw; process_message has its own
+                // try/catch but decode runs before it. lock_loading enqueues a
+                // PQueue task and discards its promise, so a throw here became
+                // an unhandled rejection and the message was silently dropped.
+                // Run decode+process inside the locked task and attach a .catch
+                // that surfaces the failure via send_error.
+                Bonito.lock_loading(() => {
+                    return Promise.resolve()
+                        .then(() => {
+                            Bonito.process_message(
+                                Bonito.decode_binary(
+                                    binary,
+                                    this_ws.compression_enabled
+                                )
+                            );
+                        })
+                        .catch((error) => {
+                            Bonito.send_error(
+                                "Error while decoding/processing incoming websocket message",
+                                error
+                            );
+                        })
+                        .finally(() => {
+                            // Signal end of transfer
+                            if (isLargeTransfer && typeof Bonito !== 'undefined' && Bonito.notify_data_transfer) {
+                                Bonito.notify_data_transfer(false);
+                            }
+                        });
                 });
             };
         };
@@ -156,6 +178,14 @@ class Websocket {
         ws.onclose = function (evt) {
             console.log("closed websocket connection, code:", evt.code);
             console.log(evt);
+            // J2: flip the connection status off "open" the instant the socket
+            // dies. Otherwise send_to_julia still believes status === "open",
+            // calls send() on the dead socket, ensure_connection() returns
+            // "connecting" and the message is dropped. Marking us
+            // "connecting" makes send_to_julia queue messages for replay.
+            if (typeof Bonito !== 'undefined' && Bonito.on_connection_connecting) {
+                Bonito.on_connection_connecting();
+            }
             // Only retry if not already retrying
             if (!this_ws.#is_retrying) {
                 this_ws.retry_connection();

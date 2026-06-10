@@ -113,6 +113,17 @@ function load_script(url, global_name) {
             }, delay);
         };
 
+        // J12: when reusing a script tag whose "load" event already fired, the
+        // event listener we attach below will never run, so the promise would
+        // hang forever. Detect the already-loaded case and start polling for
+        // the global immediately. (window[global_name] is handled earlier; this
+        // covers the async-global case where the tag loaded but the global is
+        // assigned slightly later.)
+        if (existing_script && existing_script.dataset.loaded === "true") {
+            waitForGlobal();
+            return;
+        }
+
         script.addEventListener("load", () => {
             script.dataset.loaded = "true";
             waitForGlobal();

@@ -19,8 +19,10 @@
 
 # Bytes the host must serve for an asset (read lazily so we only touch the file
 # when shipping eagerly).
+# B17: snapshot the bundle bytes under the per-asset lock so a concurrent
+# `bundle!` can't tear the vector while we ship it to the host.
 proxy_asset_bytes(asset::Asset) =
-    isempty(asset.bundle_data) ? read(local_path(asset)) : asset.bundle_data
+    isempty(asset.bundle_data) ? read(local_path(asset)) : bundle_data_snapshot(asset)
 proxy_asset_bytes(asset::BinaryAsset) = asset.data
 
 proxy_asset_mime(asset::Asset)       = string(file_mimetype(local_path(asset)))
@@ -77,19 +79,28 @@ function url(server::ProxyAssetServer, asset::AbstractAsset)
     is_online(asset) && return online_path(asset)
     key = unique_file_key(asset)
     reg = server.registry
-    lock(reg.lock) do
-        if !(key in server.keys)
-            entry = get(reg.entries, key, nothing)
-            if entry === nothing
-                reg.entries[key] = (1, asset)
-                total = proxy_asset_size(asset)
-                cached = total <= PROXY_EAGER_MAX ? proxy_asset_bytes(asset) : nothing
-                proxy_asset_add(reg.driver, key, proxy_asset_mime(asset), total, cached)   # 0→1
-            else
-                reg.entries[key] = (entry[1] + 1, entry[2])
-            end
-            push!(server.keys, key)
+    # B39: `proxy_asset_add` is a Malt `remote_call` to the worker. Running it
+    # under `reg.lock` pins every other lock taker (e.g. `close`) on a dead /
+    # slow worker. Decide the 0→1 transition under the lock, then issue the
+    # remote call after releasing it. The refcount bookkeeping (incl. claiming
+    # `key in server.keys`) is committed under the lock so concurrent `url`
+    # callers can't both fire the add.
+    do_add = lock(reg.lock) do
+        (key in server.keys) && return false
+        entry = get(reg.entries, key, nothing)
+        push!(server.keys, key)
+        if entry === nothing
+            reg.entries[key] = (1, asset)
+            return true   # 0→1: we own the add
+        else
+            reg.entries[key] = (entry[1] + 1, entry[2])
+            return false
         end
+    end
+    if do_add
+        total = proxy_asset_size(asset)
+        cached = total <= PROXY_EAGER_MAX ? proxy_asset_bytes(asset) : nothing
+        proxy_asset_add(reg.driver, key, proxy_asset_mime(asset), total, cached)
     end
     suffix = (asset isa Asset && asset.es6module) ? "?" * asset.content_hash[] : ""
     return "/assets/" * key * suffix
@@ -98,18 +109,25 @@ end
 # Releasing this (sub)session's refs; on 1→0 tell the host to drop the key.
 function Base.close(server::ProxyAssetServer)
     reg = server.registry
-    lock(reg.lock) do
+    # B39: collect the 1→0 keys under the lock, then fire `proxy_asset_remove`
+    # (a Malt remote_call) outside it, so a dead worker can't wedge the lock.
+    to_remove = lock(reg.lock) do
+        removed = String[]
         for key in server.keys
             entry = get(reg.entries, key, nothing)
             entry === nothing && continue
             if entry[1] <= 1
                 delete!(reg.entries, key)
-                proxy_asset_remove(reg.driver, key)   # 1→0
+                push!(removed, key)
             else
                 reg.entries[key] = (entry[1] - 1, entry[2])
             end
         end
         empty!(server.keys)
+        return removed
+    end
+    for key in to_remove
+        proxy_asset_remove(reg.driver, key)   # 1→0
     end
     return nothing
 end
@@ -132,6 +150,20 @@ mediatype(asset::RemoteAsset) = Symbol(HTTPServer.mimetype_to_extension(asset.mi
 is_online(::RemoteAsset) = false
 unique_file_key(asset::RemoteAsset) = asset.key
 
+# B39: a `proxy_fetch` to a dead/hung worker would otherwise pin the host HTTP
+# task forever. Run it on a spawned task and give up after a bounded wait,
+# returning a 504 instead of hanging. (The spawned task may still be parked on
+# the dead worker, but the HTTP task is freed.)
+const PROXY_FETCH_TIMEOUT = 30.0
+
+function proxy_fetch_timed(driver, key, start, stop)
+    t = Threads.@spawn proxy_fetch(driver, key, start, stop)
+    if timedwait(() -> istaskdone(t), PROXY_FETCH_TIMEOUT; pollint=0.05) !== :ok
+        return nothing
+    end
+    return fetch(t)::Vector{UInt8}
+end
+
 # Serve a RemoteAsset with range support, mirroring `serve_asset`: cached bytes
 # are sliced locally; otherwise the range is fetched from the worker.
 function serve_remote_asset(request, asset::RemoteAsset)
@@ -143,11 +175,21 @@ function serve_remote_asset(request, asset::RemoteAsset)
     ]
     rng = parse_byte_range(HTTP.header(request, "Range", ""), asset.total)
     if rng === nothing
-        body = asset.cached === nothing ? proxy_fetch(asset.driver, asset.key, 0, asset.total - 1) : asset.cached
+        if asset.cached === nothing
+            body = proxy_fetch_timed(asset.driver, asset.key, 0, asset.total - 1)
+            body === nothing && return HTTP.Response(504, "proxy asset fetch timed out")
+        else
+            body = asset.cached
+        end
         return HTTP.Response(200, headers; body=body)
     end
     start, stop = rng
-    body = asset.cached === nothing ? proxy_fetch(asset.driver, asset.key, start, stop) : asset.cached[(start+1):(stop+1)]
+    if asset.cached === nothing
+        body = proxy_fetch_timed(asset.driver, asset.key, start, stop)
+        body === nothing && return HTTP.Response(504, "proxy asset fetch timed out")
+    else
+        body = asset.cached[(start+1):(stop+1)]
+    end
     push!(headers, "Content-Range"  => "bytes $start-$stop/$(asset.total)")
     push!(headers, "Content-Length" => string(stop - start + 1))
     return HTTP.Response(206, headers; body=body)

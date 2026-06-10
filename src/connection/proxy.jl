@@ -188,17 +188,25 @@ ids never carry a worker prefix), which then fall through to normal local handli
 """
 function route_to_remote(session::Session, data::AbstractDict)
     root = root_session(session)
-    routes = get(metadata_dict(root), REMOTE_ROUTES_KEY, nothing)
-    (routes === nothing || isempty(routes)) && return false
     id = remote_route_id(data)
     id isa AbstractString || return false
-    for rs in values(routes)
-        if id == rs.id || startswith(id, rs.id * "/")
-            proxy_forward(rs.driver, data)
-            return true
+    # `register_remote!`/`unregister_remote!` mutate `remote_routes` under
+    # `deletion_lock`; reading + iterating it unlocked races a Dict rehash
+    # (B34). Snapshot the matching driver under the lock, then forward outside
+    # it (forwarding may be a network call we don't want to hold the lock for).
+    target = lock(root.deletion_lock) do
+        routes = get(metadata_dict(root), REMOTE_ROUTES_KEY, nothing)
+        (routes === nothing || isempty(routes)) && return nothing
+        for rs in values(routes)
+            if id == rs.id || startswith(id, rs.id * "/")
+                return rs.driver
+            end
         end
+        return nothing
     end
-    return false
+    target === nothing && return false
+    proxy_forward(target, data)
+    return true
 end
 
 # ── Host side: embed a worker app into a host session (in-process driver) ───

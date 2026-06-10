@@ -275,8 +275,12 @@ No-op for non-ES6 assets (they have no bundle to drop).
 """
 function rebundle!(asset::Asset)
     asset.es6module || return asset
-    isempty(String(asset.bundle_file)) || rm(String(asset.bundle_file); force = true)
-    empty!(asset.bundle_data)
+    # Guard the in-memory drop with the same per-asset lock `bundle!` uses, so
+    # a concurrent serve never sees a half-emptied vector (B17).
+    lock(bundle_lock(asset)) do
+        isempty(String(asset.bundle_file)) || rm(String(asset.bundle_file); force = true)
+        empty!(asset.bundle_data)
+    end
     return asset
 end
 
@@ -364,8 +368,49 @@ end
 
 bundle!(asset::BinaryAsset) = nothing
 
+# B17: `bundle!` mutates `asset.bundle_data` in place (`resize!`+`copyto!`)
+# while concurrent HTTP tasks read the same vector (http.jl serves
+# `asset.bundle_data` directly; proxy.jl reads it too). A reader hitting the
+# vector mid-`resize!` gets a torn/truncated body or a BoundsError. The Asset
+# struct is immutable (defined in types.jl, which we can't touch), so we can't
+# add a lock field or swap the vector reference; instead we guard every
+# bundle/read with a per-asset lock kept in this registry. Two tasks also must
+# not run `deno` for the same asset concurrently — the lock serializes that
+# too. `BUNDLE_LOCKS_GUARD` protects the registry's own structure.
+const BUNDLE_LOCKS = IdDict{Asset, Base.ReentrantLock}()
+const BUNDLE_LOCKS_GUARD = Base.ReentrantLock()
+
+function bundle_lock(asset::Asset)
+    return lock(BUNDLE_LOCKS_GUARD) do
+        get!(() -> Base.ReentrantLock(), BUNDLE_LOCKS, asset)
+    end
+end
+
+"""
+    bundle_data_snapshot(asset::Asset) -> Vector{UInt8}
+
+Return a copy of the asset's current bundle bytes taken under the per-asset
+bundle lock, so a concurrent `bundle!` can't tear the vector out from under a
+serving HTTP task (B17). Callers serve the returned copy.
+"""
+function bundle_data_snapshot(asset::Asset)
+    return lock(bundle_lock(asset)) do
+        copy(asset.bundle_data)
+    end
+end
+
 function bundle!(asset::Asset)
     needs_bundling(asset) || return
+    lock(bundle_lock(asset)) do
+        # Re-check inside the lock: another task may have just bundled while we
+        # waited, so we don't redundantly re-run deno or re-tear the vector.
+        needs_bundling(asset) || return
+        bundle_inner!(asset)
+    end
+    return
+end
+
+function bundle_inner!(asset::Asset)
     bundle_file = String(bundle_path(asset))
     source = String(get_path(asset))
     has_been_bundled, err = deno_bundle(source, bundle_file)
