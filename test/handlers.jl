@@ -209,7 +209,7 @@ end
                 route!(server, "/" => protected_app)
 
                 # Test 1: Request without authentication should get 401
-                response_no_auth = HTTP.get(base_url; status_exception=false)
+                response_no_auth = HTTP.get(base_url; status_exception=false, retry=false)
                 @test response_no_auth.status == 401
                 @test HTTP.header(response_no_auth, "WWW-Authenticate") == "Basic realm=\"Protected Area\""
                 @test occursin("401", String(response_no_auth.body))
@@ -218,14 +218,14 @@ end
                 wrong_auth = "Basic " * base64encode("testuser:wrongpass")
                 response_wrong = HTTP.get(base_url;
                                          headers=["Authorization" => wrong_auth],
-                                         status_exception=false)
+                                         status_exception=false, retry=false)
                 @test response_wrong.status == 401
 
                 # Test 3: Request with correct credentials should succeed
                 valid_auth = "Basic " * base64encode("testuser:testpass")
                 response_valid = HTTP.get(base_url;
                                          headers=["Authorization" => valid_auth],
-                                         status_exception=false)
+                                         status_exception=false, retry=false)
                 @test response_valid.status == 200
                 body_text = String(response_valid.body)
                 @test occursin("Protected Content", body_text)
@@ -244,13 +244,13 @@ end
                 for i in 1:6
                     HTTP.get(base_url;
                             headers=["Authorization" => "Basic " * base64encode("user:wrong")],
-                            status_exception=false)
+                            status_exception=false, retry=false)
                 end
 
                 # Next request should be rate limited (429)
                 response_limited = HTTP.get(base_url;
                                            headers=["Authorization" => "Basic " * base64encode("user:wrong")],
-                                           status_exception=false)
+                                           status_exception=false, retry=false)
                 @test response_limited.status == 429
                 @test HTTP.header(response_limited, "Retry-After") == "60"
                 @test occursin("429", String(response_limited.body))
@@ -284,7 +284,7 @@ end
                 route!(server, "/" => protected)  # Overwrites previous route
 
                 # Test custom 401 page
-                response_401 = HTTP.get(base_url; status_exception=false)
+                response_401 = HTTP.get(base_url; status_exception=false, retry=false)
                 @test response_401.status == 401
                 body_401 = String(response_401.body)
                 @test occursin("Custom 401 Page", body_401)
@@ -294,11 +294,11 @@ end
                 for i in 1:3
                     HTTP.get(base_url;
                             headers=["Authorization" => "Basic " * base64encode("user:wrongpass")],
-                            status_exception=false)
+                            status_exception=false, retry=false)
                 end
                 response_429 = HTTP.get(base_url;
                                        headers=["Authorization" => "Basic " * base64encode("user:wrongpass")],
-                                       status_exception=false)
+                                       status_exception=false, retry=false)
                 @test response_429.status == 429
                 body_429 = String(response_429.body)
                 @test occursin("Custom 429 Page", body_429)
@@ -308,7 +308,7 @@ end
                 valid_auth = "Basic " * base64encode("user:pass")
                 response_success = HTTP.get(base_url;
                                            headers=["Authorization" => valid_auth],
-                                           status_exception=false)
+                                           status_exception=false, retry=false)
                 @test response_success.status == 200
                 body_success = String(response_success.body)
                 @test occursin("Main App Content", body_success)
@@ -352,7 +352,7 @@ end
                 valid_auth = "Basic " * base64encode("admin:s3cr3t")
                 response = HTTP.get(base_url * "admin";
                                    headers=["Authorization" => valid_auth],
-                                   status_exception=false)
+                                   status_exception=false, retry=false)
                 @test response.status == 200
                 @test occursin("Super Secret Admin", String(response.body))
 
@@ -369,17 +369,17 @@ end
                 route!(server, r"/public/.*" => public_files)
 
                 # Test accessing public index
-                response = HTTP.get(base_url * "public/"; status_exception=false)
+                response = HTTP.get(base_url * "public/"; status_exception=false, retry=false)
                 @test response.status == 200
                 @test occursin("Public Content", String(response.body))
 
                 # Test accessing public file
-                response = HTTP.get(base_url * "public/about.html"; status_exception=false)
+                response = HTTP.get(base_url * "public/about.html"; status_exception=false, retry=false)
                 @test response.status == 200
                 @test occursin("About Us", String(response.body))
 
                 # Test 404 for non-existent file
-                response = HTTP.get(base_url * "public/nonexistent.html"; status_exception=false)
+                response = HTTP.get(base_url * "public/nonexistent.html"; status_exception=false, retry=false)
                 @test response.status == 404
             end
 
@@ -389,28 +389,28 @@ end
                 route!(server, r"/private/.*" => protected_files)
 
                 # Test accessing without auth
-                response = HTTP.get(base_url * "private/"; status_exception=false)
+                response = HTTP.get(base_url * "private/"; status_exception=false, retry=false)
                 @test response.status == 401
 
                 # Test accessing with wrong auth
                 wrong_auth = "Basic " * base64encode("admin:wrong")
                 response = HTTP.get(base_url * "private/";
                                    headers=["Authorization" => wrong_auth],
-                                   status_exception=false)
+                                   status_exception=false, retry=false)
                 @test response.status == 401
 
                 # Test accessing with correct auth
                 valid_auth = "Basic " * base64encode("admin:s3cr3t")
                 response = HTTP.get(base_url * "private/";
                                    headers=["Authorization" => valid_auth],
-                                   status_exception=false)
+                                   status_exception=false, retry=false)
                 @test response.status == 200
                 @test occursin("Private Content", String(response.body))
 
                 # Test accessing specific file with auth
                 response = HTTP.get(base_url * "private/secret.html";
                                    headers=["Authorization" => valid_auth],
-                                   status_exception=false)
+                                   status_exception=false, retry=false)
                 @test response.status == 200
                 @test occursin("Secret Data", String(response.body))
             end
