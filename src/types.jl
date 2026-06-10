@@ -387,6 +387,12 @@ mutable struct Session{Connection <: FrontendConnection}
     # out with `isready(session; throw=false)`.
     init_error::RefValue{Union{Nothing, Exception}}
     on_close::Observable{Bool}
+    # Notified (with `true`) every time a frontend connection is established
+    # for this session - both the initial connect and websocket reconnects
+    # (fired by `init_session` after the queued messages were flushed).
+    # Integrations that treat the frontend as a cache of julia-side state
+    # (e.g. WGLMakie) use this to re-synchronize on reconnect.
+    on_open::Observable{Bool}
     deregister_callbacks::Vector{Observables.ObserverFunction}
     session_objects::Dict{String, Any}
     # Per-session message filter — `_send` consults this to drop outgoing
@@ -498,7 +504,7 @@ function Base.propertynames(s::Session, private::Bool=false)
     direct = (
         :parent_or_root, :parent, :status, :closing_time, :children, :id,
         :asset_server, :message_queue, :on_document_load, :connection_ready,
-        :on_connection_ready, :init_error, :on_close, :deregister_callbacks,
+        :on_connection_ready, :init_error, :on_close, :on_open, :deregister_callbacks,
         :session_objects, :ignore_message, :style_counter, :imports,
         :global_stylesheets, :title, :current_app, :io_context, :stylesheets,
         :pack_io,
@@ -549,6 +555,7 @@ function Session(connection::Connection=default_connection();
                  init_error=Ref{Union{Nothing, Exception}}(nothing),
                  js_comm=Observable{Union{Nothing, Dict{String, Any}}}(nothing),
                  on_close=Observable(false),
+                 on_open=Observable(false),
                  deregister_callbacks=Observables.ObserverFunction[],
                  session_objects=Dict{String, Any}(),
                  imports=OrderedSet{Asset}(),
@@ -580,6 +587,7 @@ function Session(connection::Connection=default_connection();
         on_connection_ready,
         init_error,
         on_close,
+        on_open,
         deregister_callbacks,
         session_objects,
         ignore_message,
@@ -640,6 +648,7 @@ function Session(parent_session::Session{Connection};
             on_connection_ready,
             Ref{Union{Nothing, Exception}}(nothing),         # init_error
             Observable(false),                               # on_close
+            Observable(false),                               # on_open
             Observables.ObserverFunction[],                  # deregister_callbacks
             Dict{String, Any}(),                             # session_objects
             RefValue{Function}(x -> false),                  # ignore_message

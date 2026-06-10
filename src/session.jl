@@ -35,7 +35,7 @@ function init_session(session::Session)
     # direct-write branch in `_send`, and its message can land on the wire
     # BEFORE the queued setup messages — JS sees an UpdateObservable for a
     # key whose registration arrives later. See test/race_conditions_audit.jl F10.
-    lock(root_session(session).deletion_lock) do
+    opened = lock(root_session(session).deletion_lock) do
         # `connection_ready` is a one-shot Channel{Bool}(1). A second
         # init_session for the same session (websocket reconnect → fresh
         # JSDoneLoading) would block on `put!` here, and — now that this
@@ -48,13 +48,20 @@ function init_session(session::Session)
         open!(session.connection)
         if !isopen(session)
             @debug "Session $(session.id) closed before init_session could run"
-            return
+            return false
         end
         # We send all queued up messages once the connection is open
         if !isempty(session.message_queue) || !isempty(session.on_document_load)
             send(session, fused_messages!(session))
         end
         session.status = OPEN
+        return true
+    end
+    if opened
+        # Notify (re)connection listeners outside the lock: handlers may
+        # serialize and send (e.g. WGLMakie re-synchronizing scene state on
+        # reconnect), which takes the deletion_lock themselves.
+        session.on_open[] = true
     end
     return
 end

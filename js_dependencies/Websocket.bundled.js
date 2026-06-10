@@ -202,8 +202,14 @@ function setup_connection({ proxy_url , session_id , compression_enabled , query
     const ws = new Websocket(url + query, compression_enabled);
     window.WEBSOCKET = ws;
     if (main_connection) {
+        let first_open = true;
         ws.on_open(()=>{
             Bonito.on_connection_open((binary)=>ws.send(binary), compression_enabled);
+            if (first_open) {
+                first_open = false;
+            } else {
+                Bonito.Sessions.reannounce_initialized_sessions();
+            }
         });
     }
 }

@@ -168,6 +168,22 @@ export function track_deleted_sessions() {
 /**
  * @param {string} session_id
  */
+// Sessions that completed initialization. On a websocket reconnect these are
+// re-announced to Julia (a fresh JSDoneLoading), so the server re-opens the
+// session: flushes messages queued while disconnected, resets the status and
+// fires `session.on_open` for integrations that re-synchronize state.
+const INITIALIZED_SESSIONS = new Set();
+
+export function reannounce_initialized_sessions() {
+    INITIALIZED_SESSIONS.forEach((session_id) => {
+        if (session_id in SESSIONS) {
+            send_done_loading(session_id, null);
+        } else {
+            INITIALIZED_SESSIONS.delete(session_id);
+        }
+    });
+}
+
 export function done_initializing_session(session_id) {
     if (!(session_id in SESSIONS)) {
         // Session was deleted during initialization - still notify Julia to prevent hang
@@ -175,6 +191,7 @@ export function done_initializing_session(session_id) {
         send_done_loading(session_id, new Error("Session deleted before initialization completed"));
         return;
     }
+    INITIALIZED_SESSIONS.add(session_id);
     send_done_loading(session_id, null);
     // allow subsessions to get deleted after being fully initialized (prevents deletes while half initializing)
     if (SESSIONS[session_id][1] != "root") {
@@ -249,6 +266,7 @@ export function free_session(session_id) {
         }
         const [tracked_objects, status] = session;
         delete SESSIONS[session_id];
+        INITIALIZED_SESSIONS.delete(session_id);
         tracked_objects.forEach(free_object);
         tracked_objects.clear();
     });

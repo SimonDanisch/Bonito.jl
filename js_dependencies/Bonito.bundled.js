@@ -3458,16 +3458,60 @@ function track_deleted_sessions() {
         DELETE_OBSERVER = observer;
     }
 }
+const INITIALIZED_SESSIONS = new Set();
+function send_pingpong() {
+    send_to_julia({
+        msg_type: PingPong
+    });
+}
+let timeout = null;
+function send_pings() {
+    clearTimeout(timeout);
+    if (!can_send_to_julia()) {
+        return;
+    }
+    send_pingpong();
+    timeout = setTimeout(send_pings, PING_INTERVAL);
+}
+function send_error(message, exception) {
+    console.error(message);
+    console.error(exception);
+    send_to_julia({
+        msg_type: JavascriptError,
+        message: message,
+        exception: String(exception),
+        stacktrace: exception === null ? "" : clean_stack(exception.stack)
+    });
+}
 function done_initializing_session(session_id) {
     if (!(session_id in SESSIONS)) {
         console.warn(`Session ${session_id} got deleted before done initializing!`);
         send_done_loading(session_id, new Error("Session deleted before initialization completed"));
         return;
     }
+    INITIALIZED_SESSIONS.add(session_id);
     send_done_loading(session_id, null);
     if (SESSIONS[session_id][1] != "root") {
         SESSIONS[session_id][1] = "delete";
     }
+}
+function send_done_loading(session, exception) {
+    send_to_julia({
+        msg_type: JSDoneLoading,
+        session,
+        message: "",
+        exception: exception === null ? "nothing" : String(exception),
+        stacktrace: exception === null ? "" : clean_stack(exception.stack)
+    });
+}
+function reannounce_initialized_sessions() {
+    INITIALIZED_SESSIONS.forEach((session_id)=>{
+        if (session_id in SESSIONS) {
+            send_done_loading(session_id, null);
+        } else {
+            INITIALIZED_SESSIONS.delete(session_id);
+        }
+    });
 }
 function init_session_from_msgs(session_id, messages) {
     try {
@@ -3500,146 +3544,6 @@ register_ext(102, (uint_8_array, context)=>{
         console.log(source);
         throw err;
     }
-});
-function send_error(message, exception) {
-    console.error(message);
-    console.error(exception);
-    send_to_julia({
-        msg_type: JavascriptError,
-        message: message,
-        exception: String(exception),
-        stacktrace: exception === null ? "" : clean_stack(exception.stack)
-    });
-}
-register_ext(104, (uint_8_array, context)=>{
-    const key = unpack(uint_8_array, context);
-    return lookup_global_object(key);
-});
-function close_session(session_id) {
-    const session = SESSIONS[session_id];
-    if (!session) {
-        console.warn("double freeing session from JS!");
-        return;
-    }
-    const [session_objects, status] = session;
-    const root_node = document.getElementById(session_id);
-    if (root_node) {
-        root_node.style.display = "none";
-        root_node.parentNode.removeChild(root_node);
-    }
-    if (status === "delete") {
-        send_close_session(session_id, status);
-        SESSIONS[session_id] = [
-            session_objects,
-            false
-        ];
-    }
-    return;
-}
-function free_session(session_id) {
-    lock_loading(()=>{
-        const session = SESSIONS[session_id];
-        if (!session) {
-            console.warn("double freeing session from Julia!");
-            return;
-        }
-        const [tracked_objects, status] = session;
-        delete SESSIONS[session_id];
-        tracked_objects.forEach(free_object);
-        tracked_objects.clear();
-    });
-}
-function on_node_available(node_id, timeout, max_timeout = 30000) {
-    return new Promise((resolve, reject)=>{
-        let elapsed = 0;
-        function test_node(current_timeout) {
-            const node = document.querySelector(`[data-jscall-id='${node_id}']`);
-            if (node) {
-                resolve(node);
-            } else {
-                elapsed += current_timeout;
-                if (elapsed > max_timeout) {
-                    reject(new Error(`Timeout waiting for DOM node with data-jscall-id='${node_id}' after ${max_timeout}ms`));
-                    return;
-                }
-                const new_timeout = Math.min(current_timeout * 2, 1000);
-                setTimeout(test_node, new_timeout, new_timeout);
-            }
-        }
-        test_node(timeout);
-    });
-}
-function update_or_replace(node, new_html, replace) {
-    if (replace) {
-        node.parentNode.replaceChild(new_html, node);
-    } else {
-        while(node.childElementCount > 0){
-            node.removeChild(node.firstChild);
-        }
-        node.append(new_html);
-    }
-}
-function ensure_session_exists(session_id, session_status) {
-    if (!(session_id in SESSIONS)) {
-        SESSIONS[session_id] = [
-            new Set(),
-            session_status
-        ];
-    }
-}
-function update_session_dom(message) {
-    lock_loading(()=>{
-        const { session_id , session_status , messages , html , dom_node_selector , replace  } = message;
-        ensure_session_exists(session_id, session_status || "sub");
-        return on_node_available(dom_node_selector, 1).then((dom)=>{
-            update_or_replace(dom, html, replace);
-            init_session_from_msgs(session_id, messages);
-        }).catch((error)=>{
-            send_done_loading(session_id, error);
-        });
-    });
-}
-function track_in_session(session_id, key, session_status) {
-    ensure_session_exists(session_id, session_status);
-    const tracked_objects = SESSIONS[session_id][0];
-    tracked_objects.add(key);
-    if (!(key in GLOBAL_OBJECT_CACHE)) {
-        console.warn(`TrackingOnly: Key ${key} not found in GLOBAL_OBJECT_CACHE`);
-    }
-}
-register_ext(109, (uint_8_array, context)=>{
-    const key = unpack(uint_8_array, context);
-    track_in_session(context.session_id, key, context.session_status);
-    return lookup_global_object(key);
-});
-function create_tag(tag, attributes) {
-    if (attributes.juliasvgnode) {
-        return document.createElementNS("http://www.w3.org/2000/svg", tag);
-    } else {
-        return document.createElement(tag);
-    }
-}
-register_ext(105, (uint_8_array, context)=>{
-    const [tag, children, attributes] = unpack(uint_8_array, context);
-    const node = create_tag(tag, attributes);
-    Object.keys(attributes).forEach((key)=>{
-        if (key == "juliasvgnode") {
-            return;
-        }
-        if (key == "class") {
-            node.className = attributes[key];
-        } else {
-            node.setAttribute(key, attributes[key]);
-        }
-    });
-    children.forEach((child)=>node.append(child));
-    return node;
-});
-register_ext(108, (uint_8_array, context)=>{
-    const html = unpack(uint_8_array, context);
-    const div = document.createElement("div");
-    div.innerHTML = html;
-    return div;
 });
 function encode_binary(data, compression_enabled) {
     if (compression_enabled) {
@@ -3688,6 +3592,151 @@ class Observable {
         this.#callbacks.push(callback);
     }
 }
+register_ext(104, (uint_8_array, context)=>{
+    const key = unpack(uint_8_array, context);
+    return lookup_global_object(key);
+});
+function close_session(session_id) {
+    const session = SESSIONS[session_id];
+    if (!session) {
+        console.warn("double freeing session from JS!");
+        return;
+    }
+    const [session_objects, status] = session;
+    const root_node = document.getElementById(session_id);
+    if (root_node) {
+        root_node.style.display = "none";
+        root_node.parentNode.removeChild(root_node);
+    }
+    if (status === "delete") {
+        send_close_session(session_id, status);
+        SESSIONS[session_id] = [
+            session_objects,
+            false
+        ];
+    }
+    return;
+}
+function free_session(session_id) {
+    lock_loading(()=>{
+        const session = SESSIONS[session_id];
+        if (!session) {
+            console.warn("double freeing session from Julia!");
+            return;
+        }
+        const [tracked_objects, status] = session;
+        delete SESSIONS[session_id];
+        INITIALIZED_SESSIONS.delete(session_id);
+        tracked_objects.forEach(free_object);
+        tracked_objects.clear();
+    });
+}
+function on_node_available(node_id, timeout, max_timeout = 30000) {
+    return new Promise((resolve, reject)=>{
+        let elapsed = 0;
+        function test_node(current_timeout) {
+            const node = document.querySelector(`[data-jscall-id='${node_id}']`);
+            if (node) {
+                resolve(node);
+            } else {
+                elapsed += current_timeout;
+                if (elapsed > max_timeout) {
+                    reject(new Error(`Timeout waiting for DOM node with data-jscall-id='${node_id}' after ${max_timeout}ms`));
+                    return;
+                }
+                const new_timeout = Math.min(current_timeout * 2, 1000);
+                setTimeout(test_node, new_timeout, new_timeout);
+            }
+        }
+        test_node(timeout);
+    });
+}
+function update_or_replace(node, new_html, replace) {
+    if (replace) {
+        node.parentNode.replaceChild(new_html, node);
+    } else {
+        while(node.childElementCount > 0){
+            node.removeChild(node.firstChild);
+        }
+        node.append(new_html);
+    }
+}
+function update_session_dom(message) {
+    lock_loading(()=>{
+        const { session_id , session_status , messages , html , dom_node_selector , replace  } = message;
+        ensure_session_exists(session_id, session_status || "sub");
+        return on_node_available(dom_node_selector, 1).then((dom)=>{
+            update_or_replace(dom, html, replace);
+            init_session_from_msgs(session_id, messages);
+        }).catch((error)=>{
+            send_done_loading(session_id, error);
+        });
+    });
+}
+function ensure_session_exists(session_id, session_status) {
+    if (!(session_id in SESSIONS)) {
+        SESSIONS[session_id] = [
+            new Set(),
+            session_status
+        ];
+    }
+}
+function track_in_session(session_id, key, session_status) {
+    ensure_session_exists(session_id, session_status);
+    const tracked_objects = SESSIONS[session_id][0];
+    tracked_objects.add(key);
+    if (!(key in GLOBAL_OBJECT_CACHE)) {
+        console.warn(`TrackingOnly: Key ${key} not found in GLOBAL_OBJECT_CACHE`);
+    }
+}
+function register_in_session_cache(session_id, key, object, session_status) {
+    ensure_session_exists(session_id, session_status);
+    const tracked_objects = SESSIONS[session_id][0];
+    tracked_objects.add(key);
+    if (!(key in GLOBAL_OBJECT_CACHE)) {
+        GLOBAL_OBJECT_CACHE[key] = object;
+    }
+}
+register_ext(101, (uint_8_array, context)=>{
+    const [id, value] = unpack(uint_8_array, context);
+    const obs = new Observable(id, value);
+    register_in_session_cache(context.session_id, id, obs, context.session_status);
+    return obs;
+});
+register_ext(109, (uint_8_array, context)=>{
+    const key = unpack(uint_8_array, context);
+    track_in_session(context.session_id, key, context.session_status);
+    return lookup_global_object(key);
+});
+function create_tag(tag, attributes) {
+    if (attributes.juliasvgnode) {
+        return document.createElementNS("http://www.w3.org/2000/svg", tag);
+    } else {
+        return document.createElement(tag);
+    }
+}
+register_ext(105, (uint_8_array, context)=>{
+    const [tag, children, attributes] = unpack(uint_8_array, context);
+    const node = create_tag(tag, attributes);
+    Object.keys(attributes).forEach((key)=>{
+        if (key == "juliasvgnode") {
+            return;
+        }
+        if (key == "class") {
+            node.className = attributes[key];
+        } else {
+            node.setAttribute(key, attributes[key]);
+        }
+    });
+    children.forEach((child)=>node.append(child));
+    return node;
+});
+register_ext(108, (uint_8_array, context)=>{
+    const html = unpack(uint_8_array, context);
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    return div;
+});
 register_ext(106, (uint_8_array, context)=>{
     const [session_id, session_status, packed_objects_ext] = decode(uint_8_array);
     ensure_session_exists(session_id, session_status);
@@ -3763,14 +3812,6 @@ function init_session(session_id, message_promise, session_status, compression) 
         });
     });
 }
-function register_in_session_cache(session_id, key, object, session_status) {
-    ensure_session_exists(session_id, session_status);
-    const tracked_objects = SESSIONS[session_id][0];
-    tracked_objects.add(key);
-    if (!(key in GLOBAL_OBJECT_CACHE)) {
-        GLOBAL_OBJECT_CACHE[key] = object;
-    }
-}
 function update_session_cache(session_id, new_jl_objects, session_status) {
     function update_cache(tracked_objects) {
         for (const [key, new_object] of new_jl_objects){
@@ -3802,6 +3843,7 @@ const mod1 = {
     free_object: free_object,
     move_dom_node: move_dom_node,
     track_deleted_sessions: track_deleted_sessions,
+    reannounce_initialized_sessions: reannounce_initialized_sessions,
     done_initializing_session: done_initializing_session,
     init_session: init_session,
     close_session: close_session,
@@ -3814,40 +3856,11 @@ const mod1 = {
     register_in_session_cache: register_in_session_cache,
     update_session_cache: update_session_cache
 };
-register_ext(101, (uint_8_array, context)=>{
-    const [id, value] = unpack(uint_8_array, context);
-    const obs = new Observable(id, value);
-    register_in_session_cache(context.session_id, id, obs, context.session_status);
-    return obs;
-});
-function send_pingpong() {
-    send_to_julia({
-        msg_type: PingPong
-    });
-}
-let timeout = null;
-function send_pings() {
-    clearTimeout(timeout);
-    if (!can_send_to_julia()) {
-        return;
-    }
-    send_pingpong();
-    timeout = setTimeout(send_pings, PING_INTERVAL);
-}
 function send_warning(message) {
     console.warn(message);
     send_to_julia({
         msg_type: JavascriptWarning,
         message: message
-    });
-}
-function send_done_loading(session, exception) {
-    send_to_julia({
-        msg_type: JSDoneLoading,
-        session,
-        message: "",
-        exception: exception === null ? "nothing" : String(exception),
-        stacktrace: exception === null ? "" : clean_stack(exception.stack)
     });
 }
 function send_close_session(session, subsession) {
