@@ -165,9 +165,15 @@ function default_electron_args()
             "--enable-logging",
             "--user-data-dir=$(mktempdir())",
             "--disable-features=AccessibilityObjectModel",
+            # Software WebGL via ANGLE+SwiftShader so WGLMakie/WebGL renders
+            # headless. NB recent Electron rejects the bare `--use-gl=swiftshader`
+            # (it resolves to gl=none → "GL implementation not found" → GPU
+            # process exits → no WebGL); it requires the ANGLE form below.
+            # `--enable-unsafe-swiftshader` is also required on recent Chromium.
+            "--use-gl=angle",
+            "--use-angle=swiftshader",
             "--enable-unsafe-swiftshader",
-            "--use-gl=swiftshader",
-            "--disable-gpu",
+            "--ignore-gpu-blocklist",
         ]
     else
         return ["--user-data-dir=$(mktempdir())"]
