@@ -162,15 +162,25 @@ function delegate(routes::Routes, application, request::Request, args...)
         # What a classic this response!
         return response_404("Didn't find route for $(request.target)")
     catch e
-        stacktrace = Base.catch_backtrace()
-        err = CapturedException(e, stacktrace)
-        Base.showerror(stderr, err)
-        html = err_to_html(e, stacktrace)
-        html_str = sprint() do io
-            Bonito.print_as_page(io,  html)
-        end
-        return response_500(html_str)
+        # invokelatest: rendering the error page builds DOM nodes through
+        # Hyperscript, whose attribute normalization carries inference edges
+        # that get invalidated by half the ecosystem (SIMD comparisons via
+        # `join`, ...). A static call here would put those edges into
+        # `delegate` - and with it into the whole serve chain up to the
+        # listener task, recompiling ~3s of it on first request. The error
+        # path is cold, so the dynamic call costs nothing.
+        return Base.invokelatest(error_response, e, Base.catch_backtrace())::Response
     end
+end
+
+function error_response(e, stacktrace)::Response
+    err = CapturedException(e, stacktrace)
+    Base.showerror(stderr, err)
+    html = err_to_html(e, stacktrace)
+    html_str = sprint() do io
+        Bonito.print_as_page(io, html)
+    end
+    return response_500(html_str)
 end
 
 function match_request(pattern::String, request)

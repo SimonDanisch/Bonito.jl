@@ -530,12 +530,16 @@ Creates a Julia exception from data passed to us by the frondend!
 """
 function JSException(session::Session, js_data::AbstractDict)
     stacktrace = String[]
-    if js_data["stacktrace"] != "nothing"
-        for line in split(js_data["stacktrace"], "\n")
-            push!(stacktrace, js_to_local_stacktrace(session.asset_server, line))
+    # The Dict values infer as Any; convert eagerly so this method carries no
+    # `convert(String, ::Any)` edges - those get invalidated by any package
+    # adding a `convert(::Type{String}, ...)` method (JSON, FilePathsBase, ...)
+    trace = String(js_data["stacktrace"])::String
+    if trace != "nothing"
+        for line in split(trace, "\n")
+            push!(stacktrace, String(js_to_local_stacktrace(session.asset_server, line))::String)
         end
     end
-    return JSException(js_data["exception"], js_data["message"], stacktrace)
+    return JSException(String(js_data["exception"])::String, String(js_data["message"])::String, stacktrace)
 end
 
 """
