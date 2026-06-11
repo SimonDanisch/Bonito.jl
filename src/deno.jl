@@ -29,7 +29,12 @@ function deno_bundle(path_to_js::AbstractString, output_file::String)
     stdout = IOBuffer()
     err = IOBuffer()
     try
-        run(pipeline(`$exe bundle $(path_to_js)`; stdout=stdout, stderr=err))
+        # deno 2.4+ bundler (esbuild-based; `deno bundle` was removed in 2.0
+        # and came back in 2.4). Still prints the bundle to stdout when no -o
+        # is given. --allow-import: our js imports from hosts outside deno's
+        # default allowlist (e.g. cdn.esm.sh); --platform browser: these
+        # bundles run in the browser, not in deno/node.
+        run(pipeline(`$exe bundle --allow-import --platform browser $(path_to_js)`; stdout=stdout, stderr=err))
     catch e
         err_str = String(take!(err))
         return false, err_str
