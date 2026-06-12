@@ -350,6 +350,20 @@ function last_modified(path::String)
     Dates.unix2datetime(Base.Filesystem.mtime(path))
 end
 
+# Can we actually write to `path`? `filemode(path) & S_IWUSR` lies on read-only
+# filesystems (squashfs/DMG app bundles preserve the writable mode bits from
+# build time), so probe by opening for append — EROFS/EACCES surface here
+# without touching the file's content or mtime.
+function file_writeable(path::String)
+    try
+        open(identity, path, "a")
+        return true
+    catch e
+        e isa Union{SystemError, Base.IOError} || rethrow()
+        return false
+    end
+end
+
 function needs_bundling(path, bundled)
     is_online(path) && return !isfile(bundled)
     !isfile(bundled) && return true
