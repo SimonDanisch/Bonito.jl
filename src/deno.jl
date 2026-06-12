@@ -21,11 +21,24 @@ end
 # task forever (B45).
 const DENO_BUNDLE_TIMEOUT = 120.0
 
+# Can we actually write to `path`? `filemode(path) & S_IWUSR` lies on read-only
+# filesystems (squashfs/DMG app bundles preserve the writable mode bits from
+# build time), so probe by opening for append — EROFS/EACCES surface here
+# without touching the file's content or mtime.
+function file_writeable(path::String)
+    try
+        open(identity, path, "a")
+        return true
+    catch e
+        e isa Union{SystemError, Base.IOError} || rethrow()
+        return false
+    end
+end
+
 function deno_bundle(path_to_js::AbstractString, output_file::String)
-    iswriteable = filemode(output_file) & Base.S_IWUSR != 0
     # bundles shipped as part of a package end up as read only
     # So we can't overwrite them
-    isfile(output_file) && !iswriteable && return false, "Output file is not writeable"
+    isfile(output_file) && !file_writeable(output_file) && return false, "Output file is not writeable"
     Deno_jll = Deno()
     # We treat Deno as a development dependency,
     # so if deno isn't loaded, don't bundle!

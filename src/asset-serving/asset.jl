@@ -353,6 +353,12 @@ end
 function needs_bundling(path, bundled)
     is_online(path) && return !isfile(bundled)
     !isfile(bundled) && return true
+    # A bundle we cannot rewrite is a SHIPPED bundle (read-only package dir,
+    # squashfs/DMG app bundle). Its mtime is whatever the packaging step left
+    # behind — often older than the equally-repackaged source file — so the
+    # mtime comparison below would demand a re-bundle that can never be
+    # written (each render then burns the full deno timeout). Trust it.
+    file_writeable(String(bundled)) || return false
     # If bundled happen after last modification of asset
     return last_modified(path) > last_modified(bundled)
 end
