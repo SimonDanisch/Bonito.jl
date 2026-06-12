@@ -235,8 +235,12 @@ function http_date(t::Real)
     return Dates.format(Dates.unix2datetime(t), Dates.RFC1123Format) * " GMT"
 end
 
+# `file` is typed `AbstractString` (not `String`) so a relocatable
+# `RelocatableFolders.Path` (e.g. an `Asset(@path ...)` icon shipped in an app
+# bundle) dispatches here too: `filesize`/`mtime`/`read`/`open` all accept
+# `AbstractString`, and a `Path` resolves to its materialized file on access.
 function serve_asset(request, data::Union{Vector{UInt8},Nothing},
-                     file::Union{String,Nothing}, content_type, cache_control)
+                     file::Union{AbstractString,Nothing}, content_type, cache_control)
     total = data === nothing ? Int(filesize(file)) : length(data)
     headers = Pair{String,String}[
         "Access-Control-Allow-Origin" => "*",

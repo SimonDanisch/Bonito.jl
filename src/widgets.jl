@@ -409,7 +409,7 @@ end
 
 # TODO, clean this up
 const noUiSlider = ES6Module(dependency_path("nouislider.min.js"))
-const noUiSliderCSS = Asset(dependency_path("noUISlider.css"))
+const noUiSliderCSS = Asset(@path(dependency_path("noUISlider.css")))  # @path: embed bytes so it survives bundle relocation
 
 function jsrender(session::Session, slider::RangeSlider)
     args = (slider.range, slider.connect, slider.orientation, slider.tooltips, slider.ticks)
@@ -903,7 +903,7 @@ end
 # External JavaScript library assets
 # https://github.com/Choices-js/Choices/blob/main/README.md
 const ChoicesJS = ES6Module(dependency_path("choices.min.js"))
-const ChoicesCSS = Asset(dependency_path("choices.min.css"))
+const ChoicesCSS = Asset(@path(dependency_path("choices.min.css")))  # @path: embed bytes so it survives bundle relocation
 
 """
     ChoicesJSParams(; kwargs...)

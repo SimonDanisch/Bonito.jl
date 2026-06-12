@@ -611,7 +611,7 @@ end
 
 @deprecate MathJax(source::String, config=Dict()) KaTeX(source)
 
-const KaTeXCSS = Asset(dependency_path("katex.min.css"))
+const KaTeXCSS = Asset(@path(dependency_path("katex.min.css")))  # @path: embed bytes so it survives bundle relocation
 const KaTeXJS = ES6Module(dependency_path("katex.mjs"))
 
 function jsrender(session::Session, katex::KaTeX)

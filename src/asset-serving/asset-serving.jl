@@ -66,6 +66,10 @@ dependency_path(paths...) = joinpath(JS_DEPENDENCIES, paths...)
 
 const BonitoLib = ES6Module(dependency_path("Bonito.js"))
 const Websocket = ES6Module(dependency_path("Websocket.js"))
-const Styling = Asset(dependency_path("styling.css"))
-const MarkdownCSS = Asset(dependency_path("markdown.css"))
+# `@path` embeds the CSS bytes at precompile so these plain (non-bundled) assets
+# survive relocation into an app bundle: the baked `JS_DEPENDENCIES` (an
+# `@__DIR__` path) points at the precompile/staging dir, which no longer exists
+# on the target machine, so a bare `Asset(dependency_path(...))` would 404.
+const Styling = Asset(@path(dependency_path("styling.css")))
+const MarkdownCSS = Asset(@path(dependency_path("markdown.css")))
 const TailwindCSS = Asset("https://cdn.tailwindcss.com/3.3.1"; mediatype=:js) # For Development

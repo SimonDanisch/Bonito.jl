@@ -3,7 +3,7 @@ module TailwindDashboard
 import ..Bonito
 import ..Bonito: DOM, Session, Observable, @js_str, Asset
 using Hyperscript
-const TailwindMini = Asset(Bonito.dependency_path("tailwind.min.css"))
+const TailwindMini = Asset(Bonito.@path(Bonito.dependency_path("tailwind.min.css")))  # @path: embed bytes so it survives bundle relocation
 
 FlexGrid(elems...; class="", kwargs...) = DOM.div(elems...; class=join(["flex flex-wrap", class], " "), kwargs...)
 Grid(elems...; class="", kwargs...) = DOM.div(elems...; class=join(["grid ", class], " "), kwargs...)
