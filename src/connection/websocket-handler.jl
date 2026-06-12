@@ -30,8 +30,11 @@ end
 
 function safe_write(websocket, binary)
     try
-        # send is what HTTP overloaded for writing to a websocket
-        send(websocket, binary)
+        # `send` writes a frame to the websocket. HTTP.jl 2.0 no longer exports
+        # it from `HTTP.WebSockets`, so it must be qualified — an unqualified
+        # `send` would resolve to Bonito's own `send(::Session, …)` and throw a
+        # MethodError that gets swallowed into the message queue.
+        WebSockets.send(websocket, binary)
         return true
     catch e
         ws_should_throw(e) && rethrow(e)

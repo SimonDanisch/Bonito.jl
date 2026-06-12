@@ -292,6 +292,7 @@ function wait_for_ready(app::App; timeout=100)
             istaskdone(task)
         end
     end
+    return
 end
 
 function jsrender(session::Session, app::App)

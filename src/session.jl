@@ -41,12 +41,12 @@ function init_session(session::Session)
     # the lock RELEASED, then re-acquire and signal `connection_ready` (+ flush
     # anything that queued during the write). The lock is now only held across
     # in-memory work, never across a slow socket write.
-    fused = lock(root.deletion_lock) do
+    opened, fused = lock(root.deletion_lock) do
         # open the connection for e.g. subconnection, which just have an open flag
         open!(session.connection)
         if !isopen(session)
             @debug "Session $(session.id) closed before init_session could run"
-            return nothing
+            return (false, nothing)
         end
         session.status = OPEN
         # Snapshot + drain the queued setup messages while holding the lock so
@@ -56,10 +56,13 @@ function init_session(session::Session)
         # `connection_ready` hasn't been put! yet, so they queue rather than
         # overtake this bundle).
         if !isempty(session.message_queue) || !isempty(session.on_document_load)
-            return SerializedMessage(session, fused_messages!(session))
+            return (true, SerializedMessage(session, fused_messages!(session)))
         end
-        return nothing
+        return (true, nothing)
     end
+    # Session got closed before we could open it: nothing to write, and in
+    # particular don't fire the on_open notification below.
+    opened || return
     # Blocking socket write OUTSIDE the lock, so a slow/backpressured client no
     # longer stalls every other lock taker (B36). We write the serialized
     # bundle DIRECTLY to the connection rather than via `_send`: `_send` would
@@ -90,6 +93,11 @@ function init_session(session::Session)
             send(session, fused_messages!(session))
         end
     end
+    # Notify (re)connection listeners outside the lock: handlers may serialize
+    # and send (e.g. WGLMakie re-synchronizing scene state on reconnect), which
+    # takes the deletion_lock themselves. Fired after connection_ready is
+    # signaled so those sends reach the wire directly instead of queueing.
+    session.on_open[] = true
     return
 end
 

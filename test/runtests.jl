@@ -17,18 +17,44 @@ using Bonito.MsgPack
 using Bonito.CodecZlib
 using Test
 using Bonito: jsrender
+
 include("ElectronTests.jl")
 include("test_helpers.jl")
 
-function wait_on_test_observable()
+function wait_on_test_observable(trigger; timeout=20)
     global test_observable
     test_channel = Channel{Dict{String,Any}}(1)
     f = on(test_observable) do value
         put!(test_channel, value)
     end
-    val = take!(test_channel)
-    off(test_observable, f)
-    return val
+    try
+        # Fire the round-trip ONLY after the listener is registered. The old
+        # `test_value` ran the trigger on the main task while registering this
+        # listener in a deferred `@async` — racy: on HTTP@2 the frontend
+        # round-trip can complete and fire `test_observable` before the listener
+        # attaches, so the value is missed and the test hangs. Triggering here,
+        # post-registration, closes that gap.
+        trigger()
+        t0 = time()
+        while !isready(test_channel)
+            if time() - t0 > timeout
+                # Capture the live deadlock/lost-message state for diagnosis.
+                try
+                    open("/tmp/widgets_bt.txt", "w") do io
+                        redirect_stderr(io) do
+                            ccall(:jl_print_task_backtraces, Cvoid, (Cint,), 0)
+                        end
+                    end
+                catch
+                end
+                error("wait_on_test_observable: no frontend round-trip after $(timeout)s — the browser→server observable notify was lost/never processed (likely threading race). Backtraces -> /tmp/widgets_bt.txt")
+            end
+            sleep(0.01)
+        end
+        return take!(test_channel)
+    finally
+        off(test_observable, f)
+    end
 end
 
 """
@@ -38,56 +64,73 @@ And waits on `test_observable` to push a new value!
 Returns new value from `test_observable`
 """
 function test_value(app, statement)
-    val_t = @async wait_on_test_observable()
-    if statement isa Bonito.JSCode
-        Bonito.evaljs(app.session, statement)
-    else
-        statement()
+    return wait_on_test_observable() do
+        if statement isa Bonito.JSCode
+            Bonito.evaljs(app.session, statement)
+        else
+            statement()
+        end
     end
-    return fetch(val_t)
 end
+
 
 function OfflineSession()
     return Session(NoConnection(); asset_server=NoServer())
 end
 
-# Reuse the shared Electron Application for all test windows
-function TestWindow(args...; options=Dict{String, Any}("show" => false, "focusOnWebView" => false))
-    return Bonito.EWindow(args...; app=get_test_app(), options=options)
+# Reuse the shared Electron Application for all test windows.
+# Devtools stays CLOSED (the window opens with devtools closed; calling
+# `toggle_devtools` here would OPEN it, and an open devtools floods the log with
+# `devtools://… Autofill.enable failed` protocol errors on every navigation).
+# Set BONITO_TEST_DEVTOOLS=1 to open devtools for debugging.
+function TestWindow(args...; options=Dict{String, Any}("show" => true, "focusOnWebView" => false))
+    win = Bonito.EWindow(args...; app=get_test_app(), options=options)
+    get(ENV, "BONITO_TEST_DEVTOOLS", "") == "1" && ElectronCall.toggle_devtools(win.window)
+    return win
 end
 
+
+win = TestWindow()
+
+function _rf(f)
+    name = replace(basename(f), ".jl" => "")
+    printstyled("▶ running tests: $name\n"; color=:cyan, bold=true)
+    t = @elapsed include(f)
+    printstyled("  ✓ $name ($(round(t; digits=1))s)\n"; color=:light_black)
+end
 @testset "Bonito" begin
+    printstyled("Bonito test suite — NTHREADS=$(Threads.nthreads())\n"; color=:cyan, bold=true)
     global edisplay = Bonito.use_electron_display(; app=get_test_app(), options=Dict{String, Any}("show" => false, "focusOnWebView" => false), devtools=false)
     @testset "Default Connection" begin
         @testset "websocket-closing" begin
-            include("websocket-closing.jl")
+            _rf("websocket-closing.jl")
         end
         @testset "reconnect" begin
             include("reconnect.jl")
         end
         @testset "components" begin
-            include("components.jl")
+            _rf("components.jl")
         end
         @testset "styling" begin
-            include("styling.jl")
+            _rf("styling.jl")
         end
         @testset "threading" begin
-            include("threading.jl")
+            _rf("threading.jl")
         end
         @testset "server" begin
-            include("server.jl")
+            _rf("server.jl")
         end
         @testset "subsessions" begin
-            include("subsessions.jl")
+            _rf("subsessions.jl")
         end
         @testset "proxy" begin
             include("proxy.jl")
         end
         @testset "key_not_found_race" begin
-            include("key_not_found_race.jl")
+            _rf("key_not_found_race.jl")
         end
         @testset "race_conditions_audit" begin
-            include("race_conditions_audit.jl")
+            _rf("race_conditions_audit.jl")
         end
         @testset "stability_core" begin
             include("stability_core.jl")
@@ -96,43 +139,43 @@ end
             include("stability_assets.jl")
         end
         @testset "connection-serving" begin
-            include("connection-serving.jl")
+            _rf("connection-serving.jl")
         end
         # loading_page must run before serialization, which closes the global
         # Bonito server via testsession() and kills the edisplay window.
         @testset "loading_page" begin
-            include("loading_page.jl")
+            _rf("loading_page.jl")
         end
         @testset "serialization" begin
-            include("serialization.jl")
+            _rf("serialization.jl")
         end
         @testset "protocol_roundtrip" begin
-            include("protocol_roundtrip.jl")
+            _rf("protocol_roundtrip.jl")
         end
         @testset "session_io" begin
-            include("session_io.jl")
+            _rf("session_io.jl")
         end
         @testset "error_handling" begin
-            include("error_handling.jl")
+            _rf("error_handling.jl")
         end
         @testset "widgets" begin
-            include("widgets.jl")
+            _rf("widgets.jl")
         end
-        # @testset "various" begin; include("various.jl"); end
+        # @testset "various" begin; _rf("various.jl"); end
         @testset "commonmark" begin
-            include("commonmark.jl")
+            _rf("commonmark.jl")
         end
         @testset "markdown" begin
-            include("markdown.jl")
+            _rf("markdown.jl")
         end
         @testset "basics" begin
-            include("basics.jl")
+            _rf("basics.jl")
         end
         @testset "handlers" begin
-            include("handlers.jl")
+            _rf("handlers.jl")
         end
         @testset "export" begin
-            include("export_tests.jl")
+            _rf("export_tests.jl")
         end
     end
     close(edisplay)
@@ -142,25 +185,25 @@ end
             Bonito.use_compression!(true)
             Bonito.force_connection!(Bonito.DualWebsocket)
             @testset "components" begin
-                include("components.jl")
+                _rf("components.jl")
             end
             @testset "threading" begin
-                include("threading.jl")
+                _rf("threading.jl")
             end
             @testset "server" begin
-                include("server.jl")
+                _rf("server.jl")
             end
             @testset "subsessions" begin
-                include("subsessions.jl")
+                _rf("subsessions.jl")
             end
             @testset "serialization" begin
-                include("serialization.jl")
+                _rf("serialization.jl")
             end
             @testset "widgets" begin
-                include("widgets.jl")
+                _rf("widgets.jl")
             end
             @testset "markdown" begin
-                include("markdown.jl")
+                _rf("markdown.jl")
             end
         end
     end

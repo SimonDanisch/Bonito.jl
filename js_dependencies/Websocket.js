@@ -321,11 +321,21 @@ export function setup_connection({
     const ws = new Websocket(url + query, compression_enabled);
     window.WEBSOCKET = ws;
     if (main_connection) {
+        let first_open = true;
         ws.on_open(() => {
             Bonito.on_connection_open(
                 (binary) => ws.send(binary),
                 compression_enabled
             );
+            if (first_open) {
+                first_open = false;
+            } else {
+                // websocket reconnected: re-announce the initialized sessions
+                // so the julia side re-opens them - flushing messages queued
+                // while disconnected and firing `session.on_open` for
+                // integrations that re-synchronize state (e.g. WGLMakie).
+                Bonito.Sessions.reannounce_initialized_sessions();
+            }
         });
     }
 }
