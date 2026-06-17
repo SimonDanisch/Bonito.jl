@@ -97,7 +97,8 @@ function Base.display(display::BrowserDisplay, app::App)
             if success
                 handler.session.status = Bonito.DISPLAYED
                 # if open_browser, we need to let the caller wait!
-                wait_for(()-> isready(handler.session))
+                wait_for(()-> isready(handler.session; throw=false) ||
+                              !isnothing(handler.session.init_error[]))
                 wait_for_ready(app)
             end
         end

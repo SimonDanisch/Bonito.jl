@@ -283,8 +283,16 @@ function wait_for_ready(app::App; timeout=100)
     success = wait_for(()-> !isnothing(app.session[]); timeout=timeout)
     success !== :success && return nothing
     isclosed(app.session[]) && return nothing
+    # A handler/render error on an app WITH a `loading_page` is rendered to the
+    # page as an error page, so we just stop waiting — re-throwing would escape
+    # `display`/`timed_wait` for an error the user already sees on the page.
+    # Without a loading_page there is no on-page error surface, so re-throw (via
+    # `isready`) to surface the cause to the caller — the error_handling tests
+    # rely on this fast throw.
+    do_throw = isnothing(app.loading_page)
     wait_for(timeout=timeout) do
-        isready(app.session[]) || isclosed(app.session[])
+        isready(app.session[]; throw=do_throw) || isclosed(app.session[]) ||
+            !isnothing(app.session[].init_error[])
     end
     task = app.loading_task[]
     if !isnothing(task)
