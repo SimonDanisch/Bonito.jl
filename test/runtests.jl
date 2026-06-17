@@ -84,7 +84,9 @@ end
 # `toggle_devtools` here would OPEN it, and an open devtools floods the log with
 # `devtools://… Autofill.enable failed` protocol errors on every navigation).
 # Set BONITO_TEST_DEVTOOLS=1 to open devtools for debugging.
-function TestWindow(args...; options=Dict{String, Any}("show" => true, "focusOnWebView" => false))
+# `show => false`: tests must never pop a visible window — it steals focus on the
+# developer's real desktop. Set BONITO_TEST_SHOW=1 to watch the windows.
+function TestWindow(args...; options=Dict{String, Any}("show" => get(ENV, "BONITO_TEST_SHOW", "") == "1", "focusOnWebView" => false))
     win = Bonito.EWindow(args...; app=get_test_app(), options=options)
     get(ENV, "BONITO_TEST_DEVTOOLS", "") == "1" && ElectronCall.toggle_devtools(win.window)
     return win
