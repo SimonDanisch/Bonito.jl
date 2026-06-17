@@ -170,9 +170,14 @@ mutable struct SessionIO <: IO
     scratches::Vector{IOBuffer}
     depth::Int
     lock::Base.ReentrantLock
+    # True while this SessionIO is actively packing a message. Guards against
+    # re-entrant reuse of a session's shared `pack_io` (e.g. a nested
+    # SerializedMessage reached via a fresh `pack(...)` inside `to_msgpack`),
+    # which would otherwise reset depth/scratches mid-stream and corrupt output.
+    in_use::Bool
 end
 
-SessionIO() = SessionIO(nothing, IOBuffer[], 0, Base.ReentrantLock())
+SessionIO() = SessionIO(nothing, IOBuffer[], 0, Base.ReentrantLock(), false)
 
 struct SessionCache
     session_id::String

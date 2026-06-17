@@ -1,10 +1,73 @@
 # Render the widgets from WidgetsBase.jl
 
+# Public theming hooks for Bonito's built-in widgets. Widget default styles read
+# these CSS variables (with light-mode fallbacks), so a host page can re-theme
+# every widget by redefining them. `BONITO_WIDGET_THEME` is registered once into
+# every root session's global stylesheets (see `session_dom`), giving standalone
+# apps an automatic dark variant via `prefers-color-scheme`; hosts with their own
+# theme toggle (e.g. the Bonito docs) override the variables at higher specificity.
+const BONITO_WIDGET_THEME = Styles(
+    CSS(
+        "@media (prefers-color-scheme: light)",
+        CSS(
+            ":root",
+            "color-scheme" => "light",
+            "accent-color" => "#3182bb",
+            "--bonito-widget-bg" => "#ffffff",
+            "--bonito-widget-fg" => "#1a1a1a",
+            "--bonito-widget-border" => "#9ca3af",
+            "--bonito-widget-hover-bg" => "#f3f4f6",
+            "--bonito-widget-muted-bg" => "#f3f4f6",
+            "--bonito-widget-accent" => "#3182bb",
+        ),
+    ),
+    CSS(
+        "@media (prefers-color-scheme: dark)",
+        CSS(
+            ":root",
+            "color-scheme" => "dark",
+            "accent-color" => "#6ea8e0",
+            "--bonito-widget-bg" => "#2a2a2e",
+            "--bonito-widget-fg" => "#e8e8ea",
+            "--bonito-widget-border" => "#52525b",
+            "--bonito-widget-hover-bg" => "#3a3a40",
+            "--bonito-widget-muted-bg" => "#36363c",
+            "--bonito-widget-accent" => "#6ea8e0",
+        ),
+    ),
+    # `RangeSlider` renders via the vendored noUiSlider stylesheet, which hardcodes
+    # light colours. Re-skin its parts through the same theme variables. Selectors
+    # are prefixed with `html ` so they outrank noUiSlider's single-class rules no
+    # matter which stylesheet the host loads last.
+    CSS("html .noUi-target",
+        "background" => "var(--bonito-widget-muted-bg, #fafafa)",
+        "border-color" => "var(--bonito-widget-border, #d3d3d3)",
+        "box-shadow" => "none"),
+    CSS("html .noUi-connects", "background" => "var(--bonito-widget-muted-bg, #fafafa)"),
+    CSS("html .noUi-connect", "background" => "var(--bonito-widget-accent, #3182bb)"),
+    CSS("html .noUi-handle",
+        "background" => "var(--bonito-widget-bg, #fff)",
+        "border-color" => "var(--bonito-widget-border, #d3d3d3)",
+        "box-shadow" => "none"),
+    CSS("html .noUi-handle::before", "background" => "var(--bonito-widget-border, #d3d3d3)"),
+    CSS("html .noUi-handle::after", "background" => "var(--bonito-widget-border, #d3d3d3)"),
+    CSS("html .noUi-tooltip",
+        "background" => "var(--bonito-widget-bg, #fff)",
+        "color" => "var(--bonito-widget-fg, #000)",
+        "border-color" => "var(--bonito-widget-border, #d3d3d3)"),
+    CSS("html .noUi-marker", "background" => "var(--bonito-widget-border, #ccc)"),
+    CSS("html .noUi-value", "color" => "var(--bonito-widget-fg, inherit)"),
+)
+
+# Widget colours go through CSS variables so a host page can theme them (e.g. for
+# dark mode). The fallbacks are the original light-mode values, so standalone apps
+# look identical unless the host defines `--bonito-widget-*` (the Bonito docs map
+# these onto their theme tokens, which switch with light/dark).
 const BUTTON_STYLE = Styles(
     CSS(
         "font-weight" => 600,
         "border-width" => "1px",
-        "border-color" => "#9CA3AF",
+        "border-color" => "var(--bonito-widget-border, #9CA3AF)",
         "border-radius" => "0.25rem",
         "padding-left" => "0.75rem",
         "padding-right" => "0.75rem",
@@ -14,12 +77,13 @@ const BUTTON_STYLE = Styles(
         "cursor" => "pointer",
         "min-width" => "8rem",
         "font-size" => "1rem",
-        "background-color" => "white",
+        "color" => "var(--bonito-widget-fg, inherit)",
+        "background-color" => "var(--bonito-widget-bg, white)",
         "box-shadow" => "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px";
     ),
     CSS(
         ":hover",
-        "background-color" => "#F9FAFB",
+        "background-color" => "var(--bonito-widget-hover-bg, #F9FAFB)",
         "box-shadow" => "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px",
     ),
     CSS(
@@ -318,11 +382,14 @@ function jsrender(session::Session, slider::Slider)
     # Hacky, but don't want to Pr WidgetsBase yet
     values = slider.values
     index = slider.index
-    # B20: `value` is now derived from `index` Julia-side in the constructor, so
-    # the previous JS→Julia `onjs` that re-`notify`ed `slider.value` on every
-    # index change is gone — it duplicated the update and could apply echoes out
-    # of order. The browser still notifies `index`; the Julia-side map handles
-    # `value`.
+    value = slider.value
+    # B20: `value` is derived from `index` Julia-side in the constructor, so
+    # `slider.index[] = 5` updates `slider.value` immediately (offline / before
+    # the page loads). In a *live* session the browser notifies `index` and the
+    # Julia-side map keeps `value` in sync. But a static export has no Julia, so
+    # below we also derive `value` from `index` client-side when there is no
+    # connection (with `dont_notify_julia=true`, so live sessions are unaffected
+    # and don't double-update).
     autocomplete = get(slider.attributes, :autocomplete, "off")
     return jsrender(
         session,
@@ -339,6 +406,10 @@ function jsrender(session::Session, slider::Slider)
                 const idx = event.srcElement.valueAsNumber;
                 if (idx !== $(index).value) {
                     $(index).notify(idx)
+                    if (Bonito.is_no_connection()) {
+                        const vals = $(values).value;
+                        $(value).notify(vals[idx - 1], true);
+                    }
                 }
             }""",
             # B42: was `style=styles`, which is the `Hyperscript.styles`
@@ -487,8 +558,9 @@ const TableStyles = Styles(
     ),
     CSS(
         ".table-header",
-        "background-color" => "#f5f5f5",
-        "border" => "1px solid #ddd",
+        "background-color" => "var(--bonito-widget-muted-bg, #f5f5f5)",
+        "color" => "var(--bonito-widget-fg, inherit)",
+        "border" => "1px solid var(--bonito-widget-border, #ddd)",
         "padding" => "8px",
         "text-align" => "left",
         "font-weight" => "bold",
@@ -497,17 +569,17 @@ const TableStyles = Styles(
     ),
     CSS(
         ".table-header:hover",
-        "background-color" => "#e9e9e9",
+        "background-color" => "var(--bonito-widget-hover-bg, #e9e9e9)",
     ),
     CSS(
         ".table-cell",
-        "border" => "1px solid #ddd",
+        "border" => "1px solid var(--bonito-widget-border, #ddd)",
         "padding" => "8px",
         "text-align" => "left",
     ),
     CSS(
         ".table-row:hover .table-cell",
-        "background-color" => "#f9f9f9",
+        "background-color" => "var(--bonito-widget-hover-bg, #f9f9f9)",
     ),
     CSS(
         ".cell-good",
@@ -526,8 +598,8 @@ const TableStyles = Styles(
     ),
     CSS(
         ".cell-default",
-        "background-color" => "white",
-        "color" => "black",
+        "background-color" => "var(--bonito-widget-bg, white)",
+        "color" => "var(--bonito-widget-fg, black)",
     ),
     CSS(
         ".table-container",

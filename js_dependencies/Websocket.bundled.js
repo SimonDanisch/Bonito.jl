@@ -1,4 +1,4 @@
-// dev/Bonito/js_dependencies/Websocket.js
+// ../../../../../../../sim/Programmieren/BonitoDev/dev/Bonito/js_dependencies/Websocket.js
 var Websocket = class {
   /**
    * @type {WebSocket | undefined}

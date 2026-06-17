@@ -843,6 +843,10 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         # code and dom nodes to the right places, so we need to extract those
         head, body, dom = find_head_body(dom)
         session_style = render_stylesheets!(root_session(session), session, session.stylesheets)
+        # Root sessions ship the built-in widget theme (light + prefers-dark CSS
+        # variables) so standalone apps follow the OS color scheme. OrderedSet
+        # dedups, so adding the same const repeatedly is a no-op.
+        isroot(session) && push!(session.global_stylesheets, BONITO_WIDGET_THEME)
         global_styles = map(collect(session.global_stylesheets)) do styles
             DOM.style(to_string(session, styles))
         end

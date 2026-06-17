@@ -98,12 +98,17 @@ function write_to_assetfolder(assetfolder, asset)
     path = abspath(local_path(asset))
     if is_path_contained(dir, path)
         return path
-    else
-        filepath = desired_location(assetfolder, asset)
-        isdir(dirname(filepath)) || mkpath(dirname(filepath))
-        cp(path, filepath; force=true)
-        return filepath
     end
+    filepath = desired_location(assetfolder, asset)
+    # The asset may already live exactly at its destination (e.g. a BinaryAsset
+    # whose `url` wrote it there before re-resolving through here) — copying a
+    # file onto itself throws, so just return it.
+    if abspath(filepath) == path
+        return path
+    end
+    isdir(dirname(filepath)) || mkpath(dirname(filepath))
+    cp(path, filepath; force=true)
+    return filepath
 end
 
 current_dir(assetfolder::AssetFolder) = assetfolder.current_dir

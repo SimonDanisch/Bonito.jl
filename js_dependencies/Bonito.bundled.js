@@ -3247,6 +3247,9 @@ function set_no_connection() {
     CONNECTION.status = "no_connection";
     notify_indicator_status();
 }
+function is_no_connection() {
+    return CONNECTION.status === "no_connection";
+}
 function notify_indicator_status() {
     if (CONNECTION.indicator && typeof CONNECTION.indicator.onStatusChange === 'function') {
         let status;
@@ -3397,14 +3400,12 @@ function lock_loading(f) {
         send_error("Error inside object-freeing-locked task", error);
     });
 }
-function lookup_global_object(key, warn = true) {
+function lookup_global_object(key) {
     const object = GLOBAL_OBJECT_CACHE[key];
     if (object) {
         return object;
     }
-    if (warn) {
-        console.warn(`Key ${key} not found! ${object}`);
-    }
+    console.warn(`Key ${key} not found! ${object}`);
     return null;
 }
 function is_still_referenced(id) {
@@ -3957,11 +3958,8 @@ function process_message(data) {
     try {
         switch(data.msg_type){
             case UpdateObservable:
-                {
-                    const observable = lookup_global_object(data.id, false);
-                    observable && observable.notify(data.payload, true);
-                    break;
-                }
+                lookup_global_object(data.id).notify(data.payload, true);
+                break;
             case OnjsCallback:
                 data.obs.on(data.payload());
                 break;
@@ -3998,6 +3996,7 @@ const mod2 = {
     register_connection_indicator: register_connection_indicator,
     unregister_connection_indicator: unregister_connection_indicator,
     set_no_connection: set_no_connection,
+    is_no_connection: is_no_connection,
     on_connection_connecting: on_connection_connecting,
     on_connection_open: on_connection_open,
     on_connection_close: on_connection_close,
@@ -4017,7 +4016,7 @@ function onany(observables, f) {
         obs.on(callback);
     });
 }
-const { send_error: send_error1 , send_warning: send_warning1 , process_message: process_message1 , on_connection_open: on_connection_open1 , on_connection_close: on_connection_close1 , on_connection_connecting: on_connection_connecting1 , send_close_session: send_close_session1 , send_pingpong: send_pingpong1 , can_send_to_julia: can_send_to_julia1 , send_to_julia: send_to_julia1 , register_connection_indicator: register_connection_indicator1 , unregister_connection_indicator: unregister_connection_indicator1 , set_no_connection: set_no_connection1 , ConnectionStatus: ConnectionStatus1  } = mod2;
+const { send_error: send_error1 , send_warning: send_warning1 , process_message: process_message1 , on_connection_open: on_connection_open1 , on_connection_close: on_connection_close1 , on_connection_connecting: on_connection_connecting1 , send_close_session: send_close_session1 , send_pingpong: send_pingpong1 , can_send_to_julia: can_send_to_julia1 , send_to_julia: send_to_julia1 , register_connection_indicator: register_connection_indicator1 , unregister_connection_indicator: unregister_connection_indicator1 , set_no_connection: set_no_connection1 , is_no_connection: is_no_connection1 , ConnectionStatus: ConnectionStatus1  } = mod2;
 const { base64decode: base64decode1 , base64encode: base64encode1 , decode_binary: decode_binary1 , encode_binary: encode_binary1 , decode_base64_message: decode_base64_message1  } = mod1;
 const { init_session: init_session1 , free_session: free_session1 , lookup_global_object: lookup_global_object1 , update_or_replace: update_or_replace1 , lock_loading: lock_loading1 , OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK1 , free_object: free_object1 , force_free_object: force_free_object1 , move_dom_node: move_dom_node1  } = mod;
 function update_node_attribute(node, attribute, value) {
@@ -4142,6 +4141,7 @@ const Bonito = {
     register_connection_indicator: register_connection_indicator1,
     unregister_connection_indicator: unregister_connection_indicator1,
     set_no_connection: set_no_connection1,
+    is_no_connection: is_no_connection1,
     ConnectionStatus: ConnectionStatus1,
     Sessions: mod,
     init_session: init_session1,
@@ -4162,6 +4162,6 @@ const Bonito = {
     generate_state_key
 };
 window.Bonito = Bonito;
-export { mod1 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, fetch_binary as fetch_binary, load_script as load_script, mod2 as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, on_connection_connecting1 as on_connection_connecting, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, register_connection_indicator1 as register_connection_indicator, unregister_connection_indicator1 as unregister_connection_indicator, set_no_connection1 as set_no_connection, ConnectionStatus1 as ConnectionStatus, mod as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, move_dom_node1 as move_dom_node, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany, OBJECT_FREEING_LOCK1 as OBJECT_FREEING_LOCK, can_send_to_julia1 as can_send_to_julia, free_object1 as free_object, send_to_julia1 as send_to_julia, throttle_function as throttle_function };
+export { mod1 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, fetch_binary as fetch_binary, load_script as load_script, mod2 as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, on_connection_connecting1 as on_connection_connecting, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, register_connection_indicator1 as register_connection_indicator, unregister_connection_indicator1 as unregister_connection_indicator, set_no_connection1 as set_no_connection, is_no_connection1 as is_no_connection, ConnectionStatus1 as ConnectionStatus, mod as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, move_dom_node1 as move_dom_node, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany, OBJECT_FREEING_LOCK1 as OBJECT_FREEING_LOCK, can_send_to_julia1 as can_send_to_julia, free_object1 as free_object, send_to_julia1 as send_to_julia, throttle_function as throttle_function };
 export { generate_state_key as generate_state_key };
 

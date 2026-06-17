@@ -76,6 +76,7 @@ include("tailwind-dashboard.jl")
 
 include("interactive.jl")
 include("terminal_output.jl")
+include("documenter.jl")
 
 # Core functionality
 export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset, CSS, LoadingPage, rebundle!
@@ -97,6 +98,7 @@ export get_metadata, set_metadata!
 export cleanup_globals
 export RichText, TerminalOutput, ANSI_CSS, ansi_to_html, has_ansi_codes, append_html!
 export bonito_parser, commonmark_to_dom
+export DocumenterBonito
 
 function has_html_display()
     for display in Base.Multimedia.displays

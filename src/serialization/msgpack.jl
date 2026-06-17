@@ -8,18 +8,13 @@ MsgPack.msgpack_type(::Type{<: AbstractVector{<: JSTypedNumber}}) = MsgPack.Exte
 
 function real_unsafe_write(io::IOBuffer, data::Array{T}) where T
     @assert isbitstype(T)
-    nbytes = sizeof(data)
-    Base.ensureroom(io, nbytes)
-    ptr = (io.append ? io.size + 1 : io.ptr)
-    written = Int(min(nbytes, Int(length(io.data))::Int - ptr + 1))
+    # Delegate to Base's `unsafe_write`, which owns all ensureroom/offset/size
+    # bookkeeping. The previous hand-rolled version clamped the size update to the
+    # available room but still `unsafe_copyto!`'d the *full* byte count, so a
+    # too-small buffer overflowed `io.data` and corrupted the heap (segfault).
     GC.@preserve data begin
-        Base.unsafe_copyto!(pointer(io.data, ptr), Ptr{UInt8}(pointer(data)), nbytes)
+        return Int(Base.unsafe_write(io, Ptr{UInt8}(pointer(data)), UInt(sizeof(data))))
     end
-    io.size = max(io.size, ptr - 1 + written)
-    if !io.append
-        io.ptr += written
-    end
-    return written
 end
 
 convert_for_write(x::Array) = x
@@ -234,14 +229,28 @@ end
 # lock for the duration, then defer to the shared body.
 function MsgPack.pack_type(io::IOBuffer, ::MsgPack.ExtensionType, x::SerializedMessage)
     s = x.pack_io
+    # If `pack_io` is already packing further up the stack (a nested
+    # SerializedMessage reached via a fresh `pack(...)`, e.g. inside
+    # `to_msgpack(::JSCode)`), reusing it would reset its depth/scratches
+    # mid-stream and corrupt the in-progress buffer (segfault). Use a throwaway
+    # SessionIO for the re-entrant case instead.
+    if s.in_use
+        s = SessionIO()
+    end
     lock(s.lock) do
+        s.in_use = true
         s.output = io
         s.depth = 0
         for scratch in s.scratches
             reset_for_reuse!(scratch)
         end
-        pack_extension!(s, SERIALIZED_MESSAGE_TAG) do
-            write_serialized_message_payload!(s, x)
+        try
+            pack_extension!(s, SERIALIZED_MESSAGE_TAG) do
+                write_serialized_message_payload!(s, x)
+            end
+        finally
+            s.in_use = false
+            s.output = nothing
         end
     end
     return nothing

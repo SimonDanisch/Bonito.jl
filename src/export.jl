@@ -52,11 +52,12 @@ struct IgnoreObsUpdates <: Function
 end
 
 function (ignore::IgnoreObsUpdates)(msg)
-    if msg[:msg_type] == UpdateObservable
+    # Observable update messages use String keys (see `JSUpdateObservable`).
+    if get(msg, "msg_type", nothing) == UpdateObservable
         # Ignore all messages that directly update the observable we watch
         # because otherwise, that will trigger itself recursively, once those messages are applied
         # via `$(wid).on(x=> ....)`
-        msg[:id] in ignore.widget_ids && return true
+        get(msg, "id", nothing) in ignore.widget_ids && return true
     end
     return false
 end
