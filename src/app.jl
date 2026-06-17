@@ -284,14 +284,7 @@ function wait_for_ready(app::App; timeout=100)
     success !== :success && return nothing
     isclosed(app.session[]) && return nothing
     wait_for(timeout=timeout) do
-        # `throw=false`: this is a wait loop, not a "use the session" call. A
-        # recorded handler/render error must STOP the wait (we're as-ready as
-        # we'll get), not be thrown out through `display` — it's already shown
-        # on the page (loading_page/error page) and re-surfaced by explicit
-        # `isready(throw=true)` callers. Throwing here crashed `display` on any
-        # app whose handler errored (test/loading_page.jl "error in handler").
-        isready(app.session[]; throw=false) || isclosed(app.session[]) ||
-            !isnothing(app.session[].init_error[])
+        isready(app.session[]) || isclosed(app.session[])
     end
     task = app.loading_task[]
     if !isnothing(task)
