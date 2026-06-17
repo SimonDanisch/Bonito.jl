@@ -169,7 +169,14 @@ end
         # outer_obs swap closes the sub.
         t = Threads.@spawn begin
             for j in 1:20
-                try per_iter_obs[] = "v$j-$i" catch end
+                try
+                    per_iter_obs[] = "v$j-$i"
+                catch e
+                    # Intentional: this update may race the sub's teardown (the
+                    # point of the test). A Julia-side throw here is tolerated;
+                    # what we assert is that JS never logs "Key not found".
+                    @debug "update raced session teardown" exception = e
+                end
                 sleep(0.001)
             end
         end

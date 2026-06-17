@@ -92,6 +92,20 @@ function Base.close(server::HTTPAssetServer)
     end
 end
 
+# Caller must hold `parent.lock`. Drop one reference to `path`, removing the entry
+# entirely once the last holder leaves. Shared by every release path (child close,
+# proxied-asset release) so the refcount math lives in one place.
+function decref!(parent::HTTPAssetServer, path::AbstractString)
+    entry = get(parent.files, path, nothing)
+    entry === nothing && return
+    if entry.refcount <= 1
+        delete!(parent.files, path)
+    else
+        parent.files[path] = AssetEntry(entry.refcount - 1, entry.asset)
+    end
+    return
+end
+
 # Release this child's claim on every path it registered. Each path's refcount
 # drops by 1; when a refcount hits 0 (last holder gone) the entry is dropped.
 # Idempotent: a second close is a no-op (the child's own `files` set is empty).
@@ -99,13 +113,7 @@ function Base.close(server::ChildAssetServer)
     parent = server.parent
     lock(parent.lock) do
         for path in server.files
-            entry = get(parent.files, path, nothing)
-            entry === nothing && continue
-            if entry.refcount <= 1
-                delete!(parent.files, path)
-            else
-                parent.files[path] = AssetEntry(entry.refcount - 1, entry.asset)
-            end
+            decref!(parent, path)
         end
         empty!(server.files)
     end

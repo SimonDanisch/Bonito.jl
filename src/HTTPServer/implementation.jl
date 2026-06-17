@@ -144,7 +144,7 @@ function err_to_html(err, stacktrace)
     return linkify_stacktrace(error_msg, stacktrace_msg)
 end
 
-function delegate(routes::Routes, application, request::Request, args...)
+function delegate(routes::Routes, application, request::Request, args...; peer_ip::String="")
     try
         # B8: snapshot the table under the lock before iterating. `route!`
         # concurrently `push!`es + `sort!`s (every page render registers a
@@ -158,7 +158,8 @@ function delegate(routes::Routes, application, request::Request, args...)
                     routes = routes,
                     application = application,
                     request = request,
-                    match = match
+                    match = match,
+                    peer_ip = peer_ip,
                 )
                 return apply_handler(f, context, args...)
             end
@@ -250,7 +251,30 @@ function relative_url(server::Server, url)
     end
 end
 
+# Best-effort client IP of a live connection, for the auth rate limiter. Reaches
+# into the HTTP fork's Reseau socket (TLS conns wrap their TCP conn in `.tcp`)
+# through the socket type's own module, so Bonito needs no direct Reseau dep.
+# Returns "" when the address can't be resolved; callers treat that as
+# "unidentified client" rather than bucketing everyone together.
+format_ip(ip::NTuple{4, UInt8}) = join(Int.(ip), ".")
+format_ip(ip) = string(ip)   # IPv6 / unknown: a stable key even if not pretty
+
+function peer_ip(stream::Stream)
+    try
+        sc = stream.tracked
+        sc === nothing && return ""
+        conn = sc.conn
+        tcp = hasproperty(conn, :tcp) ? conn.tcp : conn
+        addr = getfield(parentmodule(typeof(tcp)), :remote_addr)(tcp)
+        return format_ip(addr.ip)
+    catch e
+        @debug "peer_ip: could not resolve client address" exception = e
+        return ""
+    end
+end
+
 function stream_handler(application::Server, stream::Stream)
+    peer = peer_ip(stream)
     if HTTP.WebSockets.isupgrade(stream.message)
         try
             # `check_origin = true` keeps the permissive 1.x behaviour: Bonito
@@ -259,7 +283,7 @@ function stream_handler(application::Server, stream::Stream)
             # (route-dispatched) port and drains any bytes buffered with the
             # handshake into the codec.
             HTTP.WebSockets.upgrade(stream; check_origin = (_...) -> true) do ws
-                delegate(application.websocket_routes, application, stream.message, ws)
+                delegate(application.websocket_routes, application, stream.message, ws; peer_ip = peer)
             end
             return
         catch e
@@ -271,7 +295,7 @@ function stream_handler(application::Server, stream::Stream)
     end
     http_handler = HTTP.streamhandler() do request
         delegate(
-            application.routes, application, request,
+            application.routes, application, request; peer_ip = peer,
         )
     end
     try

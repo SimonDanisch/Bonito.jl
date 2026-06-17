@@ -7,6 +7,13 @@ Bonito core and BonitoBook (`MonacoEditor` / `EvalEditor` / `CellEditor` /
 project-level CONVENTIONS.md; this file is about *architecture*: how state,
 rendering, and Julia↔JS communication should be organized.
 
+Related developer docs:
+- [`skills/electron-test.md`](skills/electron-test.md) — drive a Bonito app in an
+  Electron window (open, interact, assert on the DOM, capture logs/screenshots).
+- [`js_dependencies/STABILITY_FIXES.md`](js_dependencies/STABILITY_FIXES.md) — the
+  JS client stability fixes (findings `J1`–`J15`); the `J#` tags in the JS source
+  point here, and `test/reconnect.jl` exercises the reconnect cluster.
+
 ## 1. A widget is a struct of Observables
 
 A widget is a plain Julia struct whose mutable state is `Observable`s.

@@ -205,7 +205,7 @@ function Asset(path_or_url::Union{String,Path}; name=nothing, es6module=false, c
     # they don't snapshot bytes into the precompile image — no
     # include_dependency needed for those. (The HTTP handler in
     # asset-serving/http.jl does `read(local_path(asset))` on each request.)
-    return Asset(name, es6module, mediatype, real_online_path, local_path, bundle_file, bundle_data, content_hash)
+    return Asset(name, es6module, mediatype, real_online_path, local_path, bundle_file, bundle_data, content_hash, ReentrantLock())
 end
 
 
@@ -277,7 +277,7 @@ function rebundle!(asset::Asset)
     asset.es6module || return asset
     # Guard the in-memory drop with the same per-asset lock `bundle!` uses, so
     # a concurrent serve never sees a half-emptied vector (B17).
-    lock(bundle_lock(asset)) do
+    lock(asset.bundle_lock) do
         isempty(String(asset.bundle_file)) || rm(String(asset.bundle_file); force = true)
         empty!(asset.bundle_data)
     end
@@ -384,27 +384,7 @@ function needs_bundling(asset::Asset)
     return needs_bundling(path, bundled)
 end
 
-
-
 bundle!(asset::BinaryAsset) = nothing
-
-# B17: `bundle!` mutates `asset.bundle_data` in place (`resize!`+`copyto!`)
-# while concurrent HTTP tasks read the same vector (http.jl serves
-# `asset.bundle_data` directly; proxy.jl reads it too). A reader hitting the
-# vector mid-`resize!` gets a torn/truncated body or a BoundsError. The Asset
-# struct is immutable (defined in types.jl, which we can't touch), so we can't
-# add a lock field or swap the vector reference; instead we guard every
-# bundle/read with a per-asset lock kept in this registry. Two tasks also must
-# not run `deno` for the same asset concurrently — the lock serializes that
-# too. `BUNDLE_LOCKS_GUARD` protects the registry's own structure.
-const BUNDLE_LOCKS = IdDict{Asset, Base.ReentrantLock}()
-const BUNDLE_LOCKS_GUARD = Base.ReentrantLock()
-
-function bundle_lock(asset::Asset)
-    return lock(BUNDLE_LOCKS_GUARD) do
-        get!(() -> Base.ReentrantLock(), BUNDLE_LOCKS, asset)
-    end
-end
 
 """
     bundle_data_snapshot(asset::Asset) -> Vector{UInt8}
@@ -414,14 +394,14 @@ bundle lock, so a concurrent `bundle!` can't tear the vector out from under a
 serving HTTP task (B17). Callers serve the returned copy.
 """
 function bundle_data_snapshot(asset::Asset)
-    return lock(bundle_lock(asset)) do
+    return lock(asset.bundle_lock) do
         copy(asset.bundle_data)
     end
 end
 
 function bundle!(asset::Asset)
     needs_bundling(asset) || return
-    lock(bundle_lock(asset)) do
+    lock(asset.bundle_lock) do
         # Re-check inside the lock: another task may have just bundled while we
         # waited, so we don't redundantly re-run deno or re-tear the vector.
         needs_bundling(asset) || return

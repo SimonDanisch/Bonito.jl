@@ -56,13 +56,20 @@ end
     pr = Bonito.ProtectedRoute(Bonito.FolderServer("."), store;
                                max_attempts=3, lockout_window=60.0)
 
-    # X-Forwarded-For is ignored by default (no trusted proxy) → all spoofed
-    # clients map to "unknown", they don't grow the Dict per fake IP.
-    mkreq(xff) = HTTP.Request("GET", "/", isempty(xff) ? [] : ["X-Forwarded-For" => xff])
-    @test Bonito.get_client_ip(pr, mkreq("1.2.3.4")) == "unknown"
+    # X-Forwarded-For is ignored by default (no trusted proxy): a spoofed header
+    # can't pick the client id, so the real TCP peer (context.peer_ip) is used.
+    ctx(xff; peer="") = (
+        request = HTTP.Request("GET", "/", isempty(xff) ? [] : ["X-Forwarded-For" => xff]),
+        peer_ip = peer,
+    )
+    @test Bonito.get_client_ip(pr, ctx("1.2.3.4"; peer="203.0.113.7")) == "203.0.113.7"
+    # No resolvable peer → "" (apply_handler then skips per-IP limiting rather
+    # than bucketing every unidentified client together).
+    @test Bonito.get_client_ip(pr, ctx("1.2.3.4")) == ""
+    # Behind a trusted proxy the first X-Forwarded-For hop wins.
     pr_trust = Bonito.ProtectedRoute(Bonito.FolderServer("."), store;
                                      trust_forwarded_for=true)
-    @test Bonito.get_client_ip(pr_trust, mkreq("9.9.9.9, 10.0.0.1")) == "9.9.9.9"
+    @test Bonito.get_client_ip(pr_trust, ctx("9.9.9.9, 10.0.0.1"; peer="10.0.0.1")) == "9.9.9.9"
 
     # Concurrent record_failed_attempt must not corrupt the Dict.
     Threads.@sync for _ in 1:50
@@ -78,6 +85,20 @@ end
     sleep(0.01)
     @test Bonito.check_rate_limit(pr2, "7.7.7.7") == true
     @test !haskey(pr2.failed_attempts, "7.7.7.7")
+end
+
+@testset "secure_compare is correct (and length-tolerant)" begin
+    @test Bonito.secure_compare("abc", "abc")
+    @test !Bonito.secure_compare("abc", "abd")
+    @test !Bonito.secure_compare("abc", "abcd")   # length mismatch, no error
+    @test !Bonito.secure_compare("abc", "")
+    @test Bonito.secure_compare("", "")
+    @test Bonito.secure_compare(UInt8[1,2,3], UInt8[1,2,3])
+    @test !Bonito.secure_compare(UInt8[1,2,3], UInt8[1,2,4])
+    # round-trips through the actual auth path
+    u = Bonito.User("admin", "hunter2")
+    @test Bonito.authenticate(u, "hunter2")
+    @test !Bonito.authenticate(u, "hunter3")
 end
 
 @testset "B12 force_connection / force_asset_server call force_type! (no MethodError)" begin
@@ -155,8 +176,8 @@ end
     snap = Bonito.bundle_data_snapshot(asset)
     @test snap == asset.bundle_data
     @test snap !== asset.bundle_data
-    # A per-asset lock exists and is reused for the same asset.
-    @test Bonito.bundle_lock(asset) === Bonito.bundle_lock(asset)
+    # Each asset carries its own bundle lock (used to serialize bundle/read).
+    @test asset.bundle_lock isa ReentrantLock
 end
 
 @testset "B18 record_states restores widget values" begin

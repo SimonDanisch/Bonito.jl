@@ -195,18 +195,14 @@ function serve_remote_asset(request, asset::RemoteAsset)
     return HTTP.Response(206, headers; body=body)
 end
 
-# Register / release a proxied key on the host's bridge `ChildAssetServer`. Same
-# refcount bookkeeping as `register!`/`close`, but the asset is a `RemoteAsset`
-# and the (de)registration is driven by relayed worker events.
+# Register / release a proxied key on the host's bridge `ChildAssetServer`,
+# driven by relayed worker events. These reuse the normal asset-server refcount
+# bookkeeping (`register!` / `decref!`); the asset just happens to be a
+# `RemoteAsset` (whose `unique_file_key` is `asset.key`).
 function register_proxy_asset!(child::ChildAssetServer, asset::RemoteAsset)
     parent = child.parent
-    path = "/assets/" * asset.key
     lock(parent.lock) do
-        path in child.files && return
-        entry = get(parent.files, path, nothing)
-        parent.files[path] = entry === nothing ?
-            AssetEntry(1, asset) : AssetEntry(entry.refcount + 1, entry.asset)
-        push!(child.files, path)
+        register!(parent, child, asset)
     end
     return
 end
@@ -217,10 +213,7 @@ function release_proxy_asset!(child::ChildAssetServer, key::AbstractString)
     lock(parent.lock) do
         path in child.files || return
         delete!(child.files, path)
-        entry = get(parent.files, path, nothing)
-        entry === nothing && return
-        entry.refcount <= 1 ? delete!(parent.files, path) :
-            (parent.files[path] = AssetEntry(entry.refcount - 1, entry.asset))
+        decref!(parent, path)
     end
     return
 end

@@ -113,7 +113,7 @@ end
         wait(t1); wait(t2)
     end
     @info "F4 summary" failures=failures[]
-    try close(srv) catch end
+    close(srv)
     @test failures[] == 0
 end
 
@@ -145,7 +145,11 @@ end
             while !eof(pipe)
                 push!(captured, readline(pipe))
             end
-        catch end
+        catch e
+            # The pipe is closed underneath us when redirect_stderr is restored;
+            # EOF/IO errors there are expected. Anything else is a real problem.
+            e isa Union{EOFError, Base.IOError} || rethrow()
+        end
     end
 
     try
@@ -175,14 +179,14 @@ end
         close(Base.pipe_writer(pipe))
         sleep(0.3)
         redirect_stderr(old_stderr)
-        try close(pipe) catch end
+        close(pipe)
     end
 
     n_finalizer_errs = count(l -> occursin("error in running finalizer", l), captured)
     n_val_in_list    = count(l -> occursin("val already in a list", l), captured)
     n_no_switch      = count(l -> occursin("task switch not allowed", l), captured)
     @info "F4b summary" finalizer_errs=n_finalizer_errs val_in_list=n_val_in_list no_switch=n_no_switch
-    try close(srv) catch end
+    close(srv)
     @test n_finalizer_errs == 0
     @test n_val_in_list    == 0
     @test n_no_switch      == 0
@@ -514,7 +518,7 @@ end
         sleep(0.05)
     end
     @info "F7 summary" completed=completed[] deadlocked=(completed[] < 2)
-    try close(srv) catch end
+    close(srv)
     @test completed[] == 2
 end
 

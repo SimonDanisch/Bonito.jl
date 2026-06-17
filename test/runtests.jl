@@ -45,7 +45,8 @@ function wait_on_test_observable(trigger; timeout=20)
                             ccall(:jl_print_task_backtraces, Cvoid, (Cint,), 0)
                         end
                     end
-                catch
+                catch e
+                    @warn "failed to capture task backtraces for diagnosis" exception = e
                 end
                 error("wait_on_test_observable: no frontend round-trip after $(timeout)s — the browser→server observable notify was lost/never processed (likely threading race). Backtraces -> /tmp/widgets_bt.txt")
             end

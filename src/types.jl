@@ -114,6 +114,12 @@ struct Asset <: AbstractAsset
     bundle_file::Union{String, Path}
     bundle_data::Vector{UInt8}
     content_hash::RefValue{String}
+    # `bundle!`/`rebundle!` mutate `bundle_data` in place (resize!+copyto!) while
+    # HTTP tasks read the same vector (http.jl serves it directly, proxy.jl too).
+    # A reader hitting it mid-resize! gets a torn body or BoundsError, so every
+    # bundle/read is serialized through this lock; it also stops two tasks running
+    # deno for the same asset at once.
+    bundle_lock::ReentrantLock
 end
 
 

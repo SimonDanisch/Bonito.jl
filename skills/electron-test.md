@@ -1,7 +1,3 @@
----
-description: Test a Bonito app running in an Electron window — open the app, execute JS, assert on DOM, capture console logs, take screenshots
----
-
 # Electron testing skill for Bonito apps
 
 When invoked, drive a Bonito app inside an Electron window: open it, simulate user interactions, assert on the live DOM, capture console output, and take screenshots. Works against any Bonito `App`. The user's prompt usually names the target — a function that returns a `Bonito.App`, or a `Bonito.Server` URL.
@@ -135,11 +131,11 @@ The path can be passed back to the user (or to a follow-up `Read`) as an image. 
 ### Cleanup
 
 ```julia
-try close(disp) catch end   # closes the Electron window
-try close(srv)  catch end   # if you started a Bonito.Server yourself
+close(disp)   # closes the Electron window
+close(srv)    # if you started a Bonito.Server yourself
 ```
 
-`try/catch` around close is intentional — Bonito's server close has known surface that throws on background route handlers; harmless after a test.
+`close` should return cleanly. Don't wrap it in a bare `try/catch …  end` to hush it — a throw from `close` is a real bug worth fixing (or at least surfacing with `@warn`), not swallowing.
 
 ---
 
@@ -172,7 +168,7 @@ shot = screenshot(disp)
 logs = isfile(log_path) ? read(log_path, String) : ""
 @assert !occursin("ERROR:", logs) "renderer reported errors:\n$logs"
 
-try close(disp) catch end
+close(disp)
 @info "test passed" screenshot=shot log=log_path
 ```
 

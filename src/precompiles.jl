@@ -84,7 +84,11 @@ function serve_workload(app::App; updates = Pair{Observable, Any}[])
             # and the wait closure specializes on it.
             isnothing(sub) || try
                 evaljs_value(sub, js"1"; timeout = 1)
-            catch
+            catch e
+                # Expected: our protocol client never answers, so the round-trip
+                # times out by design. Anything else is a real failure — let it
+                # reach the outer warn-and-skip handler instead of hiding here.
+                (e isa ErrorException && e.msg == "Timed out") || rethrow()
             end
         end
     catch e
