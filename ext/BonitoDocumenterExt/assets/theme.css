@@ -791,6 +791,13 @@ img, video { max-width: 100%; height: auto; }
 @media (max-width: 959px) {
   .VPNav .hamburger { display: flex; }
   .VPNav .nav-links { display: none; }
+  /* Tighten the bar and collapse the search button to a single icon so the
+     whole navbar (logo + actions + hamburger) fits on phones instead of
+     overflowing the viewport and pushing the hamburger off-screen. */
+  .VPNav .container { padding: 0 16px; }
+  .VPNav .content { gap: 4px; }
+  .VPNav .search-btn { width: 36px; padding: 0; gap: 0; justify-content: center; }
+  .VPNav .search-btn > span:not(:first-child) { display: none; }
   .VPDocFooter .prev-next { grid-template-columns: 1fr; }
   .VPHero .name, .VPHero .text { font-size: 36px; }
 }
