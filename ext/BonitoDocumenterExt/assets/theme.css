@@ -663,10 +663,11 @@ img, video { max-width: 100%; height: auto; }
   max-width: 1152px;
   padding: 48px 24px 64px;
   display: flex;
-  flex-direction: column;
-  gap: 24px;
+  flex-direction: row;
+  align-items: center;
+  gap: 48px;
 }
-.VPHero .main { order: 2; flex-grow: 1; }
+.VPHero .main { order: 1; flex: 1 1 0; min-width: 0; }
 .VPHero .name {
   display: block;
   font-size: 48px;
@@ -681,8 +682,8 @@ img, video { max-width: 100%; height: auto; }
 .VPHero .text { display: block; font-size: 40px; line-height: 1.15; font-weight: 800; letter-spacing: -0.02em; color: var(--vp-c-text-1); }
 .VPHero .tagline { padding-top: 12px; font-size: 20px; line-height: 1.5; color: var(--vp-c-text-2); max-width: 640px; }
 .VPHero .actions { display: flex; flex-wrap: wrap; gap: 12px; padding-top: 24px; }
-.VPHero .image { order: 1; display: flex; justify-content: center; }
-.VPHero .image img { max-width: 320px; }
+.VPHero .image { order: 2; flex: 0 0 auto; display: flex; justify-content: center; }
+.VPHero .image img { max-width: 360px; width: 100%; }
 
 .VPButton {
   display: inline-block;
@@ -787,6 +788,15 @@ img, video { max-width: 100%; height: auto; }
 }
 @media (min-width: 1280px) {
   .VPAside { display: block; }
+}
+/* Stack the hero (text + logo side by side -> logo on top, centered) once the
+   two columns get too narrow to sit next to each other. */
+@media (max-width: 768px) {
+  .VPHero { flex-direction: column; text-align: center; gap: 24px; }
+  .VPHero .main { order: 2; }
+  .VPHero .image { order: 1; }
+  .VPHero .tagline { margin-left: auto; margin-right: auto; }
+  .VPHero .actions { justify-content: center; }
 }
 @media (max-width: 959px) {
   .VPNav .hamburger { display: flex; }
