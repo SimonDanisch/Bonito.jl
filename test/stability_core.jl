@@ -343,7 +343,11 @@ Bonito.serialize_cached(::Bonito.SerializationContext, ::B30Unserializable) =
     put!(s.connection_ready, true)
     up = JSUpdateObservable(s, "k")
     @test s.init_error[] === nothing
-    up(B30Unserializable())   # serialize_cached throws inside the updater
+    # serialize_cached throws inside the updater (the @error is deliberate; we
+    # assert the recorded session error below).
+    silence_logs() do
+        up(B30Unserializable())
+    end
     @test s.init_error[] !== nothing   # recorded via record_session_error! (B30)
     close(s)
 end
@@ -431,8 +435,11 @@ end
     # carrying a Ref is enough to drive it without the full App machinery.
     app = (loading_task = Ref{Any}(nothing),)
     failing_handler = (sess, req) -> error("B32: deliberate render failure")
-    Bonito.loading_page_handler(app, DOM.div("loading"), failing_handler, s, nothing)
-    wait(app.loading_task[])
+    # deliberate async render failure — suppress the expected @error, assert recording
+    silence_logs() do
+        Bonito.loading_page_handler(app, DOM.div("loading"), failing_handler, s, nothing)
+        wait(app.loading_task[])
+    end
     @test s.init_error[] !== nothing    # recorded, not @debug-swallowed
     close(s)
 end

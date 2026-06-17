@@ -56,7 +56,7 @@ Logging.with_logger(Logging.NullLogger()) do
         server = Server(app, "127.0.0.1", 0)
         try
             resp = HTTP.get("http://127.0.0.1:$(server.port)/";
-                            readtimeout=15, retry=false, status_exception=false)
+                            request_timeout=15, retry=false, status_exception=false)
             # Render-time errors are absorbed into the page — not a 500.
             @test resp.status == 200
             body = String(resp.body)
@@ -76,7 +76,7 @@ Logging.with_logger(Logging.NullLogger()) do
         server = Server(app, "127.0.0.1", 0)
         try
             HTTP.get("http://127.0.0.1:$(server.port)/";
-                     readtimeout=15, retry=false, status_exception=false)
+                     request_timeout=15, retry=false, status_exception=false)
             @test _wait_until(() -> !isnothing(app.session[]) &&
                                     !isnothing(app.session[].init_error[]))
             sess = app.session[]
@@ -142,7 +142,7 @@ Logging.with_logger(Logging.NullLogger()) do
         server = Server(app, "127.0.0.1", 0)
         try
             HTTP.get("http://127.0.0.1:$(server.port)/";
-                     readtimeout=15, retry=false, status_exception=false)
+                     request_timeout=15, retry=false, status_exception=false)
             @test _wait_until(() -> !isnothing(app.session[]) &&
                                     !isnothing(app.session[].init_error[]))
             t0 = time()
@@ -178,7 +178,7 @@ Logging.with_logger(Logging.NullLogger()) do
         server = Bonito.Server(app, "127.0.0.1", 0)
         try
             resp = HTTP.get("http://127.0.0.1:$(server.port)/";
-                            readtimeout=15, retry=false, status_exception=false)
+                            request_timeout=15, retry=false, status_exception=false)
             @test resp.status == 200
             body = String(resp.body)
             @test occursin("MsgPack mapping", body) || occursin("_ErrHandlingUnpackable", body)
@@ -208,7 +208,7 @@ Logging.with_logger(Logging.NullLogger()) do
         server = Server(app, "127.0.0.1", 0)
         try
             resp = HTTP.get("http://127.0.0.1:$(server.port)/";
-                            readtimeout=15, retry=false, status_exception=false)
+                            request_timeout=15, retry=false, status_exception=false)
             @test resp.status == 200
             @test _wait_until(() -> !isnothing(app.session[]))
             @test isnothing(app.session[].init_error[])
@@ -275,7 +275,7 @@ Logging.with_logger(Logging.NullLogger()) do
             tasks = [@async begin
                 ok = try
                     r = HTTP.get("http://127.0.0.1:$(server.port)/";
-                                 readtimeout=15, retry=false, status_exception=false)
+                                 request_timeout=15, retry=false, status_exception=false)
                     r.status == 200 && occursin("storm", String(r.body))
                 catch
                     false

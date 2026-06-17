@@ -2,6 +2,23 @@
 # Included once from runtests.jl to avoid method redefinition warnings
 # when test files are included multiple times (e.g. Default + DualWebsocket passes).
 
+using Logging: with_logger, NullLogger
+
+# Run `f()` with @error/@warn output suppressed — for tests that DELIBERATELY
+# trigger errors (to assert they're recorded/handled) without spamming the test
+# log. Covers logs emitted in the current task (NullLogger) AND on server/async
+# tasks that only share the process stderr (redirect_stderr). The behaviour
+# assertions stay OUTSIDE this wrapper, so nothing is weakened — only the
+# expected noise is hidden. Tests run sequentially, so the global stderr swap is
+# safe here.
+function silence_logs(f)
+    redirect_stderr(devnull) do
+        with_logger(NullLogger()) do
+            f()
+        end
+    end
+end
+
 # From threading.jl
 function electron_evaljs(window, js)
     js_str = sprint(show, js)

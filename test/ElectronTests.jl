@@ -156,7 +156,7 @@ Reloads the served application and waits until all state is initialized.
 function reload!(testsession::TestSession; timeout=300)
     testsession.initialized = true # prevent handler from blocking
     @assert isrunning(testsession.server)
-    response = Bonito.HTTP.get(string(testsession.url), readtimeout=500)
+    response = Bonito.HTTP.get(string(testsession.url), request_timeout=500)
     @assert response.status == 200
     testsession.initialized = false
     testsession.error_in_handler = nothing

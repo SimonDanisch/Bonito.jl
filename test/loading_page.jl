@@ -199,8 +199,13 @@ end
     app = App(; loading_page=LoadingPage()) do session
         error("Intentional test error")
     end
-    display(edisplay, app)
-    timed_wait("LoadingPage - error in handler", app)
+    # The handler errors on purpose; the loading_page mechanism renders an error
+    # page (logging a deliberate @error). Suppress that expected noise — the
+    # assertions below verify the error page actually replaced the loading page.
+    silence_logs() do
+        display(edisplay, app)
+        timed_wait("LoadingPage - error in handler", app)
+    end
 
     # Should show error content, not loading page
     success = Bonito.wait_for(timeout=10) do
