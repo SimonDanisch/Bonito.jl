@@ -53,9 +53,11 @@ end
     end
 
     @time "shown then replaced" try
-        display(edisplay, app)
-        # Don't call wait_for_ready here - it would block until the handler completes,
-        # but the handler is blocked on take!(gate). Instead wait for the session to connect.
+        # `display` correctly blocks until the page is fully loaded (handler done).
+        # This handler is intentionally gated to keep the loading page visible, so
+        # run `display` in a task and wait only for the session to connect (loading
+        # page shown); we release the gate and join the task further down.
+        display_task = errormonitor(@async display(edisplay, app))
         Bonito.wait_for(timeout=10) do
             !isnothing(app.session[]) && isready(app.session[])
         end
@@ -75,8 +77,10 @@ end
         })()""")
         @test text == "Test Loading..."
 
-        # Release the handler
+        # Release the handler; `display` (still running in display_task) now
+        # finishes loading the real content.
         put!(gate, nothing)
+        wait(display_task)
 
         # Real content should appear and loading page should be gone
         success = Bonito.wait_for(timeout=10) do
