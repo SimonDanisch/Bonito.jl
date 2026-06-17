@@ -352,6 +352,13 @@ mutable struct RootSession{Connection <: FrontendConnection}
     threadid::Int
     # User metadata storage. Always accessed via the root.
     metadata::Dict{Symbol, Any}
+    # Listener-after-close handshake (see test/key_not_found_race.jl). `closing`
+    # (set + read under `deletion_lock`) stops `process_message` from starting
+    # new `UpdateObservable` dispatches once close begins; `dispatch_count`
+    # counts in-flight listener dispatches, which run OUTSIDE `deletion_lock`
+    # (B1) so `close` can drain them before flipping the session to CLOSED.
+    closing::Bool
+    dispatch_count::Threads.Atomic{Int}
 end
 
 """
@@ -481,6 +488,7 @@ metadata_dict(s::Session)       = root_data(s).metadata
 const ROOT_ONLY_FIELDS = (
     :connection, :inbox, :js_comm, :dom_uuid_counter,
     :compression_enabled, :deletion_lock, :threadid, :metadata,
+    :closing, :dispatch_count,
 )
 
 function Base.getproperty(s::Session, f::Symbol)
@@ -587,6 +595,8 @@ function Session(connection::Connection=default_connection();
         Base.ReentrantLock(),
         Threads.threadid(),
         Dict{Symbol, Any}(),
+        false,                                          # closing
+        Threads.Atomic{Int}(0),                         # dispatch_count
     )
     session = Session{Connection}(
         root_state,                                     # parent_or_root

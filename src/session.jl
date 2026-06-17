@@ -45,7 +45,16 @@ function init_session(session::Session)
         # open the connection for e.g. subconnection, which just have an open flag
         open!(session.connection)
         if !isopen(session)
-            @debug "Session $(session.id) closed before init_session could run"
+            # No live connection. If the session is actually CLOSED, bail with
+            # nothing to do. Otherwise there's no socket (e.g. `NoConnection` /
+            # offline export), but we still flip `connection_ready` so waiters
+            # don't block — WITHOUT setting status=OPEN, writing a bundle, or
+            # firing `on_open` (there is no frontend). `isready(session)` stays
+            # false because the connection isn't open, so `_send` keeps queuing.
+            if !isclosed(session) && !isready(session.connection_ready)
+                put!(session.connection_ready, true)
+            end
+            @debug "Session $(session.id) has no open connection during init_session"
             return (false, nothing)
         end
         session.status = OPEN
@@ -246,10 +255,38 @@ function Base.close(session::Session)
     return
 end
 
+# Upper bound on how long close waits for in-flight UpdateObservable listeners
+# to drain. The real case drains in microseconds; the bound only guards against
+# a listener that never returns (e.g. a blocked `evaljs_value`) wedging close.
+const DISPATCH_DRAIN_TIMEOUT = 5.0
+
+# Quiesce UpdateObservable dispatch before tearing the root down. Sets `closing`
+# (under deletion_lock) so `process_message` admits no new dispatches, then waits
+# for in-flight listeners to finish WITHOUT holding the lock — they run outside it
+# and may call `evaljs_value`, which needs the lock (B1). After this returns no
+# user listener is running, so the subsequent locked teardown flips CLOSED with
+# nothing in flight (test/key_not_found_race.jl).
+function drain_dispatch!(root::Session)
+    already = lock(deletion_lock(root)) do
+        root.status === CLOSED && return true
+        root.closing = true
+        return false
+    end
+    already && return
+    deadline = time() + DISPATCH_DRAIN_TIMEOUT
+    while root.dispatch_count[] > 0 && time() < deadline
+        sleep(0.0005)
+    end
+    return
+end
+
 # Close path for the ROOT of a session tree. Tears down OS-level resources
 # (the WS connection, the inbox channel) in addition to the per-session state
 # that `close_subsession` handles.
 function close_root_session(session::Session)
+    # Stop admitting UpdateObservable dispatches and let in-flight listeners
+    # drain BEFORE we take the lock, so none fires once teardown sets CLOSED.
+    drain_dispatch!(session)
     # Capture the listeners we'll fire AFTER releasing the lock. `nothing`
     # signals "already closed, fire nothing" so a re-entrant close is a no-op.
     on_close_listeners = lock(deletion_lock(session)) do

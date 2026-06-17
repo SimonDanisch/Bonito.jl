@@ -53,8 +53,16 @@ function process_message(session::Session, data::AbstractDict)
         # object reference, we re-check `isclosed` and dispatch outside it.
         # See test/key_not_found_race.jl and test/stability_core.jl B1.
         root = root_session(session)
+        # Look up the object AND claim a dispatch slot under the lock, so the
+        # decision to dispatch is atomic w.r.t. `close` (which sets `closing`
+        # under the same lock and then drains `dispatch_count` before flipping
+        # CLOSED). Once admitted, the listener runs OUTSIDE the lock (it may
+        # call `evaljs_value`, which needs the lock — holding it across the
+        # callback deadlocks, B1). `close` waiting for `dispatch_count == 0`
+        # without the lock is what guarantees no listener fires after CLOSED
+        # (test/key_not_found_race.jl) while staying deadlock-free (B1).
         obj = lock(root.deletion_lock) do
-            isclosed(session) && return nothing
+            (isclosed(session) || root.closing) && return nothing
             # Sub sessions only carry markers (`nothing`) — the actual
             # cached object lives on the root via CachedEntry. Try the
             # session first (covers root) then fall back to root.
@@ -63,26 +71,22 @@ function process_message(session::Session, data::AbstractDict)
                 entry = get(root.session_objects, data["id"], nothing)
             end
             entry === nothing && return nothing
+            Threads.atomic_add!(root.dispatch_count, 1)
             return entry isa CachedEntry ? entry.object : entry
         end
         if obj === nothing
             # this is usually non fatal and may happen when old exported HTML gets reconnected
-            @debug "Observable $(data["id"]) not found (or session closed)"
-        elseif isclosed(session)
-            # Re-check after dropping the lock: the session may have closed in
-            # the gap. We DON'T hold the lock across `update_nocycle!` (that
-            # deadlocks against `evaljs_value`, B1) — instead we re-check here
-            # to avoid firing user listeners on a freed session. A close that
-            # races AFTER this check is a benign best-effort window (the
-            # listener saw a live session at dispatch); the lock-protected
-            # lookup already guarantees no Dict corruption.
-            @debug "session closed before UpdateObservable could dispatch"
+            @debug "Observable $(data["id"]) not found (or session closed/closing)"
         else
-            # `session` is the originating session: `update_nocycle!` skips
-            # only that session's JS updater so the value doesn't echo back
-            # to the browser that just sent it, while OTHER sessions sharing
-            # the same observable still receive the update (B15).
-            Base.invokelatest(update_nocycle!, obj, data["payload"], session)
+            try
+                # `session` is the originating session: `update_nocycle!` skips
+                # only that session's JS updater so the value doesn't echo back
+                # to the browser that just sent it, while OTHER sessions sharing
+                # the same observable still receive the update (B15).
+                Base.invokelatest(update_nocycle!, obj, data["payload"], session)
+            finally
+                Threads.atomic_sub!(root.dispatch_count, 1)
+            end
         end
     elseif typ == JavascriptError
         show(stderr, JSException(session, data))
