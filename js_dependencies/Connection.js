@@ -263,12 +263,17 @@ export function send_close_session(session, subsession) {
 export function process_message(data) {
     try {
         switch (data.msg_type) {
-            case UpdateObservable:
-                // this is a bit annoying...Better would be to let deserialization look up the observable
-                // and just do data.observable.notify
-                // But this is more efficient, which matters for such hot function (i think, lol)
-                lookup_global_object(data.id).notify(data.payload, true);
+            case UpdateObservable: {
+                // A late UpdateObservable can arrive for an object the browser
+                // already freed (a sub closed during a DOM swap, or an
+                // evaljs_value result landing after its comm was freed) while
+                // the server was still sending. That's a benign race — drop it
+                // instead of crashing on `null.notify`. `warn=false` keeps it
+                // quiet; the "Key not found" warning is reserved for real bugs.
+                const observable = lookup_global_object(data.id, false);
+                observable && observable.notify(data.payload, true);
                 break;
+            }
             case OnjsCallback:
                 // register a callback that will executed on js side
                 // when observable updates

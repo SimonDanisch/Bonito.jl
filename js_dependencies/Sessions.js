@@ -48,12 +48,17 @@ export function lock_loading(f) {
     });
 }
 
-export function lookup_global_object(key) {
+export function lookup_global_object(key, warn = true) {
     const object = GLOBAL_OBJECT_CACHE[key];
     if (object) {
         return object;
     }
-    console.warn(`Key ${key} not found! ${object}`);
+    // `warn=false`: the caller expects legitimate misses (a late
+    // UpdateObservable for an object a sub already freed) and handles null
+    // itself. Only genuine missing-key bugs should reach the warning.
+    if (warn) {
+        console.warn(`Key ${key} not found! ${object}`);
+    }
     return null;
 }
 
