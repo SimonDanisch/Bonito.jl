@@ -1,37 +1,20 @@
 [deps]
-Automa = "67c07d97-cdcb-5c2c-af73-a7f9c32a568b"
 Bonito = "824d6782-a2ef-11e9-3a09-e5662e0c26f8"
-ComputePipeline = "95dc2771-c249-4cd0-9c9f-1f3b4330693c"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Deno_jll = "04572ae6-984a-583e-9378-9577a1c2574d"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 Gadfly = "c91e804a-d5a3-530f-b6f0-dfbca275c004"
 Hyperscript = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
-LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
-Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
-MathTeXEngine = "0a4f8689-d25c-4efe-a92b-7142dfc1aa53"
-MsgPack = "99f44e22-a591-53d1-9472-aa23ef4bd671"
 Observables = "510215fc-4207-5dde-b226-833fc4488ee2"
 PlotlyLight = "ca7969ec-10b3-423e-8d99-40f33abb42bf"
-Reseau = "802f3686-a58f-41ce-bb0c-3c43c75bba36"
 WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
 
 [compat]
 Gadfly = "1.4"
 PlotlyLight = "0.13"
 
-# Build the docs against the locally-developed Bonito (incl. the
-# BonitoDocumenterExt writer) and its dev'd dependencies, mirroring the
-# BonitoDev working tree. Remaining deps (Documenter, Gadfly, PlotlyLight,
-# DataFrames, HTTP, GeometryBasics, …) come from the registry.
+# Build the docs against the in-tree Bonito (incl. the BonitoDocumenterExt writer).
+# Bonito is the only path source so this resolves on CI, where no sibling dev
+# packages exist; every other dependency comes from the registry.
 [sources]
-Automa = { path = "../../Automa" }
 Bonito = { path = ".." }
-ComputePipeline = { path = "../../Makie/ComputePipeline" }
-Hyperscript = { path = "../../Hyperscript" }
-LaTeXStrings = { path = "../../LaTeXStrings" }
-Makie = { path = "../../Makie/Makie" }
-MathTeXEngine = { path = "../../MathTeXEngine" }
-MsgPack = { path = "../../MsgPack" }
-Reseau = { path = "../../Reseau" }
-WGLMakie = { path = "../../Makie/WGLMakie" }
