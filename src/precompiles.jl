@@ -128,8 +128,10 @@ end
     serve_workload(app)
 
     # The binary websocket message path: this is what a live browser
-    # connection compiles on its first message exchange.
-    session = Session()
+    # connection compiles on its first message exchange. (`sess`, not `session`:
+    # the latter shadows Bonito's `session` function, tripping a soft-scope
+    # warning inside the `@compile_workload` block.)
+    sess = Session()
     payload = Dict{Symbol, Any}(
         :f32 => rand(Float32, 8),
         :f64 => rand(Float64, 8),
@@ -141,9 +143,9 @@ end
         :nested => Dict{Symbol, Any}(:a => 1, :b => [1.0, 2.0], :c => nothing),
         :vec => Any[1, "two", 3.0],
     )
-    Bonito.serialize_binary(session, payload)
-    Bonito.serialize_binary(Bonito.SerializedMessage(session, payload))
-    close(session)
+    Bonito.serialize_binary(sess, payload)
+    Bonito.serialize_binary(Bonito.SerializedMessage(sess, payload))
+    close(sess)
 
     # Cleanup globals to avoid serializing stale state (servers, sessions,
     # tasks). Also shuts down the Reseau IO poller on HTTP.jl 2.x, without

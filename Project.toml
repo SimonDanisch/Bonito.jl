@@ -60,7 +60,7 @@ ThreadPools = "2"
 URIs = "1"
 UUIDs = "1.0, 1.6"
 WidgetsBase = "0.1"
-julia = "1.10"
+julia = "1.11"
 
 [extras]
 CommonMark = "a80b9123-70ca-4bc0-993e-6e3bcb318db6"
