@@ -128,8 +128,18 @@ const TRACKING_ONLY_TAG = 109;
 
 register_ext(OBSERVABLE_TAG, (uint_8_array, context) => {
     const [id, value] = unpack(uint_8_array, context);
-    const obs = new Observable(id, value);
-    // Register immediately so CacheKey references can find it during the same unpack
+    // J11: an Observable id may be re-serialized (e.g. a shared observable that
+    // a new session references with a full value rather than a CacheKey). If an
+    // instance already exists in the global cache we MUST reuse it. Creating a
+    // fresh Observable would leave two instances sharing one id: process_message
+    // routes UpdateObservable to the cached one via lookup_global_object, so the
+    // new instance's callbacks (registered during this unpack) would never fire,
+    // and the new session's view would silently stop updating.
+    const existing = GLOBAL_OBJECT_CACHE[id];
+    const obs = existing instanceof Observable ? existing : new Observable(id, value);
+    // Register immediately so CacheKey references can find it during the same unpack.
+    // (When reusing, register_in_session_cache just tracks the id in this session
+    //  and keeps the existing cache entry.)
     register_in_session_cache(context.session_id, id, obs, context.session_status);
     return obs;
 });
@@ -240,7 +250,7 @@ register_ext(SERIALIZED_MESSAGE_TAG, (uint_8_array, context) => {
  */
 export function base64encode(data_as_uint8array) {
     // Use a FileReader to generate a base64 data URI
-    const base64_promise = new Promise((resolve) => {
+    const base64_promise = new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
             /*
@@ -253,7 +263,19 @@ export function base64encode(data_as_uint8array) {
             // now that we're done, resolve our promise!
             resolve(base64url.slice(len, base64url.length));
         };
-        reader.readAsDataURL(new Blob([data_as_uint8array]));
+        // J13: without onerror/onabort the promise could never reject and a
+        // failed read would hang every awaiter forever.
+        reader.onerror = () => {
+            reject(reader.error || new Error("FileReader failed during base64encode"));
+        };
+        reader.onabort = () => {
+            reject(new Error("FileReader aborted during base64encode"));
+        };
+        try {
+            reader.readAsDataURL(new Blob([data_as_uint8array]));
+        } catch (error) {
+            reject(error);
+        }
     });
     return base64_promise;
 }
@@ -262,14 +284,13 @@ export function base64encode(data_as_uint8array) {
  * @param {string} base64_str
  */
 export function base64decode(base64_str) {
-    return new Promise((resolve) => {
-        fetch("data:application/octet-stream;base64," + base64_str).then(
-            (response) => {
-                response.arrayBuffer().then((array) => {
-                    resolve(new Uint8Array(array));
-                });
-            }
-        );
+    return new Promise((resolve, reject) => {
+        // J13: chain rejection so malformed base64 (fetch on a bad data URI, or
+        // arrayBuffer failure) rejects the promise instead of hanging forever.
+        fetch("data:application/octet-stream;base64," + base64_str)
+            .then((response) => response.arrayBuffer())
+            .then((array) => resolve(new Uint8Array(array)))
+            .catch(reject);
     });
 }
 

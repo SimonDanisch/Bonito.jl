@@ -113,7 +113,7 @@ end
         wait(t1); wait(t2)
     end
     @info "F4 summary" failures=failures[]
-    try close(srv) catch end
+    close(srv)
     @test failures[] == 0
 end
 
@@ -145,7 +145,11 @@ end
             while !eof(pipe)
                 push!(captured, readline(pipe))
             end
-        catch end
+        catch e
+            # The pipe is closed underneath us when redirect_stderr is restored;
+            # EOF/IO errors there are expected. Anything else is a real problem.
+            e isa Union{EOFError, Base.IOError} || rethrow()
+        end
     end
 
     try
@@ -175,14 +179,14 @@ end
         close(Base.pipe_writer(pipe))
         sleep(0.3)
         redirect_stderr(old_stderr)
-        try close(pipe) catch end
+        close(pipe)
     end
 
     n_finalizer_errs = count(l -> occursin("error in running finalizer", l), captured)
     n_val_in_list    = count(l -> occursin("val already in a list", l), captured)
     n_no_switch      = count(l -> occursin("task switch not allowed", l), captured)
     @info "F4b summary" finalizer_errs=n_finalizer_errs val_in_list=n_val_in_list no_switch=n_no_switch
-    try close(srv) catch end
+    close(srv)
     @test n_finalizer_errs == 0
     @test n_val_in_list    == 0
     @test n_no_switch      == 0
@@ -312,7 +316,7 @@ end
 # orphaned listener can fire. We verify the listener IS removed before
 # the comm Observable is cleared.
 @testset "F5: evaljs_value cleanup removes the JSUpdateObservable listener" begin
-    using Bonito: JSUpdateObservable, remove_js_updates!
+    using Bonito: JSUpdateObservable, remove_js_updates!, cache_key
     # Exercise the patched cleanup pattern from session.jl `evaljs_value`:
     # `remove_js_updates!(sub, comm)` BEFORE the bare delete!s, so the
     # sub-bound JSUpdateObservable listener gets stripped (rather than
@@ -330,7 +334,8 @@ end
         @assert had_listener "setup didn't attach JSUpdateObservable"
 
         # Patched cleanup pattern (mirrors session.jl evaljs_value):
-        remove_js_updates!(sub, comm)
+        # remove_js_updates! now matches by cache-key id (B14), not by session.
+        remove_js_updates!(cache_key(sub, comm), comm)
         delete!(sub.session_objects, comm.id)
         delete!(root.session_objects, comm.id)
         still_has = any(((p,f),)-> f isa JSUpdateObservable, comm.listeners)
@@ -513,7 +518,7 @@ end
         sleep(0.05)
     end
     @info "F7 summary" completed=completed[] deadlocked=(completed[] < 2)
-    try close(srv) catch end
+    close(srv)
     @test completed[] == 2
 end
 

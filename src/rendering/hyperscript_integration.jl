@@ -115,11 +115,11 @@ jsrender(session::Session, x::DontEscape) = x
 jsrender(x::DontEscape) = x
 
 function attribute_render(session::Session, parent, attribute::String, jss::JSCode)
-    # add js after parent gets loaded
-    func = js"""(() => {
-        $(parent)[$attribute] = $(jss)
-    })()"""
-    # preserve func.file
+    # `jss` often ends in `;` (e.g. Button onclick is `event=>obs.notify(true);`),
+    # which would be invalid inside `(...)` if we wrapped it as a call argument —
+    # so we inline the handler into a block-statement guard instead.
+    src = String(something(jss.file, ""))
+    func = js"""{const e=$(parent);if(e){e[$attribute]=$(jss)}else{console.warn('Bonito: skip '+$attribute+' from '+$src)}}"""
     evaljs(session, JSCode(func.source, jss.file))
     return ""
 end
@@ -222,7 +222,13 @@ function uuid(session::Union{Nothing,Session}, node::Node)
             root = root_session(session) # counter needs to be unique to root session
             # Atomic so concurrent renders never hand out the same id; see
             # test/race_conditions_audit.jl F6.
-            return string(Threads.atomic_add!(root.dom_uuid_counter, 1) + 1)
+            raw = string(Threads.atomic_add!(root.dom_uuid_counter, 1) + 1)
+            # A proxied (worker) session's dom ids share the browser's one
+            # `data-jscall-id` namespace with the host's — and both counters
+            # start at 1, so they WOULD collide. Prefix with the worker
+            # namespace (empty/zero-cost for normal sessions). See connection/proxy.jl.
+            prefix = id_prefix(connection(session))
+            return isempty(prefix) ? raw : string(prefix, "/", raw)
         end
     end
 end

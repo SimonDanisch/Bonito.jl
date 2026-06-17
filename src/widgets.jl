@@ -211,7 +211,13 @@ function Dropdown(options; index=1, option_to_string=string, style=Styles(), att
     options = convert(Observable{Vector{Any}}, options)
     option = Observable{Any}(options[][option_index[]])
     onany(option_index, options) do index, options
-        option[] = options[index]
+        # B19: when `options` shrinks, a stale `option_index` would index out of
+        # bounds inside this notify chain (BoundsError). Clamp the index to the
+        # current option range; correct `option_index` itself if it drifted.
+        isempty(options) && return nothing
+        idx = clamp(index, firstindex(options), lastindex(options))
+        idx == option_index[] || (option_index.val = idx)
+        option[] = options[idx]
         return nothing
     end
     css = isnothing(style) ? Styles() : Styles(BUTTON_STYLE, style)
@@ -243,6 +249,12 @@ function jsrender(session::Session, dropdown::Dropdown)
             // https://stackoverflow.com/questions/3364493/how-do-i-clear-all-options-in-a-dropdown-box
             element.options.length = 0;
             opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
+            // B19: resetting selectedIndex to 0 here silently desynced Julia,
+            // which still believed the old `option_index`. Notify it (1-based)
+            // so both sides agree on the new selection.
+            if ($(dropdown.option_index).value !== 1) {
+                ($(dropdown.option_index)).notify(1);
+            }
         }
         $(string_options).on(set_options);
     }
@@ -266,11 +278,39 @@ struct Slider{T} <: AbstractSlider{T}
     attributes::Dict{Symbol,Any}
 end
 
+# Index of the grid point that best matches `value`. Exact match wins; for real
+# numbers we snap to the nearest point and clamp, because a float range rarely
+# contains a requested default bit-exactly — `Slider(range(0, 2π, 100); value=π)`
+# (or an out-of-range default) should pick the closest tick, not crash. Mirrors
+# the tolerant behaviour `setindex!(::Slider, value)` already has.
+function slider_value_index(values::AbstractVector, value)
+    isempty(values) && throw(ArgumentError("Slider: `values` must be non-empty"))
+    exact = findfirst((==)(value), values)
+    exact === nothing || return exact
+    if value isa Real && eltype(values) <: Real
+        return argmin(abs.(values .- value))
+    end
+    @warn "Slider: value $(value) not in values; defaulting to the first element"
+    return firstindex(values)
+end
+
 function Slider(values::AbstractArray{T}; value=first(values), kw...) where {T}
     values_obs = convert(Observable{Vector{T}}, values)
-    initial_idx = findfirst((==)(value), values_obs[])
+    initial_idx = slider_value_index(values_obs[], value)
     index = Observable(initial_idx)
     value_obs = Observable(values_obs[][initial_idx])
+    # B20: keep `value` in sync with `index` Julia-side, so `slider.index[] = 5`
+    # updates `slider.value` immediately — offline, before the page loads, and
+    # in static exports — instead of only via a browser round-trip (which also
+    # made echoes apply out of order). Clamp the index against the current
+    # values so a shrunk `values` can't index out of bounds.
+    onany(index, values_obs) do i, vals
+        isempty(vals) && return
+        idx = clamp(i, firstindex(vals), lastindex(vals))
+        new_value = vals[idx]
+        value_obs[] == new_value || (value_obs[] = new_value)
+        return
+    end
     return Slider(values_obs, value_obs, index, Dict{Symbol,Any}(kw))
 end
 
@@ -278,23 +318,21 @@ function jsrender(session::Session, slider::Slider)
     # Hacky, but don't want to Pr WidgetsBase yet
     values = slider.values
     index = slider.index
-    onjs(
-        session,
-        index,
-        js"""(index) => {
-            const values = $(values).value
-            $(slider.value).notify(values[index - 1])
-        }
-        """,
-    )
-
+    # B20: `value` is now derived from `index` Julia-side in the constructor, so
+    # the previous JS→Julia `onjs` that re-`notify`ed `slider.value` on every
+    # index change is gone — it duplicated the update and could apply echoes out
+    # of order. The browser still notifies `index`; the Julia-side map handles
+    # `value`.
     autocomplete = get(slider.attributes, :autocomplete, "off")
     return jsrender(
         session,
         DOM.input(;
             type="range",
             min=1,
-            max=map(length, values),
+            # B21: session-scope the derived observable so `free(session)`
+            # deregisters it — a bare `map(length, values)` leaks one permanent
+            # listener per render of a long-lived widget (the bt_show_app pattern).
+            max=map(length, session, values),
             value=index,
             step=1,
             oninput=js"""(event)=> {
@@ -303,7 +341,9 @@ function jsrender(session::Session, slider::Slider)
                     $(index).notify(idx)
                 }
             }""",
-            style=styles,
+            # B42: was `style=styles`, which is the `Hyperscript.styles`
+            # *function* leaking into the attribute (no local `styles` binding
+            # exists). Style, if any, is passed through `slider.attributes`.
             slider.attributes...,
             autocomplete=autocomplete,
         ),
@@ -369,7 +409,7 @@ end
 
 # TODO, clean this up
 const noUiSlider = ES6Module(dependency_path("nouislider.min.js"))
-const noUiSliderCSS = Asset(dependency_path("noUISlider.css"))
+const noUiSliderCSS = Asset(@path(dependency_path("noUISlider.css")))  # @path: embed bytes so it survives bundle relocation
 
 function jsrender(session::Session, slider::RangeSlider)
     args = (slider.range, slider.connect, slider.orientation, slider.tooltips, slider.ticks)
@@ -802,7 +842,10 @@ struct FileInput <: Bonito.WidgetsBase.AbstractWidget{String}
     multiple::Bool
 end
 
-FileInput(value::Observable{Vector{String}}; multiple = true) = FileInput(Observable([""]), multiple)
+# B41: previously this discarded the caller's observable and substituted a
+# fresh `Observable([""])`, so a user passing their own value observable never
+# saw file selections. Keep the supplied observable.
+FileInput(value::Observable{Vector{String}}; multiple = true) = FileInput(value, multiple)
 FileInput(; kws...) = FileInput(Observable([""]); kws...)
 
 function Bonito.jsrender(session::Session, fi::FileInput)
@@ -860,7 +903,7 @@ end
 # External JavaScript library assets
 # https://github.com/Choices-js/Choices/blob/main/README.md
 const ChoicesJS = ES6Module(dependency_path("choices.min.js"))
-const ChoicesCSS = Asset(dependency_path("choices.min.css"))
+const ChoicesCSS = Asset(@path(dependency_path("choices.min.css")))  # @path: embed bytes so it survives bundle relocation
 
 """
     ChoicesJSParams(; kwargs...)

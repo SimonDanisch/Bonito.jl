@@ -124,6 +124,19 @@ function cleanup_globals()
         close(GLOBAL_SERVER[])
     end
     GLOBAL_SERVER[] = nothing
+    if Base.generating_output() && isdefined(HTTP, :IOPoll)
+        # On HTTP.jl 2.x, starting a server spins up Reseau's IO poller, a
+        # detached native thread that keeps the precompile worker from exiting.
+        # HTTP.jl's own workload shuts it down the same way (see
+        # HTTP/src/precompile.jl). Only do this while precompiling: at runtime
+        # the poller is shared process-global state and other servers/clients
+        # may still use it.
+        try
+            HTTP.IOPoll.shutdown!()
+        catch e
+            @debug "IOPoll.shutdown! failed during precompile cleanup" exception = e
+        end
+    end
     return
 end
 
@@ -136,5 +149,7 @@ function __init__()
     # Note: This doesn't affect precompilation since __init__ doesn't run during precompile
     atexit(cleanup_globals)
 end
+
+include("precompiles.jl")
 
 end # module

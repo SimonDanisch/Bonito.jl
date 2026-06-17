@@ -18,11 +18,15 @@ function server(display::BrowserDisplay)
 end
 
 function Base.close(display::BrowserDisplay)
-    if !isnothing(display.server)
-        close(display.server)
-    end
+    # B26: do NOT close `display.server` — `server(display)` hands out the
+    # shared `GLOBAL_SERVER`, so closing it here tears down every other
+    # display/route on the page (ElectronDisplay's close deliberately avoids
+    # this). Only the per-display handler/session is ours to close. If the
+    # display owns a non-global server, the caller is responsible for closing
+    # it.
     if !isnothing(display.handler)
         close(display.handler)
+        display.handler = nothing
     end
     return
 end
@@ -161,9 +165,15 @@ function default_electron_args()
             "--enable-logging",
             "--user-data-dir=$(mktempdir())",
             "--disable-features=AccessibilityObjectModel",
+            # Software WebGL via ANGLE+SwiftShader so WGLMakie/WebGL renders
+            # headless. NB recent Electron rejects the bare `--use-gl=swiftshader`
+            # (it resolves to gl=none → "GL implementation not found" → GPU
+            # process exits → no WebGL); it requires the ANGLE form below.
+            # `--enable-unsafe-swiftshader` is also required on recent Chromium.
+            "--use-gl=angle",
+            "--use-angle=swiftshader",
             "--enable-unsafe-swiftshader",
-            "--use-gl=swiftshader",
-            "--disable-gpu",
+            "--ignore-gpu-blocklist",
         ]
     else
         return ["--user-data-dir=$(mktempdir())"]

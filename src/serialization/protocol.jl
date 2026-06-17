@@ -24,16 +24,37 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         return
     end
     data = deserialize_binary(bytes, session.compression_enabled)
+    return process_message(session, data)
+end
+
+# Decoded-frame entry point. Split out from the bytes path so a proxied worker
+# session can be handed an already-decoded frame (forwarded by the host's
+# `route_to_remote`) without a re-encode/decode round trip.
+function process_message(session::Session, data::AbstractDict)
+    # A proxied worker session's frames — its observable updates (object id) and
+    # session lifecycle (`JSDoneLoading`/`CloseSession`/`GetSessionDOM`, session
+    # id) — carry ids namespaced to that worker. Forward the decoded frame and let
+    # the worker handle it against its real session tree; the server keeps no
+    # mirror of the worker's objects/sessions, it just relays by namespace. A
+    # no-op (returns false) for the server's own frames, whose ids never match a
+    # registered worker prefix.
+    route_to_remote(session, data) && return
     typ = data["msg_type"]
     if typ == UpdateObservable
-        # Hold the root's deletion_lock while we look up + dispatch the
-        # update. Without this, `close(session)` (which holds the lock for
-        # its entire body) can race the Dict access below — the lookup
-        # might see a stale entry and fire listeners on a session whose
-        # `session_objects` is being torn down. See test/key_not_found_race.jl
-        # for the regression demonstrating the race.
+        # Look up + COPY the cached object reference under the root's
+        # deletion_lock, then release the lock BEFORE invoking
+        # `update_nocycle!`. The user listeners fired by `update_nocycle!`
+        # are normal application code — they may call `evaljs_value`, which
+        # spawns a task that itself takes `deletion_lock`. Holding the lock
+        # across the user callback therefore deadlocks the whole session
+        # tree (the message task blocks in `fetch` while holding the lock).
+        # The lock only needs to guard the Dict access against a concurrent
+        # `close(session)` tearing down `session_objects`; once we have the
+        # object reference, we re-check `isclosed` and dispatch outside it.
+        # See test/key_not_found_race.jl and test/stability_core.jl B1.
         root = root_session(session)
-        lock(root.deletion_lock) do
+        obj = lock(root.deletion_lock) do
+            isclosed(session) && return nothing
             # Sub sessions only carry markers (`nothing`) — the actual
             # cached object lives on the root via CachedEntry. Try the
             # session first (covers root) then fall back to root.
@@ -41,13 +62,27 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
             if entry === nothing && session !== root
                 entry = get(root.session_objects, data["id"], nothing)
             end
-            if entry === nothing
-                # this is usually non fatal and may happen when old exported HTML gets reconnected
-                @debug "Observable $(data["id"]) not found"
-            else
-                obj = entry isa CachedEntry ? entry.object : entry
-                Base.invokelatest(update_nocycle!, obj, data["payload"])
-            end
+            entry === nothing && return nothing
+            return entry isa CachedEntry ? entry.object : entry
+        end
+        if obj === nothing
+            # this is usually non fatal and may happen when old exported HTML gets reconnected
+            @debug "Observable $(data["id"]) not found (or session closed)"
+        elseif isclosed(session)
+            # Re-check after dropping the lock: the session may have closed in
+            # the gap. We DON'T hold the lock across `update_nocycle!` (that
+            # deadlocks against `evaljs_value`, B1) — instead we re-check here
+            # to avoid firing user listeners on a freed session. A close that
+            # races AFTER this check is a benign best-effort window (the
+            # listener saw a live session at dispatch); the lock-protected
+            # lookup already guarantees no Dict corruption.
+            @debug "session closed before UpdateObservable could dispatch"
+        else
+            # `session` is the originating session: `update_nocycle!` skips
+            # only that session's JS updater so the value doesn't echo back
+            # to the browser that just sent it, while OTHER sessions sharing
+            # the same observable still receive the update (B15).
+            Base.invokelatest(update_nocycle!, obj, data["payload"], session)
         end
     elseif typ == JavascriptError
         show(stderr, JSException(session, data))
@@ -68,7 +103,14 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
             # JSUpdateObservable actually reaches the browser.
             record_session_error!(session, exception)
         else
-            sub = get_session(session, data["session"])
+            # `get_session` recurses through `session.children`, which is
+            # mutated under `deletion_lock` by close/free/Session(parent).
+            # Iterating it unlocked races those mutations (B28). Snapshot the
+            # lookup under the lock; fire `on_connection_ready` outside it.
+            root = root_session(session)
+            sub = lock(root.deletion_lock) do
+                get_session(session, data["session"])
+            end
             if !isnothing(sub) && !isclosed(sub)
                 # this may block the connection!
                 @async try
@@ -90,14 +132,23 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
         if isclosed(session)
             @debug "CloseSession on already-closed session — ignoring"
         else
-            sub = get_session(session, data["session"])
+            # Same unlocked-recursion race as JSDoneLoading (B28): take the
+            # lock for the `get_session` walk over `session.children`.
+            root = root_session(session)
+            sub = lock(root.deletion_lock) do
+                get_session(session, data["session"])
+            end
             if !isnothing(sub)
                 if data["subsession"] != "root"
                     close(sub)
-                else
-                    # We only empty root sessions, since they will be reused
-                    @assert root_session(sub) === sub
+                elseif root_session(sub) === sub
+                    # We only empty root sessions, since they will be reused.
                     empty!(sub)
+                else
+                    # B29: `subsession` is client-controlled — a stale/malformed
+                    # frame claiming "root" for a sub-session id must not crash
+                    # the inbox task (the old `@assert` did). Log and ignore.
+                    @warn "CloseSession claimed subsession==\"root\" for a non-root session — ignoring" id=data["session"]
                 end
             else
                 @debug("Close request not succesful, can't find sub session with id $(data["session"])")

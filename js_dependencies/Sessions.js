@@ -4,6 +4,7 @@ import PQueue from "https://esm.sh/p-queue";
 import {
     send_close_session,
     send_done_loading,
+    send_error,
     process_message,
 } from "./Connection.js";
 
@@ -12,6 +13,20 @@ const SESSIONS = {};
 // contains {id: [data, refcount]}
 // Right now, should only contain Observables + Assets
 const GLOBAL_OBJECT_CACHE = {};
+
+// J8: tombstones of recently freed session ids. An in-flight message
+// (e.g. an UpdateSession / unpack) can race the close handshake and call
+// ensure_session_exists for a session Julia already told us to free. Without
+// this guard the session (and its objects) would be resurrected as a zombie
+// that leaks for the life of the tab. We keep the id here for a short window so
+// such late messages are dropped rather than recreating the entry.
+const FREED_SESSION_TOMBSTONES = new Set();
+const TOMBSTONE_TTL_MS = 30000;
+
+function tombstone_session(session_id) {
+    FREED_SESSION_TOMBSTONES.add(session_id);
+    setTimeout(() => FREED_SESSION_TOMBSTONES.delete(session_id), TOMBSTONE_TTL_MS);
+}
 
 // Lock synchronizing the freeing of session objects and initializing of sessions.
 // Needed for the case, when e.g. a `session1` just gets initialized async, and another `session2` just gets closed async
@@ -23,7 +38,14 @@ const GLOBAL_OBJECT_CACHE = {};
 const OBJECT_FREEING_LOCK = new PQueue({ concurrency: 1 });
 
 export function lock_loading(f) {
-    OBJECT_FREEING_LOCK.add(f);
+    // J6: PQueue.add() returns a promise that rejects if the task throws.
+    // Discarding it turned any throw inside a locked task into an unhandled
+    // rejection (message silently dropped, send_error never called). Attach a
+    // catch that surfaces the error with context. Callers that need their own
+    // handling still attach a .catch inside `f` (those resolve here normally).
+    OBJECT_FREEING_LOCK.add(f).catch((error) => {
+        send_error("Error inside object-freeing-locked task", error);
+    });
 }
 
 export function lookup_global_object(key) {
@@ -36,23 +58,27 @@ export function lookup_global_object(key) {
 }
 
 function is_still_referenced(id) {
+    // J4: an id is referenced as long as ANY entry in SESSIONS still tracks
+    // it. The ONLY moment a session stops counting is when it has been
+    // confirmed-freed by Julia — at which point `free_session` deletes the
+    // whole entry from SESSIONS (and drops its tracked ids). So mere presence
+    // of the id in any surviving session's tracked set is a live reference.
+    //
+    // The previous code only counted statuses "delete"/"root", which wrongly
+    // ignored:
+    //   - "sub": a sub-session mid-init (before done_initializing_session
+    //     flips it to "delete") would lose its shared objects to a concurrent
+    //     free -> "Key N not found" / null.notify.
+    //   - "moving": a session whose DOM is being relocated.
+    //   - false: a session parked by close_session awaiting Julia's
+    //     free_session confirmation — the whole point of the close handshake.
+    //     Counting it as unreferenced freed the object before Julia replied,
+    //     so a re-serialization referencing it found null.
     for (const session_id in SESSIONS) {
-        const [tracked_objects, status] = SESSIONS[session_id];
-        if (!tracked_objects.has(id)) continue;
-        // Any session that still has the id in its tracked set holds a
-        // reference. Previously this required `allow_delete` (i.e. the
-        // session had finished `done_initializing_session`), but that
-        // excluded "root" sessions — which never flip to allow_delete and
-        // live for the whole tab. The result was that an object held
-        // ONLY by the root + a transient sub-session got deleted from
-        // GLOBAL_OBJECT_CACHE the moment the sub-session was freed,
-        // leaving every later interpolation/click that referenced it
-        // looking up null. (See BonitoTeam's resume-flow regression:
-        // sidebar `aside` registers an onload click handler that
-        // interpolates `current_view` onto the root session; a body
-        // re-render frees the no-longer-tracked sub-session, which then
-        // wiped current_view from the cache.)
-        if (status === "delete" || status === "root") return true;
+        const [tracked_objects] = SESSIONS[session_id];
+        if (tracked_objects.has(id)) {
+            return true;
+        }
     }
     return false;
 }
@@ -110,10 +136,33 @@ export function move_dom_node(node, parent, ref) {
     // microtask runs AFTER this function returns. A synchronous restore
     // would flip the status back to "delete" before the observer sees
     // the "moving" sentinel and skip close_session.
-    const restore = SESSIONS[id][1];
-    SESSIONS[id][1] = "moving";
+    //
+    // J9: guard against a double-move. If a previous move is still pending
+    // (status already "moving"), capturing the current status as `restore`
+    // would capture "moving" and permanently wedge the session there once the
+    // timers fire — the delete observer would then never close it, and a
+    // restore-after-free would throw on `undefined`. Stash the real
+    // pre-move status on the entry and only the LAST timer to fire restores it.
+    const entry = SESSIONS[id];
+    if (entry[1] !== "moving") {
+        // Remember the genuine status to restore to (index 2 is our scratch).
+        entry[2] = entry[1];
+    }
+    entry[1] = "moving";
+    // token lets the latest scheduled restore win and earlier ones no-op.
+    const token = (entry[3] || 0) + 1;
+    entry[3] = token;
     parent.insertBefore(node, ref);
-    setTimeout(() => { SESSIONS[id][1] = restore; }, 0);
+    setTimeout(() => {
+        const current = SESSIONS[id];
+        // Session may have been freed in the meantime — nothing to restore.
+        if (!current || current[3] !== token) {
+            return;
+        }
+        current[1] = current[2];
+        current[2] = undefined;
+        current[3] = undefined;
+    }, 0);
 }
 
 export function track_deleted_sessions() {
@@ -168,6 +217,22 @@ export function track_deleted_sessions() {
 /**
  * @param {string} session_id
  */
+// Sessions that completed initialization. On a websocket reconnect these are
+// re-announced to Julia (a fresh JSDoneLoading), so the server re-opens the
+// session: flushes messages queued while disconnected, resets the status and
+// fires `session.on_open` for integrations that re-synchronize state.
+const INITIALIZED_SESSIONS = new Set();
+
+export function reannounce_initialized_sessions() {
+    INITIALIZED_SESSIONS.forEach((session_id) => {
+        if (session_id in SESSIONS) {
+            send_done_loading(session_id, null);
+        } else {
+            INITIALIZED_SESSIONS.delete(session_id);
+        }
+    });
+}
+
 export function done_initializing_session(session_id) {
     if (!(session_id in SESSIONS)) {
         // Session was deleted during initialization - still notify Julia to prevent hang
@@ -175,6 +240,7 @@ export function done_initializing_session(session_id) {
         send_done_loading(session_id, new Error("Session deleted before initialization completed"));
         return;
     }
+    INITIALIZED_SESSIONS.add(session_id);
     send_done_loading(session_id, null);
     // allow subsessions to get deleted after being fully initialized (prevents deletes while half initializing)
     if (SESSIONS[session_id][1] != "root") {
@@ -185,13 +251,17 @@ export function done_initializing_session(session_id) {
 
 
 function init_session_from_msgs(session_id, messages) {
+    // J10: report done_loading exactly once. This used to send_done_loading
+    // AND rethrow, while every caller's surrounding .catch ALSO sent
+    // done_loading (and rethrew into an unhandled rejection). We now own the
+    // single done_loading-on-failure report here and swallow the rethrow, so
+    // Julia is informed exactly once and there is no dangling rejection.
     try {
         messages.forEach(process_message);
         done_initializing_session(session_id);
     } catch (error) {
         send_done_loading(session_id, error);
-        console.error(error.stack);
-        throw error;
+        console.error(error.stack || error);
     }
 }
 
@@ -201,11 +271,16 @@ export function init_session(session_id, message_promise, session_status, compre
     lock_loading(() => {
         return Promise.resolve(message_promise).then((binary) => {
             const messages = binary ? decode_binary(binary, compression) : [];
+            // init_session_from_msgs reports its own failures via done_loading
+            // and does not throw (J10).
             init_session_from_msgs(session_id, messages);
         }).catch((error) => {
+            // Only reached when message_promise rejects or decode_binary throws
+            // — i.e. init_session_from_msgs never ran, so done_loading was not
+            // yet sent. Report once here. Do NOT rethrow (J10): lock_loading's
+            // own catch would otherwise re-surface it as a duplicate error.
             send_done_loading(session_id, error);
-            console.error(error.stack);
-            throw error;
+            console.error(error.stack || error);
         });
     });
 }
@@ -249,6 +324,9 @@ export function free_session(session_id) {
         }
         const [tracked_objects, status] = session;
         delete SESSIONS[session_id];
+        // J8: remember this id so a late in-flight message can't resurrect it.
+        tombstone_session(session_id);
+        INITIALIZED_SESSIONS.delete(session_id);
         tracked_objects.forEach(free_object);
         tracked_objects.clear();
     });
@@ -279,7 +357,12 @@ export function update_or_replace(node, new_html, replace) {
     if (replace) {
         node.parentNode.replaceChild(new_html, node);
     } else {
-        while (node.childElementCount > 0) {
+        // J14: clear ALL children, not just element children. The old loop
+        // condition `childElementCount > 0` removed `firstChild` (which may be
+        // a text node), so once only text nodes remained the count was 0 and
+        // the loop exited leaving stale text content behind. Use firstChild as
+        // the loop condition so text/comment nodes are cleared too.
+        while (node.firstChild) {
             node.removeChild(node.firstChild);
         }
         node.append(new_html);
@@ -287,17 +370,23 @@ export function update_or_replace(node, new_html, replace) {
 }
 
 export function update_session_dom(message) {
-    lock_loading(() => {
-        const { session_id, session_status, messages, html, dom_node_selector, replace } = message;
-        // Ensure session exists - it should have been created during SerializedMessage unpack,
-        // but we ensure it here to handle any race conditions
-        ensure_session_exists(session_id, session_status || "sub");
-        return on_node_available(dom_node_selector, 1).then((dom) => {
+    const { session_id, session_status, messages, html, dom_node_selector, replace } = message;
+    // Ensure session exists - it should have been created during SerializedMessage unpack,
+    // but we ensure it here to handle any race conditions
+    ensure_session_exists(session_id, session_status || "sub");
+    // J5: poll for the target DOM node OUTSIDE the global OBJECT_FREEING_LOCK.
+    // on_node_available can block for up to 30s when a selector never appears;
+    // holding the (concurrency-1) lock across that wait froze ALL message
+    // processing for every session for the full timeout. Only the synchronous
+    // apply (DOM swap + replaying this session's init messages, which touches
+    // the shared object cache) needs the lock.
+    return on_node_available(dom_node_selector, 1).then((dom) => {
+        lock_loading(() => {
             update_or_replace(dom, html, replace);
             init_session_from_msgs(session_id, messages);
-        }).catch((error) => {
-            send_done_loading(session_id, error);
         });
+    }).catch((error) => {
+        send_done_loading(session_id, error);
     });
 }
 
@@ -310,9 +399,18 @@ export function update_session_dom(message) {
  * @param {string} session_status - "root" or "sub"
  */
 export function ensure_session_exists(session_id, session_status) {
-    if (!(session_id in SESSIONS)) {
-        SESSIONS[session_id] = [new Set(), session_status];
+    if (session_id in SESSIONS) {
+        return;
     }
+    // J8: do not resurrect a session that was just freed by Julia. A message
+    // that was already in flight when the close handshake completed must not
+    // recreate the entry (zombie session + leaked objects). "root" sessions are
+    // never tombstoned, so this only blocks late sub-session traffic.
+    if (FREED_SESSION_TOMBSTONES.has(session_id)) {
+        console.warn(`Ignoring (re)creation of freed session ${session_id} (tombstoned)`);
+        return;
+    }
+    SESSIONS[session_id] = [new Set(), session_status];
 }
 
 /**
@@ -326,7 +424,14 @@ export function ensure_session_exists(session_id, session_status) {
  */
 export function track_in_session(session_id, key, session_status) {
     ensure_session_exists(session_id, session_status);
-    const tracked_objects = SESSIONS[session_id][0];
+    const session = SESSIONS[session_id];
+    if (!session) {
+        // J8: session was tombstoned (freed) and ensure_session_exists refused
+        // to resurrect it — this is a late in-flight message; drop it.
+        console.warn(`track_in_session for freed session ${session_id} ignored`);
+        return;
+    }
+    const tracked_objects = session[0];
 
     // Track in session (object should already be in GLOBAL_OBJECT_CACHE)
     tracked_objects.add(key);
@@ -348,7 +453,15 @@ export function track_in_session(session_id, key, session_status) {
  */
 export function register_in_session_cache(session_id, key, object, session_status) {
     ensure_session_exists(session_id, session_status);
-    const tracked_objects = SESSIONS[session_id][0];
+    const session = SESSIONS[session_id];
+    if (!session) {
+        // J8: session was tombstoned (freed); refuse to re-register objects for
+        // a dead session. Still publish to the global cache only if a live
+        // session already references the key, otherwise it would leak.
+        console.warn(`register_in_session_cache for freed session ${session_id} ignored`);
+        return;
+    }
+    const tracked_objects = session[0];
 
     // Track in session
     tracked_objects.add(key);

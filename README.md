@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/src/assets/bonito-dark.svg">
+    <img src="docs/src/assets/bonito-light.svg" alt="Bonito.jl" width="160">
+  </picture>
+</p>
+
 # Bonito.jl
 
 ![CI](https://github.com/SimonDanisch/Bonito.jl/workflows/CI/badge.svg) [![Codecov](https://codecov.io/gh/SimonDanisch/Bonito.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/SimonDanisch/Bonito.jl)

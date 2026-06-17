@@ -92,6 +92,20 @@ function Base.close(server::HTTPAssetServer)
     end
 end
 
+# Caller must hold `parent.lock`. Drop one reference to `path`, removing the entry
+# entirely once the last holder leaves. Shared by every release path (child close,
+# proxied-asset release) so the refcount math lives in one place.
+function decref!(parent::HTTPAssetServer, path::AbstractString)
+    entry = get(parent.files, path, nothing)
+    entry === nothing && return
+    if entry.refcount <= 1
+        delete!(parent.files, path)
+    else
+        parent.files[path] = AssetEntry(entry.refcount - 1, entry.asset)
+    end
+    return
+end
+
 # Release this child's claim on every path it registered. Each path's refcount
 # drops by 1; when a refcount hits 0 (last holder gone) the entry is dropped.
 # Idempotent: a second close is a no-op (the child's own `files` set is empty).
@@ -99,13 +113,7 @@ function Base.close(server::ChildAssetServer)
     parent = server.parent
     lock(parent.lock) do
         for path in server.files
-            entry = get(parent.files, path, nothing)
-            entry === nothing && continue
-            if entry.refcount <= 1
-                delete!(parent.files, path)
-            else
-                parent.files[path] = AssetEntry(entry.refcount - 1, entry.asset)
-            end
+            decref!(parent, path)
         end
         empty!(server.files)
     end
@@ -163,7 +171,12 @@ function js_to_local_url(server::HTTPAssetServer, url::AbstractString)
         return url
     else
         key = URIs.URI(m[1]).path
-        entry = lock(() -> server.files[string(key)], server.lock)
+        # B38: the asset may no longer be registered (a child closed and dropped
+        # its refcount) while we're formatting a JS stack trace — a bare
+        # `server.files[key]` would KeyError and kill the whole error-reporting
+        # path. Fall back to the original url when the entry is gone.
+        entry = lock(() -> get(server.files, string(key), nothing), server.lock)
+        entry === nothing && return url
         return local_path(entry.asset) * ":" * m[2]
     end
 end
@@ -225,8 +238,17 @@ end
 # whole) is non-nothing. Browsers require `206 Partial Content` + `Content-Range`
 # to play and seek `<video>`/`<audio>`; `Accept-Ranges: bytes` advertises it on
 # the full 200 too.
+# RFC 1123 date string for HTTP `Last-Modified`/`If-Modified-Since`.
+function http_date(t::Real)
+    return Dates.format(Dates.unix2datetime(t), Dates.RFC1123Format) * " GMT"
+end
+
+# `file` is typed `AbstractString` (not `String`) so a relocatable
+# `RelocatableFolders.Path` (e.g. an `Asset(@path ...)` icon shipped in an app
+# bundle) dispatches here too: `filesize`/`mtime`/`read`/`open` all accept
+# `AbstractString`, and a `Path` resolves to its materialized file on access.
 function serve_asset(request, data::Union{Vector{UInt8},Nothing},
-                     file::Union{String,Nothing}, content_type, cache_control)
+                     file::Union{AbstractString,Nothing}, content_type, cache_control)
     total = data === nothing ? Int(filesize(file)) : length(data)
     headers = Pair{String,String}[
         "Access-Control-Allow-Origin" => "*",
@@ -234,6 +256,22 @@ function serve_asset(request, data::Union{Vector{UInt8},Nothing},
         "Cache-Control" => cache_control,
         "Accept-Ranges" => "bytes",
     ]
+    # B38: plain (mutable) assets are marked `must-revalidate` but never emitted
+    # a validator, so browsers couldn't actually revalidate and served stale
+    # CSS/JS for the full max-age after an edit. For file-backed assets, emit
+    # `Last-Modified` and honor `If-Modified-Since` with a 304. Content-keyed
+    # assets (BinaryAsset / es6module) are immutable and don't need this.
+    if file !== nothing
+        mtime = Base.Filesystem.mtime(file)
+        if mtime > 0
+            last_modified = http_date(mtime)
+            push!(headers, "Last-Modified" => last_modified)
+            ims = HTTP.header(request, "If-Modified-Since", "")
+            if !isempty(ims) && ims == last_modified
+                return HTTP.Response(304, headers)
+            end
+        end
+    end
     rng = parse_byte_range(HTTP.header(request, "Range", ""), total)
     if rng === nothing
         body = data === nothing ? read(file) : data
@@ -260,11 +298,17 @@ function (server::HTTPAssetServer)(context)
         entry === nothing ? nothing : entry.asset
     end
     asset === nothing && return HTTP.Response(404)
-    if asset isa BinaryAsset
+    if asset isa RemoteAsset
+        # A proxied (worker) asset: serve cached bytes or fetch the range from
+        # the worker. Defined in asset-serving/proxy.jl.
+        return serve_remote_asset(context.request, asset)
+    elseif asset isa BinaryAsset
         return serve_asset(context.request, asset.data, nothing,
                            asset.mime, cache_control_for(asset))
     elseif !isempty(asset.bundle_data)
-        return serve_asset(context.request, asset.bundle_data, nothing,
+        # B17: serve a snapshot taken under the per-asset bundle lock, so a
+        # concurrent `bundle!`/`rebundle!` can't tear the vector mid-response.
+        return serve_asset(context.request, bundle_data_snapshot(asset), nothing,
                            file_mimetype(local_path(asset)), cache_control_for(asset))
     elseif isfile(local_path(asset))
         return serve_asset(context.request, nothing, local_path(asset),

@@ -1,1869 +1,2685 @@
-// deno-fmt-ignore-file
-// deno-lint-ignore-file
-// This code was bundled using `deno bundle` and it's not recommended to edit it manually
+var __defProp = Object.defineProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
 
-var E = Object.create;
-var d = Object.defineProperty;
-var L = Object.getOwnPropertyDescriptor;
-var O = Object.getOwnPropertyNames;
-var C = Object.getPrototypeOf, A = Object.prototype.hasOwnProperty;
-var k = (n, e)=>()=>(e || n((e = {
-            exports: {}
-        }).exports, e), e.exports);
-var P = (n, e, t, s)=>{
-    if (e && typeof e == "object" || typeof e == "function") for (let i of O(e))!A.call(n, i) && i !== t && d(n, i, {
-        get: ()=>e[i],
-        enumerable: !(s = L(e, i)) || s.enumerable
-    });
-    return n;
-};
-var N = (n, e, t)=>(t = n != null ? E(C(n)) : {}, P(e || !n || !n.__esModule ? d(t, "default", {
-        value: n,
-        enumerable: !0
-    }) : t, n));
-var m = k((q, x)=>{
-    "use strict";
-    var S = Object.prototype.hasOwnProperty, l = "~";
-    function _() {}
-    Object.create && (_.prototype = Object.create(null), new _().__proto__ || (l = !1));
-    function T(n, e, t) {
-        this.fn = n, this.context = e, this.once = t || !1;
-    }
-    function w(n, e, t, s, i) {
-        if (typeof t != "function") throw new TypeError("The listener must be a function");
-        var u = new T(t, s || n, i), o = l ? l + e : e;
-        return n._events[o] ? n._events[o].fn ? n._events[o] = [
-            n._events[o],
-            u
-        ] : n._events[o].push(u) : (n._events[o] = u, n._eventsCount++), n;
-    }
-    function y(n, e) {
-        --n._eventsCount === 0 ? n._events = new _ : delete n._events[e];
-    }
-    function c() {
-        this._events = new _, this._eventsCount = 0;
-    }
-    c.prototype.eventNames = function() {
-        var e = [], t, s;
-        if (this._eventsCount === 0) return e;
-        for(s in t = this._events)S.call(t, s) && e.push(l ? s.slice(1) : s);
-        return Object.getOwnPropertySymbols ? e.concat(Object.getOwnPropertySymbols(t)) : e;
-    };
-    c.prototype.listeners = function(e) {
-        var t = l ? l + e : e, s = this._events[t];
-        if (!s) return [];
-        if (s.fn) return [
-            s.fn
-        ];
-        for(var i = 0, u = s.length, o = new Array(u); i < u; i++)o[i] = s[i].fn;
-        return o;
-    };
-    c.prototype.listenerCount = function(e) {
-        var t = l ? l + e : e, s = this._events[t];
-        return s ? s.fn ? 1 : s.length : 0;
-    };
-    c.prototype.emit = function(e, t, s, i, u, o) {
-        var a = l ? l + e : e;
-        if (!this._events[a]) return !1;
-        var r = this._events[a], p = arguments.length, h, f;
-        if (r.fn) {
-            switch(r.once && this.removeListener(e, r.fn, void 0, !0), p){
-                case 1:
-                    return r.fn.call(r.context), !0;
-                case 2:
-                    return r.fn.call(r.context, t), !0;
-                case 3:
-                    return r.fn.call(r.context, t, s), !0;
-                case 4:
-                    return r.fn.call(r.context, t, s, i), !0;
-                case 5:
-                    return r.fn.call(r.context, t, s, i, u), !0;
-                case 6:
-                    return r.fn.call(r.context, t, s, i, u, o), !0;
-            }
-            for(f = 1, h = new Array(p - 1); f < p; f++)h[f - 1] = arguments[f];
-            r.fn.apply(r.context, h);
-        } else {
-            var b = r.length, v;
-            for(f = 0; f < b; f++)switch(r[f].once && this.removeListener(e, r[f].fn, void 0, !0), p){
-                case 1:
-                    r[f].fn.call(r[f].context);
-                    break;
-                case 2:
-                    r[f].fn.call(r[f].context, t);
-                    break;
-                case 3:
-                    r[f].fn.call(r[f].context, t, s);
-                    break;
-                case 4:
-                    r[f].fn.call(r[f].context, t, s, i);
-                    break;
-                default:
-                    if (!h) for(v = 1, h = new Array(p - 1); v < p; v++)h[v - 1] = arguments[v];
-                    r[f].fn.apply(r[f].context, h);
-            }
-        }
-        return !0;
-    };
-    c.prototype.on = function(e, t, s) {
-        return w(this, e, t, s, !1);
-    };
-    c.prototype.once = function(e, t, s) {
-        return w(this, e, t, s, !0);
-    };
-    c.prototype.removeListener = function(e, t, s, i) {
-        var u = l ? l + e : e;
-        if (!this._events[u]) return this;
-        if (!t) return y(this, u), this;
-        var o = this._events[u];
-        if (o.fn) o.fn === t && (!i || o.once) && (!s || o.context === s) && y(this, u);
-        else {
-            for(var a = 0, r = [], p = o.length; a < p; a++)(o[a].fn !== t || i && !o[a].once || s && o[a].context !== s) && r.push(o[a]);
-            r.length ? this._events[u] = r.length === 1 ? r[0] : r : y(this, u);
-        }
-        return this;
-    };
-    c.prototype.removeAllListeners = function(e) {
-        var t;
-        return e ? (t = l ? l + e : e, this._events[t] && y(this, t)) : (this._events = new _, this._eventsCount = 0), this;
-    };
-    c.prototype.off = c.prototype.removeListener;
-    c.prototype.addListener = c.prototype.on;
-    c.prefixed = l;
-    c.EventEmitter = c;
-    typeof x < "u" && (x.exports = c);
+// dev/Bonito/js_dependencies/Connection.js
+var Connection_exports = {};
+__export(Connection_exports, {
+  ConnectionStatus: () => ConnectionStatus,
+  EvalJavascript: () => EvalJavascript,
+  FusedMessage: () => FusedMessage,
+  JSDoneLoading: () => JSDoneLoading,
+  JavascriptError: () => JavascriptError,
+  JavascriptWarning: () => JavascriptWarning,
+  OnjsCallback: () => OnjsCallback,
+  RegisterObservable: () => RegisterObservable,
+  UpdateObservable: () => UpdateObservable,
+  can_send_to_julia: () => can_send_to_julia,
+  is_julia_responsive: () => is_julia_responsive,
+  on_connection_close: () => on_connection_close,
+  on_connection_connecting: () => on_connection_connecting,
+  on_connection_open: () => on_connection_open,
+  process_message: () => process_message,
+  register_connection_indicator: () => register_connection_indicator,
+  send_close_session: () => send_close_session,
+  send_done_loading: () => send_done_loading,
+  send_error: () => send_error,
+  send_pingpong: () => send_pingpong,
+  send_to_julia: () => send_to_julia,
+  send_warning: () => send_warning,
+  set_no_connection: () => set_no_connection,
+  unregister_connection_indicator: () => unregister_connection_indicator
 });
-var g = N(m(), 1);
-g.default;
-var export_EventEmitter = g.default;
-var u = class extends Error {
-    constructor(e){
-        super(e), this.name = "TimeoutError";
-    }
-}, d1 = class extends Error {
-    constructor(e){
-        super(), this.name = "AbortError", this.message = e;
-    }
-}, E1 = (n)=>globalThis.DOMException === void 0 ? new d1(n) : new DOMException(n), p = (n)=>{
-    let e = n.reason === void 0 ? E1("This operation was aborted.") : n.reason;
-    return e instanceof Error ? e : E1(e);
-};
-function T(n, e) {
-    let { milliseconds: o , fallback: f , message: a , customTimers: m = {
-        setTimeout,
-        clearTimeout
-    }  } = e, c, i, l = new Promise((s, r)=>{
-        if (typeof o != "number" || Math.sign(o) !== 1) throw new TypeError(`Expected \`milliseconds\` to be a positive number, got \`${o}\``);
-        if (e.signal) {
-            let { signal: t  } = e;
-            t.aborted && r(p(t)), i = ()=>{
-                r(p(t));
-            }, t.addEventListener("abort", i, {
-                once: !0
-            });
-        }
-        if (o === Number.POSITIVE_INFINITY) {
-            n.then(s, r);
-            return;
-        }
-        let b = new u;
-        c = m.setTimeout.call(void 0, ()=>{
-            if (f) {
-                try {
-                    s(f());
-                } catch (t) {
-                    r(t);
-                }
-                return;
-            }
-            typeof n.cancel == "function" && n.cancel(), a === !1 ? s() : a instanceof Error ? r(a) : (b.message = a ?? `Promise timed out after ${o} milliseconds`, r(b));
-        }, o), (async ()=>{
-            try {
-                s(await n);
-            } catch (t) {
-                r(t);
-            }
-        })();
-    }).finally(()=>{
-        l.clear(), i && e.signal && e.signal.removeEventListener("abort", i);
-    });
-    return l.clear = ()=>{
-        m.clearTimeout.call(void 0, c), c = void 0;
-    }, l;
-}
-function a(u, t, e) {
-    let i = 0, s = u.length;
-    for(; s > 0;){
-        let r = Math.trunc(s / 2), n = i + r;
-        e(u[n], t) <= 0 ? (i = ++n, s -= r + 1) : s = r;
-    }
-    return i;
-}
-var h = class {
-    #t = [];
-    enqueue(t, e) {
-        e = {
-            priority: 0,
-            ...e
-        };
-        let i = {
-            priority: e.priority,
-            id: e.id,
-            run: t
-        };
-        if (this.size === 0 || this.#t[this.size - 1].priority >= e.priority) {
-            this.#t.push(i);
-            return;
-        }
-        let s = a(this.#t, i, (r, n)=>n.priority - r.priority);
-        this.#t.splice(s, 0, i);
-    }
-    setPriority(t, e) {
-        let i = this.#t.findIndex((r)=>r.id === t);
-        if (i === -1) throw new ReferenceError(`No promise function with the id "${t}" exists in the queue.`);
-        let [s] = this.#t.splice(i, 1);
-        this.enqueue(s.run, {
-            priority: e,
-            id: t
-        });
-    }
-    dequeue() {
-        return this.#t.shift()?.run;
-    }
-    filter(t) {
-        return this.#t.filter((e)=>e.priority === t.priority).map((e)=>e.run);
-    }
-    get size() {
-        return this.#t.length;
-    }
-};
-var l = class extends export_EventEmitter {
-    #t;
-    #h;
-    #n = 0;
-    #d;
-    #u;
-    #m = 0;
-    #i;
-    #a;
-    #e;
-    #y;
-    #r = 0;
-    #l;
-    #s;
-    #v;
-    #g = 1n;
-    timeout;
-    constructor(t){
-        if (super(), t = {
-            carryoverConcurrencyCount: !1,
-            intervalCap: Number.POSITIVE_INFINITY,
-            interval: 0,
-            concurrency: Number.POSITIVE_INFINITY,
-            autoStart: !0,
-            queueClass: h,
-            ...t
-        }, !(typeof t.intervalCap == "number" && t.intervalCap >= 1)) throw new TypeError(`Expected \`intervalCap\` to be a number from 1 and up, got \`${t.intervalCap?.toString() ?? ""}\` (${typeof t.intervalCap})`);
-        if (t.interval === void 0 || !(Number.isFinite(t.interval) && t.interval >= 0)) throw new TypeError(`Expected \`interval\` to be a finite number >= 0, got \`${t.interval?.toString() ?? ""}\` (${typeof t.interval})`);
-        this.#t = t.carryoverConcurrencyCount, this.#h = t.intervalCap === Number.POSITIVE_INFINITY || t.interval === 0, this.#d = t.intervalCap, this.#u = t.interval, this.#e = new t.queueClass, this.#y = t.queueClass, this.concurrency = t.concurrency, this.timeout = t.timeout, this.#v = t.throwOnTimeout === !0, this.#s = t.autoStart === !1;
-    }
-    get #p() {
-        return this.#h || this.#n < this.#d;
-    }
-    get #T() {
-        return this.#r < this.#l;
-    }
-    #C() {
-        this.#r--, this.#o(), this.emit("next");
-    }
-    #E() {
-        this.#w(), this.#I(), this.#a = void 0;
-    }
-    get #b() {
-        let t = Date.now();
-        if (this.#i === void 0) {
-            let e = this.#m - t;
-            if (e < 0) this.#n = this.#t ? this.#r : 0;
-            else return this.#a === void 0 && (this.#a = setTimeout(()=>{
-                this.#E();
-            }, e)), !0;
-        }
-        return !1;
-    }
-    #o() {
-        if (this.#e.size === 0) return this.#i && clearInterval(this.#i), this.#i = void 0, this.emit("empty"), this.#r === 0 && this.emit("idle"), !1;
-        if (!this.#s) {
-            let t = !this.#b;
-            if (this.#p && this.#T) {
-                let e = this.#e.dequeue();
-                return e ? (this.emit("active"), e(), t && this.#I(), !0) : !1;
-            }
-        }
-        return !1;
-    }
-    #I() {
-        this.#h || this.#i !== void 0 || (this.#i = setInterval(()=>{
-            this.#w();
-        }, this.#u), this.#m = Date.now() + this.#u);
-    }
-    #w() {
-        this.#n === 0 && this.#r === 0 && this.#i && (clearInterval(this.#i), this.#i = void 0), this.#n = this.#t ? this.#r : 0, this.#c();
-    }
-    #c() {
-        for(; this.#o(););
-    }
-    get concurrency() {
-        return this.#l;
-    }
-    set concurrency(t) {
-        if (!(typeof t == "number" && t >= 1)) throw new TypeError(`Expected \`concurrency\` to be a number from 1 and up, got \`${t}\` (${typeof t})`);
-        this.#l = t, this.#c();
-    }
-    async #x(t) {
-        return new Promise((e, i)=>{
-            t.addEventListener("abort", ()=>{
-                i(t.reason);
-            }, {
-                once: !0
-            });
-        });
-    }
-    setPriority(t, e) {
-        this.#e.setPriority(t, e);
-    }
-    async add(t, e = {}) {
-        return e.id ??= (this.#g++).toString(), e = {
-            timeout: this.timeout,
-            throwOnTimeout: this.#v,
-            ...e
-        }, new Promise((i, s)=>{
-            this.#e.enqueue(async ()=>{
-                this.#r++, this.#n++;
-                try {
-                    e.signal?.throwIfAborted();
-                    let r = t({
-                        signal: e.signal
-                    });
-                    e.timeout && (r = T(Promise.resolve(r), {
-                        milliseconds: e.timeout
-                    })), e.signal && (r = Promise.race([
-                        r,
-                        this.#x(e.signal)
-                    ]));
-                    let n = await r;
-                    i(n), this.emit("completed", n);
-                } catch (r) {
-                    if (r instanceof u && !e.throwOnTimeout) {
-                        i();
-                        return;
-                    }
-                    s(r), this.emit("error", r);
-                } finally{
-                    this.#C();
-                }
-            }, e), this.emit("add"), this.#o();
-        });
-    }
-    async addAll(t, e) {
-        return Promise.all(t.map(async (i)=>this.add(i, e)));
-    }
-    start() {
-        return this.#s ? (this.#s = !1, this.#c(), this) : this;
-    }
-    pause() {
-        this.#s = !0;
-    }
-    clear() {
-        this.#e = new this.#y;
-    }
-    async onEmpty() {
-        this.#e.size !== 0 && await this.#f("empty");
-    }
-    async onSizeLessThan(t) {
-        this.#e.size < t || await this.#f("next", ()=>this.#e.size < t);
-    }
-    async onIdle() {
-        this.#r === 0 && this.#e.size === 0 || await this.#f("idle");
-    }
-    async #f(t, e) {
-        return new Promise((i)=>{
-            let s = ()=>{
-                e && !e() || (this.off(t, s), i());
-            };
-            this.on(t, s);
-        });
-    }
-    get size() {
-        return this.#e.size;
-    }
-    sizeBy(t) {
-        return this.#e.filter(t).length;
-    }
-    get pending() {
-        return this.#r;
-    }
-    get isPaused() {
-        return this.#s;
-    }
-};
+
+// dev/Bonito/js_dependencies/Protocol.js
+var Protocol_exports = {};
+__export(Protocol_exports, {
+  base64decode: () => base64decode,
+  base64encode: () => base64encode,
+  decode_base64_message: () => decode_base64_message,
+  decode_binary: () => decode_binary,
+  encode_binary: () => encode_binary,
+  unpack_binary: () => unpack_binary
+});
+
+// deno:https://cdn.jsdelivr.net/npm/@msgpack/msgpack/dist.esm/utils/utf8.mjs
 function utf8Count(str) {
-    const strLength = str.length;
-    let byteLength = 0;
-    let pos = 0;
-    while(pos < strLength){
-        let value = str.charCodeAt(pos++);
-        if ((value & 0xffffff80) === 0) {
-            byteLength++;
-            continue;
-        } else if ((value & 0xfffff800) === 0) {
-            byteLength += 2;
-        } else {
-            if (value >= 0xd800 && value <= 0xdbff) {
-                if (pos < strLength) {
-                    const extra = str.charCodeAt(pos);
-                    if ((extra & 0xfc00) === 0xdc00) {
-                        ++pos;
-                        value = ((value & 0x3ff) << 10) + (extra & 0x3ff) + 0x10000;
-                    }
-                }
-            }
-            if ((value & 0xffff0000) === 0) {
-                byteLength += 3;
-            } else {
-                byteLength += 4;
-            }
+  const strLength = str.length;
+  let byteLength = 0;
+  let pos = 0;
+  while (pos < strLength) {
+    let value = str.charCodeAt(pos++);
+    if ((value & 4294967168) === 0) {
+      byteLength++;
+      continue;
+    } else if ((value & 4294965248) === 0) {
+      byteLength += 2;
+    } else {
+      if (value >= 55296 && value <= 56319) {
+        if (pos < strLength) {
+          const extra = str.charCodeAt(pos);
+          if ((extra & 64512) === 56320) {
+            ++pos;
+            value = ((value & 1023) << 10) + (extra & 1023) + 65536;
+          }
         }
+      }
+      if ((value & 4294901760) === 0) {
+        byteLength += 3;
+      } else {
+        byteLength += 4;
+      }
     }
-    return byteLength;
+  }
+  return byteLength;
 }
 function utf8EncodeJs(str, output, outputOffset) {
-    const strLength = str.length;
-    let offset = outputOffset;
-    let pos = 0;
-    while(pos < strLength){
-        let value = str.charCodeAt(pos++);
-        if ((value & 0xffffff80) === 0) {
-            output[offset++] = value;
-            continue;
-        } else if ((value & 0xfffff800) === 0) {
-            output[offset++] = value >> 6 & 0x1f | 0xc0;
-        } else {
-            if (value >= 0xd800 && value <= 0xdbff) {
-                if (pos < strLength) {
-                    const extra = str.charCodeAt(pos);
-                    if ((extra & 0xfc00) === 0xdc00) {
-                        ++pos;
-                        value = ((value & 0x3ff) << 10) + (extra & 0x3ff) + 0x10000;
-                    }
-                }
-            }
-            if ((value & 0xffff0000) === 0) {
-                output[offset++] = value >> 12 & 0x0f | 0xe0;
-                output[offset++] = value >> 6 & 0x3f | 0x80;
-            } else {
-                output[offset++] = value >> 18 & 0x07 | 0xf0;
-                output[offset++] = value >> 12 & 0x3f | 0x80;
-                output[offset++] = value >> 6 & 0x3f | 0x80;
-            }
+  const strLength = str.length;
+  let offset = outputOffset;
+  let pos = 0;
+  while (pos < strLength) {
+    let value = str.charCodeAt(pos++);
+    if ((value & 4294967168) === 0) {
+      output[offset++] = value;
+      continue;
+    } else if ((value & 4294965248) === 0) {
+      output[offset++] = value >> 6 & 31 | 192;
+    } else {
+      if (value >= 55296 && value <= 56319) {
+        if (pos < strLength) {
+          const extra = str.charCodeAt(pos);
+          if ((extra & 64512) === 56320) {
+            ++pos;
+            value = ((value & 1023) << 10) + (extra & 1023) + 65536;
+          }
         }
-        output[offset++] = value & 0x3f | 0x80;
+      }
+      if ((value & 4294901760) === 0) {
+        output[offset++] = value >> 12 & 15 | 224;
+        output[offset++] = value >> 6 & 63 | 128;
+      } else {
+        output[offset++] = value >> 18 & 7 | 240;
+        output[offset++] = value >> 12 & 63 | 128;
+        output[offset++] = value >> 6 & 63 | 128;
+      }
     }
+    output[offset++] = value & 63 | 128;
+  }
 }
-const sharedTextEncoder = new TextEncoder();
+var sharedTextEncoder = new TextEncoder();
+var TEXT_ENCODER_THRESHOLD = 50;
 function utf8EncodeTE(str, output, outputOffset) {
-    sharedTextEncoder.encodeInto(str, output.subarray(outputOffset));
+  sharedTextEncoder.encodeInto(str, output.subarray(outputOffset));
 }
 function utf8Encode(str, output, outputOffset) {
-    if (str.length > 50) {
-        utf8EncodeTE(str, output, outputOffset);
-    } else {
-        utf8EncodeJs(str, output, outputOffset);
-    }
+  if (str.length > TEXT_ENCODER_THRESHOLD) {
+    utf8EncodeTE(str, output, outputOffset);
+  } else {
+    utf8EncodeJs(str, output, outputOffset);
+  }
 }
+var CHUNK_SIZE = 4096;
 function utf8DecodeJs(bytes, inputOffset, byteLength) {
-    let offset = inputOffset;
-    const end = offset + byteLength;
-    const units = [];
-    let result = "";
-    while(offset < end){
-        const byte1 = bytes[offset++];
-        if ((byte1 & 0x80) === 0) {
-            units.push(byte1);
-        } else if ((byte1 & 0xe0) === 0xc0) {
-            const byte2 = bytes[offset++] & 0x3f;
-            units.push((byte1 & 0x1f) << 6 | byte2);
-        } else if ((byte1 & 0xf0) === 0xe0) {
-            const byte2 = bytes[offset++] & 0x3f;
-            const byte3 = bytes[offset++] & 0x3f;
-            units.push((byte1 & 0x1f) << 12 | byte2 << 6 | byte3);
-        } else if ((byte1 & 0xf8) === 0xf0) {
-            const byte2 = bytes[offset++] & 0x3f;
-            const byte3 = bytes[offset++] & 0x3f;
-            const byte4 = bytes[offset++] & 0x3f;
-            let unit = (byte1 & 0x07) << 0x12 | byte2 << 0x0c | byte3 << 0x06 | byte4;
-            if (unit > 0xffff) {
-                unit -= 0x10000;
-                units.push(unit >>> 10 & 0x3ff | 0xd800);
-                unit = 0xdc00 | unit & 0x3ff;
-            }
-            units.push(unit);
-        } else {
-            units.push(byte1);
-        }
-        if (units.length >= 4096) {
-            result += String.fromCharCode(...units);
-            units.length = 0;
-        }
+  let offset = inputOffset;
+  const end = offset + byteLength;
+  const units = [];
+  let result = "";
+  while (offset < end) {
+    const byte1 = bytes[offset++];
+    if ((byte1 & 128) === 0) {
+      units.push(byte1);
+    } else if ((byte1 & 224) === 192) {
+      const byte2 = bytes[offset++] & 63;
+      units.push((byte1 & 31) << 6 | byte2);
+    } else if ((byte1 & 240) === 224) {
+      const byte2 = bytes[offset++] & 63;
+      const byte3 = bytes[offset++] & 63;
+      units.push((byte1 & 31) << 12 | byte2 << 6 | byte3);
+    } else if ((byte1 & 248) === 240) {
+      const byte2 = bytes[offset++] & 63;
+      const byte3 = bytes[offset++] & 63;
+      const byte4 = bytes[offset++] & 63;
+      let unit = (byte1 & 7) << 18 | byte2 << 12 | byte3 << 6 | byte4;
+      if (unit > 65535) {
+        unit -= 65536;
+        units.push(unit >>> 10 & 1023 | 55296);
+        unit = 56320 | unit & 1023;
+      }
+      units.push(unit);
+    } else {
+      units.push(byte1);
     }
-    if (units.length > 0) {
-        result += String.fromCharCode(...units);
+    if (units.length >= CHUNK_SIZE) {
+      result += String.fromCharCode(...units);
+      units.length = 0;
     }
-    return result;
+  }
+  if (units.length > 0) {
+    result += String.fromCharCode(...units);
+  }
+  return result;
 }
-const sharedTextDecoder = new TextDecoder();
+var sharedTextDecoder = new TextDecoder();
+var TEXT_DECODER_THRESHOLD = 200;
 function utf8DecodeTD(bytes, inputOffset, byteLength) {
-    const stringBytes = bytes.subarray(inputOffset, inputOffset + byteLength);
-    return sharedTextDecoder.decode(stringBytes);
+  const stringBytes = bytes.subarray(inputOffset, inputOffset + byteLength);
+  return sharedTextDecoder.decode(stringBytes);
 }
 function utf8Decode(bytes, inputOffset, byteLength) {
-    if (byteLength > 200) {
-        return utf8DecodeTD(bytes, inputOffset, byteLength);
-    } else {
-        return utf8DecodeJs(bytes, inputOffset, byteLength);
-    }
+  if (byteLength > TEXT_DECODER_THRESHOLD) {
+    return utf8DecodeTD(bytes, inputOffset, byteLength);
+  } else {
+    return utf8DecodeJs(bytes, inputOffset, byteLength);
+  }
 }
-class ExtData {
-    constructor(type, data){
-        this.type = type;
-        this.data = data;
-    }
-}
-class DecodeError extends Error {
-    constructor(message){
-        super(message);
-        const proto = Object.create(DecodeError.prototype);
-        Object.setPrototypeOf(this, proto);
-        Object.defineProperty(this, "name", {
-            configurable: true,
-            enumerable: false,
-            value: DecodeError.name
-        });
-    }
-}
-const UINT32_MAX = 4294967295;
+
+// deno:https://cdn.jsdelivr.net/npm/@msgpack/msgpack/dist.esm/ExtData.mjs
+var ExtData = class {
+  type;
+  data;
+  constructor(type, data) {
+    this.type = type;
+    this.data = data;
+  }
+};
+
+// deno:https://cdn.jsdelivr.net/npm/@msgpack/msgpack/dist.esm/DecodeError.mjs
+var DecodeError = class _DecodeError extends Error {
+  constructor(message) {
+    super(message);
+    const proto = Object.create(_DecodeError.prototype);
+    Object.setPrototypeOf(this, proto);
+    Object.defineProperty(this, "name", {
+      configurable: true,
+      enumerable: false,
+      value: _DecodeError.name
+    });
+  }
+};
+
+// deno:https://cdn.jsdelivr.net/npm/@msgpack/msgpack/dist.esm/utils/int.mjs
+var UINT32_MAX = 4294967295;
 function setUint64(view, offset, value) {
-    const high = value / 4294967296;
-    const low = value;
-    view.setUint32(offset, high);
-    view.setUint32(offset + 4, low);
+  const high = value / 4294967296;
+  const low = value;
+  view.setUint32(offset, high);
+  view.setUint32(offset + 4, low);
 }
 function setInt64(view, offset, value) {
-    const high = Math.floor(value / 4294967296);
-    const low = value;
-    view.setUint32(offset, high);
-    view.setUint32(offset + 4, low);
+  const high = Math.floor(value / 4294967296);
+  const low = value;
+  view.setUint32(offset, high);
+  view.setUint32(offset + 4, low);
 }
 function getInt64(view, offset) {
-    const high = view.getInt32(offset);
-    const low = view.getUint32(offset + 4);
-    return high * 4294967296 + low;
+  const high = view.getInt32(offset);
+  const low = view.getUint32(offset + 4);
+  return high * 4294967296 + low;
 }
 function getUint64(view, offset) {
-    const high = view.getUint32(offset);
-    const low = view.getUint32(offset + 4);
-    return high * 4294967296 + low;
+  const high = view.getUint32(offset);
+  const low = view.getUint32(offset + 4);
+  return high * 4294967296 + low;
 }
-const EXT_TIMESTAMP = -1;
-const TIMESTAMP32_MAX_SEC = 0x100000000 - 1;
-const TIMESTAMP64_MAX_SEC = 0x400000000 - 1;
-function encodeTimeSpecToTimestamp({ sec , nsec  }) {
-    if (sec >= 0 && nsec >= 0 && sec <= TIMESTAMP64_MAX_SEC) {
-        if (nsec === 0 && sec <= TIMESTAMP32_MAX_SEC) {
-            const rv = new Uint8Array(4);
-            const view = new DataView(rv.buffer);
-            view.setUint32(0, sec);
-            return rv;
-        } else {
-            const secHigh = sec / 0x100000000;
-            const secLow = sec & 0xffffffff;
-            const rv = new Uint8Array(8);
-            const view = new DataView(rv.buffer);
-            view.setUint32(0, nsec << 2 | secHigh & 0x3);
-            view.setUint32(4, secLow);
-            return rv;
-        }
+
+// deno:https://cdn.jsdelivr.net/npm/@msgpack/msgpack/dist.esm/timestamp.mjs
+var EXT_TIMESTAMP = -1;
+var TIMESTAMP32_MAX_SEC = 4294967296 - 1;
+var TIMESTAMP64_MAX_SEC = 17179869184 - 1;
+function encodeTimeSpecToTimestamp({ sec, nsec }) {
+  if (sec >= 0 && nsec >= 0 && sec <= TIMESTAMP64_MAX_SEC) {
+    if (nsec === 0 && sec <= TIMESTAMP32_MAX_SEC) {
+      const rv = new Uint8Array(4);
+      const view = new DataView(rv.buffer);
+      view.setUint32(0, sec);
+      return rv;
     } else {
-        const rv = new Uint8Array(12);
-        const view = new DataView(rv.buffer);
-        view.setUint32(0, nsec);
-        setInt64(view, 4, sec);
-        return rv;
+      const secHigh = sec / 4294967296;
+      const secLow = sec & 4294967295;
+      const rv = new Uint8Array(8);
+      const view = new DataView(rv.buffer);
+      view.setUint32(0, nsec << 2 | secHigh & 3);
+      view.setUint32(4, secLow);
+      return rv;
     }
+  } else {
+    const rv = new Uint8Array(12);
+    const view = new DataView(rv.buffer);
+    view.setUint32(0, nsec);
+    setInt64(view, 4, sec);
+    return rv;
+  }
 }
 function encodeDateToTimeSpec(date) {
-    const msec = date.getTime();
-    const sec = Math.floor(msec / 1e3);
-    const nsec = (msec - sec * 1e3) * 1e6;
-    const nsecInSec = Math.floor(nsec / 1e9);
-    return {
-        sec: sec + nsecInSec,
-        nsec: nsec - nsecInSec * 1e9
-    };
+  const msec = date.getTime();
+  const sec = Math.floor(msec / 1e3);
+  const nsec = (msec - sec * 1e3) * 1e6;
+  const nsecInSec = Math.floor(nsec / 1e9);
+  return {
+    sec: sec + nsecInSec,
+    nsec: nsec - nsecInSec * 1e9
+  };
 }
 function encodeTimestampExtension(object) {
-    if (object instanceof Date) {
-        const timeSpec = encodeDateToTimeSpec(object);
-        return encodeTimeSpecToTimestamp(timeSpec);
-    } else {
-        return null;
-    }
+  if (object instanceof Date) {
+    const timeSpec = encodeDateToTimeSpec(object);
+    return encodeTimeSpecToTimestamp(timeSpec);
+  } else {
+    return null;
+  }
 }
 function decodeTimestampToTimeSpec(data) {
-    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-    switch(data.byteLength){
-        case 4:
-            {
-                const sec = view.getUint32(0);
-                return {
-                    sec,
-                    nsec: 0
-                };
-            }
-        case 8:
-            {
-                const nsec30AndSecHigh2 = view.getUint32(0);
-                const secLow32 = view.getUint32(4);
-                const sec = (nsec30AndSecHigh2 & 0x3) * 0x100000000 + secLow32;
-                const nsec = nsec30AndSecHigh2 >>> 2;
-                return {
-                    sec,
-                    nsec
-                };
-            }
-        case 12:
-            {
-                const sec = getInt64(view, 4);
-                const nsec = view.getUint32(0);
-                return {
-                    sec,
-                    nsec
-                };
-            }
-        default:
-            throw new DecodeError(`Unrecognized data size for timestamp (expected 4, 8, or 12): ${data.length}`);
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  switch (data.byteLength) {
+    case 4: {
+      const sec = view.getUint32(0);
+      const nsec = 0;
+      return {
+        sec,
+        nsec
+      };
     }
+    case 8: {
+      const nsec30AndSecHigh2 = view.getUint32(0);
+      const secLow32 = view.getUint32(4);
+      const sec = (nsec30AndSecHigh2 & 3) * 4294967296 + secLow32;
+      const nsec = nsec30AndSecHigh2 >>> 2;
+      return {
+        sec,
+        nsec
+      };
+    }
+    case 12: {
+      const sec = getInt64(view, 4);
+      const nsec = view.getUint32(0);
+      return {
+        sec,
+        nsec
+      };
+    }
+    default:
+      throw new DecodeError(`Unrecognized data size for timestamp (expected 4, 8, or 12): ${data.length}`);
+  }
 }
 function decodeTimestampExtension(data) {
-    const timeSpec = decodeTimestampToTimeSpec(data);
-    return new Date(timeSpec.sec * 1e3 + timeSpec.nsec / 1e6);
+  const timeSpec = decodeTimestampToTimeSpec(data);
+  return new Date(timeSpec.sec * 1e3 + timeSpec.nsec / 1e6);
 }
-const timestampExtension = {
-    type: EXT_TIMESTAMP,
-    encode: encodeTimestampExtension,
-    decode: decodeTimestampExtension
+var timestampExtension = {
+  type: EXT_TIMESTAMP,
+  encode: encodeTimestampExtension,
+  decode: decodeTimestampExtension
 };
-class ExtensionCodec {
-    constructor(){
-        this.builtInEncoders = [];
-        this.builtInDecoders = [];
-        this.encoders = [];
-        this.decoders = [];
-        this.register(timestampExtension);
+
+// deno:https://cdn.jsdelivr.net/npm/@msgpack/msgpack/dist.esm/ExtensionCodec.mjs
+var ExtensionCodec = class _ExtensionCodec {
+  static defaultCodec = new _ExtensionCodec();
+  // ensures ExtensionCodecType<X> matches ExtensionCodec<X>
+  // this will make type errors a lot more clear
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  __brand;
+  // built-in extensions
+  builtInEncoders = [];
+  builtInDecoders = [];
+  // custom extensions
+  encoders = [];
+  decoders = [];
+  constructor() {
+    this.register(timestampExtension);
+  }
+  register({ type, encode: encode2, decode: decode2 }) {
+    if (type >= 0) {
+      this.encoders[type] = encode2;
+      this.decoders[type] = decode2;
+    } else {
+      const index = -1 - type;
+      this.builtInEncoders[index] = encode2;
+      this.builtInDecoders[index] = decode2;
     }
-    register({ type , encode , decode  }) {
-        if (type >= 0) {
-            this.encoders[type] = encode;
-            this.decoders[type] = decode;
-        } else {
-            const index = -1 - type;
-            this.builtInEncoders[index] = encode;
-            this.builtInDecoders[index] = decode;
+  }
+  tryToEncode(object, context) {
+    for (let i = 0; i < this.builtInEncoders.length; i++) {
+      const encodeExt = this.builtInEncoders[i];
+      if (encodeExt != null) {
+        const data = encodeExt(object, context);
+        if (data != null) {
+          const type = -1 - i;
+          return new ExtData(type, data);
         }
+      }
     }
-    tryToEncode(object, context) {
-        for(let i = 0; i < this.builtInEncoders.length; i++){
-            const encodeExt = this.builtInEncoders[i];
-            if (encodeExt != null) {
-                const data = encodeExt(object, context);
-                if (data != null) {
-                    const type = -1 - i;
-                    return new ExtData(type, data);
-                }
-            }
+    for (let i = 0; i < this.encoders.length; i++) {
+      const encodeExt = this.encoders[i];
+      if (encodeExt != null) {
+        const data = encodeExt(object, context);
+        if (data != null) {
+          const type = i;
+          return new ExtData(type, data);
         }
-        for(let i = 0; i < this.encoders.length; i++){
-            const encodeExt = this.encoders[i];
-            if (encodeExt != null) {
-                const data = encodeExt(object, context);
-                if (data != null) {
-                    const type = i;
-                    return new ExtData(type, data);
-                }
-            }
-        }
-        if (object instanceof ExtData) {
-            return object;
-        }
-        return null;
+      }
     }
-    decode(data, type, context) {
-        const decodeExt = type < 0 ? this.builtInDecoders[-1 - type] : this.decoders[type];
-        if (decodeExt) {
-            return decodeExt(data, type, context);
-        } else {
-            return new ExtData(type, data);
-        }
+    if (object instanceof ExtData) {
+      return object;
     }
-}
-ExtensionCodec.defaultCodec = new ExtensionCodec();
+    return null;
+  }
+  decode(data, type, context) {
+    const decodeExt = type < 0 ? this.builtInDecoders[-1 - type] : this.decoders[type];
+    if (decodeExt) {
+      return decodeExt(data, type, context);
+    } else {
+      return new ExtData(type, data);
+    }
+  }
+};
+
+// deno:https://cdn.jsdelivr.net/npm/@msgpack/msgpack/dist.esm/utils/typedArrays.mjs
 function isArrayBufferLike(buffer) {
-    return buffer instanceof ArrayBuffer || typeof SharedArrayBuffer !== "undefined" && buffer instanceof SharedArrayBuffer;
+  return buffer instanceof ArrayBuffer || typeof SharedArrayBuffer !== "undefined" && buffer instanceof SharedArrayBuffer;
 }
 function ensureUint8Array(buffer) {
-    if (buffer instanceof Uint8Array) {
-        return buffer;
-    } else if (ArrayBuffer.isView(buffer)) {
-        return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
-    } else if (isArrayBufferLike(buffer)) {
-        return new Uint8Array(buffer);
+  if (buffer instanceof Uint8Array) {
+    return buffer;
+  } else if (ArrayBuffer.isView(buffer)) {
+    return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  } else if (isArrayBufferLike(buffer)) {
+    return new Uint8Array(buffer);
+  } else {
+    return Uint8Array.from(buffer);
+  }
+}
+
+// deno:https://cdn.jsdelivr.net/npm/@msgpack/msgpack/dist.esm/Encoder.mjs
+var DEFAULT_MAX_DEPTH = 100;
+var DEFAULT_INITIAL_BUFFER_SIZE = 2048;
+var Encoder = class _Encoder {
+  extensionCodec;
+  context;
+  useBigInt64;
+  maxDepth;
+  initialBufferSize;
+  sortKeys;
+  forceFloat32;
+  ignoreUndefined;
+  forceIntegerToFloat;
+  pos;
+  view;
+  bytes;
+  entered = false;
+  constructor(options) {
+    this.extensionCodec = options?.extensionCodec ?? ExtensionCodec.defaultCodec;
+    this.context = options?.context;
+    this.useBigInt64 = options?.useBigInt64 ?? false;
+    this.maxDepth = options?.maxDepth ?? DEFAULT_MAX_DEPTH;
+    this.initialBufferSize = options?.initialBufferSize ?? DEFAULT_INITIAL_BUFFER_SIZE;
+    this.sortKeys = options?.sortKeys ?? false;
+    this.forceFloat32 = options?.forceFloat32 ?? false;
+    this.ignoreUndefined = options?.ignoreUndefined ?? false;
+    this.forceIntegerToFloat = options?.forceIntegerToFloat ?? false;
+    this.pos = 0;
+    this.view = new DataView(new ArrayBuffer(this.initialBufferSize));
+    this.bytes = new Uint8Array(this.view.buffer);
+  }
+  clone() {
+    return new _Encoder({
+      extensionCodec: this.extensionCodec,
+      context: this.context,
+      useBigInt64: this.useBigInt64,
+      maxDepth: this.maxDepth,
+      initialBufferSize: this.initialBufferSize,
+      sortKeys: this.sortKeys,
+      forceFloat32: this.forceFloat32,
+      ignoreUndefined: this.ignoreUndefined,
+      forceIntegerToFloat: this.forceIntegerToFloat
+    });
+  }
+  reinitializeState() {
+    this.pos = 0;
+  }
+  /**
+     * This is almost equivalent to {@link Encoder#encode}, but it returns an reference of the encoder's internal buffer and thus much faster than {@link Encoder#encode}.
+     *
+     * @returns Encodes the object and returns a shared reference the encoder's internal buffer.
+     */
+  encodeSharedRef(object) {
+    if (this.entered) {
+      const instance = this.clone();
+      return instance.encodeSharedRef(object);
+    }
+    try {
+      this.entered = true;
+      this.reinitializeState();
+      this.doEncode(object, 1);
+      return this.bytes.subarray(0, this.pos);
+    } finally {
+      this.entered = false;
+    }
+  }
+  /**
+     * @returns Encodes the object and returns a copy of the encoder's internal buffer.
+     */
+  encode(object) {
+    if (this.entered) {
+      const instance = this.clone();
+      return instance.encode(object);
+    }
+    try {
+      this.entered = true;
+      this.reinitializeState();
+      this.doEncode(object, 1);
+      return this.bytes.slice(0, this.pos);
+    } finally {
+      this.entered = false;
+    }
+  }
+  doEncode(object, depth) {
+    if (depth > this.maxDepth) {
+      throw new Error(`Too deep objects in depth ${depth}`);
+    }
+    if (object == null) {
+      this.encodeNil();
+    } else if (typeof object === "boolean") {
+      this.encodeBoolean(object);
+    } else if (typeof object === "number") {
+      if (!this.forceIntegerToFloat) {
+        this.encodeNumber(object);
+      } else {
+        this.encodeNumberAsFloat(object);
+      }
+    } else if (typeof object === "string") {
+      this.encodeString(object);
+    } else if (this.useBigInt64 && typeof object === "bigint") {
+      this.encodeBigInt64(object);
     } else {
-        return Uint8Array.from(buffer);
+      this.encodeObject(object, depth);
     }
-}
-const DEFAULT_MAX_DEPTH = 100;
-const DEFAULT_INITIAL_BUFFER_SIZE = 2048;
-class Encoder {
-    constructor(options){
-        this.entered = false;
-        this.extensionCodec = options?.extensionCodec ?? ExtensionCodec.defaultCodec;
-        this.context = options?.context;
-        this.useBigInt64 = options?.useBigInt64 ?? false;
-        this.maxDepth = options?.maxDepth ?? DEFAULT_MAX_DEPTH;
-        this.initialBufferSize = options?.initialBufferSize ?? DEFAULT_INITIAL_BUFFER_SIZE;
-        this.sortKeys = options?.sortKeys ?? false;
-        this.forceFloat32 = options?.forceFloat32 ?? false;
-        this.ignoreUndefined = options?.ignoreUndefined ?? false;
-        this.forceIntegerToFloat = options?.forceIntegerToFloat ?? false;
-        this.pos = 0;
-        this.view = new DataView(new ArrayBuffer(this.initialBufferSize));
-        this.bytes = new Uint8Array(this.view.buffer);
+  }
+  ensureBufferSizeToWrite(sizeToWrite) {
+    const requiredSize = this.pos + sizeToWrite;
+    if (this.view.byteLength < requiredSize) {
+      this.resizeBuffer(requiredSize * 2);
     }
-    clone() {
-        return new Encoder({
-            extensionCodec: this.extensionCodec,
-            context: this.context,
-            useBigInt64: this.useBigInt64,
-            maxDepth: this.maxDepth,
-            initialBufferSize: this.initialBufferSize,
-            sortKeys: this.sortKeys,
-            forceFloat32: this.forceFloat32,
-            ignoreUndefined: this.ignoreUndefined,
-            forceIntegerToFloat: this.forceIntegerToFloat
-        });
+  }
+  resizeBuffer(newSize) {
+    const newBuffer = new ArrayBuffer(newSize);
+    const newBytes = new Uint8Array(newBuffer);
+    const newView = new DataView(newBuffer);
+    newBytes.set(this.bytes);
+    this.view = newView;
+    this.bytes = newBytes;
+  }
+  encodeNil() {
+    this.writeU8(192);
+  }
+  encodeBoolean(object) {
+    if (object === false) {
+      this.writeU8(194);
+    } else {
+      this.writeU8(195);
     }
-    reinitializeState() {
-        this.pos = 0;
-    }
-    encodeSharedRef(object) {
-        if (this.entered) {
-            const instance = this.clone();
-            return instance.encodeSharedRef(object);
-        }
-        try {
-            this.entered = true;
-            this.reinitializeState();
-            this.doEncode(object, 1);
-            return this.bytes.subarray(0, this.pos);
-        } finally{
-            this.entered = false;
-        }
-    }
-    encode(object) {
-        if (this.entered) {
-            const instance = this.clone();
-            return instance.encode(object);
-        }
-        try {
-            this.entered = true;
-            this.reinitializeState();
-            this.doEncode(object, 1);
-            return this.bytes.slice(0, this.pos);
-        } finally{
-            this.entered = false;
-        }
-    }
-    doEncode(object, depth) {
-        if (depth > this.maxDepth) {
-            throw new Error(`Too deep objects in depth ${depth}`);
-        }
-        if (object == null) {
-            this.encodeNil();
-        } else if (typeof object === "boolean") {
-            this.encodeBoolean(object);
-        } else if (typeof object === "number") {
-            if (!this.forceIntegerToFloat) {
-                this.encodeNumber(object);
-            } else {
-                this.encodeNumberAsFloat(object);
-            }
-        } else if (typeof object === "string") {
-            this.encodeString(object);
-        } else if (this.useBigInt64 && typeof object === "bigint") {
-            this.encodeBigInt64(object);
+  }
+  encodeNumber(object) {
+    if (!this.forceIntegerToFloat && Number.isSafeInteger(object)) {
+      if (object >= 0) {
+        if (object < 128) {
+          this.writeU8(object);
+        } else if (object < 256) {
+          this.writeU8(204);
+          this.writeU8(object);
+        } else if (object < 65536) {
+          this.writeU8(205);
+          this.writeU16(object);
+        } else if (object < 4294967296) {
+          this.writeU8(206);
+          this.writeU32(object);
+        } else if (!this.useBigInt64) {
+          this.writeU8(207);
+          this.writeU64(object);
         } else {
-            this.encodeObject(object, depth);
+          this.encodeNumberAsFloat(object);
         }
-    }
-    ensureBufferSizeToWrite(sizeToWrite) {
-        const requiredSize = this.pos + sizeToWrite;
-        if (this.view.byteLength < requiredSize) {
-            this.resizeBuffer(requiredSize * 2);
-        }
-    }
-    resizeBuffer(newSize) {
-        const newBuffer = new ArrayBuffer(newSize);
-        const newBytes = new Uint8Array(newBuffer);
-        const newView = new DataView(newBuffer);
-        newBytes.set(this.bytes);
-        this.view = newView;
-        this.bytes = newBytes;
-    }
-    encodeNil() {
-        this.writeU8(0xc0);
-    }
-    encodeBoolean(object) {
-        if (object === false) {
-            this.writeU8(0xc2);
+      } else {
+        if (object >= -32) {
+          this.writeU8(224 | object + 32);
+        } else if (object >= -128) {
+          this.writeU8(208);
+          this.writeI8(object);
+        } else if (object >= -32768) {
+          this.writeU8(209);
+          this.writeI16(object);
+        } else if (object >= -2147483648) {
+          this.writeU8(210);
+          this.writeI32(object);
+        } else if (!this.useBigInt64) {
+          this.writeU8(211);
+          this.writeI64(object);
         } else {
-            this.writeU8(0xc3);
+          this.encodeNumberAsFloat(object);
         }
+      }
+    } else {
+      this.encodeNumberAsFloat(object);
     }
-    encodeNumber(object) {
-        if (!this.forceIntegerToFloat && Number.isSafeInteger(object)) {
-            if (object >= 0) {
-                if (object < 0x80) {
-                    this.writeU8(object);
-                } else if (object < 0x100) {
-                    this.writeU8(0xcc);
-                    this.writeU8(object);
-                } else if (object < 0x10000) {
-                    this.writeU8(0xcd);
-                    this.writeU16(object);
-                } else if (object < 0x100000000) {
-                    this.writeU8(0xce);
-                    this.writeU32(object);
-                } else if (!this.useBigInt64) {
-                    this.writeU8(0xcf);
-                    this.writeU64(object);
-                } else {
-                    this.encodeNumberAsFloat(object);
-                }
-            } else {
-                if (object >= -0x20) {
-                    this.writeU8(0xe0 | object + 0x20);
-                } else if (object >= -0x80) {
-                    this.writeU8(0xd0);
-                    this.writeI8(object);
-                } else if (object >= -0x8000) {
-                    this.writeU8(0xd1);
-                    this.writeI16(object);
-                } else if (object >= -0x80000000) {
-                    this.writeU8(0xd2);
-                    this.writeI32(object);
-                } else if (!this.useBigInt64) {
-                    this.writeU8(0xd3);
-                    this.writeI64(object);
-                } else {
-                    this.encodeNumberAsFloat(object);
-                }
-            }
-        } else {
-            this.encodeNumberAsFloat(object);
-        }
+  }
+  encodeNumberAsFloat(object) {
+    if (this.forceFloat32) {
+      this.writeU8(202);
+      this.writeF32(object);
+    } else {
+      this.writeU8(203);
+      this.writeF64(object);
     }
-    encodeNumberAsFloat(object) {
-        if (this.forceFloat32) {
-            this.writeU8(0xca);
-            this.writeF32(object);
-        } else {
-            this.writeU8(0xcb);
-            this.writeF64(object);
-        }
+  }
+  encodeBigInt64(object) {
+    if (object >= BigInt(0)) {
+      this.writeU8(207);
+      this.writeBigUint64(object);
+    } else {
+      this.writeU8(211);
+      this.writeBigInt64(object);
     }
-    encodeBigInt64(object) {
-        if (object >= BigInt(0)) {
-            this.writeU8(0xcf);
-            this.writeBigUint64(object);
-        } else {
-            this.writeU8(0xd3);
-            this.writeBigInt64(object);
-        }
+  }
+  writeStringHeader(byteLength) {
+    if (byteLength < 32) {
+      this.writeU8(160 + byteLength);
+    } else if (byteLength < 256) {
+      this.writeU8(217);
+      this.writeU8(byteLength);
+    } else if (byteLength < 65536) {
+      this.writeU8(218);
+      this.writeU16(byteLength);
+    } else if (byteLength < 4294967296) {
+      this.writeU8(219);
+      this.writeU32(byteLength);
+    } else {
+      throw new Error(`Too long string: ${byteLength} bytes in UTF-8`);
     }
-    writeStringHeader(byteLength) {
-        if (byteLength < 32) {
-            this.writeU8(0xa0 + byteLength);
-        } else if (byteLength < 0x100) {
-            this.writeU8(0xd9);
-            this.writeU8(byteLength);
-        } else if (byteLength < 0x10000) {
-            this.writeU8(0xda);
-            this.writeU16(byteLength);
-        } else if (byteLength < 0x100000000) {
-            this.writeU8(0xdb);
-            this.writeU32(byteLength);
-        } else {
-            throw new Error(`Too long string: ${byteLength} bytes in UTF-8`);
-        }
+  }
+  encodeString(object) {
+    const maxHeaderSize = 1 + 4;
+    const byteLength = utf8Count(object);
+    this.ensureBufferSizeToWrite(maxHeaderSize + byteLength);
+    this.writeStringHeader(byteLength);
+    utf8Encode(object, this.bytes, this.pos);
+    this.pos += byteLength;
+  }
+  encodeObject(object, depth) {
+    const ext = this.extensionCodec.tryToEncode(object, this.context);
+    if (ext != null) {
+      this.encodeExtension(ext);
+    } else if (Array.isArray(object)) {
+      this.encodeArray(object, depth);
+    } else if (ArrayBuffer.isView(object)) {
+      this.encodeBinary(object);
+    } else if (typeof object === "object") {
+      this.encodeMap(object, depth);
+    } else {
+      throw new Error(`Unrecognized object: ${Object.prototype.toString.apply(object)}`);
     }
-    encodeString(object) {
-        const maxHeaderSize = 1 + 4;
-        const byteLength = utf8Count(object);
-        this.ensureBufferSizeToWrite(maxHeaderSize + byteLength);
-        this.writeStringHeader(byteLength);
-        utf8Encode(object, this.bytes, this.pos);
-        this.pos += byteLength;
+  }
+  encodeBinary(object) {
+    const size = object.byteLength;
+    if (size < 256) {
+      this.writeU8(196);
+      this.writeU8(size);
+    } else if (size < 65536) {
+      this.writeU8(197);
+      this.writeU16(size);
+    } else if (size < 4294967296) {
+      this.writeU8(198);
+      this.writeU32(size);
+    } else {
+      throw new Error(`Too large binary: ${size}`);
     }
-    encodeObject(object, depth) {
-        const ext = this.extensionCodec.tryToEncode(object, this.context);
-        if (ext != null) {
-            this.encodeExtension(ext);
-        } else if (Array.isArray(object)) {
-            this.encodeArray(object, depth);
-        } else if (ArrayBuffer.isView(object)) {
-            this.encodeBinary(object);
-        } else if (typeof object === "object") {
-            this.encodeMap(object, depth);
-        } else {
-            throw new Error(`Unrecognized object: ${Object.prototype.toString.apply(object)}`);
-        }
+    const bytes = ensureUint8Array(object);
+    this.writeU8a(bytes);
+  }
+  encodeArray(object, depth) {
+    const size = object.length;
+    if (size < 16) {
+      this.writeU8(144 + size);
+    } else if (size < 65536) {
+      this.writeU8(220);
+      this.writeU16(size);
+    } else if (size < 4294967296) {
+      this.writeU8(221);
+      this.writeU32(size);
+    } else {
+      throw new Error(`Too large array: ${size}`);
     }
-    encodeBinary(object) {
-        const size = object.byteLength;
-        if (size < 0x100) {
-            this.writeU8(0xc4);
-            this.writeU8(size);
-        } else if (size < 0x10000) {
-            this.writeU8(0xc5);
-            this.writeU16(size);
-        } else if (size < 0x100000000) {
-            this.writeU8(0xc6);
-            this.writeU32(size);
-        } else {
-            throw new Error(`Too large binary: ${size}`);
-        }
-        const bytes = ensureUint8Array(object);
-        this.writeU8a(bytes);
+    for (const item of object) {
+      this.doEncode(item, depth + 1);
     }
-    encodeArray(object, depth) {
-        const size = object.length;
-        if (size < 16) {
-            this.writeU8(0x90 + size);
-        } else if (size < 0x10000) {
-            this.writeU8(0xdc);
-            this.writeU16(size);
-        } else if (size < 0x100000000) {
-            this.writeU8(0xdd);
-            this.writeU32(size);
-        } else {
-            throw new Error(`Too large array: ${size}`);
-        }
-        for (const item of object){
-            this.doEncode(item, depth + 1);
-        }
+  }
+  countWithoutUndefined(object, keys) {
+    let count = 0;
+    for (const key of keys) {
+      if (object[key] !== void 0) {
+        count++;
+      }
     }
-    countWithoutUndefined(object, keys) {
-        let count = 0;
-        for (const key of keys){
-            if (object[key] !== undefined) {
-                count++;
-            }
-        }
-        return count;
+    return count;
+  }
+  encodeMap(object, depth) {
+    const keys = Object.keys(object);
+    if (this.sortKeys) {
+      keys.sort();
     }
-    encodeMap(object, depth) {
-        const keys = Object.keys(object);
-        if (this.sortKeys) {
-            keys.sort();
-        }
-        const size = this.ignoreUndefined ? this.countWithoutUndefined(object, keys) : keys.length;
-        if (size < 16) {
-            this.writeU8(0x80 + size);
-        } else if (size < 0x10000) {
-            this.writeU8(0xde);
-            this.writeU16(size);
-        } else if (size < 0x100000000) {
-            this.writeU8(0xdf);
-            this.writeU32(size);
-        } else {
-            throw new Error(`Too large map object: ${size}`);
-        }
-        for (const key of keys){
-            const value = object[key];
-            if (!(this.ignoreUndefined && value === undefined)) {
-                this.encodeString(key);
-                this.doEncode(value, depth + 1);
-            }
-        }
+    const size = this.ignoreUndefined ? this.countWithoutUndefined(object, keys) : keys.length;
+    if (size < 16) {
+      this.writeU8(128 + size);
+    } else if (size < 65536) {
+      this.writeU8(222);
+      this.writeU16(size);
+    } else if (size < 4294967296) {
+      this.writeU8(223);
+      this.writeU32(size);
+    } else {
+      throw new Error(`Too large map object: ${size}`);
     }
-    encodeExtension(ext) {
-        if (typeof ext.data === "function") {
-            const data = ext.data(this.pos + 6);
-            const size = data.length;
-            if (size >= 0x100000000) {
-                throw new Error(`Too large extension object: ${size}`);
-            }
-            this.writeU8(0xc9);
-            this.writeU32(size);
-            this.writeI8(ext.type);
-            this.writeU8a(data);
-            return;
-        }
-        const size = ext.data.length;
-        if (size === 1) {
-            this.writeU8(0xd4);
-        } else if (size === 2) {
-            this.writeU8(0xd5);
-        } else if (size === 4) {
-            this.writeU8(0xd6);
-        } else if (size === 8) {
-            this.writeU8(0xd7);
-        } else if (size === 16) {
-            this.writeU8(0xd8);
-        } else if (size < 0x100) {
-            this.writeU8(0xc7);
-            this.writeU8(size);
-        } else if (size < 0x10000) {
-            this.writeU8(0xc8);
-            this.writeU16(size);
-        } else if (size < 0x100000000) {
-            this.writeU8(0xc9);
-            this.writeU32(size);
-        } else {
-            throw new Error(`Too large extension object: ${size}`);
-        }
-        this.writeI8(ext.type);
-        this.writeU8a(ext.data);
+    for (const key of keys) {
+      const value = object[key];
+      if (!(this.ignoreUndefined && value === void 0)) {
+        this.encodeString(key);
+        this.doEncode(value, depth + 1);
+      }
     }
-    writeU8(value) {
-        this.ensureBufferSizeToWrite(1);
-        this.view.setUint8(this.pos, value);
-        this.pos++;
+  }
+  encodeExtension(ext) {
+    if (typeof ext.data === "function") {
+      const data = ext.data(this.pos + 6);
+      const size2 = data.length;
+      if (size2 >= 4294967296) {
+        throw new Error(`Too large extension object: ${size2}`);
+      }
+      this.writeU8(201);
+      this.writeU32(size2);
+      this.writeI8(ext.type);
+      this.writeU8a(data);
+      return;
     }
-    writeU8a(values) {
-        const size = values.length;
-        this.ensureBufferSizeToWrite(size);
-        this.bytes.set(values, this.pos);
-        this.pos += size;
+    const size = ext.data.length;
+    if (size === 1) {
+      this.writeU8(212);
+    } else if (size === 2) {
+      this.writeU8(213);
+    } else if (size === 4) {
+      this.writeU8(214);
+    } else if (size === 8) {
+      this.writeU8(215);
+    } else if (size === 16) {
+      this.writeU8(216);
+    } else if (size < 256) {
+      this.writeU8(199);
+      this.writeU8(size);
+    } else if (size < 65536) {
+      this.writeU8(200);
+      this.writeU16(size);
+    } else if (size < 4294967296) {
+      this.writeU8(201);
+      this.writeU32(size);
+    } else {
+      throw new Error(`Too large extension object: ${size}`);
     }
-    writeI8(value) {
-        this.ensureBufferSizeToWrite(1);
-        this.view.setInt8(this.pos, value);
-        this.pos++;
-    }
-    writeU16(value) {
-        this.ensureBufferSizeToWrite(2);
-        this.view.setUint16(this.pos, value);
-        this.pos += 2;
-    }
-    writeI16(value) {
-        this.ensureBufferSizeToWrite(2);
-        this.view.setInt16(this.pos, value);
-        this.pos += 2;
-    }
-    writeU32(value) {
-        this.ensureBufferSizeToWrite(4);
-        this.view.setUint32(this.pos, value);
-        this.pos += 4;
-    }
-    writeI32(value) {
-        this.ensureBufferSizeToWrite(4);
-        this.view.setInt32(this.pos, value);
-        this.pos += 4;
-    }
-    writeF32(value) {
-        this.ensureBufferSizeToWrite(4);
-        this.view.setFloat32(this.pos, value);
-        this.pos += 4;
-    }
-    writeF64(value) {
-        this.ensureBufferSizeToWrite(8);
-        this.view.setFloat64(this.pos, value);
-        this.pos += 8;
-    }
-    writeU64(value) {
-        this.ensureBufferSizeToWrite(8);
-        setUint64(this.view, this.pos, value);
-        this.pos += 8;
-    }
-    writeI64(value) {
-        this.ensureBufferSizeToWrite(8);
-        setInt64(this.view, this.pos, value);
-        this.pos += 8;
-    }
-    writeBigUint64(value) {
-        this.ensureBufferSizeToWrite(8);
-        this.view.setBigUint64(this.pos, value);
-        this.pos += 8;
-    }
-    writeBigInt64(value) {
-        this.ensureBufferSizeToWrite(8);
-        this.view.setBigInt64(this.pos, value);
-        this.pos += 8;
-    }
-}
-function encode(value, options) {
-    const encoder = new Encoder(options);
-    return encoder.encodeSharedRef(value);
-}
-function prettyByte(__byte) {
-    return `${__byte < 0 ? "-" : ""}0x${Math.abs(__byte).toString(16).padStart(2, "0")}`;
-}
-class CachedKeyDecoder {
-    constructor(maxKeyLength = 16, maxLengthPerKey = 16){
-        this.hit = 0;
-        this.miss = 0;
-        this.maxKeyLength = maxKeyLength;
-        this.maxLengthPerKey = maxLengthPerKey;
-        this.caches = [];
-        for(let i = 0; i < this.maxKeyLength; i++){
-            this.caches.push([]);
-        }
-    }
-    canBeCached(byteLength) {
-        return byteLength > 0 && byteLength <= this.maxKeyLength;
-    }
-    find(bytes, inputOffset, byteLength) {
-        const records = this.caches[byteLength - 1];
-        FIND_CHUNK: for (const record of records){
-            const recordBytes = record.bytes;
-            for(let j = 0; j < byteLength; j++){
-                if (recordBytes[j] !== bytes[inputOffset + j]) {
-                    continue FIND_CHUNK;
-                }
-            }
-            return record.str;
-        }
-        return null;
-    }
-    store(bytes, value) {
-        const records = this.caches[bytes.length - 1];
-        const record = {
-            bytes,
-            str: value
-        };
-        if (records.length >= this.maxLengthPerKey) {
-            records[Math.random() * records.length | 0] = record;
-        } else {
-            records.push(record);
-        }
-    }
-    decode(bytes, inputOffset, byteLength) {
-        const cachedValue = this.find(bytes, inputOffset, byteLength);
-        if (cachedValue != null) {
-            this.hit++;
-            return cachedValue;
-        }
-        this.miss++;
-        const str = utf8DecodeJs(bytes, inputOffset, byteLength);
-        const slicedCopyOfBytes = Uint8Array.prototype.slice.call(bytes, inputOffset, inputOffset + byteLength);
-        this.store(slicedCopyOfBytes, str);
-        return str;
-    }
-}
-const STATE_ARRAY = "array";
-const STATE_MAP_KEY = "map_key";
-const STATE_MAP_VALUE = "map_value";
-const mapKeyConverter = (key)=>{
-    if (typeof key === "string" || typeof key === "number") {
-        return key;
-    }
-    throw new DecodeError("The type of key must be string or number but " + typeof key);
+    this.writeI8(ext.type);
+    this.writeU8a(ext.data);
+  }
+  writeU8(value) {
+    this.ensureBufferSizeToWrite(1);
+    this.view.setUint8(this.pos, value);
+    this.pos++;
+  }
+  writeU8a(values) {
+    const size = values.length;
+    this.ensureBufferSizeToWrite(size);
+    this.bytes.set(values, this.pos);
+    this.pos += size;
+  }
+  writeI8(value) {
+    this.ensureBufferSizeToWrite(1);
+    this.view.setInt8(this.pos, value);
+    this.pos++;
+  }
+  writeU16(value) {
+    this.ensureBufferSizeToWrite(2);
+    this.view.setUint16(this.pos, value);
+    this.pos += 2;
+  }
+  writeI16(value) {
+    this.ensureBufferSizeToWrite(2);
+    this.view.setInt16(this.pos, value);
+    this.pos += 2;
+  }
+  writeU32(value) {
+    this.ensureBufferSizeToWrite(4);
+    this.view.setUint32(this.pos, value);
+    this.pos += 4;
+  }
+  writeI32(value) {
+    this.ensureBufferSizeToWrite(4);
+    this.view.setInt32(this.pos, value);
+    this.pos += 4;
+  }
+  writeF32(value) {
+    this.ensureBufferSizeToWrite(4);
+    this.view.setFloat32(this.pos, value);
+    this.pos += 4;
+  }
+  writeF64(value) {
+    this.ensureBufferSizeToWrite(8);
+    this.view.setFloat64(this.pos, value);
+    this.pos += 8;
+  }
+  writeU64(value) {
+    this.ensureBufferSizeToWrite(8);
+    setUint64(this.view, this.pos, value);
+    this.pos += 8;
+  }
+  writeI64(value) {
+    this.ensureBufferSizeToWrite(8);
+    setInt64(this.view, this.pos, value);
+    this.pos += 8;
+  }
+  writeBigUint64(value) {
+    this.ensureBufferSizeToWrite(8);
+    this.view.setBigUint64(this.pos, value);
+    this.pos += 8;
+  }
+  writeBigInt64(value) {
+    this.ensureBufferSizeToWrite(8);
+    this.view.setBigInt64(this.pos, value);
+    this.pos += 8;
+  }
 };
-class StackPool {
-    constructor(){
-        this.stack = [];
-        this.stackHeadPosition = -1;
-    }
-    get length() {
-        return this.stackHeadPosition + 1;
-    }
-    top() {
-        return this.stack[this.stackHeadPosition];
-    }
-    pushArrayState(size) {
-        const state = this.getUninitializedStateFromPool();
-        state.type = STATE_ARRAY;
-        state.position = 0;
-        state.size = size;
-        state.array = new Array(size);
-    }
-    pushMapState(size) {
-        const state = this.getUninitializedStateFromPool();
-        state.type = STATE_MAP_KEY;
-        state.readCount = 0;
-        state.size = size;
-        state.map = {};
-    }
-    getUninitializedStateFromPool() {
-        this.stackHeadPosition++;
-        if (this.stackHeadPosition === this.stack.length) {
-            const partialState = {
-                type: undefined,
-                size: 0,
-                array: undefined,
-                position: 0,
-                readCount: 0,
-                map: undefined,
-                key: null
-            };
-            this.stack.push(partialState);
-        }
-        return this.stack[this.stackHeadPosition];
-    }
-    release(state) {
-        const topStackState = this.stack[this.stackHeadPosition];
-        if (topStackState !== state) {
-            throw new Error("Invalid stack state. Released state is not on top of the stack.");
-        }
-        if (state.type === STATE_ARRAY) {
-            const partialState = state;
-            partialState.size = 0;
-            partialState.array = undefined;
-            partialState.position = 0;
-            partialState.type = undefined;
-        }
-        if (state.type === STATE_MAP_KEY || state.type === STATE_MAP_VALUE) {
-            const partialState = state;
-            partialState.size = 0;
-            partialState.map = undefined;
-            partialState.readCount = 0;
-            partialState.type = undefined;
-        }
-        this.stackHeadPosition--;
-    }
-    reset() {
-        this.stack.length = 0;
-        this.stackHeadPosition = -1;
-    }
+
+// deno:https://cdn.jsdelivr.net/npm/@msgpack/msgpack/dist.esm/encode.mjs
+function encode(value, options) {
+  const encoder = new Encoder(options);
+  return encoder.encodeSharedRef(value);
 }
-const HEAD_BYTE_REQUIRED = -1;
-const EMPTY_VIEW = new DataView(new ArrayBuffer(0));
-const EMPTY_BYTES = new Uint8Array(EMPTY_VIEW.buffer);
+
+// deno:https://cdn.jsdelivr.net/npm/@msgpack/msgpack/dist.esm/utils/prettyByte.mjs
+function prettyByte(byte) {
+  return `${byte < 0 ? "-" : ""}0x${Math.abs(byte).toString(16).padStart(2, "0")}`;
+}
+
+// deno:https://cdn.jsdelivr.net/npm/@msgpack/msgpack/dist.esm/CachedKeyDecoder.mjs
+var DEFAULT_MAX_KEY_LENGTH = 16;
+var DEFAULT_MAX_LENGTH_PER_KEY = 16;
+var CachedKeyDecoder = class {
+  hit = 0;
+  miss = 0;
+  caches;
+  maxKeyLength;
+  maxLengthPerKey;
+  constructor(maxKeyLength = DEFAULT_MAX_KEY_LENGTH, maxLengthPerKey = DEFAULT_MAX_LENGTH_PER_KEY) {
+    this.maxKeyLength = maxKeyLength;
+    this.maxLengthPerKey = maxLengthPerKey;
+    this.caches = [];
+    for (let i = 0; i < this.maxKeyLength; i++) {
+      this.caches.push([]);
+    }
+  }
+  canBeCached(byteLength) {
+    return byteLength > 0 && byteLength <= this.maxKeyLength;
+  }
+  find(bytes, inputOffset, byteLength) {
+    const records = this.caches[byteLength - 1];
+    FIND_CHUNK: for (const record of records) {
+      const recordBytes = record.bytes;
+      for (let j2 = 0; j2 < byteLength; j2++) {
+        if (recordBytes[j2] !== bytes[inputOffset + j2]) {
+          continue FIND_CHUNK;
+        }
+      }
+      return record.str;
+    }
+    return null;
+  }
+  store(bytes, value) {
+    const records = this.caches[bytes.length - 1];
+    const record = {
+      bytes,
+      str: value
+    };
+    if (records.length >= this.maxLengthPerKey) {
+      records[Math.random() * records.length | 0] = record;
+    } else {
+      records.push(record);
+    }
+  }
+  decode(bytes, inputOffset, byteLength) {
+    const cachedValue = this.find(bytes, inputOffset, byteLength);
+    if (cachedValue != null) {
+      this.hit++;
+      return cachedValue;
+    }
+    this.miss++;
+    const str = utf8DecodeJs(bytes, inputOffset, byteLength);
+    const slicedCopyOfBytes = Uint8Array.prototype.slice.call(bytes, inputOffset, inputOffset + byteLength);
+    this.store(slicedCopyOfBytes, str);
+    return str;
+  }
+};
+
+// deno:https://cdn.jsdelivr.net/npm/@msgpack/msgpack/dist.esm/Decoder.mjs
+var STATE_ARRAY = "array";
+var STATE_MAP_KEY = "map_key";
+var STATE_MAP_VALUE = "map_value";
+var mapKeyConverter = (key) => {
+  if (typeof key === "string" || typeof key === "number") {
+    return key;
+  }
+  throw new DecodeError("The type of key must be string or number but " + typeof key);
+};
+var StackPool = class {
+  stack = [];
+  stackHeadPosition = -1;
+  get length() {
+    return this.stackHeadPosition + 1;
+  }
+  top() {
+    return this.stack[this.stackHeadPosition];
+  }
+  pushArrayState(size) {
+    const state = this.getUninitializedStateFromPool();
+    state.type = STATE_ARRAY;
+    state.position = 0;
+    state.size = size;
+    state.array = new Array(size);
+  }
+  pushMapState(size) {
+    const state = this.getUninitializedStateFromPool();
+    state.type = STATE_MAP_KEY;
+    state.readCount = 0;
+    state.size = size;
+    state.map = {};
+  }
+  getUninitializedStateFromPool() {
+    this.stackHeadPosition++;
+    if (this.stackHeadPosition === this.stack.length) {
+      const partialState = {
+        type: void 0,
+        size: 0,
+        array: void 0,
+        position: 0,
+        readCount: 0,
+        map: void 0,
+        key: null
+      };
+      this.stack.push(partialState);
+    }
+    return this.stack[this.stackHeadPosition];
+  }
+  release(state) {
+    const topStackState = this.stack[this.stackHeadPosition];
+    if (topStackState !== state) {
+      throw new Error("Invalid stack state. Released state is not on top of the stack.");
+    }
+    if (state.type === STATE_ARRAY) {
+      const partialState = state;
+      partialState.size = 0;
+      partialState.array = void 0;
+      partialState.position = 0;
+      partialState.type = void 0;
+    }
+    if (state.type === STATE_MAP_KEY || state.type === STATE_MAP_VALUE) {
+      const partialState = state;
+      partialState.size = 0;
+      partialState.map = void 0;
+      partialState.readCount = 0;
+      partialState.type = void 0;
+    }
+    this.stackHeadPosition--;
+  }
+  reset() {
+    this.stack.length = 0;
+    this.stackHeadPosition = -1;
+  }
+};
+var HEAD_BYTE_REQUIRED = -1;
+var EMPTY_VIEW = new DataView(new ArrayBuffer(0));
+var EMPTY_BYTES = new Uint8Array(EMPTY_VIEW.buffer);
 try {
-    EMPTY_VIEW.getInt8(0);
+  EMPTY_VIEW.getInt8(0);
 } catch (e) {
-    if (!(e instanceof RangeError)) {
-        throw new Error("This module is not supported in the current JavaScript engine because DataView does not throw RangeError on out-of-bounds access");
-    }
+  if (!(e instanceof RangeError)) {
+    throw new Error("This module is not supported in the current JavaScript engine because DataView does not throw RangeError on out-of-bounds access");
+  }
 }
-const MORE_DATA = new RangeError("Insufficient data");
-const sharedCachedKeyDecoder = new CachedKeyDecoder();
-class Decoder {
-    constructor(options){
-        this.totalPos = 0;
-        this.pos = 0;
-        this.view = EMPTY_VIEW;
-        this.bytes = EMPTY_BYTES;
-        this.headByte = HEAD_BYTE_REQUIRED;
-        this.stack = new StackPool();
-        this.entered = false;
-        this.extensionCodec = options?.extensionCodec ?? ExtensionCodec.defaultCodec;
-        this.context = options?.context;
-        this.useBigInt64 = options?.useBigInt64 ?? false;
-        this.rawStrings = options?.rawStrings ?? false;
-        this.maxStrLength = options?.maxStrLength ?? UINT32_MAX;
-        this.maxBinLength = options?.maxBinLength ?? UINT32_MAX;
-        this.maxArrayLength = options?.maxArrayLength ?? UINT32_MAX;
-        this.maxMapLength = options?.maxMapLength ?? UINT32_MAX;
-        this.maxExtLength = options?.maxExtLength ?? UINT32_MAX;
-        this.keyDecoder = options?.keyDecoder !== undefined ? options.keyDecoder : sharedCachedKeyDecoder;
-        this.mapKeyConverter = options?.mapKeyConverter ?? mapKeyConverter;
+var MORE_DATA = new RangeError("Insufficient data");
+var sharedCachedKeyDecoder = new CachedKeyDecoder();
+var Decoder = class _Decoder {
+  extensionCodec;
+  context;
+  useBigInt64;
+  rawStrings;
+  maxStrLength;
+  maxBinLength;
+  maxArrayLength;
+  maxMapLength;
+  maxExtLength;
+  keyDecoder;
+  mapKeyConverter;
+  totalPos = 0;
+  pos = 0;
+  view = EMPTY_VIEW;
+  bytes = EMPTY_BYTES;
+  headByte = HEAD_BYTE_REQUIRED;
+  stack = new StackPool();
+  entered = false;
+  constructor(options) {
+    this.extensionCodec = options?.extensionCodec ?? ExtensionCodec.defaultCodec;
+    this.context = options?.context;
+    this.useBigInt64 = options?.useBigInt64 ?? false;
+    this.rawStrings = options?.rawStrings ?? false;
+    this.maxStrLength = options?.maxStrLength ?? UINT32_MAX;
+    this.maxBinLength = options?.maxBinLength ?? UINT32_MAX;
+    this.maxArrayLength = options?.maxArrayLength ?? UINT32_MAX;
+    this.maxMapLength = options?.maxMapLength ?? UINT32_MAX;
+    this.maxExtLength = options?.maxExtLength ?? UINT32_MAX;
+    this.keyDecoder = options?.keyDecoder !== void 0 ? options.keyDecoder : sharedCachedKeyDecoder;
+    this.mapKeyConverter = options?.mapKeyConverter ?? mapKeyConverter;
+  }
+  clone() {
+    return new _Decoder({
+      extensionCodec: this.extensionCodec,
+      context: this.context,
+      useBigInt64: this.useBigInt64,
+      rawStrings: this.rawStrings,
+      maxStrLength: this.maxStrLength,
+      maxBinLength: this.maxBinLength,
+      maxArrayLength: this.maxArrayLength,
+      maxMapLength: this.maxMapLength,
+      maxExtLength: this.maxExtLength,
+      keyDecoder: this.keyDecoder
+    });
+  }
+  reinitializeState() {
+    this.totalPos = 0;
+    this.headByte = HEAD_BYTE_REQUIRED;
+    this.stack.reset();
+  }
+  setBuffer(buffer) {
+    const bytes = ensureUint8Array(buffer);
+    this.bytes = bytes;
+    this.view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    this.pos = 0;
+  }
+  appendBuffer(buffer) {
+    if (this.headByte === HEAD_BYTE_REQUIRED && !this.hasRemaining(1)) {
+      this.setBuffer(buffer);
+    } else {
+      const remainingData = this.bytes.subarray(this.pos);
+      const newData = ensureUint8Array(buffer);
+      const newBuffer = new Uint8Array(remainingData.length + newData.length);
+      newBuffer.set(remainingData);
+      newBuffer.set(newData, remainingData.length);
+      this.setBuffer(newBuffer);
     }
-    clone() {
-        return new Decoder({
-            extensionCodec: this.extensionCodec,
-            context: this.context,
-            useBigInt64: this.useBigInt64,
-            rawStrings: this.rawStrings,
-            maxStrLength: this.maxStrLength,
-            maxBinLength: this.maxBinLength,
-            maxArrayLength: this.maxArrayLength,
-            maxMapLength: this.maxMapLength,
-            maxExtLength: this.maxExtLength,
-            keyDecoder: this.keyDecoder
-        });
+  }
+  hasRemaining(size) {
+    return this.view.byteLength - this.pos >= size;
+  }
+  createExtraByteError(posToShow) {
+    const { view, pos } = this;
+    return new RangeError(`Extra ${view.byteLength - pos} of ${view.byteLength} byte(s) found at buffer[${posToShow}]`);
+  }
+  /**
+     * @throws {@link DecodeError}
+     * @throws {@link RangeError}
+     */
+  decode(buffer) {
+    if (this.entered) {
+      const instance = this.clone();
+      return instance.decode(buffer);
     }
-    reinitializeState() {
-        this.totalPos = 0;
-        this.headByte = HEAD_BYTE_REQUIRED;
-        this.stack.reset();
+    try {
+      this.entered = true;
+      this.reinitializeState();
+      this.setBuffer(buffer);
+      const object = this.doDecodeSync();
+      if (this.hasRemaining(1)) {
+        throw this.createExtraByteError(this.pos);
+      }
+      return object;
+    } finally {
+      this.entered = false;
     }
-    setBuffer(buffer) {
-        const bytes = ensureUint8Array(buffer);
-        this.bytes = bytes;
-        this.view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-        this.pos = 0;
+  }
+  *decodeMulti(buffer) {
+    if (this.entered) {
+      const instance = this.clone();
+      yield* instance.decodeMulti(buffer);
+      return;
     }
-    appendBuffer(buffer) {
-        if (this.headByte === HEAD_BYTE_REQUIRED && !this.hasRemaining(1)) {
-            this.setBuffer(buffer);
-        } else {
-            const remainingData = this.bytes.subarray(this.pos);
-            const newData = ensureUint8Array(buffer);
-            const newBuffer = new Uint8Array(remainingData.length + newData.length);
-            newBuffer.set(remainingData);
-            newBuffer.set(newData, remainingData.length);
-            this.setBuffer(newBuffer);
+    try {
+      this.entered = true;
+      this.reinitializeState();
+      this.setBuffer(buffer);
+      while (this.hasRemaining(1)) {
+        yield this.doDecodeSync();
+      }
+    } finally {
+      this.entered = false;
+    }
+  }
+  async decodeAsync(stream) {
+    if (this.entered) {
+      const instance = this.clone();
+      return instance.decodeAsync(stream);
+    }
+    try {
+      this.entered = true;
+      let decoded = false;
+      let object;
+      for await (const buffer of stream) {
+        if (decoded) {
+          this.entered = false;
+          throw this.createExtraByteError(this.totalPos);
         }
+        this.appendBuffer(buffer);
+        try {
+          object = this.doDecodeSync();
+          decoded = true;
+        } catch (e) {
+          if (!(e instanceof RangeError)) {
+            throw e;
+          }
+        }
+        this.totalPos += this.pos;
+      }
+      if (decoded) {
+        if (this.hasRemaining(1)) {
+          throw this.createExtraByteError(this.totalPos);
+        }
+        return object;
+      }
+      const { headByte, pos, totalPos } = this;
+      throw new RangeError(`Insufficient data in parsing ${prettyByte(headByte)} at ${totalPos} (${pos} in the current buffer)`);
+    } finally {
+      this.entered = false;
     }
-    hasRemaining(size) {
-        return this.view.byteLength - this.pos >= size;
+  }
+  decodeArrayStream(stream) {
+    return this.decodeMultiAsync(stream, true);
+  }
+  decodeStream(stream) {
+    return this.decodeMultiAsync(stream, false);
+  }
+  async *decodeMultiAsync(stream, isArray) {
+    if (this.entered) {
+      const instance = this.clone();
+      yield* instance.decodeMultiAsync(stream, isArray);
+      return;
     }
-    createExtraByteError(posToShow) {
-        const { view , pos  } = this;
-        return new RangeError(`Extra ${view.byteLength - pos} of ${view.byteLength} byte(s) found at buffer[${posToShow}]`);
-    }
-    decode(buffer) {
-        if (this.entered) {
-            const instance = this.clone();
-            return instance.decode(buffer);
+    try {
+      this.entered = true;
+      let isArrayHeaderRequired = isArray;
+      let arrayItemsLeft = -1;
+      for await (const buffer of stream) {
+        if (isArray && arrayItemsLeft === 0) {
+          throw this.createExtraByteError(this.totalPos);
+        }
+        this.appendBuffer(buffer);
+        if (isArrayHeaderRequired) {
+          arrayItemsLeft = this.readArraySize();
+          isArrayHeaderRequired = false;
+          this.complete();
         }
         try {
-            this.entered = true;
-            this.reinitializeState();
-            this.setBuffer(buffer);
-            const object = this.doDecodeSync();
-            if (this.hasRemaining(1)) {
-                throw this.createExtraByteError(this.pos);
+          while (true) {
+            yield this.doDecodeSync();
+            if (--arrayItemsLeft === 0) {
+              break;
             }
-            return object;
-        } finally{
-            this.entered = false;
+          }
+        } catch (e) {
+          if (!(e instanceof RangeError)) {
+            throw e;
+          }
         }
+        this.totalPos += this.pos;
+      }
+    } finally {
+      this.entered = false;
     }
-    *decodeMulti(buffer) {
-        if (this.entered) {
-            const instance = this.clone();
-            yield* instance.decodeMulti(buffer);
-            return;
-        }
-        try {
-            this.entered = true;
-            this.reinitializeState();
-            this.setBuffer(buffer);
-            while(this.hasRemaining(1)){
-                yield this.doDecodeSync();
-            }
-        } finally{
-            this.entered = false;
-        }
-    }
-    async decodeAsync(stream) {
-        if (this.entered) {
-            const instance = this.clone();
-            return instance.decodeAsync(stream);
-        }
-        try {
-            this.entered = true;
-            let decoded = false;
-            let object;
-            for await (const buffer of stream){
-                if (decoded) {
-                    this.entered = false;
-                    throw this.createExtraByteError(this.totalPos);
-                }
-                this.appendBuffer(buffer);
-                try {
-                    object = this.doDecodeSync();
-                    decoded = true;
-                } catch (e) {
-                    if (!(e instanceof RangeError)) {
-                        throw e;
-                    }
-                }
-                this.totalPos += this.pos;
-            }
-            if (decoded) {
-                if (this.hasRemaining(1)) {
-                    throw this.createExtraByteError(this.totalPos);
-                }
-                return object;
-            }
-            const { headByte , pos , totalPos  } = this;
-            throw new RangeError(`Insufficient data in parsing ${prettyByte(headByte)} at ${totalPos} (${pos} in the current buffer)`);
-        } finally{
-            this.entered = false;
-        }
-    }
-    decodeArrayStream(stream) {
-        return this.decodeMultiAsync(stream, true);
-    }
-    decodeStream(stream) {
-        return this.decodeMultiAsync(stream, false);
-    }
-    async *decodeMultiAsync(stream, isArray) {
-        if (this.entered) {
-            const instance = this.clone();
-            yield* instance.decodeMultiAsync(stream, isArray);
-            return;
-        }
-        try {
-            this.entered = true;
-            let isArrayHeaderRequired = isArray;
-            let arrayItemsLeft = -1;
-            for await (const buffer of stream){
-                if (isArray && arrayItemsLeft === 0) {
-                    throw this.createExtraByteError(this.totalPos);
-                }
-                this.appendBuffer(buffer);
-                if (isArrayHeaderRequired) {
-                    arrayItemsLeft = this.readArraySize();
-                    isArrayHeaderRequired = false;
-                    this.complete();
-                }
-                try {
-                    while(true){
-                        yield this.doDecodeSync();
-                        if (--arrayItemsLeft === 0) {
-                            break;
-                        }
-                    }
-                } catch (e) {
-                    if (!(e instanceof RangeError)) {
-                        throw e;
-                    }
-                }
-                this.totalPos += this.pos;
-            }
-        } finally{
-            this.entered = false;
-        }
-    }
-    doDecodeSync() {
-        DECODE: while(true){
-            const headByte = this.readHeadByte();
-            let object;
-            if (headByte >= 0xe0) {
-                object = headByte - 0x100;
-            } else if (headByte < 0xc0) {
-                if (headByte < 0x80) {
-                    object = headByte;
-                } else if (headByte < 0x90) {
-                    const size = headByte - 0x80;
-                    if (size !== 0) {
-                        this.pushMapState(size);
-                        this.complete();
-                        continue DECODE;
-                    } else {
-                        object = {};
-                    }
-                } else if (headByte < 0xa0) {
-                    const size = headByte - 0x90;
-                    if (size !== 0) {
-                        this.pushArrayState(size);
-                        this.complete();
-                        continue DECODE;
-                    } else {
-                        object = [];
-                    }
-                } else {
-                    const byteLength = headByte - 0xa0;
-                    object = this.decodeString(byteLength, 0);
-                }
-            } else if (headByte === 0xc0) {
-                object = null;
-            } else if (headByte === 0xc2) {
-                object = false;
-            } else if (headByte === 0xc3) {
-                object = true;
-            } else if (headByte === 0xca) {
-                object = this.readF32();
-            } else if (headByte === 0xcb) {
-                object = this.readF64();
-            } else if (headByte === 0xcc) {
-                object = this.readU8();
-            } else if (headByte === 0xcd) {
-                object = this.readU16();
-            } else if (headByte === 0xce) {
-                object = this.readU32();
-            } else if (headByte === 0xcf) {
-                if (this.useBigInt64) {
-                    object = this.readU64AsBigInt();
-                } else {
-                    object = this.readU64();
-                }
-            } else if (headByte === 0xd0) {
-                object = this.readI8();
-            } else if (headByte === 0xd1) {
-                object = this.readI16();
-            } else if (headByte === 0xd2) {
-                object = this.readI32();
-            } else if (headByte === 0xd3) {
-                if (this.useBigInt64) {
-                    object = this.readI64AsBigInt();
-                } else {
-                    object = this.readI64();
-                }
-            } else if (headByte === 0xd9) {
-                const byteLength = this.lookU8();
-                object = this.decodeString(byteLength, 1);
-            } else if (headByte === 0xda) {
-                const byteLength = this.lookU16();
-                object = this.decodeString(byteLength, 2);
-            } else if (headByte === 0xdb) {
-                const byteLength = this.lookU32();
-                object = this.decodeString(byteLength, 4);
-            } else if (headByte === 0xdc) {
-                const size = this.readU16();
-                if (size !== 0) {
-                    this.pushArrayState(size);
-                    this.complete();
-                    continue DECODE;
-                } else {
-                    object = [];
-                }
-            } else if (headByte === 0xdd) {
-                const size = this.readU32();
-                if (size !== 0) {
-                    this.pushArrayState(size);
-                    this.complete();
-                    continue DECODE;
-                } else {
-                    object = [];
-                }
-            } else if (headByte === 0xde) {
-                const size = this.readU16();
-                if (size !== 0) {
-                    this.pushMapState(size);
-                    this.complete();
-                    continue DECODE;
-                } else {
-                    object = {};
-                }
-            } else if (headByte === 0xdf) {
-                const size = this.readU32();
-                if (size !== 0) {
-                    this.pushMapState(size);
-                    this.complete();
-                    continue DECODE;
-                } else {
-                    object = {};
-                }
-            } else if (headByte === 0xc4) {
-                const size = this.lookU8();
-                object = this.decodeBinary(size, 1);
-            } else if (headByte === 0xc5) {
-                const size = this.lookU16();
-                object = this.decodeBinary(size, 2);
-            } else if (headByte === 0xc6) {
-                const size = this.lookU32();
-                object = this.decodeBinary(size, 4);
-            } else if (headByte === 0xd4) {
-                object = this.decodeExtension(1, 0);
-            } else if (headByte === 0xd5) {
-                object = this.decodeExtension(2, 0);
-            } else if (headByte === 0xd6) {
-                object = this.decodeExtension(4, 0);
-            } else if (headByte === 0xd7) {
-                object = this.decodeExtension(8, 0);
-            } else if (headByte === 0xd8) {
-                object = this.decodeExtension(16, 0);
-            } else if (headByte === 0xc7) {
-                const size = this.lookU8();
-                object = this.decodeExtension(size, 1);
-            } else if (headByte === 0xc8) {
-                const size = this.lookU16();
-                object = this.decodeExtension(size, 2);
-            } else if (headByte === 0xc9) {
-                const size = this.lookU32();
-                object = this.decodeExtension(size, 4);
-            } else {
-                throw new DecodeError(`Unrecognized type byte: ${prettyByte(headByte)}`);
-            }
+  }
+  doDecodeSync() {
+    DECODE: while (true) {
+      const headByte = this.readHeadByte();
+      let object;
+      if (headByte >= 224) {
+        object = headByte - 256;
+      } else if (headByte < 192) {
+        if (headByte < 128) {
+          object = headByte;
+        } else if (headByte < 144) {
+          const size = headByte - 128;
+          if (size !== 0) {
+            this.pushMapState(size);
             this.complete();
-            const stack = this.stack;
-            while(stack.length > 0){
-                const state = stack.top();
-                if (state.type === STATE_ARRAY) {
-                    state.array[state.position] = object;
-                    state.position++;
-                    if (state.position === state.size) {
-                        object = state.array;
-                        stack.release(state);
-                    } else {
-                        continue DECODE;
-                    }
-                } else if (state.type === STATE_MAP_KEY) {
-                    if (object === "__proto__") {
-                        throw new DecodeError("The key __proto__ is not allowed");
-                    }
-                    state.key = this.mapKeyConverter(object);
-                    state.type = STATE_MAP_VALUE;
-                    continue DECODE;
-                } else {
-                    state.map[state.key] = object;
-                    state.readCount++;
-                    if (state.readCount === state.size) {
-                        object = state.map;
-                        stack.release(state);
-                    } else {
-                        state.key = null;
-                        state.type = STATE_MAP_KEY;
-                        continue DECODE;
-                    }
-                }
-            }
-            return object;
-        }
-    }
-    readHeadByte() {
-        if (this.headByte === HEAD_BYTE_REQUIRED) {
-            this.headByte = this.readU8();
-        }
-        return this.headByte;
-    }
-    complete() {
-        this.headByte = HEAD_BYTE_REQUIRED;
-    }
-    readArraySize() {
-        const headByte = this.readHeadByte();
-        switch(headByte){
-            case 0xdc:
-                return this.readU16();
-            case 0xdd:
-                return this.readU32();
-            default:
-                {
-                    if (headByte < 0xa0) {
-                        return headByte - 0x90;
-                    } else {
-                        throw new DecodeError(`Unrecognized array type byte: ${prettyByte(headByte)}`);
-                    }
-                }
-        }
-    }
-    pushMapState(size) {
-        if (size > this.maxMapLength) {
-            throw new DecodeError(`Max length exceeded: map length (${size}) > maxMapLengthLength (${this.maxMapLength})`);
-        }
-        this.stack.pushMapState(size);
-    }
-    pushArrayState(size) {
-        if (size > this.maxArrayLength) {
-            throw new DecodeError(`Max length exceeded: array length (${size}) > maxArrayLength (${this.maxArrayLength})`);
-        }
-        this.stack.pushArrayState(size);
-    }
-    decodeString(byteLength, headerOffset) {
-        if (!this.rawStrings || this.stateIsMapKey()) {
-            return this.decodeUtf8String(byteLength, headerOffset);
-        }
-        return this.decodeBinary(byteLength, headerOffset);
-    }
-    decodeUtf8String(byteLength, headerOffset) {
-        if (byteLength > this.maxStrLength) {
-            throw new DecodeError(`Max length exceeded: UTF-8 byte length (${byteLength}) > maxStrLength (${this.maxStrLength})`);
-        }
-        if (this.bytes.byteLength < this.pos + headerOffset + byteLength) {
-            throw MORE_DATA;
-        }
-        const offset = this.pos + headerOffset;
-        let object;
-        if (this.stateIsMapKey() && this.keyDecoder?.canBeCached(byteLength)) {
-            object = this.keyDecoder.decode(this.bytes, offset, byteLength);
+            continue DECODE;
+          } else {
+            object = {};
+          }
+        } else if (headByte < 160) {
+          const size = headByte - 144;
+          if (size !== 0) {
+            this.pushArrayState(size);
+            this.complete();
+            continue DECODE;
+          } else {
+            object = [];
+          }
         } else {
-            object = utf8Decode(this.bytes, offset, byteLength);
+          const byteLength = headByte - 160;
+          object = this.decodeString(byteLength, 0);
         }
-        this.pos += headerOffset + byteLength;
-        return object;
-    }
-    stateIsMapKey() {
-        if (this.stack.length > 0) {
-            const state = this.stack.top();
-            return state.type === STATE_MAP_KEY;
+      } else if (headByte === 192) {
+        object = null;
+      } else if (headByte === 194) {
+        object = false;
+      } else if (headByte === 195) {
+        object = true;
+      } else if (headByte === 202) {
+        object = this.readF32();
+      } else if (headByte === 203) {
+        object = this.readF64();
+      } else if (headByte === 204) {
+        object = this.readU8();
+      } else if (headByte === 205) {
+        object = this.readU16();
+      } else if (headByte === 206) {
+        object = this.readU32();
+      } else if (headByte === 207) {
+        if (this.useBigInt64) {
+          object = this.readU64AsBigInt();
+        } else {
+          object = this.readU64();
         }
-        return false;
-    }
-    decodeBinary(byteLength, headOffset) {
-        if (byteLength > this.maxBinLength) {
-            throw new DecodeError(`Max length exceeded: bin length (${byteLength}) > maxBinLength (${this.maxBinLength})`);
+      } else if (headByte === 208) {
+        object = this.readI8();
+      } else if (headByte === 209) {
+        object = this.readI16();
+      } else if (headByte === 210) {
+        object = this.readI32();
+      } else if (headByte === 211) {
+        if (this.useBigInt64) {
+          object = this.readI64AsBigInt();
+        } else {
+          object = this.readI64();
         }
-        if (!this.hasRemaining(byteLength + headOffset)) {
-            throw MORE_DATA;
+      } else if (headByte === 217) {
+        const byteLength = this.lookU8();
+        object = this.decodeString(byteLength, 1);
+      } else if (headByte === 218) {
+        const byteLength = this.lookU16();
+        object = this.decodeString(byteLength, 2);
+      } else if (headByte === 219) {
+        const byteLength = this.lookU32();
+        object = this.decodeString(byteLength, 4);
+      } else if (headByte === 220) {
+        const size = this.readU16();
+        if (size !== 0) {
+          this.pushArrayState(size);
+          this.complete();
+          continue DECODE;
+        } else {
+          object = [];
         }
-        const offset = this.pos + headOffset;
-        const object = this.bytes.subarray(offset, offset + byteLength);
-        this.pos += headOffset + byteLength;
-        return object;
-    }
-    decodeExtension(size, headOffset) {
-        if (size > this.maxExtLength) {
-            throw new DecodeError(`Max length exceeded: ext length (${size}) > maxExtLength (${this.maxExtLength})`);
+      } else if (headByte === 221) {
+        const size = this.readU32();
+        if (size !== 0) {
+          this.pushArrayState(size);
+          this.complete();
+          continue DECODE;
+        } else {
+          object = [];
         }
-        const extType = this.view.getInt8(this.pos + headOffset);
-        const data = this.decodeBinary(size, headOffset + 1);
-        return this.extensionCodec.decode(data, extType, this.context);
+      } else if (headByte === 222) {
+        const size = this.readU16();
+        if (size !== 0) {
+          this.pushMapState(size);
+          this.complete();
+          continue DECODE;
+        } else {
+          object = {};
+        }
+      } else if (headByte === 223) {
+        const size = this.readU32();
+        if (size !== 0) {
+          this.pushMapState(size);
+          this.complete();
+          continue DECODE;
+        } else {
+          object = {};
+        }
+      } else if (headByte === 196) {
+        const size = this.lookU8();
+        object = this.decodeBinary(size, 1);
+      } else if (headByte === 197) {
+        const size = this.lookU16();
+        object = this.decodeBinary(size, 2);
+      } else if (headByte === 198) {
+        const size = this.lookU32();
+        object = this.decodeBinary(size, 4);
+      } else if (headByte === 212) {
+        object = this.decodeExtension(1, 0);
+      } else if (headByte === 213) {
+        object = this.decodeExtension(2, 0);
+      } else if (headByte === 214) {
+        object = this.decodeExtension(4, 0);
+      } else if (headByte === 215) {
+        object = this.decodeExtension(8, 0);
+      } else if (headByte === 216) {
+        object = this.decodeExtension(16, 0);
+      } else if (headByte === 199) {
+        const size = this.lookU8();
+        object = this.decodeExtension(size, 1);
+      } else if (headByte === 200) {
+        const size = this.lookU16();
+        object = this.decodeExtension(size, 2);
+      } else if (headByte === 201) {
+        const size = this.lookU32();
+        object = this.decodeExtension(size, 4);
+      } else {
+        throw new DecodeError(`Unrecognized type byte: ${prettyByte(headByte)}`);
+      }
+      this.complete();
+      const stack = this.stack;
+      while (stack.length > 0) {
+        const state = stack.top();
+        if (state.type === STATE_ARRAY) {
+          state.array[state.position] = object;
+          state.position++;
+          if (state.position === state.size) {
+            object = state.array;
+            stack.release(state);
+          } else {
+            continue DECODE;
+          }
+        } else if (state.type === STATE_MAP_KEY) {
+          if (object === "__proto__") {
+            throw new DecodeError("The key __proto__ is not allowed");
+          }
+          state.key = this.mapKeyConverter(object);
+          state.type = STATE_MAP_VALUE;
+          continue DECODE;
+        } else {
+          state.map[state.key] = object;
+          state.readCount++;
+          if (state.readCount === state.size) {
+            object = state.map;
+            stack.release(state);
+          } else {
+            state.key = null;
+            state.type = STATE_MAP_KEY;
+            continue DECODE;
+          }
+        }
+      }
+      return object;
     }
-    lookU8() {
-        return this.view.getUint8(this.pos);
+  }
+  readHeadByte() {
+    if (this.headByte === HEAD_BYTE_REQUIRED) {
+      this.headByte = this.readU8();
     }
-    lookU16() {
-        return this.view.getUint16(this.pos);
+    return this.headByte;
+  }
+  complete() {
+    this.headByte = HEAD_BYTE_REQUIRED;
+  }
+  readArraySize() {
+    const headByte = this.readHeadByte();
+    switch (headByte) {
+      case 220:
+        return this.readU16();
+      case 221:
+        return this.readU32();
+      default: {
+        if (headByte < 160) {
+          return headByte - 144;
+        } else {
+          throw new DecodeError(`Unrecognized array type byte: ${prettyByte(headByte)}`);
+        }
+      }
     }
-    lookU32() {
-        return this.view.getUint32(this.pos);
+  }
+  pushMapState(size) {
+    if (size > this.maxMapLength) {
+      throw new DecodeError(`Max length exceeded: map length (${size}) > maxMapLengthLength (${this.maxMapLength})`);
     }
-    readU8() {
-        const value = this.view.getUint8(this.pos);
-        this.pos++;
-        return value;
+    this.stack.pushMapState(size);
+  }
+  pushArrayState(size) {
+    if (size > this.maxArrayLength) {
+      throw new DecodeError(`Max length exceeded: array length (${size}) > maxArrayLength (${this.maxArrayLength})`);
     }
-    readI8() {
-        const value = this.view.getInt8(this.pos);
-        this.pos++;
-        return value;
+    this.stack.pushArrayState(size);
+  }
+  decodeString(byteLength, headerOffset) {
+    if (!this.rawStrings || this.stateIsMapKey()) {
+      return this.decodeUtf8String(byteLength, headerOffset);
     }
-    readU16() {
-        const value = this.view.getUint16(this.pos);
-        this.pos += 2;
-        return value;
+    return this.decodeBinary(byteLength, headerOffset);
+  }
+  /**
+     * @throws {@link RangeError}
+     */
+  decodeUtf8String(byteLength, headerOffset) {
+    if (byteLength > this.maxStrLength) {
+      throw new DecodeError(`Max length exceeded: UTF-8 byte length (${byteLength}) > maxStrLength (${this.maxStrLength})`);
     }
-    readI16() {
-        const value = this.view.getInt16(this.pos);
-        this.pos += 2;
-        return value;
+    if (this.bytes.byteLength < this.pos + headerOffset + byteLength) {
+      throw MORE_DATA;
     }
-    readU32() {
-        const value = this.view.getUint32(this.pos);
-        this.pos += 4;
-        return value;
+    const offset = this.pos + headerOffset;
+    let object;
+    if (this.stateIsMapKey() && this.keyDecoder?.canBeCached(byteLength)) {
+      object = this.keyDecoder.decode(this.bytes, offset, byteLength);
+    } else {
+      object = utf8Decode(this.bytes, offset, byteLength);
     }
-    readI32() {
-        const value = this.view.getInt32(this.pos);
-        this.pos += 4;
-        return value;
+    this.pos += headerOffset + byteLength;
+    return object;
+  }
+  stateIsMapKey() {
+    if (this.stack.length > 0) {
+      const state = this.stack.top();
+      return state.type === STATE_MAP_KEY;
     }
-    readU64() {
-        const value = getUint64(this.view, this.pos);
-        this.pos += 8;
-        return value;
+    return false;
+  }
+  /**
+     * @throws {@link RangeError}
+     */
+  decodeBinary(byteLength, headOffset) {
+    if (byteLength > this.maxBinLength) {
+      throw new DecodeError(`Max length exceeded: bin length (${byteLength}) > maxBinLength (${this.maxBinLength})`);
     }
-    readI64() {
-        const value = getInt64(this.view, this.pos);
-        this.pos += 8;
-        return value;
+    if (!this.hasRemaining(byteLength + headOffset)) {
+      throw MORE_DATA;
     }
-    readU64AsBigInt() {
-        const value = this.view.getBigUint64(this.pos);
-        this.pos += 8;
-        return value;
+    const offset = this.pos + headOffset;
+    const object = this.bytes.subarray(offset, offset + byteLength);
+    this.pos += headOffset + byteLength;
+    return object;
+  }
+  decodeExtension(size, headOffset) {
+    if (size > this.maxExtLength) {
+      throw new DecodeError(`Max length exceeded: ext length (${size}) > maxExtLength (${this.maxExtLength})`);
     }
-    readI64AsBigInt() {
-        const value = this.view.getBigInt64(this.pos);
-        this.pos += 8;
-        return value;
-    }
-    readF32() {
-        const value = this.view.getFloat32(this.pos);
-        this.pos += 4;
-        return value;
-    }
-    readF64() {
-        const value = this.view.getFloat64(this.pos);
-        this.pos += 8;
-        return value;
-    }
-}
+    const extType = this.view.getInt8(this.pos + headOffset);
+    const data = this.decodeBinary(
+      size,
+      headOffset + 1
+      /* extType */
+    );
+    return this.extensionCodec.decode(data, extType, this.context);
+  }
+  lookU8() {
+    return this.view.getUint8(this.pos);
+  }
+  lookU16() {
+    return this.view.getUint16(this.pos);
+  }
+  lookU32() {
+    return this.view.getUint32(this.pos);
+  }
+  readU8() {
+    const value = this.view.getUint8(this.pos);
+    this.pos++;
+    return value;
+  }
+  readI8() {
+    const value = this.view.getInt8(this.pos);
+    this.pos++;
+    return value;
+  }
+  readU16() {
+    const value = this.view.getUint16(this.pos);
+    this.pos += 2;
+    return value;
+  }
+  readI16() {
+    const value = this.view.getInt16(this.pos);
+    this.pos += 2;
+    return value;
+  }
+  readU32() {
+    const value = this.view.getUint32(this.pos);
+    this.pos += 4;
+    return value;
+  }
+  readI32() {
+    const value = this.view.getInt32(this.pos);
+    this.pos += 4;
+    return value;
+  }
+  readU64() {
+    const value = getUint64(this.view, this.pos);
+    this.pos += 8;
+    return value;
+  }
+  readI64() {
+    const value = getInt64(this.view, this.pos);
+    this.pos += 8;
+    return value;
+  }
+  readU64AsBigInt() {
+    const value = this.view.getBigUint64(this.pos);
+    this.pos += 8;
+    return value;
+  }
+  readI64AsBigInt() {
+    const value = this.view.getBigInt64(this.pos);
+    this.pos += 8;
+    return value;
+  }
+  readF32() {
+    const value = this.view.getFloat32(this.pos);
+    this.pos += 4;
+    return value;
+  }
+  readF64() {
+    const value = this.view.getFloat64(this.pos);
+    this.pos += 8;
+    return value;
+  }
+};
+
+// deno:https://cdn.jsdelivr.net/npm/@msgpack/msgpack/dist.esm/decode.mjs
 function decode(buffer, options) {
-    const decoder = new Decoder(options);
-    return decoder.decode(buffer);
+  const decoder = new Decoder(options);
+  return decoder.decode(buffer);
 }
+
+// deno:https://cdn.esm.sh/v66/pako@2.0.4/es2021/pako.js
 function _e(e) {
-    let i = e.length;
-    for(; --i >= 0;)e[i] = 0;
+  let i = e.length;
+  for (; --i >= 0; ) e[i] = 0;
 }
-var $i = 0, ai = 1, Ci = 2, Fi = 3, Mi = 258, dt = 29, Ae = 256, ge = Ae + 1 + dt, oe = 30, st = 19, ni = 2 * ge + 1, Q = 15, Ge = 16, Hi = 7, ct = 256, li = 16, ri = 17, fi = 18, ft = new Uint8Array([
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    1,
-    1,
-    1,
-    1,
-    2,
-    2,
-    2,
-    2,
-    3,
-    3,
-    3,
-    3,
-    4,
-    4,
-    4,
-    4,
-    5,
-    5,
-    5,
-    5,
-    0
-]), $e = new Uint8Array([
-    0,
-    0,
-    0,
-    0,
-    1,
-    1,
-    2,
-    2,
-    3,
-    3,
-    4,
-    4,
-    5,
-    5,
-    6,
-    6,
-    7,
-    7,
-    8,
-    8,
-    9,
-    9,
-    10,
-    10,
-    11,
-    11,
-    12,
-    12,
-    13,
-    13
-]), Bi = new Uint8Array([
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    2,
-    3,
-    7
-]), oi = new Uint8Array([
+var $i = 0;
+var ai = 1;
+var Ci = 2;
+var Fi = 3;
+var Mi = 258;
+var dt = 29;
+var Ae = 256;
+var ge = Ae + 1 + dt;
+var oe = 30;
+var st = 19;
+var ni = 2 * ge + 1;
+var Q = 15;
+var Ge = 16;
+var Hi = 7;
+var ct = 256;
+var li = 16;
+var ri = 17;
+var fi = 18;
+var ft = new Uint8Array([
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  1,
+  1,
+  1,
+  1,
+  2,
+  2,
+  2,
+  2,
+  3,
+  3,
+  3,
+  3,
+  4,
+  4,
+  4,
+  4,
+  5,
+  5,
+  5,
+  5,
+  0
+]);
+var $e = new Uint8Array([
+  0,
+  0,
+  0,
+  0,
+  1,
+  1,
+  2,
+  2,
+  3,
+  3,
+  4,
+  4,
+  5,
+  5,
+  6,
+  6,
+  7,
+  7,
+  8,
+  8,
+  9,
+  9,
+  10,
+  10,
+  11,
+  11,
+  12,
+  12,
+  13,
+  13
+]);
+var Bi = new Uint8Array([
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  2,
+  3,
+  7
+]);
+var oi = new Uint8Array([
+  16,
+  17,
+  18,
+  0,
+  8,
+  7,
+  9,
+  6,
+  10,
+  5,
+  11,
+  4,
+  12,
+  3,
+  13,
+  2,
+  14,
+  1,
+  15
+]);
+var Ki = 512;
+var B = new Array((ge + 2) * 2);
+_e(B);
+var ue = new Array(oe * 2);
+_e(ue);
+var pe = new Array(Ki);
+_e(pe);
+var xe = new Array(Mi - Fi + 1);
+_e(xe);
+var ut = new Array(dt);
+_e(ut);
+var He = new Array(oe);
+_e(He);
+function je(e, i, t, n, a) {
+  this.static_tree = e, this.extra_bits = i, this.extra_base = t, this.elems = n, this.max_length = a, this.has_stree = e && e.length;
+}
+var _i;
+var hi;
+var di;
+function We(e, i) {
+  this.dyn_tree = e, this.max_code = 0, this.stat_desc = i;
+}
+var si = (e) => e < 256 ? pe[e] : pe[256 + (e >>> 7)];
+var ke = (e, i) => {
+  e.pending_buf[e.pending++] = i & 255, e.pending_buf[e.pending++] = i >>> 8 & 255;
+};
+var N = (e, i, t) => {
+  e.bi_valid > Ge - t ? (e.bi_buf |= i << e.bi_valid & 65535, ke(e, e.bi_buf), e.bi_buf = i >> Ge - e.bi_valid, e.bi_valid += t - Ge) : (e.bi_buf |= i << e.bi_valid & 65535, e.bi_valid += t);
+};
+var F = (e, i, t) => {
+  N(e, t[i * 2], t[i * 2 + 1]);
+};
+var ci = (e, i) => {
+  let t = 0;
+  do
+    t |= e & 1, e >>>= 1, t <<= 1;
+  while (--i > 0);
+  return t >>> 1;
+};
+var Pi = (e) => {
+  e.bi_valid === 16 ? (ke(e, e.bi_buf), e.bi_buf = 0, e.bi_valid = 0) : e.bi_valid >= 8 && (e.pending_buf[e.pending++] = e.bi_buf & 255, e.bi_buf >>= 8, e.bi_valid -= 8);
+};
+var Xi = (e, i) => {
+  let t = i.dyn_tree, n = i.max_code, a = i.stat_desc.static_tree, l = i.stat_desc.has_stree, o = i.stat_desc.extra_bits, f = i.stat_desc.extra_base, c = i.stat_desc.max_length, r2, _, E3, s, h, u3, m3 = 0;
+  for (s = 0; s <= Q; s++) e.bl_count[s] = 0;
+  for (t[e.heap[e.heap_max] * 2 + 1] = 0, r2 = e.heap_max + 1; r2 < ni; r2++) _ = e.heap[r2], s = t[t[_ * 2 + 1] * 2 + 1] + 1, s > c && (s = c, m3++), t[_ * 2 + 1] = s, !(_ > n) && (e.bl_count[s]++, h = 0, _ >= f && (h = o[_ - f]), u3 = t[_ * 2], e.opt_len += u3 * (s + h), l && (e.static_len += u3 * (a[_ * 2 + 1] + h)));
+  if (m3 !== 0) {
+    do {
+      for (s = c - 1; e.bl_count[s] === 0; ) s--;
+      e.bl_count[s]--, e.bl_count[s + 1] += 2, e.bl_count[c]--, m3 -= 2;
+    } while (m3 > 0);
+    for (s = c; s !== 0; s--) for (_ = e.bl_count[s]; _ !== 0; ) E3 = e.heap[--r2], !(E3 > n) && (t[E3 * 2 + 1] !== s && (e.opt_len += (s - t[E3 * 2 + 1]) * t[E3 * 2], t[E3 * 2 + 1] = s), _--);
+  }
+};
+var ui = (e, i, t) => {
+  let n = new Array(Q + 1), a = 0, l, o;
+  for (l = 1; l <= Q; l++) n[l] = a = a + t[l - 1] << 1;
+  for (o = 0; o <= i; o++) {
+    let f = e[o * 2 + 1];
+    f !== 0 && (e[o * 2] = ci(n[f]++, f));
+  }
+};
+var Yi = () => {
+  let e, i, t, n, a, l = new Array(Q + 1);
+  for (t = 0, n = 0; n < dt - 1; n++) for (ut[n] = t, e = 0; e < 1 << ft[n]; e++) xe[t++] = n;
+  for (xe[t - 1] = n, a = 0, n = 0; n < 16; n++) for (He[n] = a, e = 0; e < 1 << $e[n]; e++) pe[a++] = n;
+  for (a >>= 7; n < oe; n++) for (He[n] = a << 7, e = 0; e < 1 << $e[n] - 7; e++) pe[256 + a++] = n;
+  for (i = 0; i <= Q; i++) l[i] = 0;
+  for (e = 0; e <= 143; ) B[e * 2 + 1] = 8, e++, l[8]++;
+  for (; e <= 255; ) B[e * 2 + 1] = 9, e++, l[9]++;
+  for (; e <= 279; ) B[e * 2 + 1] = 7, e++, l[7]++;
+  for (; e <= 287; ) B[e * 2 + 1] = 8, e++, l[8]++;
+  for (ui(B, ge + 1, l), e = 0; e < oe; e++) ue[e * 2 + 1] = 5, ue[e * 2] = ci(e, 5);
+  _i = new je(B, ft, Ae + 1, ge, Q), hi = new je(ue, $e, 0, oe, Q), di = new je(new Array(0), Bi, 0, st, Hi);
+};
+var bi = (e) => {
+  let i;
+  for (i = 0; i < ge; i++) e.dyn_ltree[i * 2] = 0;
+  for (i = 0; i < oe; i++) e.dyn_dtree[i * 2] = 0;
+  for (i = 0; i < st; i++) e.bl_tree[i * 2] = 0;
+  e.dyn_ltree[ct * 2] = 1, e.opt_len = e.static_len = 0, e.last_lit = e.matches = 0;
+};
+var wi = (e) => {
+  e.bi_valid > 8 ? ke(e, e.bi_buf) : e.bi_valid > 0 && (e.pending_buf[e.pending++] = e.bi_buf), e.bi_buf = 0, e.bi_valid = 0;
+};
+var Gi = (e, i, t, n) => {
+  wi(e), n && (ke(e, t), ke(e, ~t)), e.pending_buf.set(e.window.subarray(i, i + t), e.pending), e.pending += t;
+};
+var xt = (e, i, t, n) => {
+  let a = i * 2, l = t * 2;
+  return e[a] < e[l] || e[a] === e[l] && n[i] <= n[t];
+};
+var Ve = (e, i, t) => {
+  let n = e.heap[t], a = t << 1;
+  for (; a <= e.heap_len && (a < e.heap_len && xt(i, e.heap[a + 1], e.heap[a], e.depth) && a++, !xt(i, n, e.heap[a], e.depth)); ) e.heap[t] = e.heap[a], t = a, a <<= 1;
+  e.heap[t] = n;
+};
+var kt = (e, i, t) => {
+  let n, a, l = 0, o, f;
+  if (e.last_lit !== 0) do
+    n = e.pending_buf[e.d_buf + l * 2] << 8 | e.pending_buf[e.d_buf + l * 2 + 1], a = e.pending_buf[e.l_buf + l], l++, n === 0 ? F(e, a, i) : (o = xe[a], F(e, o + Ae + 1, i), f = ft[o], f !== 0 && (a -= ut[o], N(e, a, f)), n--, o = si(n), F(e, o, t), f = $e[o], f !== 0 && (n -= He[o], N(e, n, f)));
+  while (l < e.last_lit);
+  F(e, ct, i);
+};
+var ot = (e, i) => {
+  let t = i.dyn_tree, n = i.stat_desc.static_tree, a = i.stat_desc.has_stree, l = i.stat_desc.elems, o, f, c = -1, r2;
+  for (e.heap_len = 0, e.heap_max = ni, o = 0; o < l; o++) t[o * 2] !== 0 ? (e.heap[++e.heap_len] = c = o, e.depth[o] = 0) : t[o * 2 + 1] = 0;
+  for (; e.heap_len < 2; ) r2 = e.heap[++e.heap_len] = c < 2 ? ++c : 0, t[r2 * 2] = 1, e.depth[r2] = 0, e.opt_len--, a && (e.static_len -= n[r2 * 2 + 1]);
+  for (i.max_code = c, o = e.heap_len >> 1; o >= 1; o--) Ve(e, t, o);
+  r2 = l;
+  do
+    o = e.heap[1], e.heap[1] = e.heap[e.heap_len--], Ve(e, t, 1), f = e.heap[1], e.heap[--e.heap_max] = o, e.heap[--e.heap_max] = f, t[r2 * 2] = t[o * 2] + t[f * 2], e.depth[r2] = (e.depth[o] >= e.depth[f] ? e.depth[o] : e.depth[f]) + 1, t[o * 2 + 1] = t[f * 2 + 1] = r2, e.heap[1] = r2++, Ve(e, t, 1);
+  while (e.heap_len >= 2);
+  e.heap[--e.heap_max] = e.heap[1], Xi(e, i), ui(t, c, e.bl_count);
+};
+var vt = (e, i, t) => {
+  let n, a = -1, l, o = i[0 * 2 + 1], f = 0, c = 7, r2 = 4;
+  for (o === 0 && (c = 138, r2 = 3), i[(t + 1) * 2 + 1] = 65535, n = 0; n <= t; n++) l = o, o = i[(n + 1) * 2 + 1], !(++f < c && l === o) && (f < r2 ? e.bl_tree[l * 2] += f : l !== 0 ? (l !== a && e.bl_tree[l * 2]++, e.bl_tree[li * 2]++) : f <= 10 ? e.bl_tree[ri * 2]++ : e.bl_tree[fi * 2]++, f = 0, a = l, o === 0 ? (c = 138, r2 = 3) : l === o ? (c = 6, r2 = 3) : (c = 7, r2 = 4));
+};
+var Et = (e, i, t) => {
+  let n, a = -1, l, o = i[0 * 2 + 1], f = 0, c = 7, r2 = 4;
+  for (o === 0 && (c = 138, r2 = 3), n = 0; n <= t; n++) if (l = o, o = i[(n + 1) * 2 + 1], !(++f < c && l === o)) {
+    if (f < r2) do
+      F(e, l, e.bl_tree);
+    while (--f !== 0);
+    else l !== 0 ? (l !== a && (F(e, l, e.bl_tree), f--), F(e, li, e.bl_tree), N(e, f - 3, 2)) : f <= 10 ? (F(e, ri, e.bl_tree), N(e, f - 3, 3)) : (F(e, fi, e.bl_tree), N(e, f - 11, 7));
+    f = 0, a = l, o === 0 ? (c = 138, r2 = 3) : l === o ? (c = 6, r2 = 3) : (c = 7, r2 = 4);
+  }
+};
+var ji = (e) => {
+  let i;
+  for (vt(e, e.dyn_ltree, e.l_desc.max_code), vt(e, e.dyn_dtree, e.d_desc.max_code), ot(e, e.bl_desc), i = st - 1; i >= 3 && e.bl_tree[oi[i] * 2 + 1] === 0; i--) ;
+  return e.opt_len += 3 * (i + 1) + 5 + 5 + 4, i;
+};
+var Wi = (e, i, t, n) => {
+  let a;
+  for (N(e, i - 257, 5), N(e, t - 1, 5), N(e, n - 4, 4), a = 0; a < n; a++) N(e, e.bl_tree[oi[a] * 2 + 1], 3);
+  Et(e, e.dyn_ltree, i - 1), Et(e, e.dyn_dtree, t - 1);
+};
+var Vi = (e) => {
+  let i = 4093624447, t;
+  for (t = 0; t <= 31; t++, i >>>= 1) if (i & 1 && e.dyn_ltree[t * 2] !== 0) return 0;
+  if (e.dyn_ltree[9 * 2] !== 0 || e.dyn_ltree[10 * 2] !== 0 || e.dyn_ltree[13 * 2] !== 0) return 1;
+  for (t = 32; t < Ae; t++) if (e.dyn_ltree[t * 2] !== 0) return 1;
+  return 0;
+};
+var yt = false;
+var Ji = (e) => {
+  yt || (Yi(), yt = true), e.l_desc = new We(e.dyn_ltree, _i), e.d_desc = new We(e.dyn_dtree, hi), e.bl_desc = new We(e.bl_tree, di), e.bi_buf = 0, e.bi_valid = 0, bi(e);
+};
+var gi = (e, i, t, n) => {
+  N(e, ($i << 1) + (n ? 1 : 0), 3), Gi(e, i, t, true);
+};
+var Qi = (e) => {
+  N(e, ai << 1, 3), F(e, ct, B), Pi(e);
+};
+var qi = (e, i, t, n) => {
+  let a, l, o = 0;
+  e.level > 0 ? (e.strm.data_type === 2 && (e.strm.data_type = Vi(e)), ot(e, e.l_desc), ot(e, e.d_desc), o = ji(e), a = e.opt_len + 3 + 7 >>> 3, l = e.static_len + 3 + 7 >>> 3, l <= a && (a = l)) : a = l = t + 5, t + 4 <= a && i !== -1 ? gi(e, i, t, n) : e.strategy === 4 || l === a ? (N(e, (ai << 1) + (n ? 1 : 0), 3), kt(e, B, ue)) : (N(e, (Ci << 1) + (n ? 1 : 0), 3), Wi(e, e.l_desc.max_code + 1, e.d_desc.max_code + 1, o + 1), kt(e, e.dyn_ltree, e.dyn_dtree)), bi(e), n && wi(e);
+};
+var ea = (e, i, t) => (e.pending_buf[e.d_buf + e.last_lit * 2] = i >>> 8 & 255, e.pending_buf[e.d_buf + e.last_lit * 2 + 1] = i & 255, e.pending_buf[e.l_buf + e.last_lit] = t & 255, e.last_lit++, i === 0 ? e.dyn_ltree[t * 2]++ : (e.matches++, i--, e.dyn_ltree[(xe[t] + Ae + 1) * 2]++, e.dyn_dtree[si(i) * 2]++), e.last_lit === e.lit_bufsize - 1);
+var ta = Ji;
+var ia = gi;
+var aa = qi;
+var na = ea;
+var la = Qi;
+var ra = {
+  _tr_init: ta,
+  _tr_stored_block: ia,
+  _tr_flush_block: aa,
+  _tr_tally: na,
+  _tr_align: la
+};
+var fa = (e, i, t, n) => {
+  let a = e & 65535 | 0, l = e >>> 16 & 65535 | 0, o = 0;
+  for (; t !== 0; ) {
+    o = t > 2e3 ? 2e3 : t, t -= o;
+    do
+      a = a + i[n++] | 0, l = l + a | 0;
+    while (--o);
+    a %= 65521, l %= 65521;
+  }
+  return a | l << 16 | 0;
+};
+var ve = fa;
+var oa = () => {
+  let e, i = [];
+  for (var t = 0; t < 256; t++) {
+    e = t;
+    for (var n = 0; n < 8; n++) e = e & 1 ? 3988292384 ^ e >>> 1 : e >>> 1;
+    i[t] = e;
+  }
+  return i;
+};
+var _a = new Uint32Array(oa());
+var ha = (e, i, t, n) => {
+  let a = _a, l = n + t;
+  e ^= -1;
+  for (let o = n; o < l; o++) e = e >>> 8 ^ a[(e ^ i[o]) & 255];
+  return e ^ -1;
+};
+var I = ha;
+var ee = {
+  2: "need dictionary",
+  1: "stream end",
+  0: "",
+  "-1": "file error",
+  "-2": "stream error",
+  "-3": "data error",
+  "-4": "insufficient memory",
+  "-5": "buffer error",
+  "-6": "incompatible version"
+};
+var ne = {
+  Z_NO_FLUSH: 0,
+  Z_PARTIAL_FLUSH: 1,
+  Z_SYNC_FLUSH: 2,
+  Z_FULL_FLUSH: 3,
+  Z_FINISH: 4,
+  Z_BLOCK: 5,
+  Z_TREES: 6,
+  Z_OK: 0,
+  Z_STREAM_END: 1,
+  Z_NEED_DICT: 2,
+  Z_ERRNO: -1,
+  Z_STREAM_ERROR: -2,
+  Z_DATA_ERROR: -3,
+  Z_MEM_ERROR: -4,
+  Z_BUF_ERROR: -5,
+  Z_NO_COMPRESSION: 0,
+  Z_BEST_SPEED: 1,
+  Z_BEST_COMPRESSION: 9,
+  Z_DEFAULT_COMPRESSION: -1,
+  Z_FILTERED: 1,
+  Z_HUFFMAN_ONLY: 2,
+  Z_RLE: 3,
+  Z_FIXED: 4,
+  Z_DEFAULT_STRATEGY: 0,
+  Z_BINARY: 0,
+  Z_TEXT: 1,
+  Z_UNKNOWN: 2,
+  Z_DEFLATED: 8
+};
+var { _tr_init: da, _tr_stored_block: sa, _tr_flush_block: ca, _tr_tally: j, _tr_align: ua } = ra;
+var { Z_NO_FLUSH: le, Z_PARTIAL_FLUSH: ba, Z_FULL_FLUSH: wa, Z_FINISH: W, Z_BLOCK: St, Z_OK: M, Z_STREAM_END: At, Z_STREAM_ERROR: L, Z_DATA_ERROR: ga, Z_BUF_ERROR: Je, Z_DEFAULT_COMPRESSION: pa, Z_FILTERED: xa, Z_HUFFMAN_ONLY: Ie, Z_RLE: ka, Z_FIXED: va, Z_DEFAULT_STRATEGY: Ea, Z_UNKNOWN: ya, Z_DEFLATED: Pe } = ne;
+var Sa = 9;
+var Aa = 15;
+var Ra = 8;
+var za = 29;
+var Ta = 256;
+var _t = Ta + 1 + za;
+var ma = 30;
+var Da = 19;
+var Za = 2 * _t + 1;
+var Ia = 15;
+var k = 3;
+var Y = 258;
+var $ = Y + k + 1;
+var Oa = 32;
+var Xe = 42;
+var ht = 69;
+var Ce = 73;
+var Fe = 91;
+var Me = 103;
+var q = 113;
+var se = 666;
+var D = 1;
+var Re = 2;
+var te = 3;
+var he = 4;
+var Na = 3;
+var G = (e, i) => (e.msg = ee[i], i);
+var Rt = (e) => (e << 1) - (e > 4 ? 9 : 0);
+var X = (e) => {
+  let i = e.length;
+  for (; --i >= 0; ) e[i] = 0;
+};
+var La = (e, i, t) => (i << e.hash_shift ^ t) & e.hash_mask;
+var V = La;
+var P = (e) => {
+  let i = e.state, t = i.pending;
+  t > e.avail_out && (t = e.avail_out), t !== 0 && (e.output.set(i.pending_buf.subarray(i.pending_out, i.pending_out + t), e.next_out), e.next_out += t, i.pending_out += t, e.total_out += t, e.avail_out -= t, i.pending -= t, i.pending === 0 && (i.pending_out = 0));
+};
+var O = (e, i) => {
+  ca(e, e.block_start >= 0 ? e.block_start : -1, e.strstart - e.block_start, i), e.block_start = e.strstart, P(e.strm);
+};
+var y = (e, i) => {
+  e.pending_buf[e.pending++] = i;
+};
+var de = (e, i) => {
+  e.pending_buf[e.pending++] = i >>> 8 & 255, e.pending_buf[e.pending++] = i & 255;
+};
+var Ua = (e, i, t, n) => {
+  let a = e.avail_in;
+  return a > n && (a = n), a === 0 ? 0 : (e.avail_in -= a, i.set(e.input.subarray(e.next_in, e.next_in + a), t), e.state.wrap === 1 ? e.adler = ve(e.adler, i, a, t) : e.state.wrap === 2 && (e.adler = I(e.adler, i, a, t)), e.next_in += a, e.total_in += a, a);
+};
+var pi = (e, i) => {
+  let t = e.max_chain_length, n = e.strstart, a, l, o = e.prev_length, f = e.nice_match, c = e.strstart > e.w_size - $ ? e.strstart - (e.w_size - $) : 0, r2 = e.window, _ = e.w_mask, E3 = e.prev, s = e.strstart + Y, h = r2[n + o - 1], u3 = r2[n + o];
+  e.prev_length >= e.good_match && (t >>= 2), f > e.lookahead && (f = e.lookahead);
+  do
+    if (a = i, !(r2[a + o] !== u3 || r2[a + o - 1] !== h || r2[a] !== r2[n] || r2[++a] !== r2[n + 1])) {
+      n += 2, a++;
+      do
+        ;
+      while (r2[++n] === r2[++a] && r2[++n] === r2[++a] && r2[++n] === r2[++a] && r2[++n] === r2[++a] && r2[++n] === r2[++a] && r2[++n] === r2[++a] && r2[++n] === r2[++a] && r2[++n] === r2[++a] && n < s);
+      if (l = Y - (s - n), n = s - Y, l > o) {
+        if (e.match_start = i, o = l, l >= f) break;
+        h = r2[n + o - 1], u3 = r2[n + o];
+      }
+    }
+  while ((i = E3[i & _]) > c && --t !== 0);
+  return o <= e.lookahead ? o : e.lookahead;
+};
+var ie = (e) => {
+  let i = e.w_size, t, n, a, l, o;
+  do {
+    if (l = e.window_size - e.lookahead - e.strstart, e.strstart >= i + (i - $)) {
+      e.window.set(e.window.subarray(i, i + i), 0), e.match_start -= i, e.strstart -= i, e.block_start -= i, n = e.hash_size, t = n;
+      do
+        a = e.head[--t], e.head[t] = a >= i ? a - i : 0;
+      while (--n);
+      n = i, t = n;
+      do
+        a = e.prev[--t], e.prev[t] = a >= i ? a - i : 0;
+      while (--n);
+      l += i;
+    }
+    if (e.strm.avail_in === 0) break;
+    if (n = Ua(e.strm, e.window, e.strstart + e.lookahead, l), e.lookahead += n, e.lookahead + e.insert >= k) for (o = e.strstart - e.insert, e.ins_h = e.window[o], e.ins_h = V(e, e.ins_h, e.window[o + 1]); e.insert && (e.ins_h = V(e, e.ins_h, e.window[o + k - 1]), e.prev[o & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = o, o++, e.insert--, !(e.lookahead + e.insert < k)); ) ;
+  } while (e.lookahead < $ && e.strm.avail_in !== 0);
+};
+var $a = (e, i) => {
+  let t = 65535;
+  for (t > e.pending_buf_size - 5 && (t = e.pending_buf_size - 5); ; ) {
+    if (e.lookahead <= 1) {
+      if (ie(e), e.lookahead === 0 && i === le) return D;
+      if (e.lookahead === 0) break;
+    }
+    e.strstart += e.lookahead, e.lookahead = 0;
+    let n = e.block_start + t;
+    if ((e.strstart === 0 || e.strstart >= n) && (e.lookahead = e.strstart - n, e.strstart = n, O(e, false), e.strm.avail_out === 0) || e.strstart - e.block_start >= e.w_size - $ && (O(e, false), e.strm.avail_out === 0)) return D;
+  }
+  return e.insert = 0, i === W ? (O(e, true), e.strm.avail_out === 0 ? te : he) : (e.strstart > e.block_start && (O(e, false), e.strm.avail_out === 0), D);
+};
+var Qe = (e, i) => {
+  let t, n;
+  for (; ; ) {
+    if (e.lookahead < $) {
+      if (ie(e), e.lookahead < $ && i === le) return D;
+      if (e.lookahead === 0) break;
+    }
+    if (t = 0, e.lookahead >= k && (e.ins_h = V(e, e.ins_h, e.window[e.strstart + k - 1]), t = e.prev[e.strstart & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = e.strstart), t !== 0 && e.strstart - t <= e.w_size - $ && (e.match_length = pi(e, t)), e.match_length >= k) if (n = j(e, e.strstart - e.match_start, e.match_length - k), e.lookahead -= e.match_length, e.match_length <= e.max_lazy_match && e.lookahead >= k) {
+      e.match_length--;
+      do
+        e.strstart++, e.ins_h = V(e, e.ins_h, e.window[e.strstart + k - 1]), t = e.prev[e.strstart & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = e.strstart;
+      while (--e.match_length !== 0);
+      e.strstart++;
+    } else e.strstart += e.match_length, e.match_length = 0, e.ins_h = e.window[e.strstart], e.ins_h = V(e, e.ins_h, e.window[e.strstart + 1]);
+    else n = j(e, 0, e.window[e.strstart]), e.lookahead--, e.strstart++;
+    if (n && (O(e, false), e.strm.avail_out === 0)) return D;
+  }
+  return e.insert = e.strstart < k - 1 ? e.strstart : k - 1, i === W ? (O(e, true), e.strm.avail_out === 0 ? te : he) : e.last_lit && (O(e, false), e.strm.avail_out === 0) ? D : Re;
+};
+var re = (e, i) => {
+  let t, n, a;
+  for (; ; ) {
+    if (e.lookahead < $) {
+      if (ie(e), e.lookahead < $ && i === le) return D;
+      if (e.lookahead === 0) break;
+    }
+    if (t = 0, e.lookahead >= k && (e.ins_h = V(e, e.ins_h, e.window[e.strstart + k - 1]), t = e.prev[e.strstart & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = e.strstart), e.prev_length = e.match_length, e.prev_match = e.match_start, e.match_length = k - 1, t !== 0 && e.prev_length < e.max_lazy_match && e.strstart - t <= e.w_size - $ && (e.match_length = pi(e, t), e.match_length <= 5 && (e.strategy === xa || e.match_length === k && e.strstart - e.match_start > 4096) && (e.match_length = k - 1)), e.prev_length >= k && e.match_length <= e.prev_length) {
+      a = e.strstart + e.lookahead - k, n = j(e, e.strstart - 1 - e.prev_match, e.prev_length - k), e.lookahead -= e.prev_length - 1, e.prev_length -= 2;
+      do
+        ++e.strstart <= a && (e.ins_h = V(e, e.ins_h, e.window[e.strstart + k - 1]), t = e.prev[e.strstart & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = e.strstart);
+      while (--e.prev_length !== 0);
+      if (e.match_available = 0, e.match_length = k - 1, e.strstart++, n && (O(e, false), e.strm.avail_out === 0)) return D;
+    } else if (e.match_available) {
+      if (n = j(e, 0, e.window[e.strstart - 1]), n && O(e, false), e.strstart++, e.lookahead--, e.strm.avail_out === 0) return D;
+    } else e.match_available = 1, e.strstart++, e.lookahead--;
+  }
+  return e.match_available && (n = j(e, 0, e.window[e.strstart - 1]), e.match_available = 0), e.insert = e.strstart < k - 1 ? e.strstart : k - 1, i === W ? (O(e, true), e.strm.avail_out === 0 ? te : he) : e.last_lit && (O(e, false), e.strm.avail_out === 0) ? D : Re;
+};
+var Ca = (e, i) => {
+  let t, n, a, l, o = e.window;
+  for (; ; ) {
+    if (e.lookahead <= Y) {
+      if (ie(e), e.lookahead <= Y && i === le) return D;
+      if (e.lookahead === 0) break;
+    }
+    if (e.match_length = 0, e.lookahead >= k && e.strstart > 0 && (a = e.strstart - 1, n = o[a], n === o[++a] && n === o[++a] && n === o[++a])) {
+      l = e.strstart + Y;
+      do
+        ;
+      while (n === o[++a] && n === o[++a] && n === o[++a] && n === o[++a] && n === o[++a] && n === o[++a] && n === o[++a] && n === o[++a] && a < l);
+      e.match_length = Y - (l - a), e.match_length > e.lookahead && (e.match_length = e.lookahead);
+    }
+    if (e.match_length >= k ? (t = j(e, 1, e.match_length - k), e.lookahead -= e.match_length, e.strstart += e.match_length, e.match_length = 0) : (t = j(e, 0, e.window[e.strstart]), e.lookahead--, e.strstart++), t && (O(e, false), e.strm.avail_out === 0)) return D;
+  }
+  return e.insert = 0, i === W ? (O(e, true), e.strm.avail_out === 0 ? te : he) : e.last_lit && (O(e, false), e.strm.avail_out === 0) ? D : Re;
+};
+var Fa = (e, i) => {
+  let t;
+  for (; ; ) {
+    if (e.lookahead === 0 && (ie(e), e.lookahead === 0)) {
+      if (i === le) return D;
+      break;
+    }
+    if (e.match_length = 0, t = j(e, 0, e.window[e.strstart]), e.lookahead--, e.strstart++, t && (O(e, false), e.strm.avail_out === 0)) return D;
+  }
+  return e.insert = 0, i === W ? (O(e, true), e.strm.avail_out === 0 ? te : he) : e.last_lit && (O(e, false), e.strm.avail_out === 0) ? D : Re;
+};
+function C(e, i, t, n, a) {
+  this.good_length = e, this.max_lazy = i, this.nice_length = t, this.max_chain = n, this.func = a;
+}
+var ce = [
+  new C(0, 0, 0, 0, $a),
+  new C(4, 4, 8, 4, Qe),
+  new C(4, 5, 16, 8, Qe),
+  new C(4, 6, 32, 32, Qe),
+  new C(4, 4, 16, 16, re),
+  new C(8, 16, 32, 32, re),
+  new C(8, 16, 128, 128, re),
+  new C(8, 32, 128, 256, re),
+  new C(32, 128, 258, 1024, re),
+  new C(32, 258, 258, 4096, re)
+];
+var Ma = (e) => {
+  e.window_size = 2 * e.w_size, X(e.head), e.max_lazy_match = ce[e.level].max_lazy, e.good_match = ce[e.level].good_length, e.nice_match = ce[e.level].nice_length, e.max_chain_length = ce[e.level].max_chain, e.strstart = 0, e.block_start = 0, e.lookahead = 0, e.insert = 0, e.match_length = e.prev_length = k - 1, e.match_available = 0, e.ins_h = 0;
+};
+function Ha() {
+  this.strm = null, this.status = 0, this.pending_buf = null, this.pending_buf_size = 0, this.pending_out = 0, this.pending = 0, this.wrap = 0, this.gzhead = null, this.gzindex = 0, this.method = Pe, this.last_flush = -1, this.w_size = 0, this.w_bits = 0, this.w_mask = 0, this.window = null, this.window_size = 0, this.prev = null, this.head = null, this.ins_h = 0, this.hash_size = 0, this.hash_bits = 0, this.hash_mask = 0, this.hash_shift = 0, this.block_start = 0, this.match_length = 0, this.prev_match = 0, this.match_available = 0, this.strstart = 0, this.match_start = 0, this.lookahead = 0, this.prev_length = 0, this.max_chain_length = 0, this.max_lazy_match = 0, this.level = 0, this.strategy = 0, this.good_match = 0, this.nice_match = 0, this.dyn_ltree = new Uint16Array(Za * 2), this.dyn_dtree = new Uint16Array((2 * ma + 1) * 2), this.bl_tree = new Uint16Array((2 * Da + 1) * 2), X(this.dyn_ltree), X(this.dyn_dtree), X(this.bl_tree), this.l_desc = null, this.d_desc = null, this.bl_desc = null, this.bl_count = new Uint16Array(Ia + 1), this.heap = new Uint16Array(2 * _t + 1), X(this.heap), this.heap_len = 0, this.heap_max = 0, this.depth = new Uint16Array(2 * _t + 1), X(this.depth), this.l_buf = 0, this.lit_bufsize = 0, this.last_lit = 0, this.d_buf = 0, this.opt_len = 0, this.static_len = 0, this.matches = 0, this.insert = 0, this.bi_buf = 0, this.bi_valid = 0;
+}
+var xi = (e) => {
+  if (!e || !e.state) return G(e, L);
+  e.total_in = e.total_out = 0, e.data_type = ya;
+  let i = e.state;
+  return i.pending = 0, i.pending_out = 0, i.wrap < 0 && (i.wrap = -i.wrap), i.status = i.wrap ? Xe : q, e.adler = i.wrap === 2 ? 0 : 1, i.last_flush = le, da(i), M;
+};
+var ki = (e) => {
+  let i = xi(e);
+  return i === M && Ma(e.state), i;
+};
+var Ba = (e, i) => !e || !e.state || e.state.wrap !== 2 ? L : (e.state.gzhead = i, M);
+var vi = (e, i, t, n, a, l) => {
+  if (!e) return L;
+  let o = 1;
+  if (i === pa && (i = 6), n < 0 ? (o = 0, n = -n) : n > 15 && (o = 2, n -= 16), a < 1 || a > Sa || t !== Pe || n < 8 || n > 15 || i < 0 || i > 9 || l < 0 || l > va) return G(e, L);
+  n === 8 && (n = 9);
+  let f = new Ha();
+  return e.state = f, f.strm = e, f.wrap = o, f.gzhead = null, f.w_bits = n, f.w_size = 1 << f.w_bits, f.w_mask = f.w_size - 1, f.hash_bits = a + 7, f.hash_size = 1 << f.hash_bits, f.hash_mask = f.hash_size - 1, f.hash_shift = ~~((f.hash_bits + k - 1) / k), f.window = new Uint8Array(f.w_size * 2), f.head = new Uint16Array(f.hash_size), f.prev = new Uint16Array(f.w_size), f.lit_bufsize = 1 << a + 6, f.pending_buf_size = f.lit_bufsize * 4, f.pending_buf = new Uint8Array(f.pending_buf_size), f.d_buf = 1 * f.lit_bufsize, f.l_buf = (1 + 2) * f.lit_bufsize, f.level = i, f.strategy = l, f.method = t, ki(e);
+};
+var Ka = (e, i) => vi(e, i, Pe, Aa, Ra, Ea);
+var Pa = (e, i) => {
+  let t, n;
+  if (!e || !e.state || i > St || i < 0) return e ? G(e, L) : L;
+  let a = e.state;
+  if (!e.output || !e.input && e.avail_in !== 0 || a.status === se && i !== W) return G(e, e.avail_out === 0 ? Je : L);
+  a.strm = e;
+  let l = a.last_flush;
+  if (a.last_flush = i, a.status === Xe) if (a.wrap === 2) e.adler = 0, y(a, 31), y(a, 139), y(a, 8), a.gzhead ? (y(a, (a.gzhead.text ? 1 : 0) + (a.gzhead.hcrc ? 2 : 0) + (a.gzhead.extra ? 4 : 0) + (a.gzhead.name ? 8 : 0) + (a.gzhead.comment ? 16 : 0)), y(a, a.gzhead.time & 255), y(a, a.gzhead.time >> 8 & 255), y(a, a.gzhead.time >> 16 & 255), y(a, a.gzhead.time >> 24 & 255), y(a, a.level === 9 ? 2 : a.strategy >= Ie || a.level < 2 ? 4 : 0), y(a, a.gzhead.os & 255), a.gzhead.extra && a.gzhead.extra.length && (y(a, a.gzhead.extra.length & 255), y(a, a.gzhead.extra.length >> 8 & 255)), a.gzhead.hcrc && (e.adler = I(e.adler, a.pending_buf, a.pending, 0)), a.gzindex = 0, a.status = ht) : (y(a, 0), y(a, 0), y(a, 0), y(a, 0), y(a, 0), y(a, a.level === 9 ? 2 : a.strategy >= Ie || a.level < 2 ? 4 : 0), y(a, Na), a.status = q);
+  else {
+    let o = Pe + (a.w_bits - 8 << 4) << 8, f = -1;
+    a.strategy >= Ie || a.level < 2 ? f = 0 : a.level < 6 ? f = 1 : a.level === 6 ? f = 2 : f = 3, o |= f << 6, a.strstart !== 0 && (o |= Oa), o += 31 - o % 31, a.status = q, de(a, o), a.strstart !== 0 && (de(a, e.adler >>> 16), de(a, e.adler & 65535)), e.adler = 1;
+  }
+  if (a.status === ht) if (a.gzhead.extra) {
+    for (t = a.pending; a.gzindex < (a.gzhead.extra.length & 65535) && !(a.pending === a.pending_buf_size && (a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), P(e), t = a.pending, a.pending === a.pending_buf_size)); ) y(a, a.gzhead.extra[a.gzindex] & 255), a.gzindex++;
+    a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), a.gzindex === a.gzhead.extra.length && (a.gzindex = 0, a.status = Ce);
+  } else a.status = Ce;
+  if (a.status === Ce) if (a.gzhead.name) {
+    t = a.pending;
+    do {
+      if (a.pending === a.pending_buf_size && (a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), P(e), t = a.pending, a.pending === a.pending_buf_size)) {
+        n = 1;
+        break;
+      }
+      a.gzindex < a.gzhead.name.length ? n = a.gzhead.name.charCodeAt(a.gzindex++) & 255 : n = 0, y(a, n);
+    } while (n !== 0);
+    a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), n === 0 && (a.gzindex = 0, a.status = Fe);
+  } else a.status = Fe;
+  if (a.status === Fe) if (a.gzhead.comment) {
+    t = a.pending;
+    do {
+      if (a.pending === a.pending_buf_size && (a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), P(e), t = a.pending, a.pending === a.pending_buf_size)) {
+        n = 1;
+        break;
+      }
+      a.gzindex < a.gzhead.comment.length ? n = a.gzhead.comment.charCodeAt(a.gzindex++) & 255 : n = 0, y(a, n);
+    } while (n !== 0);
+    a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), n === 0 && (a.status = Me);
+  } else a.status = Me;
+  if (a.status === Me && (a.gzhead.hcrc ? (a.pending + 2 > a.pending_buf_size && P(e), a.pending + 2 <= a.pending_buf_size && (y(a, e.adler & 255), y(a, e.adler >> 8 & 255), e.adler = 0, a.status = q)) : a.status = q), a.pending !== 0) {
+    if (P(e), e.avail_out === 0) return a.last_flush = -1, M;
+  } else if (e.avail_in === 0 && Rt(i) <= Rt(l) && i !== W) return G(e, Je);
+  if (a.status === se && e.avail_in !== 0) return G(e, Je);
+  if (e.avail_in !== 0 || a.lookahead !== 0 || i !== le && a.status !== se) {
+    let o = a.strategy === Ie ? Fa(a, i) : a.strategy === ka ? Ca(a, i) : ce[a.level].func(a, i);
+    if ((o === te || o === he) && (a.status = se), o === D || o === te) return e.avail_out === 0 && (a.last_flush = -1), M;
+    if (o === Re && (i === ba ? ua(a) : i !== St && (sa(a, 0, 0, false), i === wa && (X(a.head), a.lookahead === 0 && (a.strstart = 0, a.block_start = 0, a.insert = 0))), P(e), e.avail_out === 0)) return a.last_flush = -1, M;
+  }
+  return i !== W ? M : a.wrap <= 0 ? At : (a.wrap === 2 ? (y(a, e.adler & 255), y(a, e.adler >> 8 & 255), y(a, e.adler >> 16 & 255), y(a, e.adler >> 24 & 255), y(a, e.total_in & 255), y(a, e.total_in >> 8 & 255), y(a, e.total_in >> 16 & 255), y(a, e.total_in >> 24 & 255)) : (de(a, e.adler >>> 16), de(a, e.adler & 65535)), P(e), a.wrap > 0 && (a.wrap = -a.wrap), a.pending !== 0 ? M : At);
+};
+var Xa = (e) => {
+  if (!e || !e.state) return L;
+  let i = e.state.status;
+  return i !== Xe && i !== ht && i !== Ce && i !== Fe && i !== Me && i !== q && i !== se ? G(e, L) : (e.state = null, i === q ? G(e, ga) : M);
+};
+var Ya = (e, i) => {
+  let t = i.length;
+  if (!e || !e.state) return L;
+  let n = e.state, a = n.wrap;
+  if (a === 2 || a === 1 && n.status !== Xe || n.lookahead) return L;
+  if (a === 1 && (e.adler = ve(e.adler, i, t, 0)), n.wrap = 0, t >= n.w_size) {
+    a === 0 && (X(n.head), n.strstart = 0, n.block_start = 0, n.insert = 0);
+    let c = new Uint8Array(n.w_size);
+    c.set(i.subarray(t - n.w_size, t), 0), i = c, t = n.w_size;
+  }
+  let l = e.avail_in, o = e.next_in, f = e.input;
+  for (e.avail_in = t, e.next_in = 0, e.input = i, ie(n); n.lookahead >= k; ) {
+    let c = n.strstart, r2 = n.lookahead - (k - 1);
+    do
+      n.ins_h = V(n, n.ins_h, n.window[c + k - 1]), n.prev[c & n.w_mask] = n.head[n.ins_h], n.head[n.ins_h] = c, c++;
+    while (--r2);
+    n.strstart = c, n.lookahead = k - 1, ie(n);
+  }
+  return n.strstart += n.lookahead, n.block_start = n.strstart, n.insert = n.lookahead, n.lookahead = 0, n.match_length = n.prev_length = k - 1, n.match_available = 0, e.next_in = o, e.input = f, e.avail_in = l, n.wrap = a, M;
+};
+var Ga = Ka;
+var ja = vi;
+var Wa = ki;
+var Va = xi;
+var Ja = Ba;
+var Qa = Pa;
+var qa = Xa;
+var en = Ya;
+var tn = "pako deflate (from Nodeca project)";
+var be = {
+  deflateInit: Ga,
+  deflateInit2: ja,
+  deflateReset: Wa,
+  deflateResetKeep: Va,
+  deflateSetHeader: Ja,
+  deflate: Qa,
+  deflateEnd: qa,
+  deflateSetDictionary: en,
+  deflateInfo: tn
+};
+var an = (e, i) => Object.prototype.hasOwnProperty.call(e, i);
+var nn = function(e) {
+  let i = Array.prototype.slice.call(arguments, 1);
+  for (; i.length; ) {
+    let t = i.shift();
+    if (t) {
+      if (typeof t != "object") throw new TypeError(t + "must be non-object");
+      for (let n in t) an(t, n) && (e[n] = t[n]);
+    }
+  }
+  return e;
+};
+var ln = (e) => {
+  let i = 0;
+  for (let n = 0, a = e.length; n < a; n++) i += e[n].length;
+  let t = new Uint8Array(i);
+  for (let n = 0, a = 0, l = e.length; n < l; n++) {
+    let o = e[n];
+    t.set(o, a), a += o.length;
+  }
+  return t;
+};
+var Ye = {
+  assign: nn,
+  flattenChunks: ln
+};
+var Ei = true;
+try {
+  String.fromCharCode.apply(null, new Uint8Array(1));
+} catch {
+  Ei = false;
+}
+var Ee = new Uint8Array(256);
+for (let e = 0; e < 256; e++) Ee[e] = e >= 252 ? 6 : e >= 248 ? 5 : e >= 240 ? 4 : e >= 224 ? 3 : e >= 192 ? 2 : 1;
+Ee[254] = Ee[254] = 1;
+var rn = (e) => {
+  if (typeof TextEncoder == "function" && TextEncoder.prototype.encode) return new TextEncoder().encode(e);
+  let i, t, n, a, l, o = e.length, f = 0;
+  for (a = 0; a < o; a++) t = e.charCodeAt(a), (t & 64512) === 55296 && a + 1 < o && (n = e.charCodeAt(a + 1), (n & 64512) === 56320 && (t = 65536 + (t - 55296 << 10) + (n - 56320), a++)), f += t < 128 ? 1 : t < 2048 ? 2 : t < 65536 ? 3 : 4;
+  for (i = new Uint8Array(f), l = 0, a = 0; l < f; a++) t = e.charCodeAt(a), (t & 64512) === 55296 && a + 1 < o && (n = e.charCodeAt(a + 1), (n & 64512) === 56320 && (t = 65536 + (t - 55296 << 10) + (n - 56320), a++)), t < 128 ? i[l++] = t : t < 2048 ? (i[l++] = 192 | t >>> 6, i[l++] = 128 | t & 63) : t < 65536 ? (i[l++] = 224 | t >>> 12, i[l++] = 128 | t >>> 6 & 63, i[l++] = 128 | t & 63) : (i[l++] = 240 | t >>> 18, i[l++] = 128 | t >>> 12 & 63, i[l++] = 128 | t >>> 6 & 63, i[l++] = 128 | t & 63);
+  return i;
+};
+var fn = (e, i) => {
+  if (i < 65534 && e.subarray && Ei) return String.fromCharCode.apply(null, e.length === i ? e : e.subarray(0, i));
+  let t = "";
+  for (let n = 0; n < i; n++) t += String.fromCharCode(e[n]);
+  return t;
+};
+var on = (e, i) => {
+  let t = i || e.length;
+  if (typeof TextDecoder == "function" && TextDecoder.prototype.decode) return new TextDecoder().decode(e.subarray(0, i));
+  let n, a, l = new Array(t * 2);
+  for (a = 0, n = 0; n < t; ) {
+    let o = e[n++];
+    if (o < 128) {
+      l[a++] = o;
+      continue;
+    }
+    let f = Ee[o];
+    if (f > 4) {
+      l[a++] = 65533, n += f - 1;
+      continue;
+    }
+    for (o &= f === 2 ? 31 : f === 3 ? 15 : 7; f > 1 && n < t; ) o = o << 6 | e[n++] & 63, f--;
+    if (f > 1) {
+      l[a++] = 65533;
+      continue;
+    }
+    o < 65536 ? l[a++] = o : (o -= 65536, l[a++] = 55296 | o >> 10 & 1023, l[a++] = 56320 | o & 1023);
+  }
+  return fn(l, a);
+};
+var _n = (e, i) => {
+  i = i || e.length, i > e.length && (i = e.length);
+  let t = i - 1;
+  for (; t >= 0 && (e[t] & 192) === 128; ) t--;
+  return t < 0 || t === 0 ? i : t + Ee[e[t]] > i ? t : i;
+};
+var ye = {
+  string2buf: rn,
+  buf2string: on,
+  utf8border: _n
+};
+function hn() {
+  this.input = null, this.next_in = 0, this.avail_in = 0, this.total_in = 0, this.output = null, this.next_out = 0, this.avail_out = 0, this.total_out = 0, this.msg = "", this.state = null, this.data_type = 2, this.adler = 0;
+}
+var yi = hn;
+var Si = Object.prototype.toString;
+var { Z_NO_FLUSH: dn, Z_SYNC_FLUSH: sn, Z_FULL_FLUSH: cn, Z_FINISH: un, Z_OK: Be, Z_STREAM_END: bn, Z_DEFAULT_COMPRESSION: wn, Z_DEFAULT_STRATEGY: gn, Z_DEFLATED: pn } = ne;
+function ze(e) {
+  this.options = Ye.assign({
+    level: wn,
+    method: pn,
+    chunkSize: 16384,
+    windowBits: 15,
+    memLevel: 8,
+    strategy: gn
+  }, e || {});
+  let i = this.options;
+  i.raw && i.windowBits > 0 ? i.windowBits = -i.windowBits : i.gzip && i.windowBits > 0 && i.windowBits < 16 && (i.windowBits += 16), this.err = 0, this.msg = "", this.ended = false, this.chunks = [], this.strm = new yi(), this.strm.avail_out = 0;
+  let t = be.deflateInit2(this.strm, i.level, i.method, i.windowBits, i.memLevel, i.strategy);
+  if (t !== Be) throw new Error(ee[t]);
+  if (i.header && be.deflateSetHeader(this.strm, i.header), i.dictionary) {
+    let n;
+    if (typeof i.dictionary == "string" ? n = ye.string2buf(i.dictionary) : Si.call(i.dictionary) === "[object ArrayBuffer]" ? n = new Uint8Array(i.dictionary) : n = i.dictionary, t = be.deflateSetDictionary(this.strm, n), t !== Be) throw new Error(ee[t]);
+    this._dict_set = true;
+  }
+}
+ze.prototype.push = function(e, i) {
+  let t = this.strm, n = this.options.chunkSize, a, l;
+  if (this.ended) return false;
+  for (i === ~~i ? l = i : l = i === true ? un : dn, typeof e == "string" ? t.input = ye.string2buf(e) : Si.call(e) === "[object ArrayBuffer]" ? t.input = new Uint8Array(e) : t.input = e, t.next_in = 0, t.avail_in = t.input.length; ; ) {
+    if (t.avail_out === 0 && (t.output = new Uint8Array(n), t.next_out = 0, t.avail_out = n), (l === sn || l === cn) && t.avail_out <= 6) {
+      this.onData(t.output.subarray(0, t.next_out)), t.avail_out = 0;
+      continue;
+    }
+    if (a = be.deflate(t, l), a === bn) return t.next_out > 0 && this.onData(t.output.subarray(0, t.next_out)), a = be.deflateEnd(this.strm), this.onEnd(a), this.ended = true, a === Be;
+    if (t.avail_out === 0) {
+      this.onData(t.output);
+      continue;
+    }
+    if (l > 0 && t.next_out > 0) {
+      this.onData(t.output.subarray(0, t.next_out)), t.avail_out = 0;
+      continue;
+    }
+    if (t.avail_in === 0) break;
+  }
+  return true;
+};
+ze.prototype.onData = function(e) {
+  this.chunks.push(e);
+};
+ze.prototype.onEnd = function(e) {
+  e === Be && (this.result = Ye.flattenChunks(this.chunks)), this.chunks = [], this.err = e, this.msg = this.strm.msg;
+};
+function bt(e, i) {
+  let t = new ze(i);
+  if (t.push(e, true), t.err) throw t.msg || ee[t.err];
+  return t.result;
+}
+function xn(e, i) {
+  return i = i || {}, i.raw = true, bt(e, i);
+}
+function kn(e, i) {
+  return i = i || {}, i.gzip = true, bt(e, i);
+}
+var vn = ze;
+var En = bt;
+var yn = xn;
+var Sn = kn;
+var An = ne;
+var Rn = {
+  Deflate: vn,
+  deflate: En,
+  deflateRaw: yn,
+  gzip: Sn,
+  constants: An
+};
+var Oe = 30;
+var zn = 12;
+var Tn = function(i, t) {
+  let n, a, l, o, f, c, r2, _, E3, s, h, u3, m3, v, w, A2, x, d3, S, Z, b, z2, R, g2, p2 = i.state;
+  n = i.next_in, R = i.input, a = n + (i.avail_in - 5), l = i.next_out, g2 = i.output, o = l - (t - i.avail_out), f = l + (i.avail_out - 257), c = p2.dmax, r2 = p2.wsize, _ = p2.whave, E3 = p2.wnext, s = p2.window, h = p2.hold, u3 = p2.bits, m3 = p2.lencode, v = p2.distcode, w = (1 << p2.lenbits) - 1, A2 = (1 << p2.distbits) - 1;
+  e: do {
+    u3 < 15 && (h += R[n++] << u3, u3 += 8, h += R[n++] << u3, u3 += 8), x = m3[h & w];
+    t: for (; ; ) {
+      if (d3 = x >>> 24, h >>>= d3, u3 -= d3, d3 = x >>> 16 & 255, d3 === 0) g2[l++] = x & 65535;
+      else if (d3 & 16) {
+        S = x & 65535, d3 &= 15, d3 && (u3 < d3 && (h += R[n++] << u3, u3 += 8), S += h & (1 << d3) - 1, h >>>= d3, u3 -= d3), u3 < 15 && (h += R[n++] << u3, u3 += 8, h += R[n++] << u3, u3 += 8), x = v[h & A2];
+        i: for (; ; ) {
+          if (d3 = x >>> 24, h >>>= d3, u3 -= d3, d3 = x >>> 16 & 255, d3 & 16) {
+            if (Z = x & 65535, d3 &= 15, u3 < d3 && (h += R[n++] << u3, u3 += 8, u3 < d3 && (h += R[n++] << u3, u3 += 8)), Z += h & (1 << d3) - 1, Z > c) {
+              i.msg = "invalid distance too far back", p2.mode = Oe;
+              break e;
+            }
+            if (h >>>= d3, u3 -= d3, d3 = l - o, Z > d3) {
+              if (d3 = Z - d3, d3 > _ && p2.sane) {
+                i.msg = "invalid distance too far back", p2.mode = Oe;
+                break e;
+              }
+              if (b = 0, z2 = s, E3 === 0) {
+                if (b += r2 - d3, d3 < S) {
+                  S -= d3;
+                  do
+                    g2[l++] = s[b++];
+                  while (--d3);
+                  b = l - Z, z2 = g2;
+                }
+              } else if (E3 < d3) {
+                if (b += r2 + E3 - d3, d3 -= E3, d3 < S) {
+                  S -= d3;
+                  do
+                    g2[l++] = s[b++];
+                  while (--d3);
+                  if (b = 0, E3 < S) {
+                    d3 = E3, S -= d3;
+                    do
+                      g2[l++] = s[b++];
+                    while (--d3);
+                    b = l - Z, z2 = g2;
+                  }
+                }
+              } else if (b += E3 - d3, d3 < S) {
+                S -= d3;
+                do
+                  g2[l++] = s[b++];
+                while (--d3);
+                b = l - Z, z2 = g2;
+              }
+              for (; S > 2; ) g2[l++] = z2[b++], g2[l++] = z2[b++], g2[l++] = z2[b++], S -= 3;
+              S && (g2[l++] = z2[b++], S > 1 && (g2[l++] = z2[b++]));
+            } else {
+              b = l - Z;
+              do
+                g2[l++] = g2[b++], g2[l++] = g2[b++], g2[l++] = g2[b++], S -= 3;
+              while (S > 2);
+              S && (g2[l++] = g2[b++], S > 1 && (g2[l++] = g2[b++]));
+            }
+          } else if (d3 & 64) {
+            i.msg = "invalid distance code", p2.mode = Oe;
+            break e;
+          } else {
+            x = v[(x & 65535) + (h & (1 << d3) - 1)];
+            continue i;
+          }
+          break;
+        }
+      } else if (d3 & 64) if (d3 & 32) {
+        p2.mode = zn;
+        break e;
+      } else {
+        i.msg = "invalid literal/length code", p2.mode = Oe;
+        break e;
+      }
+      else {
+        x = m3[(x & 65535) + (h & (1 << d3) - 1)];
+        continue t;
+      }
+      break;
+    }
+  } while (n < a && l < f);
+  S = u3 >> 3, n -= S, u3 -= S << 3, h &= (1 << u3) - 1, i.next_in = n, i.next_out = l, i.avail_in = n < a ? 5 + (a - n) : 5 - (n - a), i.avail_out = l < f ? 257 + (f - l) : 257 - (l - f), p2.hold = h, p2.bits = u3;
+};
+var fe = 15;
+var zt = 852;
+var Tt = 592;
+var mt = 0;
+var qe = 1;
+var Dt = 2;
+var mn = new Uint16Array([
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  13,
+  15,
+  17,
+  19,
+  23,
+  27,
+  31,
+  35,
+  43,
+  51,
+  59,
+  67,
+  83,
+  99,
+  115,
+  131,
+  163,
+  195,
+  227,
+  258,
+  0,
+  0
+]);
+var Dn = new Uint8Array([
+  16,
+  16,
+  16,
+  16,
+  16,
+  16,
+  16,
+  16,
+  17,
+  17,
+  17,
+  17,
+  18,
+  18,
+  18,
+  18,
+  19,
+  19,
+  19,
+  19,
+  20,
+  20,
+  20,
+  20,
+  21,
+  21,
+  21,
+  21,
+  16,
+  72,
+  78
+]);
+var Zn = new Uint16Array([
+  1,
+  2,
+  3,
+  4,
+  5,
+  7,
+  9,
+  13,
+  17,
+  25,
+  33,
+  49,
+  65,
+  97,
+  129,
+  193,
+  257,
+  385,
+  513,
+  769,
+  1025,
+  1537,
+  2049,
+  3073,
+  4097,
+  6145,
+  8193,
+  12289,
+  16385,
+  24577,
+  0,
+  0
+]);
+var In = new Uint8Array([
+  16,
+  16,
+  16,
+  16,
+  17,
+  17,
+  18,
+  18,
+  19,
+  19,
+  20,
+  20,
+  21,
+  21,
+  22,
+  22,
+  23,
+  23,
+  24,
+  24,
+  25,
+  25,
+  26,
+  26,
+  27,
+  27,
+  28,
+  28,
+  29,
+  29,
+  64,
+  64
+]);
+var On = (e, i, t, n, a, l, o, f) => {
+  let c = f.bits, r2 = 0, _ = 0, E3 = 0, s = 0, h = 0, u3 = 0, m3 = 0, v = 0, w = 0, A2 = 0, x, d3, S, Z, b, z2 = null, R = 0, g2, p2 = new Uint16Array(fe + 1), J = new Uint16Array(fe + 1), me = null, gt = 0, pt, De, Ze;
+  for (r2 = 0; r2 <= fe; r2++) p2[r2] = 0;
+  for (_ = 0; _ < n; _++) p2[i[t + _]]++;
+  for (h = c, s = fe; s >= 1 && p2[s] === 0; s--) ;
+  if (h > s && (h = s), s === 0) return a[l++] = 1 << 24 | 64 << 16 | 0, a[l++] = 1 << 24 | 64 << 16 | 0, f.bits = 1, 0;
+  for (E3 = 1; E3 < s && p2[E3] === 0; E3++) ;
+  for (h < E3 && (h = E3), v = 1, r2 = 1; r2 <= fe; r2++) if (v <<= 1, v -= p2[r2], v < 0) return -1;
+  if (v > 0 && (e === mt || s !== 1)) return -1;
+  for (J[1] = 0, r2 = 1; r2 < fe; r2++) J[r2 + 1] = J[r2] + p2[r2];
+  for (_ = 0; _ < n; _++) i[t + _] !== 0 && (o[J[i[t + _]]++] = _);
+  if (e === mt ? (z2 = me = o, g2 = 19) : e === qe ? (z2 = mn, R -= 257, me = Dn, gt -= 257, g2 = 256) : (z2 = Zn, me = In, g2 = -1), A2 = 0, _ = 0, r2 = E3, b = l, u3 = h, m3 = 0, S = -1, w = 1 << h, Z = w - 1, e === qe && w > zt || e === Dt && w > Tt) return 1;
+  for (; ; ) {
+    pt = r2 - m3, o[_] < g2 ? (De = 0, Ze = o[_]) : o[_] > g2 ? (De = me[gt + o[_]], Ze = z2[R + o[_]]) : (De = 32 + 64, Ze = 0), x = 1 << r2 - m3, d3 = 1 << u3, E3 = d3;
+    do
+      d3 -= x, a[b + (A2 >> m3) + d3] = pt << 24 | De << 16 | Ze | 0;
+    while (d3 !== 0);
+    for (x = 1 << r2 - 1; A2 & x; ) x >>= 1;
+    if (x !== 0 ? (A2 &= x - 1, A2 += x) : A2 = 0, _++, --p2[r2] === 0) {
+      if (r2 === s) break;
+      r2 = i[t + o[_]];
+    }
+    if (r2 > h && (A2 & Z) !== S) {
+      for (m3 === 0 && (m3 = h), b += E3, u3 = r2 - m3, v = 1 << u3; u3 + m3 < s && (v -= p2[u3 + m3], !(v <= 0)); ) u3++, v <<= 1;
+      if (w += 1 << u3, e === qe && w > zt || e === Dt && w > Tt) return 1;
+      S = A2 & Z, a[S] = h << 24 | u3 << 16 | b - l | 0;
+    }
+  }
+  return A2 !== 0 && (a[b + A2] = r2 - m3 << 24 | 64 << 16 | 0), f.bits = h, 0;
+};
+var we = On;
+var Nn = 0;
+var Ai = 1;
+var Ri = 2;
+var { Z_FINISH: Zt, Z_BLOCK: Ln, Z_TREES: Ne, Z_OK: ae, Z_STREAM_END: Un, Z_NEED_DICT: $n, Z_STREAM_ERROR: U, Z_DATA_ERROR: zi, Z_MEM_ERROR: Ti, Z_BUF_ERROR: Cn, Z_DEFLATED: It } = ne;
+var mi = 1;
+var Ot = 2;
+var Nt = 3;
+var Lt = 4;
+var Ut = 5;
+var $t = 6;
+var Ct = 7;
+var Ft = 8;
+var Mt = 9;
+var Ht = 10;
+var Ke = 11;
+var H = 12;
+var et = 13;
+var Bt = 14;
+var tt = 15;
+var Kt = 16;
+var Pt = 17;
+var Xt = 18;
+var Yt = 19;
+var Le = 20;
+var Ue = 21;
+var Gt = 22;
+var jt = 23;
+var Wt = 24;
+var Vt = 25;
+var Jt = 26;
+var it = 27;
+var Qt = 28;
+var qt = 29;
+var T = 30;
+var Di = 31;
+var Fn = 32;
+var Mn = 852;
+var Hn = 592;
+var Bn = 15;
+var Kn = Bn;
+var ei = (e) => (e >>> 24 & 255) + (e >>> 8 & 65280) + ((e & 65280) << 8) + ((e & 255) << 24);
+function Pn() {
+  this.mode = 0, this.last = false, this.wrap = 0, this.havedict = false, this.flags = 0, this.dmax = 0, this.check = 0, this.total = 0, this.head = null, this.wbits = 0, this.wsize = 0, this.whave = 0, this.wnext = 0, this.window = null, this.hold = 0, this.bits = 0, this.length = 0, this.offset = 0, this.extra = 0, this.lencode = null, this.distcode = null, this.lenbits = 0, this.distbits = 0, this.ncode = 0, this.nlen = 0, this.ndist = 0, this.have = 0, this.next = null, this.lens = new Uint16Array(320), this.work = new Uint16Array(288), this.lendyn = null, this.distdyn = null, this.sane = 0, this.back = 0, this.was = 0;
+}
+var Zi = (e) => {
+  if (!e || !e.state) return U;
+  let i = e.state;
+  return e.total_in = e.total_out = i.total = 0, e.msg = "", i.wrap && (e.adler = i.wrap & 1), i.mode = mi, i.last = 0, i.havedict = 0, i.dmax = 32768, i.head = null, i.hold = 0, i.bits = 0, i.lencode = i.lendyn = new Int32Array(Mn), i.distcode = i.distdyn = new Int32Array(Hn), i.sane = 1, i.back = -1, ae;
+};
+var Ii = (e) => {
+  if (!e || !e.state) return U;
+  let i = e.state;
+  return i.wsize = 0, i.whave = 0, i.wnext = 0, Zi(e);
+};
+var Oi = (e, i) => {
+  let t;
+  if (!e || !e.state) return U;
+  let n = e.state;
+  return i < 0 ? (t = 0, i = -i) : (t = (i >> 4) + 1, i < 48 && (i &= 15)), i && (i < 8 || i > 15) ? U : (n.window !== null && n.wbits !== i && (n.window = null), n.wrap = t, n.wbits = i, Ii(e));
+};
+var Ni = (e, i) => {
+  if (!e) return U;
+  let t = new Pn();
+  e.state = t, t.window = null;
+  let n = Oi(e, i);
+  return n !== ae && (e.state = null), n;
+};
+var Xn = (e) => Ni(e, Kn);
+var ti = true;
+var at;
+var nt;
+var Yn = (e) => {
+  if (ti) {
+    at = new Int32Array(512), nt = new Int32Array(32);
+    let i = 0;
+    for (; i < 144; ) e.lens[i++] = 8;
+    for (; i < 256; ) e.lens[i++] = 9;
+    for (; i < 280; ) e.lens[i++] = 7;
+    for (; i < 288; ) e.lens[i++] = 8;
+    for (we(Ai, e.lens, 0, 288, at, 0, e.work, {
+      bits: 9
+    }), i = 0; i < 32; ) e.lens[i++] = 5;
+    we(Ri, e.lens, 0, 32, nt, 0, e.work, {
+      bits: 5
+    }), ti = false;
+  }
+  e.lencode = at, e.lenbits = 9, e.distcode = nt, e.distbits = 5;
+};
+var Li = (e, i, t, n) => {
+  let a, l = e.state;
+  return l.window === null && (l.wsize = 1 << l.wbits, l.wnext = 0, l.whave = 0, l.window = new Uint8Array(l.wsize)), n >= l.wsize ? (l.window.set(i.subarray(t - l.wsize, t), 0), l.wnext = 0, l.whave = l.wsize) : (a = l.wsize - l.wnext, a > n && (a = n), l.window.set(i.subarray(t - n, t - n + a), l.wnext), n -= a, n ? (l.window.set(i.subarray(t - n, t), 0), l.wnext = n, l.whave = l.wsize) : (l.wnext += a, l.wnext === l.wsize && (l.wnext = 0), l.whave < l.wsize && (l.whave += a))), 0;
+};
+var Gn = (e, i) => {
+  let t, n, a, l, o, f, c, r2, _, E3, s, h, u3, m3, v = 0, w, A2, x, d3, S, Z, b, z2, R = new Uint8Array(4), g2, p2, J = new Uint8Array([
     16,
     17,
     18,
@@ -1883,2181 +2699,2091 @@ var $i = 0, ai = 1, Ci = 2, Fi = 3, Mi = 258, dt = 29, Ae = 256, ge = Ae + 1 + d
     14,
     1,
     15
-]), Ki = 512, B = new Array((ge + 2) * 2);
-_e(B);
-var ue = new Array(oe * 2);
-_e(ue);
-var pe = new Array(Ki);
-_e(pe);
-var xe = new Array(Mi - Fi + 1);
-_e(xe);
-var ut = new Array(dt);
-_e(ut);
-var He = new Array(oe);
-_e(He);
-function je(e, i, t, n, a) {
-    this.static_tree = e, this.extra_bits = i, this.extra_base = t, this.elems = n, this.max_length = a, this.has_stree = e && e.length;
-}
-var _i, hi, di;
-function We(e, i) {
-    this.dyn_tree = e, this.max_code = 0, this.stat_desc = i;
-}
-var si = (e)=>e < 256 ? pe[e] : pe[256 + (e >>> 7)], ke = (e, i)=>{
-    e.pending_buf[e.pending++] = i & 255, e.pending_buf[e.pending++] = i >>> 8 & 255;
-}, N1 = (e, i, t)=>{
-    e.bi_valid > Ge - t ? (e.bi_buf |= i << e.bi_valid & 65535, ke(e, e.bi_buf), e.bi_buf = i >> Ge - e.bi_valid, e.bi_valid += t - Ge) : (e.bi_buf |= i << e.bi_valid & 65535, e.bi_valid += t);
-}, F = (e, i, t)=>{
-    N1(e, t[i * 2], t[i * 2 + 1]);
-}, ci = (e, i)=>{
-    let t = 0;
-    do t |= e & 1, e >>>= 1, t <<= 1;
-    while (--i > 0)
-    return t >>> 1;
-}, Pi = (e)=>{
-    e.bi_valid === 16 ? (ke(e, e.bi_buf), e.bi_buf = 0, e.bi_valid = 0) : e.bi_valid >= 8 && (e.pending_buf[e.pending++] = e.bi_buf & 255, e.bi_buf >>= 8, e.bi_valid -= 8);
-}, Xi = (e, i)=>{
-    let t = i.dyn_tree, n = i.max_code, a = i.stat_desc.static_tree, l = i.stat_desc.has_stree, o = i.stat_desc.extra_bits, f = i.stat_desc.extra_base, c = i.stat_desc.max_length, r, _, E, s, h, u, m = 0;
-    for(s = 0; s <= Q; s++)e.bl_count[s] = 0;
-    for(t[e.heap[e.heap_max] * 2 + 1] = 0, r = e.heap_max + 1; r < ni; r++)_ = e.heap[r], s = t[t[_ * 2 + 1] * 2 + 1] + 1, s > c && (s = c, m++), t[_ * 2 + 1] = s, !(_ > n) && (e.bl_count[s]++, h = 0, _ >= f && (h = o[_ - f]), u = t[_ * 2], e.opt_len += u * (s + h), l && (e.static_len += u * (a[_ * 2 + 1] + h)));
-    if (m !== 0) {
-        do {
-            for(s = c - 1; e.bl_count[s] === 0;)s--;
-            e.bl_count[s]--, e.bl_count[s + 1] += 2, e.bl_count[c]--, m -= 2;
-        }while (m > 0)
-        for(s = c; s !== 0; s--)for(_ = e.bl_count[s]; _ !== 0;)E = e.heap[--r], !(E > n) && (t[E * 2 + 1] !== s && (e.opt_len += (s - t[E * 2 + 1]) * t[E * 2], t[E * 2 + 1] = s), _--);
-    }
-}, ui = (e, i, t)=>{
-    let n = new Array(Q + 1), a = 0, l, o;
-    for(l = 1; l <= Q; l++)n[l] = a = a + t[l - 1] << 1;
-    for(o = 0; o <= i; o++){
-        let f = e[o * 2 + 1];
-        f !== 0 && (e[o * 2] = ci(n[f]++, f));
-    }
-}, Yi = ()=>{
-    let e, i, t, n, a, l = new Array(Q + 1);
-    for(t = 0, n = 0; n < dt - 1; n++)for(ut[n] = t, e = 0; e < 1 << ft[n]; e++)xe[t++] = n;
-    for(xe[t - 1] = n, a = 0, n = 0; n < 16; n++)for(He[n] = a, e = 0; e < 1 << $e[n]; e++)pe[a++] = n;
-    for(a >>= 7; n < oe; n++)for(He[n] = a << 7, e = 0; e < 1 << $e[n] - 7; e++)pe[256 + a++] = n;
-    for(i = 0; i <= Q; i++)l[i] = 0;
-    for(e = 0; e <= 143;)B[e * 2 + 1] = 8, e++, l[8]++;
-    for(; e <= 255;)B[e * 2 + 1] = 9, e++, l[9]++;
-    for(; e <= 279;)B[e * 2 + 1] = 7, e++, l[7]++;
-    for(; e <= 287;)B[e * 2 + 1] = 8, e++, l[8]++;
-    for(ui(B, ge + 1, l), e = 0; e < oe; e++)ue[e * 2 + 1] = 5, ue[e * 2] = ci(e, 5);
-    _i = new je(B, ft, Ae + 1, ge, Q), hi = new je(ue, $e, 0, oe, Q), di = new je(new Array(0), Bi, 0, st, Hi);
-}, bi = (e)=>{
-    let i;
-    for(i = 0; i < ge; i++)e.dyn_ltree[i * 2] = 0;
-    for(i = 0; i < oe; i++)e.dyn_dtree[i * 2] = 0;
-    for(i = 0; i < st; i++)e.bl_tree[i * 2] = 0;
-    e.dyn_ltree[ct * 2] = 1, e.opt_len = e.static_len = 0, e.last_lit = e.matches = 0;
-}, wi = (e)=>{
-    e.bi_valid > 8 ? ke(e, e.bi_buf) : e.bi_valid > 0 && (e.pending_buf[e.pending++] = e.bi_buf), e.bi_buf = 0, e.bi_valid = 0;
-}, Gi = (e, i, t, n)=>{
-    wi(e), n && (ke(e, t), ke(e, ~t)), e.pending_buf.set(e.window.subarray(i, i + t), e.pending), e.pending += t;
-}, xt = (e, i, t, n)=>{
-    let a = i * 2, l = t * 2;
-    return e[a] < e[l] || e[a] === e[l] && n[i] <= n[t];
-}, Ve = (e, i, t)=>{
-    let n = e.heap[t], a = t << 1;
-    for(; a <= e.heap_len && (a < e.heap_len && xt(i, e.heap[a + 1], e.heap[a], e.depth) && a++, !xt(i, n, e.heap[a], e.depth));)e.heap[t] = e.heap[a], t = a, a <<= 1;
-    e.heap[t] = n;
-}, kt = (e, i, t)=>{
-    let n, a, l = 0, o, f;
-    if (e.last_lit !== 0) do n = e.pending_buf[e.d_buf + l * 2] << 8 | e.pending_buf[e.d_buf + l * 2 + 1], a = e.pending_buf[e.l_buf + l], l++, n === 0 ? F(e, a, i) : (o = xe[a], F(e, o + Ae + 1, i), f = ft[o], f !== 0 && (a -= ut[o], N1(e, a, f)), n--, o = si(n), F(e, o, t), f = $e[o], f !== 0 && (n -= He[o], N1(e, n, f)));
-    while (l < e.last_lit)
-    F(e, ct, i);
-}, ot = (e, i)=>{
-    let t = i.dyn_tree, n = i.stat_desc.static_tree, a = i.stat_desc.has_stree, l = i.stat_desc.elems, o, f, c = -1, r;
-    for(e.heap_len = 0, e.heap_max = ni, o = 0; o < l; o++)t[o * 2] !== 0 ? (e.heap[++e.heap_len] = c = o, e.depth[o] = 0) : t[o * 2 + 1] = 0;
-    for(; e.heap_len < 2;)r = e.heap[++e.heap_len] = c < 2 ? ++c : 0, t[r * 2] = 1, e.depth[r] = 0, e.opt_len--, a && (e.static_len -= n[r * 2 + 1]);
-    for(i.max_code = c, o = e.heap_len >> 1; o >= 1; o--)Ve(e, t, o);
-    r = l;
-    do o = e.heap[1], e.heap[1] = e.heap[e.heap_len--], Ve(e, t, 1), f = e.heap[1], e.heap[--e.heap_max] = o, e.heap[--e.heap_max] = f, t[r * 2] = t[o * 2] + t[f * 2], e.depth[r] = (e.depth[o] >= e.depth[f] ? e.depth[o] : e.depth[f]) + 1, t[o * 2 + 1] = t[f * 2 + 1] = r, e.heap[1] = r++, Ve(e, t, 1);
-    while (e.heap_len >= 2)
-    e.heap[--e.heap_max] = e.heap[1], Xi(e, i), ui(t, c, e.bl_count);
-}, vt = (e, i, t)=>{
-    let n, a = -1, l, o = i[0 * 2 + 1], f = 0, c = 7, r = 4;
-    for(o === 0 && (c = 138, r = 3), i[(t + 1) * 2 + 1] = 65535, n = 0; n <= t; n++)l = o, o = i[(n + 1) * 2 + 1], !(++f < c && l === o) && (f < r ? e.bl_tree[l * 2] += f : l !== 0 ? (l !== a && e.bl_tree[l * 2]++, e.bl_tree[li * 2]++) : f <= 10 ? e.bl_tree[ri * 2]++ : e.bl_tree[fi * 2]++, f = 0, a = l, o === 0 ? (c = 138, r = 3) : l === o ? (c = 6, r = 3) : (c = 7, r = 4));
-}, Et = (e, i, t)=>{
-    let n, a = -1, l, o = i[0 * 2 + 1], f = 0, c = 7, r = 4;
-    for(o === 0 && (c = 138, r = 3), n = 0; n <= t; n++)if (l = o, o = i[(n + 1) * 2 + 1], !(++f < c && l === o)) {
-        if (f < r) do F(e, l, e.bl_tree);
-        while (--f !== 0)
-        else l !== 0 ? (l !== a && (F(e, l, e.bl_tree), f--), F(e, li, e.bl_tree), N1(e, f - 3, 2)) : f <= 10 ? (F(e, ri, e.bl_tree), N1(e, f - 3, 3)) : (F(e, fi, e.bl_tree), N1(e, f - 11, 7));
-        f = 0, a = l, o === 0 ? (c = 138, r = 3) : l === o ? (c = 6, r = 3) : (c = 7, r = 4);
-    }
-}, ji = (e)=>{
-    let i;
-    for(vt(e, e.dyn_ltree, e.l_desc.max_code), vt(e, e.dyn_dtree, e.d_desc.max_code), ot(e, e.bl_desc), i = st - 1; i >= 3 && e.bl_tree[oi[i] * 2 + 1] === 0; i--);
-    return e.opt_len += 3 * (i + 1) + 5 + 5 + 4, i;
-}, Wi = (e, i, t, n)=>{
-    let a;
-    for(N1(e, i - 257, 5), N1(e, t - 1, 5), N1(e, n - 4, 4), a = 0; a < n; a++)N1(e, e.bl_tree[oi[a] * 2 + 1], 3);
-    Et(e, e.dyn_ltree, i - 1), Et(e, e.dyn_dtree, t - 1);
-}, Vi = (e)=>{
-    let i = 4093624447, t;
-    for(t = 0; t <= 31; t++, i >>>= 1)if (i & 1 && e.dyn_ltree[t * 2] !== 0) return 0;
-    if (e.dyn_ltree[9 * 2] !== 0 || e.dyn_ltree[10 * 2] !== 0 || e.dyn_ltree[13 * 2] !== 0) return 1;
-    for(t = 32; t < Ae; t++)if (e.dyn_ltree[t * 2] !== 0) return 1;
-    return 0;
-}, yt = !1, Ji = (e)=>{
-    yt || (Yi(), yt = !0), e.l_desc = new We(e.dyn_ltree, _i), e.d_desc = new We(e.dyn_dtree, hi), e.bl_desc = new We(e.bl_tree, di), e.bi_buf = 0, e.bi_valid = 0, bi(e);
-}, gi = (e, i, t, n)=>{
-    N1(e, ($i << 1) + (n ? 1 : 0), 3), Gi(e, i, t, !0);
-}, Qi = (e)=>{
-    N1(e, ai << 1, 3), F(e, ct, B), Pi(e);
-}, qi = (e, i, t, n)=>{
-    let a, l, o = 0;
-    e.level > 0 ? (e.strm.data_type === 2 && (e.strm.data_type = Vi(e)), ot(e, e.l_desc), ot(e, e.d_desc), o = ji(e), a = e.opt_len + 3 + 7 >>> 3, l = e.static_len + 3 + 7 >>> 3, l <= a && (a = l)) : a = l = t + 5, t + 4 <= a && i !== -1 ? gi(e, i, t, n) : e.strategy === 4 || l === a ? (N1(e, (ai << 1) + (n ? 1 : 0), 3), kt(e, B, ue)) : (N1(e, (Ci << 1) + (n ? 1 : 0), 3), Wi(e, e.l_desc.max_code + 1, e.d_desc.max_code + 1, o + 1), kt(e, e.dyn_ltree, e.dyn_dtree)), bi(e), n && wi(e);
-}, ea = (e, i, t)=>(e.pending_buf[e.d_buf + e.last_lit * 2] = i >>> 8 & 255, e.pending_buf[e.d_buf + e.last_lit * 2 + 1] = i & 255, e.pending_buf[e.l_buf + e.last_lit] = t & 255, e.last_lit++, i === 0 ? e.dyn_ltree[t * 2]++ : (e.matches++, i--, e.dyn_ltree[(xe[t] + Ae + 1) * 2]++, e.dyn_dtree[si(i) * 2]++), e.last_lit === e.lit_bufsize - 1), ta = Ji, ia = gi, aa = qi, na = ea, la = Qi, ra = {
-    _tr_init: ta,
-    _tr_stored_block: ia,
-    _tr_flush_block: aa,
-    _tr_tally: na,
-    _tr_align: la
-}, fa = (e, i, t, n)=>{
-    let a = e & 65535 | 0, l = e >>> 16 & 65535 | 0, o = 0;
-    for(; t !== 0;){
-        o = t > 2e3 ? 2e3 : t, t -= o;
-        do a = a + i[n++] | 0, l = l + a | 0;
-        while (--o)
-        a %= 65521, l %= 65521;
-    }
-    return a | l << 16 | 0;
-}, ve = fa, oa = ()=>{
-    let e, i = [];
-    for(var t = 0; t < 256; t++){
-        e = t;
-        for(var n = 0; n < 8; n++)e = e & 1 ? 3988292384 ^ e >>> 1 : e >>> 1;
-        i[t] = e;
-    }
-    return i;
-}, _a = new Uint32Array(oa()), ha = (e, i, t, n)=>{
-    let a = _a, l = n + t;
-    e ^= -1;
-    for(let o = n; o < l; o++)e = e >>> 8 ^ a[(e ^ i[o]) & 255];
-    return e ^ -1;
-}, I = ha, ee = {
-    2: "need dictionary",
-    1: "stream end",
-    0: "",
-    "-1": "file error",
-    "-2": "stream error",
-    "-3": "data error",
-    "-4": "insufficient memory",
-    "-5": "buffer error",
-    "-6": "incompatible version"
-}, ne = {
-    Z_NO_FLUSH: 0,
-    Z_PARTIAL_FLUSH: 1,
-    Z_SYNC_FLUSH: 2,
-    Z_FULL_FLUSH: 3,
-    Z_FINISH: 4,
-    Z_BLOCK: 5,
-    Z_TREES: 6,
-    Z_OK: 0,
-    Z_STREAM_END: 1,
-    Z_NEED_DICT: 2,
-    Z_ERRNO: -1,
-    Z_STREAM_ERROR: -2,
-    Z_DATA_ERROR: -3,
-    Z_MEM_ERROR: -4,
-    Z_BUF_ERROR: -5,
-    Z_NO_COMPRESSION: 0,
-    Z_BEST_SPEED: 1,
-    Z_BEST_COMPRESSION: 9,
-    Z_DEFAULT_COMPRESSION: -1,
-    Z_FILTERED: 1,
-    Z_HUFFMAN_ONLY: 2,
-    Z_RLE: 3,
-    Z_FIXED: 4,
-    Z_DEFAULT_STRATEGY: 0,
-    Z_BINARY: 0,
-    Z_TEXT: 1,
-    Z_UNKNOWN: 2,
-    Z_DEFLATED: 8
-}, { _tr_init: da , _tr_stored_block: sa , _tr_flush_block: ca , _tr_tally: j , _tr_align: ua  } = ra, { Z_NO_FLUSH: le , Z_PARTIAL_FLUSH: ba , Z_FULL_FLUSH: wa , Z_FINISH: W , Z_BLOCK: St , Z_OK: M , Z_STREAM_END: At , Z_STREAM_ERROR: L1 , Z_DATA_ERROR: ga , Z_BUF_ERROR: Je , Z_DEFAULT_COMPRESSION: pa , Z_FILTERED: xa , Z_HUFFMAN_ONLY: Ie , Z_RLE: ka , Z_FIXED: va , Z_DEFAULT_STRATEGY: Ea , Z_UNKNOWN: ya , Z_DEFLATED: Pe  } = ne, Sa = 9, Aa = 15, Ra = 8, za = 29, Ta = 256, _t = Ta + 1 + za, ma = 30, Da = 19, Za = 2 * _t + 1, Ia = 15, k1 = 3, Y = 258, $ = Y + k1 + 1, Oa = 32, Xe = 42, ht = 69, Ce = 73, Fe = 91, Me = 103, q = 113, se = 666, D = 1, Re = 2, te = 3, he = 4, Na = 3, G = (e, i)=>(e.msg = ee[i], i), Rt = (e)=>(e << 1) - (e > 4 ? 9 : 0), X = (e)=>{
-    let i = e.length;
-    for(; --i >= 0;)e[i] = 0;
-}, La = (e, i, t)=>(i << e.hash_shift ^ t) & e.hash_mask, V = La, P1 = (e)=>{
-    let i = e.state, t = i.pending;
-    t > e.avail_out && (t = e.avail_out), t !== 0 && (e.output.set(i.pending_buf.subarray(i.pending_out, i.pending_out + t), e.next_out), e.next_out += t, i.pending_out += t, e.total_out += t, e.avail_out -= t, i.pending -= t, i.pending === 0 && (i.pending_out = 0));
-}, O1 = (e, i)=>{
-    ca(e, e.block_start >= 0 ? e.block_start : -1, e.strstart - e.block_start, i), e.block_start = e.strstart, P1(e.strm);
-}, y = (e, i)=>{
-    e.pending_buf[e.pending++] = i;
-}, de = (e, i)=>{
-    e.pending_buf[e.pending++] = i >>> 8 & 255, e.pending_buf[e.pending++] = i & 255;
-}, Ua = (e, i, t, n)=>{
-    let a = e.avail_in;
-    return a > n && (a = n), a === 0 ? 0 : (e.avail_in -= a, i.set(e.input.subarray(e.next_in, e.next_in + a), t), e.state.wrap === 1 ? e.adler = ve(e.adler, i, a, t) : e.state.wrap === 2 && (e.adler = I(e.adler, i, a, t)), e.next_in += a, e.total_in += a, a);
-}, pi = (e, i)=>{
-    let t = e.max_chain_length, n = e.strstart, a, l, o = e.prev_length, f = e.nice_match, c = e.strstart > e.w_size - $ ? e.strstart - (e.w_size - $) : 0, r = e.window, _ = e.w_mask, E = e.prev, s = e.strstart + Y, h = r[n + o - 1], u = r[n + o];
-    e.prev_length >= e.good_match && (t >>= 2), f > e.lookahead && (f = e.lookahead);
-    do if (a = i, !(r[a + o] !== u || r[a + o - 1] !== h || r[a] !== r[n] || r[++a] !== r[n + 1])) {
-        n += 2, a++;
-        do ;
-        while (r[++n] === r[++a] && r[++n] === r[++a] && r[++n] === r[++a] && r[++n] === r[++a] && r[++n] === r[++a] && r[++n] === r[++a] && r[++n] === r[++a] && r[++n] === r[++a] && n < s)
-        if (l = Y - (s - n), n = s - Y, l > o) {
-            if (e.match_start = i, o = l, l >= f) break;
-            h = r[n + o - 1], u = r[n + o];
+  ]);
+  if (!e || !e.state || !e.output || !e.input && e.avail_in !== 0) return U;
+  t = e.state, t.mode === H && (t.mode = et), o = e.next_out, a = e.output, c = e.avail_out, l = e.next_in, n = e.input, f = e.avail_in, r2 = t.hold, _ = t.bits, E3 = f, s = c, z2 = ae;
+  e: for (; ; ) switch (t.mode) {
+    case mi:
+      if (t.wrap === 0) {
+        t.mode = et;
+        break;
+      }
+      for (; _ < 16; ) {
+        if (f === 0) break e;
+        f--, r2 += n[l++] << _, _ += 8;
+      }
+      if (t.wrap & 2 && r2 === 35615) {
+        t.check = 0, R[0] = r2 & 255, R[1] = r2 >>> 8 & 255, t.check = I(t.check, R, 2, 0), r2 = 0, _ = 0, t.mode = Ot;
+        break;
+      }
+      if (t.flags = 0, t.head && (t.head.done = false), !(t.wrap & 1) || (((r2 & 255) << 8) + (r2 >> 8)) % 31) {
+        e.msg = "incorrect header check", t.mode = T;
+        break;
+      }
+      if ((r2 & 15) !== It) {
+        e.msg = "unknown compression method", t.mode = T;
+        break;
+      }
+      if (r2 >>>= 4, _ -= 4, b = (r2 & 15) + 8, t.wbits === 0) t.wbits = b;
+      else if (b > t.wbits) {
+        e.msg = "invalid window size", t.mode = T;
+        break;
+      }
+      t.dmax = 1 << t.wbits, e.adler = t.check = 1, t.mode = r2 & 512 ? Ht : H, r2 = 0, _ = 0;
+      break;
+    case Ot:
+      for (; _ < 16; ) {
+        if (f === 0) break e;
+        f--, r2 += n[l++] << _, _ += 8;
+      }
+      if (t.flags = r2, (t.flags & 255) !== It) {
+        e.msg = "unknown compression method", t.mode = T;
+        break;
+      }
+      if (t.flags & 57344) {
+        e.msg = "unknown header flags set", t.mode = T;
+        break;
+      }
+      t.head && (t.head.text = r2 >> 8 & 1), t.flags & 512 && (R[0] = r2 & 255, R[1] = r2 >>> 8 & 255, t.check = I(t.check, R, 2, 0)), r2 = 0, _ = 0, t.mode = Nt;
+    case Nt:
+      for (; _ < 32; ) {
+        if (f === 0) break e;
+        f--, r2 += n[l++] << _, _ += 8;
+      }
+      t.head && (t.head.time = r2), t.flags & 512 && (R[0] = r2 & 255, R[1] = r2 >>> 8 & 255, R[2] = r2 >>> 16 & 255, R[3] = r2 >>> 24 & 255, t.check = I(t.check, R, 4, 0)), r2 = 0, _ = 0, t.mode = Lt;
+    case Lt:
+      for (; _ < 16; ) {
+        if (f === 0) break e;
+        f--, r2 += n[l++] << _, _ += 8;
+      }
+      t.head && (t.head.xflags = r2 & 255, t.head.os = r2 >> 8), t.flags & 512 && (R[0] = r2 & 255, R[1] = r2 >>> 8 & 255, t.check = I(t.check, R, 2, 0)), r2 = 0, _ = 0, t.mode = Ut;
+    case Ut:
+      if (t.flags & 1024) {
+        for (; _ < 16; ) {
+          if (f === 0) break e;
+          f--, r2 += n[l++] << _, _ += 8;
         }
-    }
-    while ((i = E[i & _]) > c && --t !== 0)
-    return o <= e.lookahead ? o : e.lookahead;
-}, ie = (e)=>{
-    let i = e.w_size, t, n, a, l, o;
-    do {
-        if (l = e.window_size - e.lookahead - e.strstart, e.strstart >= i + (i - $)) {
-            e.window.set(e.window.subarray(i, i + i), 0), e.match_start -= i, e.strstart -= i, e.block_start -= i, n = e.hash_size, t = n;
-            do a = e.head[--t], e.head[t] = a >= i ? a - i : 0;
-            while (--n)
-            n = i, t = n;
-            do a = e.prev[--t], e.prev[t] = a >= i ? a - i : 0;
-            while (--n)
-            l += i;
+        t.length = r2, t.head && (t.head.extra_len = r2), t.flags & 512 && (R[0] = r2 & 255, R[1] = r2 >>> 8 & 255, t.check = I(t.check, R, 2, 0)), r2 = 0, _ = 0;
+      } else t.head && (t.head.extra = null);
+      t.mode = $t;
+    case $t:
+      if (t.flags & 1024 && (h = t.length, h > f && (h = f), h && (t.head && (b = t.head.extra_len - t.length, t.head.extra || (t.head.extra = new Uint8Array(t.head.extra_len)), t.head.extra.set(n.subarray(l, l + h), b)), t.flags & 512 && (t.check = I(t.check, n, h, l)), f -= h, l += h, t.length -= h), t.length)) break e;
+      t.length = 0, t.mode = Ct;
+    case Ct:
+      if (t.flags & 2048) {
+        if (f === 0) break e;
+        h = 0;
+        do
+          b = n[l + h++], t.head && b && t.length < 65536 && (t.head.name += String.fromCharCode(b));
+        while (b && h < f);
+        if (t.flags & 512 && (t.check = I(t.check, n, h, l)), f -= h, l += h, b) break e;
+      } else t.head && (t.head.name = null);
+      t.length = 0, t.mode = Ft;
+    case Ft:
+      if (t.flags & 4096) {
+        if (f === 0) break e;
+        h = 0;
+        do
+          b = n[l + h++], t.head && b && t.length < 65536 && (t.head.comment += String.fromCharCode(b));
+        while (b && h < f);
+        if (t.flags & 512 && (t.check = I(t.check, n, h, l)), f -= h, l += h, b) break e;
+      } else t.head && (t.head.comment = null);
+      t.mode = Mt;
+    case Mt:
+      if (t.flags & 512) {
+        for (; _ < 16; ) {
+          if (f === 0) break e;
+          f--, r2 += n[l++] << _, _ += 8;
         }
-        if (e.strm.avail_in === 0) break;
-        if (n = Ua(e.strm, e.window, e.strstart + e.lookahead, l), e.lookahead += n, e.lookahead + e.insert >= k1) for(o = e.strstart - e.insert, e.ins_h = e.window[o], e.ins_h = V(e, e.ins_h, e.window[o + 1]); e.insert && (e.ins_h = V(e, e.ins_h, e.window[o + k1 - 1]), e.prev[o & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = o, o++, e.insert--, !(e.lookahead + e.insert < k1)););
-    }while (e.lookahead < $ && e.strm.avail_in !== 0)
-}, $a = (e, i)=>{
-    let t = 65535;
-    for(t > e.pending_buf_size - 5 && (t = e.pending_buf_size - 5);;){
-        if (e.lookahead <= 1) {
-            if (ie(e), e.lookahead === 0 && i === le) return D;
-            if (e.lookahead === 0) break;
+        if (r2 !== (t.check & 65535)) {
+          e.msg = "header crc mismatch", t.mode = T;
+          break;
         }
-        e.strstart += e.lookahead, e.lookahead = 0;
-        let n = e.block_start + t;
-        if ((e.strstart === 0 || e.strstart >= n) && (e.lookahead = e.strstart - n, e.strstart = n, O1(e, !1), e.strm.avail_out === 0) || e.strstart - e.block_start >= e.w_size - $ && (O1(e, !1), e.strm.avail_out === 0)) return D;
-    }
-    return e.insert = 0, i === W ? (O1(e, !0), e.strm.avail_out === 0 ? te : he) : (e.strstart > e.block_start && (O1(e, !1), e.strm.avail_out === 0), D);
-}, Qe = (e, i)=>{
-    let t, n;
-    for(;;){
-        if (e.lookahead < $) {
-            if (ie(e), e.lookahead < $ && i === le) return D;
-            if (e.lookahead === 0) break;
-        }
-        if (t = 0, e.lookahead >= k1 && (e.ins_h = V(e, e.ins_h, e.window[e.strstart + k1 - 1]), t = e.prev[e.strstart & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = e.strstart), t !== 0 && e.strstart - t <= e.w_size - $ && (e.match_length = pi(e, t)), e.match_length >= k1) if (n = j(e, e.strstart - e.match_start, e.match_length - k1), e.lookahead -= e.match_length, e.match_length <= e.max_lazy_match && e.lookahead >= k1) {
-            e.match_length--;
-            do e.strstart++, e.ins_h = V(e, e.ins_h, e.window[e.strstart + k1 - 1]), t = e.prev[e.strstart & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = e.strstart;
-            while (--e.match_length !== 0)
-            e.strstart++;
-        } else e.strstart += e.match_length, e.match_length = 0, e.ins_h = e.window[e.strstart], e.ins_h = V(e, e.ins_h, e.window[e.strstart + 1]);
-        else n = j(e, 0, e.window[e.strstart]), e.lookahead--, e.strstart++;
-        if (n && (O1(e, !1), e.strm.avail_out === 0)) return D;
-    }
-    return e.insert = e.strstart < k1 - 1 ? e.strstart : k1 - 1, i === W ? (O1(e, !0), e.strm.avail_out === 0 ? te : he) : e.last_lit && (O1(e, !1), e.strm.avail_out === 0) ? D : Re;
-}, re = (e, i)=>{
-    let t, n, a;
-    for(;;){
-        if (e.lookahead < $) {
-            if (ie(e), e.lookahead < $ && i === le) return D;
-            if (e.lookahead === 0) break;
-        }
-        if (t = 0, e.lookahead >= k1 && (e.ins_h = V(e, e.ins_h, e.window[e.strstart + k1 - 1]), t = e.prev[e.strstart & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = e.strstart), e.prev_length = e.match_length, e.prev_match = e.match_start, e.match_length = k1 - 1, t !== 0 && e.prev_length < e.max_lazy_match && e.strstart - t <= e.w_size - $ && (e.match_length = pi(e, t), e.match_length <= 5 && (e.strategy === xa || e.match_length === k1 && e.strstart - e.match_start > 4096) && (e.match_length = k1 - 1)), e.prev_length >= k1 && e.match_length <= e.prev_length) {
-            a = e.strstart + e.lookahead - k1, n = j(e, e.strstart - 1 - e.prev_match, e.prev_length - k1), e.lookahead -= e.prev_length - 1, e.prev_length -= 2;
-            do ++e.strstart <= a && (e.ins_h = V(e, e.ins_h, e.window[e.strstart + k1 - 1]), t = e.prev[e.strstart & e.w_mask] = e.head[e.ins_h], e.head[e.ins_h] = e.strstart);
-            while (--e.prev_length !== 0)
-            if (e.match_available = 0, e.match_length = k1 - 1, e.strstart++, n && (O1(e, !1), e.strm.avail_out === 0)) return D;
-        } else if (e.match_available) {
-            if (n = j(e, 0, e.window[e.strstart - 1]), n && O1(e, !1), e.strstart++, e.lookahead--, e.strm.avail_out === 0) return D;
-        } else e.match_available = 1, e.strstart++, e.lookahead--;
-    }
-    return e.match_available && (n = j(e, 0, e.window[e.strstart - 1]), e.match_available = 0), e.insert = e.strstart < k1 - 1 ? e.strstart : k1 - 1, i === W ? (O1(e, !0), e.strm.avail_out === 0 ? te : he) : e.last_lit && (O1(e, !1), e.strm.avail_out === 0) ? D : Re;
-}, Ca = (e, i)=>{
-    let t, n, a, l, o = e.window;
-    for(;;){
-        if (e.lookahead <= Y) {
-            if (ie(e), e.lookahead <= Y && i === le) return D;
-            if (e.lookahead === 0) break;
-        }
-        if (e.match_length = 0, e.lookahead >= k1 && e.strstart > 0 && (a = e.strstart - 1, n = o[a], n === o[++a] && n === o[++a] && n === o[++a])) {
-            l = e.strstart + Y;
-            do ;
-            while (n === o[++a] && n === o[++a] && n === o[++a] && n === o[++a] && n === o[++a] && n === o[++a] && n === o[++a] && n === o[++a] && a < l)
-            e.match_length = Y - (l - a), e.match_length > e.lookahead && (e.match_length = e.lookahead);
-        }
-        if (e.match_length >= k1 ? (t = j(e, 1, e.match_length - k1), e.lookahead -= e.match_length, e.strstart += e.match_length, e.match_length = 0) : (t = j(e, 0, e.window[e.strstart]), e.lookahead--, e.strstart++), t && (O1(e, !1), e.strm.avail_out === 0)) return D;
-    }
-    return e.insert = 0, i === W ? (O1(e, !0), e.strm.avail_out === 0 ? te : he) : e.last_lit && (O1(e, !1), e.strm.avail_out === 0) ? D : Re;
-}, Fa = (e, i)=>{
-    let t;
-    for(;;){
-        if (e.lookahead === 0 && (ie(e), e.lookahead === 0)) {
-            if (i === le) return D;
-            break;
-        }
-        if (e.match_length = 0, t = j(e, 0, e.window[e.strstart]), e.lookahead--, e.strstart++, t && (O1(e, !1), e.strm.avail_out === 0)) return D;
-    }
-    return e.insert = 0, i === W ? (O1(e, !0), e.strm.avail_out === 0 ? te : he) : e.last_lit && (O1(e, !1), e.strm.avail_out === 0) ? D : Re;
-};
-function C1(e, i, t, n, a) {
-    this.good_length = e, this.max_lazy = i, this.nice_length = t, this.max_chain = n, this.func = a;
-}
-var ce = [
-    new C1(0, 0, 0, 0, $a),
-    new C1(4, 4, 8, 4, Qe),
-    new C1(4, 5, 16, 8, Qe),
-    new C1(4, 6, 32, 32, Qe),
-    new C1(4, 4, 16, 16, re),
-    new C1(8, 16, 32, 32, re),
-    new C1(8, 16, 128, 128, re),
-    new C1(8, 32, 128, 256, re),
-    new C1(32, 128, 258, 1024, re),
-    new C1(32, 258, 258, 4096, re)
-], Ma = (e)=>{
-    e.window_size = 2 * e.w_size, X(e.head), e.max_lazy_match = ce[e.level].max_lazy, e.good_match = ce[e.level].good_length, e.nice_match = ce[e.level].nice_length, e.max_chain_length = ce[e.level].max_chain, e.strstart = 0, e.block_start = 0, e.lookahead = 0, e.insert = 0, e.match_length = e.prev_length = k1 - 1, e.match_available = 0, e.ins_h = 0;
-};
-function Ha() {
-    this.strm = null, this.status = 0, this.pending_buf = null, this.pending_buf_size = 0, this.pending_out = 0, this.pending = 0, this.wrap = 0, this.gzhead = null, this.gzindex = 0, this.method = Pe, this.last_flush = -1, this.w_size = 0, this.w_bits = 0, this.w_mask = 0, this.window = null, this.window_size = 0, this.prev = null, this.head = null, this.ins_h = 0, this.hash_size = 0, this.hash_bits = 0, this.hash_mask = 0, this.hash_shift = 0, this.block_start = 0, this.match_length = 0, this.prev_match = 0, this.match_available = 0, this.strstart = 0, this.match_start = 0, this.lookahead = 0, this.prev_length = 0, this.max_chain_length = 0, this.max_lazy_match = 0, this.level = 0, this.strategy = 0, this.good_match = 0, this.nice_match = 0, this.dyn_ltree = new Uint16Array(Za * 2), this.dyn_dtree = new Uint16Array((2 * ma + 1) * 2), this.bl_tree = new Uint16Array((2 * Da + 1) * 2), X(this.dyn_ltree), X(this.dyn_dtree), X(this.bl_tree), this.l_desc = null, this.d_desc = null, this.bl_desc = null, this.bl_count = new Uint16Array(Ia + 1), this.heap = new Uint16Array(2 * _t + 1), X(this.heap), this.heap_len = 0, this.heap_max = 0, this.depth = new Uint16Array(2 * _t + 1), X(this.depth), this.l_buf = 0, this.lit_bufsize = 0, this.last_lit = 0, this.d_buf = 0, this.opt_len = 0, this.static_len = 0, this.matches = 0, this.insert = 0, this.bi_buf = 0, this.bi_valid = 0;
-}
-var xi = (e)=>{
-    if (!e || !e.state) return G(e, L1);
-    e.total_in = e.total_out = 0, e.data_type = ya;
-    let i = e.state;
-    return i.pending = 0, i.pending_out = 0, i.wrap < 0 && (i.wrap = -i.wrap), i.status = i.wrap ? Xe : q, e.adler = i.wrap === 2 ? 0 : 1, i.last_flush = le, da(i), M;
-}, ki = (e)=>{
-    let i = xi(e);
-    return i === M && Ma(e.state), i;
-}, Ba = (e, i)=>!e || !e.state || e.state.wrap !== 2 ? L1 : (e.state.gzhead = i, M), vi = (e, i, t, n, a, l)=>{
-    if (!e) return L1;
-    let o = 1;
-    if (i === pa && (i = 6), n < 0 ? (o = 0, n = -n) : n > 15 && (o = 2, n -= 16), a < 1 || a > Sa || t !== Pe || n < 8 || n > 15 || i < 0 || i > 9 || l < 0 || l > va) return G(e, L1);
-    n === 8 && (n = 9);
-    let f = new Ha;
-    return e.state = f, f.strm = e, f.wrap = o, f.gzhead = null, f.w_bits = n, f.w_size = 1 << f.w_bits, f.w_mask = f.w_size - 1, f.hash_bits = a + 7, f.hash_size = 1 << f.hash_bits, f.hash_mask = f.hash_size - 1, f.hash_shift = ~~((f.hash_bits + k1 - 1) / k1), f.window = new Uint8Array(f.w_size * 2), f.head = new Uint16Array(f.hash_size), f.prev = new Uint16Array(f.w_size), f.lit_bufsize = 1 << a + 6, f.pending_buf_size = f.lit_bufsize * 4, f.pending_buf = new Uint8Array(f.pending_buf_size), f.d_buf = 1 * f.lit_bufsize, f.l_buf = (1 + 2) * f.lit_bufsize, f.level = i, f.strategy = l, f.method = t, ki(e);
-}, Ka = (e, i)=>vi(e, i, Pe, Aa, Ra, Ea), Pa = (e, i)=>{
-    let t, n;
-    if (!e || !e.state || i > St || i < 0) return e ? G(e, L1) : L1;
-    let a = e.state;
-    if (!e.output || !e.input && e.avail_in !== 0 || a.status === se && i !== W) return G(e, e.avail_out === 0 ? Je : L1);
-    a.strm = e;
-    let l = a.last_flush;
-    if (a.last_flush = i, a.status === Xe) if (a.wrap === 2) e.adler = 0, y(a, 31), y(a, 139), y(a, 8), a.gzhead ? (y(a, (a.gzhead.text ? 1 : 0) + (a.gzhead.hcrc ? 2 : 0) + (a.gzhead.extra ? 4 : 0) + (a.gzhead.name ? 8 : 0) + (a.gzhead.comment ? 16 : 0)), y(a, a.gzhead.time & 255), y(a, a.gzhead.time >> 8 & 255), y(a, a.gzhead.time >> 16 & 255), y(a, a.gzhead.time >> 24 & 255), y(a, a.level === 9 ? 2 : a.strategy >= Ie || a.level < 2 ? 4 : 0), y(a, a.gzhead.os & 255), a.gzhead.extra && a.gzhead.extra.length && (y(a, a.gzhead.extra.length & 255), y(a, a.gzhead.extra.length >> 8 & 255)), a.gzhead.hcrc && (e.adler = I(e.adler, a.pending_buf, a.pending, 0)), a.gzindex = 0, a.status = ht) : (y(a, 0), y(a, 0), y(a, 0), y(a, 0), y(a, 0), y(a, a.level === 9 ? 2 : a.strategy >= Ie || a.level < 2 ? 4 : 0), y(a, Na), a.status = q);
-    else {
-        let o = Pe + (a.w_bits - 8 << 4) << 8, f = -1;
-        a.strategy >= Ie || a.level < 2 ? f = 0 : a.level < 6 ? f = 1 : a.level === 6 ? f = 2 : f = 3, o |= f << 6, a.strstart !== 0 && (o |= Oa), o += 31 - o % 31, a.status = q, de(a, o), a.strstart !== 0 && (de(a, e.adler >>> 16), de(a, e.adler & 65535)), e.adler = 1;
-    }
-    if (a.status === ht) if (a.gzhead.extra) {
-        for(t = a.pending; a.gzindex < (a.gzhead.extra.length & 65535) && !(a.pending === a.pending_buf_size && (a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), P1(e), t = a.pending, a.pending === a.pending_buf_size));)y(a, a.gzhead.extra[a.gzindex] & 255), a.gzindex++;
-        a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), a.gzindex === a.gzhead.extra.length && (a.gzindex = 0, a.status = Ce);
-    } else a.status = Ce;
-    if (a.status === Ce) if (a.gzhead.name) {
-        t = a.pending;
-        do {
-            if (a.pending === a.pending_buf_size && (a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), P1(e), t = a.pending, a.pending === a.pending_buf_size)) {
-                n = 1;
-                break;
-            }
-            a.gzindex < a.gzhead.name.length ? n = a.gzhead.name.charCodeAt(a.gzindex++) & 255 : n = 0, y(a, n);
-        }while (n !== 0)
-        a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), n === 0 && (a.gzindex = 0, a.status = Fe);
-    } else a.status = Fe;
-    if (a.status === Fe) if (a.gzhead.comment) {
-        t = a.pending;
-        do {
-            if (a.pending === a.pending_buf_size && (a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), P1(e), t = a.pending, a.pending === a.pending_buf_size)) {
-                n = 1;
-                break;
-            }
-            a.gzindex < a.gzhead.comment.length ? n = a.gzhead.comment.charCodeAt(a.gzindex++) & 255 : n = 0, y(a, n);
-        }while (n !== 0)
-        a.gzhead.hcrc && a.pending > t && (e.adler = I(e.adler, a.pending_buf, a.pending - t, t)), n === 0 && (a.status = Me);
-    } else a.status = Me;
-    if (a.status === Me && (a.gzhead.hcrc ? (a.pending + 2 > a.pending_buf_size && P1(e), a.pending + 2 <= a.pending_buf_size && (y(a, e.adler & 255), y(a, e.adler >> 8 & 255), e.adler = 0, a.status = q)) : a.status = q), a.pending !== 0) {
-        if (P1(e), e.avail_out === 0) return a.last_flush = -1, M;
-    } else if (e.avail_in === 0 && Rt(i) <= Rt(l) && i !== W) return G(e, Je);
-    if (a.status === se && e.avail_in !== 0) return G(e, Je);
-    if (e.avail_in !== 0 || a.lookahead !== 0 || i !== le && a.status !== se) {
-        let o = a.strategy === Ie ? Fa(a, i) : a.strategy === ka ? Ca(a, i) : ce[a.level].func(a, i);
-        if ((o === te || o === he) && (a.status = se), o === D || o === te) return e.avail_out === 0 && (a.last_flush = -1), M;
-        if (o === Re && (i === ba ? ua(a) : i !== St && (sa(a, 0, 0, !1), i === wa && (X(a.head), a.lookahead === 0 && (a.strstart = 0, a.block_start = 0, a.insert = 0))), P1(e), e.avail_out === 0)) return a.last_flush = -1, M;
-    }
-    return i !== W ? M : a.wrap <= 0 ? At : (a.wrap === 2 ? (y(a, e.adler & 255), y(a, e.adler >> 8 & 255), y(a, e.adler >> 16 & 255), y(a, e.adler >> 24 & 255), y(a, e.total_in & 255), y(a, e.total_in >> 8 & 255), y(a, e.total_in >> 16 & 255), y(a, e.total_in >> 24 & 255)) : (de(a, e.adler >>> 16), de(a, e.adler & 65535)), P1(e), a.wrap > 0 && (a.wrap = -a.wrap), a.pending !== 0 ? M : At);
-}, Xa = (e)=>{
-    if (!e || !e.state) return L1;
-    let i = e.state.status;
-    return i !== Xe && i !== ht && i !== Ce && i !== Fe && i !== Me && i !== q && i !== se ? G(e, L1) : (e.state = null, i === q ? G(e, ga) : M);
-}, Ya = (e, i)=>{
-    let t = i.length;
-    if (!e || !e.state) return L1;
-    let n = e.state, a = n.wrap;
-    if (a === 2 || a === 1 && n.status !== Xe || n.lookahead) return L1;
-    if (a === 1 && (e.adler = ve(e.adler, i, t, 0)), n.wrap = 0, t >= n.w_size) {
-        a === 0 && (X(n.head), n.strstart = 0, n.block_start = 0, n.insert = 0);
-        let c = new Uint8Array(n.w_size);
-        c.set(i.subarray(t - n.w_size, t), 0), i = c, t = n.w_size;
-    }
-    let l = e.avail_in, o = e.next_in, f = e.input;
-    for(e.avail_in = t, e.next_in = 0, e.input = i, ie(n); n.lookahead >= k1;){
-        let c = n.strstart, r = n.lookahead - (k1 - 1);
-        do n.ins_h = V(n, n.ins_h, n.window[c + k1 - 1]), n.prev[c & n.w_mask] = n.head[n.ins_h], n.head[n.ins_h] = c, c++;
-        while (--r)
-        n.strstart = c, n.lookahead = k1 - 1, ie(n);
-    }
-    return n.strstart += n.lookahead, n.block_start = n.strstart, n.insert = n.lookahead, n.lookahead = 0, n.match_length = n.prev_length = k1 - 1, n.match_available = 0, e.next_in = o, e.input = f, e.avail_in = l, n.wrap = a, M;
-}, Ga = Ka, ja = vi, Wa = ki, Va = xi, Ja = Ba, Qa = Pa, qa = Xa, en = Ya, tn = "pako deflate (from Nodeca project)", be = {
-    deflateInit: Ga,
-    deflateInit2: ja,
-    deflateReset: Wa,
-    deflateResetKeep: Va,
-    deflateSetHeader: Ja,
-    deflate: Qa,
-    deflateEnd: qa,
-    deflateSetDictionary: en,
-    deflateInfo: tn
-}, an = (e, i)=>Object.prototype.hasOwnProperty.call(e, i), nn = function(e) {
-    let i = Array.prototype.slice.call(arguments, 1);
-    for(; i.length;){
-        let t = i.shift();
-        if (t) {
-            if (typeof t != "object") throw new TypeError(t + "must be non-object");
-            for(let n in t)an(t, n) && (e[n] = t[n]);
-        }
-    }
-    return e;
-}, ln = (e)=>{
-    let i = 0;
-    for(let n = 0, a = e.length; n < a; n++)i += e[n].length;
-    let t = new Uint8Array(i);
-    for(let n = 0, a = 0, l = e.length; n < l; n++){
-        let o = e[n];
-        t.set(o, a), a += o.length;
-    }
-    return t;
-}, Ye = {
-    assign: nn,
-    flattenChunks: ln
-}, Ei = !0;
-try {
-    String.fromCharCode.apply(null, new Uint8Array(1));
-} catch  {
-    Ei = !1;
-}
-var Ee = new Uint8Array(256);
-for(let e = 0; e < 256; e++)Ee[e] = e >= 252 ? 6 : e >= 248 ? 5 : e >= 240 ? 4 : e >= 224 ? 3 : e >= 192 ? 2 : 1;
-Ee[254] = Ee[254] = 1;
-var rn = (e)=>{
-    if (typeof TextEncoder == "function" && TextEncoder.prototype.encode) return new TextEncoder().encode(e);
-    let i, t, n, a, l, o = e.length, f = 0;
-    for(a = 0; a < o; a++)t = e.charCodeAt(a), (t & 64512) === 55296 && a + 1 < o && (n = e.charCodeAt(a + 1), (n & 64512) === 56320 && (t = 65536 + (t - 55296 << 10) + (n - 56320), a++)), f += t < 128 ? 1 : t < 2048 ? 2 : t < 65536 ? 3 : 4;
-    for(i = new Uint8Array(f), l = 0, a = 0; l < f; a++)t = e.charCodeAt(a), (t & 64512) === 55296 && a + 1 < o && (n = e.charCodeAt(a + 1), (n & 64512) === 56320 && (t = 65536 + (t - 55296 << 10) + (n - 56320), a++)), t < 128 ? i[l++] = t : t < 2048 ? (i[l++] = 192 | t >>> 6, i[l++] = 128 | t & 63) : t < 65536 ? (i[l++] = 224 | t >>> 12, i[l++] = 128 | t >>> 6 & 63, i[l++] = 128 | t & 63) : (i[l++] = 240 | t >>> 18, i[l++] = 128 | t >>> 12 & 63, i[l++] = 128 | t >>> 6 & 63, i[l++] = 128 | t & 63);
-    return i;
-}, fn = (e, i)=>{
-    if (i < 65534 && e.subarray && Ei) return String.fromCharCode.apply(null, e.length === i ? e : e.subarray(0, i));
-    let t = "";
-    for(let n = 0; n < i; n++)t += String.fromCharCode(e[n]);
-    return t;
-}, on = (e, i)=>{
-    let t = i || e.length;
-    if (typeof TextDecoder == "function" && TextDecoder.prototype.decode) return new TextDecoder().decode(e.subarray(0, i));
-    let n, a, l = new Array(t * 2);
-    for(a = 0, n = 0; n < t;){
-        let o = e[n++];
-        if (o < 128) {
-            l[a++] = o;
-            continue;
-        }
-        let f = Ee[o];
-        if (f > 4) {
-            l[a++] = 65533, n += f - 1;
-            continue;
-        }
-        for(o &= f === 2 ? 31 : f === 3 ? 15 : 7; f > 1 && n < t;)o = o << 6 | e[n++] & 63, f--;
-        if (f > 1) {
-            l[a++] = 65533;
-            continue;
-        }
-        o < 65536 ? l[a++] = o : (o -= 65536, l[a++] = 55296 | o >> 10 & 1023, l[a++] = 56320 | o & 1023);
-    }
-    return fn(l, a);
-}, _n = (e, i)=>{
-    i = i || e.length, i > e.length && (i = e.length);
-    let t = i - 1;
-    for(; t >= 0 && (e[t] & 192) === 128;)t--;
-    return t < 0 || t === 0 ? i : t + Ee[e[t]] > i ? t : i;
-}, ye = {
-    string2buf: rn,
-    buf2string: on,
-    utf8border: _n
-};
-function hn() {
-    this.input = null, this.next_in = 0, this.avail_in = 0, this.total_in = 0, this.output = null, this.next_out = 0, this.avail_out = 0, this.total_out = 0, this.msg = "", this.state = null, this.data_type = 2, this.adler = 0;
-}
-var yi = hn, Si = Object.prototype.toString, { Z_NO_FLUSH: dn , Z_SYNC_FLUSH: sn , Z_FULL_FLUSH: cn , Z_FINISH: un , Z_OK: Be , Z_STREAM_END: bn , Z_DEFAULT_COMPRESSION: wn , Z_DEFAULT_STRATEGY: gn , Z_DEFLATED: pn  } = ne;
-function ze(e) {
-    this.options = Ye.assign({
-        level: wn,
-        method: pn,
-        chunkSize: 16384,
-        windowBits: 15,
-        memLevel: 8,
-        strategy: gn
-    }, e || {});
-    let i = this.options;
-    i.raw && i.windowBits > 0 ? i.windowBits = -i.windowBits : i.gzip && i.windowBits > 0 && i.windowBits < 16 && (i.windowBits += 16), this.err = 0, this.msg = "", this.ended = !1, this.chunks = [], this.strm = new yi, this.strm.avail_out = 0;
-    let t = be.deflateInit2(this.strm, i.level, i.method, i.windowBits, i.memLevel, i.strategy);
-    if (t !== Be) throw new Error(ee[t]);
-    if (i.header && be.deflateSetHeader(this.strm, i.header), i.dictionary) {
-        let n;
-        if (typeof i.dictionary == "string" ? n = ye.string2buf(i.dictionary) : Si.call(i.dictionary) === "[object ArrayBuffer]" ? n = new Uint8Array(i.dictionary) : n = i.dictionary, t = be.deflateSetDictionary(this.strm, n), t !== Be) throw new Error(ee[t]);
-        this._dict_set = !0;
-    }
-}
-ze.prototype.push = function(e, i) {
-    let t = this.strm, n = this.options.chunkSize, a, l;
-    if (this.ended) return !1;
-    for(i === ~~i ? l = i : l = i === !0 ? un : dn, typeof e == "string" ? t.input = ye.string2buf(e) : Si.call(e) === "[object ArrayBuffer]" ? t.input = new Uint8Array(e) : t.input = e, t.next_in = 0, t.avail_in = t.input.length;;){
-        if (t.avail_out === 0 && (t.output = new Uint8Array(n), t.next_out = 0, t.avail_out = n), (l === sn || l === cn) && t.avail_out <= 6) {
-            this.onData(t.output.subarray(0, t.next_out)), t.avail_out = 0;
-            continue;
-        }
-        if (a = be.deflate(t, l), a === bn) return t.next_out > 0 && this.onData(t.output.subarray(0, t.next_out)), a = be.deflateEnd(this.strm), this.onEnd(a), this.ended = !0, a === Be;
-        if (t.avail_out === 0) {
-            this.onData(t.output);
-            continue;
-        }
-        if (l > 0 && t.next_out > 0) {
-            this.onData(t.output.subarray(0, t.next_out)), t.avail_out = 0;
-            continue;
-        }
-        if (t.avail_in === 0) break;
-    }
-    return !0;
-};
-ze.prototype.onData = function(e) {
-    this.chunks.push(e);
-};
-ze.prototype.onEnd = function(e) {
-    e === Be && (this.result = Ye.flattenChunks(this.chunks)), this.chunks = [], this.err = e, this.msg = this.strm.msg;
-};
-function bt(e, i) {
-    let t = new ze(i);
-    if (t.push(e, !0), t.err) throw t.msg || ee[t.err];
-    return t.result;
-}
-function xn(e, i) {
-    return i = i || {}, i.raw = !0, bt(e, i);
-}
-function kn(e, i) {
-    return i = i || {}, i.gzip = !0, bt(e, i);
-}
-var vn = ze, En = bt, yn = xn, Sn = kn, An = ne, Rn = {
-    Deflate: vn,
-    deflate: En,
-    deflateRaw: yn,
-    gzip: Sn,
-    constants: An
-}, Oe = 30, zn = 12, Tn = function(i, t) {
-    let n, a, l, o, f, c, r, _, E, s, h, u, m, v, w, A, x, d, S, Z, b, z, R, g, p = i.state;
-    n = i.next_in, R = i.input, a = n + (i.avail_in - 5), l = i.next_out, g = i.output, o = l - (t - i.avail_out), f = l + (i.avail_out - 257), c = p.dmax, r = p.wsize, _ = p.whave, E = p.wnext, s = p.window, h = p.hold, u = p.bits, m = p.lencode, v = p.distcode, w = (1 << p.lenbits) - 1, A = (1 << p.distbits) - 1;
-    e: do {
-        u < 15 && (h += R[n++] << u, u += 8, h += R[n++] << u, u += 8), x = m[h & w];
-        t: for(;;){
-            if (d = x >>> 24, h >>>= d, u -= d, d = x >>> 16 & 255, d === 0) g[l++] = x & 65535;
-            else if (d & 16) {
-                S = x & 65535, d &= 15, d && (u < d && (h += R[n++] << u, u += 8), S += h & (1 << d) - 1, h >>>= d, u -= d), u < 15 && (h += R[n++] << u, u += 8, h += R[n++] << u, u += 8), x = v[h & A];
-                i: for(;;){
-                    if (d = x >>> 24, h >>>= d, u -= d, d = x >>> 16 & 255, d & 16) {
-                        if (Z = x & 65535, d &= 15, u < d && (h += R[n++] << u, u += 8, u < d && (h += R[n++] << u, u += 8)), Z += h & (1 << d) - 1, Z > c) {
-                            i.msg = "invalid distance too far back", p.mode = Oe;
-                            break e;
-                        }
-                        if (h >>>= d, u -= d, d = l - o, Z > d) {
-                            if (d = Z - d, d > _ && p.sane) {
-                                i.msg = "invalid distance too far back", p.mode = Oe;
-                                break e;
-                            }
-                            if (b = 0, z = s, E === 0) {
-                                if (b += r - d, d < S) {
-                                    S -= d;
-                                    do g[l++] = s[b++];
-                                    while (--d)
-                                    b = l - Z, z = g;
-                                }
-                            } else if (E < d) {
-                                if (b += r + E - d, d -= E, d < S) {
-                                    S -= d;
-                                    do g[l++] = s[b++];
-                                    while (--d)
-                                    if (b = 0, E < S) {
-                                        d = E, S -= d;
-                                        do g[l++] = s[b++];
-                                        while (--d)
-                                        b = l - Z, z = g;
-                                    }
-                                }
-                            } else if (b += E - d, d < S) {
-                                S -= d;
-                                do g[l++] = s[b++];
-                                while (--d)
-                                b = l - Z, z = g;
-                            }
-                            for(; S > 2;)g[l++] = z[b++], g[l++] = z[b++], g[l++] = z[b++], S -= 3;
-                            S && (g[l++] = z[b++], S > 1 && (g[l++] = z[b++]));
-                        } else {
-                            b = l - Z;
-                            do g[l++] = g[b++], g[l++] = g[b++], g[l++] = g[b++], S -= 3;
-                            while (S > 2)
-                            S && (g[l++] = g[b++], S > 1 && (g[l++] = g[b++]));
-                        }
-                    } else if (d & 64) {
-                        i.msg = "invalid distance code", p.mode = Oe;
-                        break e;
-                    } else {
-                        x = v[(x & 65535) + (h & (1 << d) - 1)];
-                        continue i;
-                    }
-                    break;
-                }
-            } else if (d & 64) if (d & 32) {
-                p.mode = zn;
-                break e;
-            } else {
-                i.msg = "invalid literal/length code", p.mode = Oe;
-                break e;
-            }
-            else {
-                x = m[(x & 65535) + (h & (1 << d) - 1)];
-                continue t;
-            }
-            break;
-        }
-    }while (n < a && l < f)
-    S = u >> 3, n -= S, u -= S << 3, h &= (1 << u) - 1, i.next_in = n, i.next_out = l, i.avail_in = n < a ? 5 + (a - n) : 5 - (n - a), i.avail_out = l < f ? 257 + (f - l) : 257 - (l - f), p.hold = h, p.bits = u;
-}, fe = 15, zt = 852, Tt = 592, mt = 0, qe = 1, Dt = 2, mn = new Uint16Array([
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    9,
-    10,
-    11,
-    13,
-    15,
-    17,
-    19,
-    23,
-    27,
-    31,
-    35,
-    43,
-    51,
-    59,
-    67,
-    83,
-    99,
-    115,
-    131,
-    163,
-    195,
-    227,
-    258,
-    0,
-    0
-]), Dn = new Uint8Array([
-    16,
-    16,
-    16,
-    16,
-    16,
-    16,
-    16,
-    16,
-    17,
-    17,
-    17,
-    17,
-    18,
-    18,
-    18,
-    18,
-    19,
-    19,
-    19,
-    19,
-    20,
-    20,
-    20,
-    20,
-    21,
-    21,
-    21,
-    21,
-    16,
-    72,
-    78
-]), Zn = new Uint16Array([
-    1,
-    2,
-    3,
-    4,
-    5,
-    7,
-    9,
-    13,
-    17,
-    25,
-    33,
-    49,
-    65,
-    97,
-    129,
-    193,
-    257,
-    385,
-    513,
-    769,
-    1025,
-    1537,
-    2049,
-    3073,
-    4097,
-    6145,
-    8193,
-    12289,
-    16385,
-    24577,
-    0,
-    0
-]), In = new Uint8Array([
-    16,
-    16,
-    16,
-    16,
-    17,
-    17,
-    18,
-    18,
-    19,
-    19,
-    20,
-    20,
-    21,
-    21,
-    22,
-    22,
-    23,
-    23,
-    24,
-    24,
-    25,
-    25,
-    26,
-    26,
-    27,
-    27,
-    28,
-    28,
-    29,
-    29,
-    64,
-    64
-]), On = (e, i, t, n, a, l, o, f)=>{
-    let c = f.bits, r = 0, _ = 0, E = 0, s = 0, h = 0, u = 0, m = 0, v = 0, w = 0, A = 0, x, d, S, Z, b, z = null, R = 0, g, p = new Uint16Array(fe + 1), J = new Uint16Array(fe + 1), me = null, gt = 0, pt, De, Ze;
-    for(r = 0; r <= fe; r++)p[r] = 0;
-    for(_ = 0; _ < n; _++)p[i[t + _]]++;
-    for(h = c, s = fe; s >= 1 && p[s] === 0; s--);
-    if (h > s && (h = s), s === 0) return a[l++] = 1 << 24 | 64 << 16 | 0, a[l++] = 1 << 24 | 64 << 16 | 0, f.bits = 1, 0;
-    for(E = 1; E < s && p[E] === 0; E++);
-    for(h < E && (h = E), v = 1, r = 1; r <= fe; r++)if (v <<= 1, v -= p[r], v < 0) return -1;
-    if (v > 0 && (e === mt || s !== 1)) return -1;
-    for(J[1] = 0, r = 1; r < fe; r++)J[r + 1] = J[r] + p[r];
-    for(_ = 0; _ < n; _++)i[t + _] !== 0 && (o[J[i[t + _]]++] = _);
-    if (e === mt ? (z = me = o, g = 19) : e === qe ? (z = mn, R -= 257, me = Dn, gt -= 257, g = 256) : (z = Zn, me = In, g = -1), A = 0, _ = 0, r = E, b = l, u = h, m = 0, S = -1, w = 1 << h, Z = w - 1, e === qe && w > zt || e === Dt && w > Tt) return 1;
-    for(;;){
-        pt = r - m, o[_] < g ? (De = 0, Ze = o[_]) : o[_] > g ? (De = me[gt + o[_]], Ze = z[R + o[_]]) : (De = 32 + 64, Ze = 0), x = 1 << r - m, d = 1 << u, E = d;
-        do d -= x, a[b + (A >> m) + d] = pt << 24 | De << 16 | Ze | 0;
-        while (d !== 0)
-        for(x = 1 << r - 1; A & x;)x >>= 1;
-        if (x !== 0 ? (A &= x - 1, A += x) : A = 0, _++, --p[r] === 0) {
-            if (r === s) break;
-            r = i[t + o[_]];
-        }
-        if (r > h && (A & Z) !== S) {
-            for(m === 0 && (m = h), b += E, u = r - m, v = 1 << u; u + m < s && (v -= p[u + m], !(v <= 0));)u++, v <<= 1;
-            if (w += 1 << u, e === qe && w > zt || e === Dt && w > Tt) return 1;
-            S = A & Z, a[S] = h << 24 | u << 16 | b - l | 0;
-        }
-    }
-    return A !== 0 && (a[b + A] = r - m << 24 | 64 << 16 | 0), f.bits = h, 0;
-}, we = On, Nn = 0, Ai = 1, Ri = 2, { Z_FINISH: Zt , Z_BLOCK: Ln , Z_TREES: Ne , Z_OK: ae , Z_STREAM_END: Un , Z_NEED_DICT: $n , Z_STREAM_ERROR: U , Z_DATA_ERROR: zi , Z_MEM_ERROR: Ti , Z_BUF_ERROR: Cn , Z_DEFLATED: It  } = ne, mi = 1, Ot = 2, Nt = 3, Lt = 4, Ut = 5, $t = 6, Ct = 7, Ft = 8, Mt = 9, Ht = 10, Ke = 11, H = 12, et = 13, Bt = 14, tt = 15, Kt = 16, Pt = 17, Xt = 18, Yt = 19, Le = 20, Ue = 21, Gt = 22, jt = 23, Wt = 24, Vt = 25, Jt = 26, it = 27, Qt = 28, qt = 29, T1 = 30, Di = 31, Fn = 32, Mn = 852, Hn = 592, Bn = 15, Kn = Bn, ei = (e)=>(e >>> 24 & 255) + (e >>> 8 & 65280) + ((e & 65280) << 8) + ((e & 255) << 24);
-function Pn() {
-    this.mode = 0, this.last = !1, this.wrap = 0, this.havedict = !1, this.flags = 0, this.dmax = 0, this.check = 0, this.total = 0, this.head = null, this.wbits = 0, this.wsize = 0, this.whave = 0, this.wnext = 0, this.window = null, this.hold = 0, this.bits = 0, this.length = 0, this.offset = 0, this.extra = 0, this.lencode = null, this.distcode = null, this.lenbits = 0, this.distbits = 0, this.ncode = 0, this.nlen = 0, this.ndist = 0, this.have = 0, this.next = null, this.lens = new Uint16Array(320), this.work = new Uint16Array(288), this.lendyn = null, this.distdyn = null, this.sane = 0, this.back = 0, this.was = 0;
-}
-var Zi = (e)=>{
-    if (!e || !e.state) return U;
-    let i = e.state;
-    return e.total_in = e.total_out = i.total = 0, e.msg = "", i.wrap && (e.adler = i.wrap & 1), i.mode = mi, i.last = 0, i.havedict = 0, i.dmax = 32768, i.head = null, i.hold = 0, i.bits = 0, i.lencode = i.lendyn = new Int32Array(Mn), i.distcode = i.distdyn = new Int32Array(Hn), i.sane = 1, i.back = -1, ae;
-}, Ii = (e)=>{
-    if (!e || !e.state) return U;
-    let i = e.state;
-    return i.wsize = 0, i.whave = 0, i.wnext = 0, Zi(e);
-}, Oi = (e, i)=>{
-    let t;
-    if (!e || !e.state) return U;
-    let n = e.state;
-    return i < 0 ? (t = 0, i = -i) : (t = (i >> 4) + 1, i < 48 && (i &= 15)), i && (i < 8 || i > 15) ? U : (n.window !== null && n.wbits !== i && (n.window = null), n.wrap = t, n.wbits = i, Ii(e));
-}, Ni = (e, i)=>{
-    if (!e) return U;
-    let t = new Pn;
-    e.state = t, t.window = null;
-    let n = Oi(e, i);
-    return n !== ae && (e.state = null), n;
-}, Xn = (e)=>Ni(e, Kn), ti = !0, at, nt, Yn = (e)=>{
-    if (ti) {
-        at = new Int32Array(512), nt = new Int32Array(32);
-        let i = 0;
-        for(; i < 144;)e.lens[i++] = 8;
-        for(; i < 256;)e.lens[i++] = 9;
-        for(; i < 280;)e.lens[i++] = 7;
-        for(; i < 288;)e.lens[i++] = 8;
-        for(we(Ai, e.lens, 0, 288, at, 0, e.work, {
-            bits: 9
-        }), i = 0; i < 32;)e.lens[i++] = 5;
-        we(Ri, e.lens, 0, 32, nt, 0, e.work, {
-            bits: 5
-        }), ti = !1;
-    }
-    e.lencode = at, e.lenbits = 9, e.distcode = nt, e.distbits = 5;
-}, Li = (e, i, t, n)=>{
-    let a, l = e.state;
-    return l.window === null && (l.wsize = 1 << l.wbits, l.wnext = 0, l.whave = 0, l.window = new Uint8Array(l.wsize)), n >= l.wsize ? (l.window.set(i.subarray(t - l.wsize, t), 0), l.wnext = 0, l.whave = l.wsize) : (a = l.wsize - l.wnext, a > n && (a = n), l.window.set(i.subarray(t - n, t - n + a), l.wnext), n -= a, n ? (l.window.set(i.subarray(t - n, t), 0), l.wnext = n, l.whave = l.wsize) : (l.wnext += a, l.wnext === l.wsize && (l.wnext = 0), l.whave < l.wsize && (l.whave += a))), 0;
-}, Gn = (e, i)=>{
-    let t, n, a, l, o, f, c, r, _, E, s, h, u, m, v = 0, w, A, x, d, S, Z, b, z, R = new Uint8Array(4), g, p, J = new Uint8Array([
-        16,
-        17,
-        18,
-        0,
-        8,
-        7,
-        9,
-        6,
-        10,
-        5,
-        11,
-        4,
-        12,
-        3,
-        13,
-        2,
-        14,
-        1,
-        15
-    ]);
-    if (!e || !e.state || !e.output || !e.input && e.avail_in !== 0) return U;
-    t = e.state, t.mode === H && (t.mode = et), o = e.next_out, a = e.output, c = e.avail_out, l = e.next_in, n = e.input, f = e.avail_in, r = t.hold, _ = t.bits, E = f, s = c, z = ae;
-    e: for(;;)switch(t.mode){
-        case mi:
-            if (t.wrap === 0) {
-                t.mode = et;
-                break;
-            }
-            for(; _ < 16;){
-                if (f === 0) break e;
-                f--, r += n[l++] << _, _ += 8;
-            }
-            if (t.wrap & 2 && r === 35615) {
-                t.check = 0, R[0] = r & 255, R[1] = r >>> 8 & 255, t.check = I(t.check, R, 2, 0), r = 0, _ = 0, t.mode = Ot;
-                break;
-            }
-            if (t.flags = 0, t.head && (t.head.done = !1), !(t.wrap & 1) || (((r & 255) << 8) + (r >> 8)) % 31) {
-                e.msg = "incorrect header check", t.mode = T1;
-                break;
-            }
-            if ((r & 15) !== It) {
-                e.msg = "unknown compression method", t.mode = T1;
-                break;
-            }
-            if (r >>>= 4, _ -= 4, b = (r & 15) + 8, t.wbits === 0) t.wbits = b;
-            else if (b > t.wbits) {
-                e.msg = "invalid window size", t.mode = T1;
-                break;
-            }
-            t.dmax = 1 << t.wbits, e.adler = t.check = 1, t.mode = r & 512 ? Ht : H, r = 0, _ = 0;
-            break;
-        case Ot:
-            for(; _ < 16;){
-                if (f === 0) break e;
-                f--, r += n[l++] << _, _ += 8;
-            }
-            if (t.flags = r, (t.flags & 255) !== It) {
-                e.msg = "unknown compression method", t.mode = T1;
-                break;
-            }
-            if (t.flags & 57344) {
-                e.msg = "unknown header flags set", t.mode = T1;
-                break;
-            }
-            t.head && (t.head.text = r >> 8 & 1), t.flags & 512 && (R[0] = r & 255, R[1] = r >>> 8 & 255, t.check = I(t.check, R, 2, 0)), r = 0, _ = 0, t.mode = Nt;
-        case Nt:
-            for(; _ < 32;){
-                if (f === 0) break e;
-                f--, r += n[l++] << _, _ += 8;
-            }
-            t.head && (t.head.time = r), t.flags & 512 && (R[0] = r & 255, R[1] = r >>> 8 & 255, R[2] = r >>> 16 & 255, R[3] = r >>> 24 & 255, t.check = I(t.check, R, 4, 0)), r = 0, _ = 0, t.mode = Lt;
-        case Lt:
-            for(; _ < 16;){
-                if (f === 0) break e;
-                f--, r += n[l++] << _, _ += 8;
-            }
-            t.head && (t.head.xflags = r & 255, t.head.os = r >> 8), t.flags & 512 && (R[0] = r & 255, R[1] = r >>> 8 & 255, t.check = I(t.check, R, 2, 0)), r = 0, _ = 0, t.mode = Ut;
-        case Ut:
-            if (t.flags & 1024) {
-                for(; _ < 16;){
-                    if (f === 0) break e;
-                    f--, r += n[l++] << _, _ += 8;
-                }
-                t.length = r, t.head && (t.head.extra_len = r), t.flags & 512 && (R[0] = r & 255, R[1] = r >>> 8 & 255, t.check = I(t.check, R, 2, 0)), r = 0, _ = 0;
-            } else t.head && (t.head.extra = null);
-            t.mode = $t;
-        case $t:
-            if (t.flags & 1024 && (h = t.length, h > f && (h = f), h && (t.head && (b = t.head.extra_len - t.length, t.head.extra || (t.head.extra = new Uint8Array(t.head.extra_len)), t.head.extra.set(n.subarray(l, l + h), b)), t.flags & 512 && (t.check = I(t.check, n, h, l)), f -= h, l += h, t.length -= h), t.length)) break e;
-            t.length = 0, t.mode = Ct;
-        case Ct:
-            if (t.flags & 2048) {
-                if (f === 0) break e;
-                h = 0;
-                do b = n[l + h++], t.head && b && t.length < 65536 && (t.head.name += String.fromCharCode(b));
-                while (b && h < f)
-                if (t.flags & 512 && (t.check = I(t.check, n, h, l)), f -= h, l += h, b) break e;
-            } else t.head && (t.head.name = null);
-            t.length = 0, t.mode = Ft;
-        case Ft:
-            if (t.flags & 4096) {
-                if (f === 0) break e;
-                h = 0;
-                do b = n[l + h++], t.head && b && t.length < 65536 && (t.head.comment += String.fromCharCode(b));
-                while (b && h < f)
-                if (t.flags & 512 && (t.check = I(t.check, n, h, l)), f -= h, l += h, b) break e;
-            } else t.head && (t.head.comment = null);
-            t.mode = Mt;
-        case Mt:
-            if (t.flags & 512) {
-                for(; _ < 16;){
-                    if (f === 0) break e;
-                    f--, r += n[l++] << _, _ += 8;
-                }
-                if (r !== (t.check & 65535)) {
-                    e.msg = "header crc mismatch", t.mode = T1;
-                    break;
-                }
-                r = 0, _ = 0;
-            }
-            t.head && (t.head.hcrc = t.flags >> 9 & 1, t.head.done = !0), e.adler = t.check = 0, t.mode = H;
-            break;
-        case Ht:
-            for(; _ < 32;){
-                if (f === 0) break e;
-                f--, r += n[l++] << _, _ += 8;
-            }
-            e.adler = t.check = ei(r), r = 0, _ = 0, t.mode = Ke;
-        case Ke:
-            if (t.havedict === 0) return e.next_out = o, e.avail_out = c, e.next_in = l, e.avail_in = f, t.hold = r, t.bits = _, $n;
-            e.adler = t.check = 1, t.mode = H;
-        case H:
-            if (i === Ln || i === Ne) break e;
-        case et:
-            if (t.last) {
-                r >>>= _ & 7, _ -= _ & 7, t.mode = it;
-                break;
-            }
-            for(; _ < 3;){
-                if (f === 0) break e;
-                f--, r += n[l++] << _, _ += 8;
-            }
-            switch(t.last = r & 1, r >>>= 1, _ -= 1, r & 3){
-                case 0:
-                    t.mode = Bt;
-                    break;
-                case 1:
-                    if (Yn(t), t.mode = Le, i === Ne) {
-                        r >>>= 2, _ -= 2;
-                        break e;
-                    }
-                    break;
-                case 2:
-                    t.mode = Pt;
-                    break;
-                case 3:
-                    e.msg = "invalid block type", t.mode = T1;
-            }
-            r >>>= 2, _ -= 2;
-            break;
-        case Bt:
-            for(r >>>= _ & 7, _ -= _ & 7; _ < 32;){
-                if (f === 0) break e;
-                f--, r += n[l++] << _, _ += 8;
-            }
-            if ((r & 65535) !== (r >>> 16 ^ 65535)) {
-                e.msg = "invalid stored block lengths", t.mode = T1;
-                break;
-            }
-            if (t.length = r & 65535, r = 0, _ = 0, t.mode = tt, i === Ne) break e;
-        case tt:
-            t.mode = Kt;
-        case Kt:
-            if (h = t.length, h) {
-                if (h > f && (h = f), h > c && (h = c), h === 0) break e;
-                a.set(n.subarray(l, l + h), o), f -= h, l += h, c -= h, o += h, t.length -= h;
-                break;
-            }
-            t.mode = H;
-            break;
-        case Pt:
-            for(; _ < 14;){
-                if (f === 0) break e;
-                f--, r += n[l++] << _, _ += 8;
-            }
-            if (t.nlen = (r & 31) + 257, r >>>= 5, _ -= 5, t.ndist = (r & 31) + 1, r >>>= 5, _ -= 5, t.ncode = (r & 15) + 4, r >>>= 4, _ -= 4, t.nlen > 286 || t.ndist > 30) {
-                e.msg = "too many length or distance symbols", t.mode = T1;
-                break;
-            }
-            t.have = 0, t.mode = Xt;
-        case Xt:
-            for(; t.have < t.ncode;){
-                for(; _ < 3;){
-                    if (f === 0) break e;
-                    f--, r += n[l++] << _, _ += 8;
-                }
-                t.lens[J[t.have++]] = r & 7, r >>>= 3, _ -= 3;
-            }
-            for(; t.have < 19;)t.lens[J[t.have++]] = 0;
-            if (t.lencode = t.lendyn, t.lenbits = 7, g = {
-                bits: t.lenbits
-            }, z = we(Nn, t.lens, 0, 19, t.lencode, 0, t.work, g), t.lenbits = g.bits, z) {
-                e.msg = "invalid code lengths set", t.mode = T1;
-                break;
-            }
-            t.have = 0, t.mode = Yt;
-        case Yt:
-            for(; t.have < t.nlen + t.ndist;){
-                for(; v = t.lencode[r & (1 << t.lenbits) - 1], w = v >>> 24, A = v >>> 16 & 255, x = v & 65535, !(w <= _);){
-                    if (f === 0) break e;
-                    f--, r += n[l++] << _, _ += 8;
-                }
-                if (x < 16) r >>>= w, _ -= w, t.lens[t.have++] = x;
-                else {
-                    if (x === 16) {
-                        for(p = w + 2; _ < p;){
-                            if (f === 0) break e;
-                            f--, r += n[l++] << _, _ += 8;
-                        }
-                        if (r >>>= w, _ -= w, t.have === 0) {
-                            e.msg = "invalid bit length repeat", t.mode = T1;
-                            break;
-                        }
-                        b = t.lens[t.have - 1], h = 3 + (r & 3), r >>>= 2, _ -= 2;
-                    } else if (x === 17) {
-                        for(p = w + 3; _ < p;){
-                            if (f === 0) break e;
-                            f--, r += n[l++] << _, _ += 8;
-                        }
-                        r >>>= w, _ -= w, b = 0, h = 3 + (r & 7), r >>>= 3, _ -= 3;
-                    } else {
-                        for(p = w + 7; _ < p;){
-                            if (f === 0) break e;
-                            f--, r += n[l++] << _, _ += 8;
-                        }
-                        r >>>= w, _ -= w, b = 0, h = 11 + (r & 127), r >>>= 7, _ -= 7;
-                    }
-                    if (t.have + h > t.nlen + t.ndist) {
-                        e.msg = "invalid bit length repeat", t.mode = T1;
-                        break;
-                    }
-                    for(; h--;)t.lens[t.have++] = b;
-                }
-            }
-            if (t.mode === T1) break;
-            if (t.lens[256] === 0) {
-                e.msg = "invalid code -- missing end-of-block", t.mode = T1;
-                break;
-            }
-            if (t.lenbits = 9, g = {
-                bits: t.lenbits
-            }, z = we(Ai, t.lens, 0, t.nlen, t.lencode, 0, t.work, g), t.lenbits = g.bits, z) {
-                e.msg = "invalid literal/lengths set", t.mode = T1;
-                break;
-            }
-            if (t.distbits = 6, t.distcode = t.distdyn, g = {
-                bits: t.distbits
-            }, z = we(Ri, t.lens, t.nlen, t.ndist, t.distcode, 0, t.work, g), t.distbits = g.bits, z) {
-                e.msg = "invalid distances set", t.mode = T1;
-                break;
-            }
-            if (t.mode = Le, i === Ne) break e;
-        case Le:
-            t.mode = Ue;
-        case Ue:
-            if (f >= 6 && c >= 258) {
-                e.next_out = o, e.avail_out = c, e.next_in = l, e.avail_in = f, t.hold = r, t.bits = _, Tn(e, s), o = e.next_out, a = e.output, c = e.avail_out, l = e.next_in, n = e.input, f = e.avail_in, r = t.hold, _ = t.bits, t.mode === H && (t.back = -1);
-                break;
-            }
-            for(t.back = 0; v = t.lencode[r & (1 << t.lenbits) - 1], w = v >>> 24, A = v >>> 16 & 255, x = v & 65535, !(w <= _);){
-                if (f === 0) break e;
-                f--, r += n[l++] << _, _ += 8;
-            }
-            if (A && !(A & 240)) {
-                for(d = w, S = A, Z = x; v = t.lencode[Z + ((r & (1 << d + S) - 1) >> d)], w = v >>> 24, A = v >>> 16 & 255, x = v & 65535, !(d + w <= _);){
-                    if (f === 0) break e;
-                    f--, r += n[l++] << _, _ += 8;
-                }
-                r >>>= d, _ -= d, t.back += d;
-            }
-            if (r >>>= w, _ -= w, t.back += w, t.length = x, A === 0) {
-                t.mode = Jt;
-                break;
-            }
-            if (A & 32) {
-                t.back = -1, t.mode = H;
-                break;
-            }
-            if (A & 64) {
-                e.msg = "invalid literal/length code", t.mode = T1;
-                break;
-            }
-            t.extra = A & 15, t.mode = Gt;
-        case Gt:
-            if (t.extra) {
-                for(p = t.extra; _ < p;){
-                    if (f === 0) break e;
-                    f--, r += n[l++] << _, _ += 8;
-                }
-                t.length += r & (1 << t.extra) - 1, r >>>= t.extra, _ -= t.extra, t.back += t.extra;
-            }
-            t.was = t.length, t.mode = jt;
-        case jt:
-            for(; v = t.distcode[r & (1 << t.distbits) - 1], w = v >>> 24, A = v >>> 16 & 255, x = v & 65535, !(w <= _);){
-                if (f === 0) break e;
-                f--, r += n[l++] << _, _ += 8;
-            }
-            if (!(A & 240)) {
-                for(d = w, S = A, Z = x; v = t.distcode[Z + ((r & (1 << d + S) - 1) >> d)], w = v >>> 24, A = v >>> 16 & 255, x = v & 65535, !(d + w <= _);){
-                    if (f === 0) break e;
-                    f--, r += n[l++] << _, _ += 8;
-                }
-                r >>>= d, _ -= d, t.back += d;
-            }
-            if (r >>>= w, _ -= w, t.back += w, A & 64) {
-                e.msg = "invalid distance code", t.mode = T1;
-                break;
-            }
-            t.offset = x, t.extra = A & 15, t.mode = Wt;
-        case Wt:
-            if (t.extra) {
-                for(p = t.extra; _ < p;){
-                    if (f === 0) break e;
-                    f--, r += n[l++] << _, _ += 8;
-                }
-                t.offset += r & (1 << t.extra) - 1, r >>>= t.extra, _ -= t.extra, t.back += t.extra;
-            }
-            if (t.offset > t.dmax) {
-                e.msg = "invalid distance too far back", t.mode = T1;
-                break;
-            }
-            t.mode = Vt;
-        case Vt:
-            if (c === 0) break e;
-            if (h = s - c, t.offset > h) {
-                if (h = t.offset - h, h > t.whave && t.sane) {
-                    e.msg = "invalid distance too far back", t.mode = T1;
-                    break;
-                }
-                h > t.wnext ? (h -= t.wnext, u = t.wsize - h) : u = t.wnext - h, h > t.length && (h = t.length), m = t.window;
-            } else m = a, u = o - t.offset, h = t.length;
-            h > c && (h = c), c -= h, t.length -= h;
-            do a[o++] = m[u++];
-            while (--h)
-            t.length === 0 && (t.mode = Ue);
-            break;
-        case Jt:
-            if (c === 0) break e;
-            a[o++] = t.length, c--, t.mode = Ue;
-            break;
-        case it:
-            if (t.wrap) {
-                for(; _ < 32;){
-                    if (f === 0) break e;
-                    f--, r |= n[l++] << _, _ += 8;
-                }
-                if (s -= c, e.total_out += s, t.total += s, s && (e.adler = t.check = t.flags ? I(t.check, a, s, o - s) : ve(t.check, a, s, o - s)), s = c, (t.flags ? r : ei(r)) !== t.check) {
-                    e.msg = "incorrect data check", t.mode = T1;
-                    break;
-                }
-                r = 0, _ = 0;
-            }
-            t.mode = Qt;
-        case Qt:
-            if (t.wrap && t.flags) {
-                for(; _ < 32;){
-                    if (f === 0) break e;
-                    f--, r += n[l++] << _, _ += 8;
-                }
-                if (r !== (t.total & 4294967295)) {
-                    e.msg = "incorrect length check", t.mode = T1;
-                    break;
-                }
-                r = 0, _ = 0;
-            }
-            t.mode = qt;
-        case qt:
-            z = Un;
+        r2 = 0, _ = 0;
+      }
+      t.head && (t.head.hcrc = t.flags >> 9 & 1, t.head.done = true), e.adler = t.check = 0, t.mode = H;
+      break;
+    case Ht:
+      for (; _ < 32; ) {
+        if (f === 0) break e;
+        f--, r2 += n[l++] << _, _ += 8;
+      }
+      e.adler = t.check = ei(r2), r2 = 0, _ = 0, t.mode = Ke;
+    case Ke:
+      if (t.havedict === 0) return e.next_out = o, e.avail_out = c, e.next_in = l, e.avail_in = f, t.hold = r2, t.bits = _, $n;
+      e.adler = t.check = 1, t.mode = H;
+    case H:
+      if (i === Ln || i === Ne) break e;
+    case et:
+      if (t.last) {
+        r2 >>>= _ & 7, _ -= _ & 7, t.mode = it;
+        break;
+      }
+      for (; _ < 3; ) {
+        if (f === 0) break e;
+        f--, r2 += n[l++] << _, _ += 8;
+      }
+      switch (t.last = r2 & 1, r2 >>>= 1, _ -= 1, r2 & 3) {
+        case 0:
+          t.mode = Bt;
+          break;
+        case 1:
+          if (Yn(t), t.mode = Le, i === Ne) {
+            r2 >>>= 2, _ -= 2;
             break e;
-        case T1:
-            z = zi;
-            break e;
-        case Di:
-            return Ti;
-        case Fn:
-        default:
-            return U;
-    }
-    return e.next_out = o, e.avail_out = c, e.next_in = l, e.avail_in = f, t.hold = r, t.bits = _, (t.wsize || s !== e.avail_out && t.mode < T1 && (t.mode < it || i !== Zt)) && Li(e, e.output, e.next_out, s - e.avail_out), E -= e.avail_in, s -= e.avail_out, e.total_in += E, e.total_out += s, t.total += s, t.wrap && s && (e.adler = t.check = t.flags ? I(t.check, a, s, e.next_out - s) : ve(t.check, a, s, e.next_out - s)), e.data_type = t.bits + (t.last ? 64 : 0) + (t.mode === H ? 128 : 0) + (t.mode === Le || t.mode === tt ? 256 : 0), (E === 0 && s === 0 || i === Zt) && z === ae && (z = Cn), z;
-}, jn = (e)=>{
-    if (!e || !e.state) return U;
-    let i = e.state;
-    return i.window && (i.window = null), e.state = null, ae;
-}, Wn = (e, i)=>{
-    if (!e || !e.state) return U;
-    let t = e.state;
-    return t.wrap & 2 ? (t.head = i, i.done = !1, ae) : U;
-}, Vn = (e, i)=>{
-    let t = i.length, n, a, l;
-    return !e || !e.state || (n = e.state, n.wrap !== 0 && n.mode !== Ke) ? U : n.mode === Ke && (a = 1, a = ve(a, i, t, 0), a !== n.check) ? zi : (l = Li(e, i, t, t), l ? (n.mode = Di, Ti) : (n.havedict = 1, ae));
-}, Jn = Ii, Qn = Oi, qn = Zi, el = Xn, tl = Ni, il = Gn, al = jn, nl = Wn, ll = Vn, rl = "pako inflate (from Nodeca project)", K = {
-    inflateReset: Jn,
-    inflateReset2: Qn,
-    inflateResetKeep: qn,
-    inflateInit: el,
-    inflateInit2: tl,
-    inflate: il,
-    inflateEnd: al,
-    inflateGetHeader: nl,
-    inflateSetDictionary: ll,
-    inflateInfo: rl
+          }
+          break;
+        case 2:
+          t.mode = Pt;
+          break;
+        case 3:
+          e.msg = "invalid block type", t.mode = T;
+      }
+      r2 >>>= 2, _ -= 2;
+      break;
+    case Bt:
+      for (r2 >>>= _ & 7, _ -= _ & 7; _ < 32; ) {
+        if (f === 0) break e;
+        f--, r2 += n[l++] << _, _ += 8;
+      }
+      if ((r2 & 65535) !== (r2 >>> 16 ^ 65535)) {
+        e.msg = "invalid stored block lengths", t.mode = T;
+        break;
+      }
+      if (t.length = r2 & 65535, r2 = 0, _ = 0, t.mode = tt, i === Ne) break e;
+    case tt:
+      t.mode = Kt;
+    case Kt:
+      if (h = t.length, h) {
+        if (h > f && (h = f), h > c && (h = c), h === 0) break e;
+        a.set(n.subarray(l, l + h), o), f -= h, l += h, c -= h, o += h, t.length -= h;
+        break;
+      }
+      t.mode = H;
+      break;
+    case Pt:
+      for (; _ < 14; ) {
+        if (f === 0) break e;
+        f--, r2 += n[l++] << _, _ += 8;
+      }
+      if (t.nlen = (r2 & 31) + 257, r2 >>>= 5, _ -= 5, t.ndist = (r2 & 31) + 1, r2 >>>= 5, _ -= 5, t.ncode = (r2 & 15) + 4, r2 >>>= 4, _ -= 4, t.nlen > 286 || t.ndist > 30) {
+        e.msg = "too many length or distance symbols", t.mode = T;
+        break;
+      }
+      t.have = 0, t.mode = Xt;
+    case Xt:
+      for (; t.have < t.ncode; ) {
+        for (; _ < 3; ) {
+          if (f === 0) break e;
+          f--, r2 += n[l++] << _, _ += 8;
+        }
+        t.lens[J[t.have++]] = r2 & 7, r2 >>>= 3, _ -= 3;
+      }
+      for (; t.have < 19; ) t.lens[J[t.have++]] = 0;
+      if (t.lencode = t.lendyn, t.lenbits = 7, g2 = {
+        bits: t.lenbits
+      }, z2 = we(Nn, t.lens, 0, 19, t.lencode, 0, t.work, g2), t.lenbits = g2.bits, z2) {
+        e.msg = "invalid code lengths set", t.mode = T;
+        break;
+      }
+      t.have = 0, t.mode = Yt;
+    case Yt:
+      for (; t.have < t.nlen + t.ndist; ) {
+        for (; v = t.lencode[r2 & (1 << t.lenbits) - 1], w = v >>> 24, A2 = v >>> 16 & 255, x = v & 65535, !(w <= _); ) {
+          if (f === 0) break e;
+          f--, r2 += n[l++] << _, _ += 8;
+        }
+        if (x < 16) r2 >>>= w, _ -= w, t.lens[t.have++] = x;
+        else {
+          if (x === 16) {
+            for (p2 = w + 2; _ < p2; ) {
+              if (f === 0) break e;
+              f--, r2 += n[l++] << _, _ += 8;
+            }
+            if (r2 >>>= w, _ -= w, t.have === 0) {
+              e.msg = "invalid bit length repeat", t.mode = T;
+              break;
+            }
+            b = t.lens[t.have - 1], h = 3 + (r2 & 3), r2 >>>= 2, _ -= 2;
+          } else if (x === 17) {
+            for (p2 = w + 3; _ < p2; ) {
+              if (f === 0) break e;
+              f--, r2 += n[l++] << _, _ += 8;
+            }
+            r2 >>>= w, _ -= w, b = 0, h = 3 + (r2 & 7), r2 >>>= 3, _ -= 3;
+          } else {
+            for (p2 = w + 7; _ < p2; ) {
+              if (f === 0) break e;
+              f--, r2 += n[l++] << _, _ += 8;
+            }
+            r2 >>>= w, _ -= w, b = 0, h = 11 + (r2 & 127), r2 >>>= 7, _ -= 7;
+          }
+          if (t.have + h > t.nlen + t.ndist) {
+            e.msg = "invalid bit length repeat", t.mode = T;
+            break;
+          }
+          for (; h--; ) t.lens[t.have++] = b;
+        }
+      }
+      if (t.mode === T) break;
+      if (t.lens[256] === 0) {
+        e.msg = "invalid code -- missing end-of-block", t.mode = T;
+        break;
+      }
+      if (t.lenbits = 9, g2 = {
+        bits: t.lenbits
+      }, z2 = we(Ai, t.lens, 0, t.nlen, t.lencode, 0, t.work, g2), t.lenbits = g2.bits, z2) {
+        e.msg = "invalid literal/lengths set", t.mode = T;
+        break;
+      }
+      if (t.distbits = 6, t.distcode = t.distdyn, g2 = {
+        bits: t.distbits
+      }, z2 = we(Ri, t.lens, t.nlen, t.ndist, t.distcode, 0, t.work, g2), t.distbits = g2.bits, z2) {
+        e.msg = "invalid distances set", t.mode = T;
+        break;
+      }
+      if (t.mode = Le, i === Ne) break e;
+    case Le:
+      t.mode = Ue;
+    case Ue:
+      if (f >= 6 && c >= 258) {
+        e.next_out = o, e.avail_out = c, e.next_in = l, e.avail_in = f, t.hold = r2, t.bits = _, Tn(e, s), o = e.next_out, a = e.output, c = e.avail_out, l = e.next_in, n = e.input, f = e.avail_in, r2 = t.hold, _ = t.bits, t.mode === H && (t.back = -1);
+        break;
+      }
+      for (t.back = 0; v = t.lencode[r2 & (1 << t.lenbits) - 1], w = v >>> 24, A2 = v >>> 16 & 255, x = v & 65535, !(w <= _); ) {
+        if (f === 0) break e;
+        f--, r2 += n[l++] << _, _ += 8;
+      }
+      if (A2 && !(A2 & 240)) {
+        for (d3 = w, S = A2, Z = x; v = t.lencode[Z + ((r2 & (1 << d3 + S) - 1) >> d3)], w = v >>> 24, A2 = v >>> 16 & 255, x = v & 65535, !(d3 + w <= _); ) {
+          if (f === 0) break e;
+          f--, r2 += n[l++] << _, _ += 8;
+        }
+        r2 >>>= d3, _ -= d3, t.back += d3;
+      }
+      if (r2 >>>= w, _ -= w, t.back += w, t.length = x, A2 === 0) {
+        t.mode = Jt;
+        break;
+      }
+      if (A2 & 32) {
+        t.back = -1, t.mode = H;
+        break;
+      }
+      if (A2 & 64) {
+        e.msg = "invalid literal/length code", t.mode = T;
+        break;
+      }
+      t.extra = A2 & 15, t.mode = Gt;
+    case Gt:
+      if (t.extra) {
+        for (p2 = t.extra; _ < p2; ) {
+          if (f === 0) break e;
+          f--, r2 += n[l++] << _, _ += 8;
+        }
+        t.length += r2 & (1 << t.extra) - 1, r2 >>>= t.extra, _ -= t.extra, t.back += t.extra;
+      }
+      t.was = t.length, t.mode = jt;
+    case jt:
+      for (; v = t.distcode[r2 & (1 << t.distbits) - 1], w = v >>> 24, A2 = v >>> 16 & 255, x = v & 65535, !(w <= _); ) {
+        if (f === 0) break e;
+        f--, r2 += n[l++] << _, _ += 8;
+      }
+      if (!(A2 & 240)) {
+        for (d3 = w, S = A2, Z = x; v = t.distcode[Z + ((r2 & (1 << d3 + S) - 1) >> d3)], w = v >>> 24, A2 = v >>> 16 & 255, x = v & 65535, !(d3 + w <= _); ) {
+          if (f === 0) break e;
+          f--, r2 += n[l++] << _, _ += 8;
+        }
+        r2 >>>= d3, _ -= d3, t.back += d3;
+      }
+      if (r2 >>>= w, _ -= w, t.back += w, A2 & 64) {
+        e.msg = "invalid distance code", t.mode = T;
+        break;
+      }
+      t.offset = x, t.extra = A2 & 15, t.mode = Wt;
+    case Wt:
+      if (t.extra) {
+        for (p2 = t.extra; _ < p2; ) {
+          if (f === 0) break e;
+          f--, r2 += n[l++] << _, _ += 8;
+        }
+        t.offset += r2 & (1 << t.extra) - 1, r2 >>>= t.extra, _ -= t.extra, t.back += t.extra;
+      }
+      if (t.offset > t.dmax) {
+        e.msg = "invalid distance too far back", t.mode = T;
+        break;
+      }
+      t.mode = Vt;
+    case Vt:
+      if (c === 0) break e;
+      if (h = s - c, t.offset > h) {
+        if (h = t.offset - h, h > t.whave && t.sane) {
+          e.msg = "invalid distance too far back", t.mode = T;
+          break;
+        }
+        h > t.wnext ? (h -= t.wnext, u3 = t.wsize - h) : u3 = t.wnext - h, h > t.length && (h = t.length), m3 = t.window;
+      } else m3 = a, u3 = o - t.offset, h = t.length;
+      h > c && (h = c), c -= h, t.length -= h;
+      do
+        a[o++] = m3[u3++];
+      while (--h);
+      t.length === 0 && (t.mode = Ue);
+      break;
+    case Jt:
+      if (c === 0) break e;
+      a[o++] = t.length, c--, t.mode = Ue;
+      break;
+    case it:
+      if (t.wrap) {
+        for (; _ < 32; ) {
+          if (f === 0) break e;
+          f--, r2 |= n[l++] << _, _ += 8;
+        }
+        if (s -= c, e.total_out += s, t.total += s, s && (e.adler = t.check = t.flags ? I(t.check, a, s, o - s) : ve(t.check, a, s, o - s)), s = c, (t.flags ? r2 : ei(r2)) !== t.check) {
+          e.msg = "incorrect data check", t.mode = T;
+          break;
+        }
+        r2 = 0, _ = 0;
+      }
+      t.mode = Qt;
+    case Qt:
+      if (t.wrap && t.flags) {
+        for (; _ < 32; ) {
+          if (f === 0) break e;
+          f--, r2 += n[l++] << _, _ += 8;
+        }
+        if (r2 !== (t.total & 4294967295)) {
+          e.msg = "incorrect length check", t.mode = T;
+          break;
+        }
+        r2 = 0, _ = 0;
+      }
+      t.mode = qt;
+    case qt:
+      z2 = Un;
+      break e;
+    case T:
+      z2 = zi;
+      break e;
+    case Di:
+      return Ti;
+    case Fn:
+    default:
+      return U;
+  }
+  return e.next_out = o, e.avail_out = c, e.next_in = l, e.avail_in = f, t.hold = r2, t.bits = _, (t.wsize || s !== e.avail_out && t.mode < T && (t.mode < it || i !== Zt)) && Li(e, e.output, e.next_out, s - e.avail_out), E3 -= e.avail_in, s -= e.avail_out, e.total_in += E3, e.total_out += s, t.total += s, t.wrap && s && (e.adler = t.check = t.flags ? I(t.check, a, s, e.next_out - s) : ve(t.check, a, s, e.next_out - s)), e.data_type = t.bits + (t.last ? 64 : 0) + (t.mode === H ? 128 : 0) + (t.mode === Le || t.mode === tt ? 256 : 0), (E3 === 0 && s === 0 || i === Zt) && z2 === ae && (z2 = Cn), z2;
+};
+var jn = (e) => {
+  if (!e || !e.state) return U;
+  let i = e.state;
+  return i.window && (i.window = null), e.state = null, ae;
+};
+var Wn = (e, i) => {
+  if (!e || !e.state) return U;
+  let t = e.state;
+  return t.wrap & 2 ? (t.head = i, i.done = false, ae) : U;
+};
+var Vn = (e, i) => {
+  let t = i.length, n, a, l;
+  return !e || !e.state || (n = e.state, n.wrap !== 0 && n.mode !== Ke) ? U : n.mode === Ke && (a = 1, a = ve(a, i, t, 0), a !== n.check) ? zi : (l = Li(e, i, t, t), l ? (n.mode = Di, Ti) : (n.havedict = 1, ae));
+};
+var Jn = Ii;
+var Qn = Oi;
+var qn = Zi;
+var el = Xn;
+var tl = Ni;
+var il = Gn;
+var al = jn;
+var nl = Wn;
+var ll = Vn;
+var rl = "pako inflate (from Nodeca project)";
+var K = {
+  inflateReset: Jn,
+  inflateReset2: Qn,
+  inflateResetKeep: qn,
+  inflateInit: el,
+  inflateInit2: tl,
+  inflate: il,
+  inflateEnd: al,
+  inflateGetHeader: nl,
+  inflateSetDictionary: ll,
+  inflateInfo: rl
 };
 function fl() {
-    this.text = 0, this.time = 0, this.xflags = 0, this.os = 0, this.extra = null, this.extra_len = 0, this.name = "", this.comment = "", this.hcrc = 0, this.done = !1;
+  this.text = 0, this.time = 0, this.xflags = 0, this.os = 0, this.extra = null, this.extra_len = 0, this.name = "", this.comment = "", this.hcrc = 0, this.done = false;
 }
-var ol = fl, Ui = Object.prototype.toString, { Z_NO_FLUSH: _l , Z_FINISH: hl , Z_OK: Se , Z_STREAM_END: lt , Z_NEED_DICT: rt , Z_STREAM_ERROR: dl , Z_DATA_ERROR: ii , Z_MEM_ERROR: sl  } = ne;
+var ol = fl;
+var Ui = Object.prototype.toString;
+var { Z_NO_FLUSH: _l, Z_FINISH: hl, Z_OK: Se, Z_STREAM_END: lt, Z_NEED_DICT: rt, Z_STREAM_ERROR: dl, Z_DATA_ERROR: ii, Z_MEM_ERROR: sl } = ne;
 function Te(e) {
-    this.options = Ye.assign({
-        chunkSize: 1024 * 64,
-        windowBits: 15,
-        to: ""
-    }, e || {});
-    let i = this.options;
-    i.raw && i.windowBits >= 0 && i.windowBits < 16 && (i.windowBits = -i.windowBits, i.windowBits === 0 && (i.windowBits = -15)), i.windowBits >= 0 && i.windowBits < 16 && !(e && e.windowBits) && (i.windowBits += 32), i.windowBits > 15 && i.windowBits < 48 && (i.windowBits & 15 || (i.windowBits |= 15)), this.err = 0, this.msg = "", this.ended = !1, this.chunks = [], this.strm = new yi, this.strm.avail_out = 0;
-    let t = K.inflateInit2(this.strm, i.windowBits);
-    if (t !== Se) throw new Error(ee[t]);
-    if (this.header = new ol, K.inflateGetHeader(this.strm, this.header), i.dictionary && (typeof i.dictionary == "string" ? i.dictionary = ye.string2buf(i.dictionary) : Ui.call(i.dictionary) === "[object ArrayBuffer]" && (i.dictionary = new Uint8Array(i.dictionary)), i.raw && (t = K.inflateSetDictionary(this.strm, i.dictionary), t !== Se))) throw new Error(ee[t]);
+  this.options = Ye.assign({
+    chunkSize: 1024 * 64,
+    windowBits: 15,
+    to: ""
+  }, e || {});
+  let i = this.options;
+  i.raw && i.windowBits >= 0 && i.windowBits < 16 && (i.windowBits = -i.windowBits, i.windowBits === 0 && (i.windowBits = -15)), i.windowBits >= 0 && i.windowBits < 16 && !(e && e.windowBits) && (i.windowBits += 32), i.windowBits > 15 && i.windowBits < 48 && (i.windowBits & 15 || (i.windowBits |= 15)), this.err = 0, this.msg = "", this.ended = false, this.chunks = [], this.strm = new yi(), this.strm.avail_out = 0;
+  let t = K.inflateInit2(this.strm, i.windowBits);
+  if (t !== Se) throw new Error(ee[t]);
+  if (this.header = new ol(), K.inflateGetHeader(this.strm, this.header), i.dictionary && (typeof i.dictionary == "string" ? i.dictionary = ye.string2buf(i.dictionary) : Ui.call(i.dictionary) === "[object ArrayBuffer]" && (i.dictionary = new Uint8Array(i.dictionary)), i.raw && (t = K.inflateSetDictionary(this.strm, i.dictionary), t !== Se))) throw new Error(ee[t]);
 }
 Te.prototype.push = function(e, i) {
-    let t = this.strm, n = this.options.chunkSize, a = this.options.dictionary, l, o, f;
-    if (this.ended) return !1;
-    for(i === ~~i ? o = i : o = i === !0 ? hl : _l, Ui.call(e) === "[object ArrayBuffer]" ? t.input = new Uint8Array(e) : t.input = e, t.next_in = 0, t.avail_in = t.input.length;;){
-        for(t.avail_out === 0 && (t.output = new Uint8Array(n), t.next_out = 0, t.avail_out = n), l = K.inflate(t, o), l === rt && a && (l = K.inflateSetDictionary(t, a), l === Se ? l = K.inflate(t, o) : l === ii && (l = rt)); t.avail_in > 0 && l === lt && t.state.wrap > 0 && e[t.next_in] !== 0;)K.inflateReset(t), l = K.inflate(t, o);
-        switch(l){
-            case dl:
-            case ii:
-            case rt:
-            case sl:
-                return this.onEnd(l), this.ended = !0, !1;
-        }
-        if (f = t.avail_out, t.next_out && (t.avail_out === 0 || l === lt)) if (this.options.to === "string") {
-            let c = ye.utf8border(t.output, t.next_out), r = t.next_out - c, _ = ye.buf2string(t.output, c);
-            t.next_out = r, t.avail_out = n - r, r && t.output.set(t.output.subarray(c, c + r), 0), this.onData(_);
-        } else this.onData(t.output.length === t.next_out ? t.output : t.output.subarray(0, t.next_out));
-        if (!(l === Se && f === 0)) {
-            if (l === lt) return l = K.inflateEnd(this.strm), this.onEnd(l), this.ended = !0, !0;
-            if (t.avail_in === 0) break;
-        }
+  let t = this.strm, n = this.options.chunkSize, a = this.options.dictionary, l, o, f;
+  if (this.ended) return false;
+  for (i === ~~i ? o = i : o = i === true ? hl : _l, Ui.call(e) === "[object ArrayBuffer]" ? t.input = new Uint8Array(e) : t.input = e, t.next_in = 0, t.avail_in = t.input.length; ; ) {
+    for (t.avail_out === 0 && (t.output = new Uint8Array(n), t.next_out = 0, t.avail_out = n), l = K.inflate(t, o), l === rt && a && (l = K.inflateSetDictionary(t, a), l === Se ? l = K.inflate(t, o) : l === ii && (l = rt)); t.avail_in > 0 && l === lt && t.state.wrap > 0 && e[t.next_in] !== 0; ) K.inflateReset(t), l = K.inflate(t, o);
+    switch (l) {
+      case dl:
+      case ii:
+      case rt:
+      case sl:
+        return this.onEnd(l), this.ended = true, false;
     }
-    return !0;
+    if (f = t.avail_out, t.next_out && (t.avail_out === 0 || l === lt)) if (this.options.to === "string") {
+      let c = ye.utf8border(t.output, t.next_out), r2 = t.next_out - c, _ = ye.buf2string(t.output, c);
+      t.next_out = r2, t.avail_out = n - r2, r2 && t.output.set(t.output.subarray(c, c + r2), 0), this.onData(_);
+    } else this.onData(t.output.length === t.next_out ? t.output : t.output.subarray(0, t.next_out));
+    if (!(l === Se && f === 0)) {
+      if (l === lt) return l = K.inflateEnd(this.strm), this.onEnd(l), this.ended = true, true;
+      if (t.avail_in === 0) break;
+    }
+  }
+  return true;
 };
 Te.prototype.onData = function(e) {
-    this.chunks.push(e);
+  this.chunks.push(e);
 };
 Te.prototype.onEnd = function(e) {
-    e === Se && (this.options.to === "string" ? this.result = this.chunks.join("") : this.result = Ye.flattenChunks(this.chunks)), this.chunks = [], this.err = e, this.msg = this.strm.msg;
+  e === Se && (this.options.to === "string" ? this.result = this.chunks.join("") : this.result = Ye.flattenChunks(this.chunks)), this.chunks = [], this.err = e, this.msg = this.strm.msg;
 };
 function wt(e, i) {
-    let t = new Te(i);
-    if (t.push(e), t.err) throw t.msg || ee[t.err];
-    return t.result;
+  let t = new Te(i);
+  if (t.push(e), t.err) throw t.msg || ee[t.err];
+  return t.result;
 }
 function cl(e, i) {
-    return i = i || {}, i.raw = !0, wt(e, i);
+  return i = i || {}, i.raw = true, wt(e, i);
 }
-var ul = Te, bl = wt, wl = cl, gl = wt, pl = ne, xl = {
-    Inflate: ul,
-    inflate: bl,
-    inflateRaw: wl,
-    ungzip: gl,
-    constants: pl
-}, { Deflate: kl , deflate: vl , deflateRaw: El , gzip: yl  } = Rn, { Inflate: Sl , inflate: Al , inflateRaw: Rl , ungzip: zl  } = xl, ml = vl, Ol = Al;
-const UpdateObservable = "0";
-class UnpackContext {
-    constructor(session_id, session_status){
-        this.session_id = session_id;
-        this.session_status = session_status;
-    }
-}
-const OnjsCallback = "1";
-const EvalJavascript = "2";
-const JavascriptError = "3";
-const JavascriptWarning = "4";
-const RegisterObservable = "5";
-const JSDoneLoading = "8";
-const FusedMessage = "9";
-const CloseSession = "10";
-const PingPong = "11";
-const UpdateSession = "12";
-const PING_INTERVAL = 5000;
-function clean_stack(stack) {
-    return stack.replaceAll(/(data:\w+\/\w+;base64,)[a-zA-Z0-9\+\/=]+:/g, "$1<<BASE64>>:");
-}
-const ConnectionStatus = {
-    CONNECTING: "connecting",
-    CONNECTED: "connected",
-    DISCONNECTED: "disconnected",
-    NO_CONNECTION: "no_connection"
+var ul = Te;
+var bl = wt;
+var wl = cl;
+var gl = wt;
+var pl = ne;
+var xl = {
+  Inflate: ul,
+  inflate: bl,
+  inflateRaw: wl,
+  ungzip: gl,
+  constants: pl
 };
-const CONNECTION = {
-    send_message: undefined,
-    queue: [],
-    status: "connecting",
-    compression_enabled: false,
-    lastPing: Date.now(),
-    indicator: null
+var { Deflate: kl, deflate: vl, deflateRaw: El, gzip: yl } = Rn;
+var { Inflate: Sl, inflate: Al, inflateRaw: Rl, ungzip: zl } = xl;
+var ml = vl;
+var Ol = Al;
+
+// dev/Bonito/js_dependencies/Observables.js
+var Observable = class {
+  #callbacks = [];
+  /**
+     * @param {string} id
+     * @param {any} value
+     */
+  constructor(id, value) {
+    this.id = id;
+    this.value = value;
+  }
+  /**
+     * @param {any} value
+     * @param {boolean} dont_notify_julia
+     */
+  notify(value, dont_notify_julia) {
+    this.value = value;
+    const callbacks = this.#callbacks.slice();
+    const to_remove = [];
+    callbacks.forEach((callback) => {
+      try {
+        const deregister = callback(value);
+        if (deregister == false) {
+          to_remove.push(callback);
+        }
+      } catch (exception) {
+        send_error("Error during running onjs callback\nCallback:\n" + callback.toString(), exception);
+      }
+    });
+    to_remove.forEach((callback) => {
+      const idx = this.#callbacks.indexOf(callback);
+      if (idx !== -1) {
+        this.#callbacks.splice(idx, 1);
+      }
+    });
+    if (!dont_notify_julia) {
+      send_to_julia({
+        msg_type: UpdateObservable,
+        id: this.id,
+        payload: value
+      });
+    }
+  }
+  /**
+     * @param {any} callback
+     */
+  on(callback) {
+    this.#callbacks.push(callback);
+  }
 };
-function register_connection_indicator(indicator) {
-    CONNECTION.indicator = indicator;
-    notify_indicator_status();
+function onany(observables, f) {
+  const callback = (x) => f(observables.map((x2) => x2.value));
+  observables.forEach((obs) => {
+    obs.on(callback);
+  });
 }
-function unregister_connection_indicator() {
-    CONNECTION.indicator = null;
-}
-function set_no_connection() {
-    CONNECTION.status = "no_connection";
-    notify_indicator_status();
-}
-function notify_indicator_status() {
-    if (CONNECTION.indicator && typeof CONNECTION.indicator.onStatusChange === 'function') {
-        let status;
-        if (CONNECTION.status === "no_connection") {
-            status = ConnectionStatus.NO_CONNECTION;
-        } else if (CONNECTION.status === "open") {
-            status = ConnectionStatus.CONNECTED;
-        } else if (CONNECTION.status === "connecting") {
-            status = ConnectionStatus.CONNECTING;
-        } else {
-            status = ConnectionStatus.DISCONNECTED;
-        }
-        CONNECTION.indicator.onStatusChange(status);
-    }
-}
-function on_connection_connecting() {
-    CONNECTION.status = "connecting";
-    notify_indicator_status();
-}
-function on_connection_open(send_message_callback, compression_enabled, enable_pings = true) {
-    CONNECTION.send_message = send_message_callback;
-    CONNECTION.status = "open";
-    CONNECTION.compression_enabled = compression_enabled;
-    notify_indicator_status();
-    CONNECTION.queue.forEach((message)=>send_to_julia(message));
-    if (enable_pings) {
-        send_pings();
-    }
-}
-function on_connection_close() {
-    CONNECTION.status = "closed";
-    notify_indicator_status();
-}
-function can_send_to_julia() {
-    return CONNECTION.status === "open";
-}
-function is_julia_responsive() {
-    return Date.now() - CONNECTION.lastPing < 2 * 5000;
-}
-const EXTENSION_CODEC = new ExtensionCodec();
-window.EXTENSION_CODEC = EXTENSION_CODEC;
-function unpack(uint8array, context) {
-    return decode(uint8array, {
-        extensionCodec: EXTENSION_CODEC,
-        context
-    });
-}
-function pack(object) {
-    return encode(object, {
-        extensionCodec: EXTENSION_CODEC
-    });
-}
-function reinterpret_array(ArrayType, uint8array) {
-    if (ArrayType === Uint8Array) {
-        return uint8array;
-    } else {
-        const bo = uint8array.byteOffset;
-        const bpe = ArrayType.BYTES_PER_ELEMENT;
-        const new_array_length = uint8array.byteLength / bpe;
-        const buffer = uint8array.buffer.slice(bo, bo + uint8array.byteLength);
-        return new ArrayType(buffer, 0, new_array_length);
-    }
-}
-function register_ext_array(type_tag, array_type) {
-    EXTENSION_CODEC.register({
-        type: type_tag,
-        decode: (uint8array)=>reinterpret_array(array_type, uint8array),
-        encode: (object)=>{
-            if (object instanceof array_type) {
-                return new Uint8Array(object.buffer, object.byteOffset, object.byteLength);
-            } else {
-                return null;
-            }
-        }
-    });
-}
-register_ext_array(0x11, Int8Array);
-register_ext_array(0x12, Uint8Array);
-register_ext_array(0x13, Int16Array);
-register_ext_array(0x14, Uint16Array);
-register_ext_array(0x15, Int32Array);
-register_ext_array(0x16, Uint32Array);
-register_ext_array(0x17, Float32Array);
-register_ext_array(0x18, Float64Array);
-function register_ext(type_tag, decode, encode) {
-    EXTENSION_CODEC.register({
-        type: type_tag,
-        decode: (data, extType, context)=>decode(data, context),
-        encode
-    });
-}
-class JLArray {
-    constructor(size, array){
-        this.size = size;
-        this.array = array;
-    }
-}
-register_ext(99, (uint_8_array, context)=>{
-    const [size, array] = unpack(uint_8_array, context);
-    return new JLArray(size, array);
-}, (object)=>{
-    if (object instanceof JLArray) {
-        return pack([
-            object.size,
-            object.array
-        ]);
-    } else {
-        return null;
-    }
+
+// dev/Bonito/js_dependencies/Sessions.js
+var Sessions_exports = {};
+__export(Sessions_exports, {
+  GLOBAL_OBJECT_CACHE: () => GLOBAL_OBJECT_CACHE,
+  OBJECT_FREEING_LOCK: () => OBJECT_FREEING_LOCK,
+  SESSIONS: () => SESSIONS,
+  close_session: () => close_session,
+  done_initializing_session: () => done_initializing_session,
+  ensure_session_exists: () => ensure_session_exists,
+  force_free_object: () => force_free_object,
+  free_object: () => free_object,
+  free_session: () => free_session,
+  init_session: () => init_session,
+  lock_loading: () => lock_loading,
+  lookup_global_object: () => lookup_global_object,
+  move_dom_node: () => move_dom_node,
+  on_node_available: () => on_node_available,
+  reannounce_initialized_sessions: () => reannounce_initialized_sessions,
+  register_in_session_cache: () => register_in_session_cache,
+  track_deleted_sessions: () => track_deleted_sessions,
+  track_in_session: () => track_in_session,
+  update_or_replace: () => update_or_replace,
+  update_session_cache: () => update_session_cache,
+  update_session_dom: () => update_session_dom
 });
-const SESSIONS = {};
-const GLOBAL_OBJECT_CACHE = {};
-const OBJECT_FREEING_LOCK = new l({
-    concurrency: 1
-});
-function lock_loading(f) {
-    OBJECT_FREEING_LOCK.add(f);
-}
-function lookup_global_object(key) {
-    const object = GLOBAL_OBJECT_CACHE[key];
-    if (object) {
-        return object;
+
+// deno:https://esm.sh/eventemitter3@5.0.4/denonext/eventemitter3.mjs
+var E = Object.create;
+var d = Object.defineProperty;
+var L2 = Object.getOwnPropertyDescriptor;
+var O2 = Object.getOwnPropertyNames;
+var C2 = Object.getPrototypeOf;
+var A = Object.prototype.hasOwnProperty;
+var k2 = (n, e) => () => (e || n((e = {
+  exports: {}
+}).exports, e), e.exports);
+var P2 = (n, e, t, s) => {
+  if (e && typeof e == "object" || typeof e == "function") for (let i of O2(e)) !A.call(n, i) && i !== t && d(n, i, {
+    get: () => e[i],
+    enumerable: !(s = L2(e, i)) || s.enumerable
+  });
+  return n;
+};
+var N2 = (n, e, t) => (t = n != null ? E(C2(n)) : {}, P2(e || !n || !n.__esModule ? d(t, "default", {
+  value: n,
+  enumerable: true
+}) : t, n));
+var m = k2((q2, x) => {
+  "use strict";
+  var S = Object.prototype.hasOwnProperty, l = "~";
+  function _() {
+  }
+  Object.create && (_.prototype = /* @__PURE__ */ Object.create(null), new _().__proto__ || (l = false));
+  function T2(n, e, t) {
+    this.fn = n, this.context = e, this.once = t || false;
+  }
+  function w(n, e, t, s, i) {
+    if (typeof t != "function") throw new TypeError("The listener must be a function");
+    var u3 = new T2(t, s || n, i), o = l ? l + e : e;
+    return n._events[o] ? n._events[o].fn ? n._events[o] = [
+      n._events[o],
+      u3
+    ] : n._events[o].push(u3) : (n._events[o] = u3, n._eventsCount++), n;
+  }
+  function y3(n, e) {
+    --n._eventsCount === 0 ? n._events = new _() : delete n._events[e];
+  }
+  function c() {
+    this._events = new _(), this._eventsCount = 0;
+  }
+  c.prototype.eventNames = function() {
+    var e = [], t, s;
+    if (this._eventsCount === 0) return e;
+    for (s in t = this._events) S.call(t, s) && e.push(l ? s.slice(1) : s);
+    return Object.getOwnPropertySymbols ? e.concat(Object.getOwnPropertySymbols(t)) : e;
+  };
+  c.prototype.listeners = function(e) {
+    var t = l ? l + e : e, s = this._events[t];
+    if (!s) return [];
+    if (s.fn) return [
+      s.fn
+    ];
+    for (var i = 0, u3 = s.length, o = new Array(u3); i < u3; i++) o[i] = s[i].fn;
+    return o;
+  };
+  c.prototype.listenerCount = function(e) {
+    var t = l ? l + e : e, s = this._events[t];
+    return s ? s.fn ? 1 : s.length : 0;
+  };
+  c.prototype.emit = function(e, t, s, i, u3, o) {
+    var a = l ? l + e : e;
+    if (!this._events[a]) return false;
+    var r2 = this._events[a], p2 = arguments.length, h, f;
+    if (r2.fn) {
+      switch (r2.once && this.removeListener(e, r2.fn, void 0, true), p2) {
+        case 1:
+          return r2.fn.call(r2.context), true;
+        case 2:
+          return r2.fn.call(r2.context, t), true;
+        case 3:
+          return r2.fn.call(r2.context, t, s), true;
+        case 4:
+          return r2.fn.call(r2.context, t, s, i), true;
+        case 5:
+          return r2.fn.call(r2.context, t, s, i, u3), true;
+        case 6:
+          return r2.fn.call(r2.context, t, s, i, u3, o), true;
+      }
+      for (f = 1, h = new Array(p2 - 1); f < p2; f++) h[f - 1] = arguments[f];
+      r2.fn.apply(r2.context, h);
+    } else {
+      var b = r2.length, v;
+      for (f = 0; f < b; f++) switch (r2[f].once && this.removeListener(e, r2[f].fn, void 0, true), p2) {
+        case 1:
+          r2[f].fn.call(r2[f].context);
+          break;
+        case 2:
+          r2[f].fn.call(r2[f].context, t);
+          break;
+        case 3:
+          r2[f].fn.call(r2[f].context, t, s);
+          break;
+        case 4:
+          r2[f].fn.call(r2[f].context, t, s, i);
+          break;
+        default:
+          if (!h) for (v = 1, h = new Array(p2 - 1); v < p2; v++) h[v - 1] = arguments[v];
+          r2[f].fn.apply(r2[f].context, h);
+      }
     }
-    console.warn(`Key ${key} not found! ${object}`);
-    return null;
+    return true;
+  };
+  c.prototype.on = function(e, t, s) {
+    return w(this, e, t, s, false);
+  };
+  c.prototype.once = function(e, t, s) {
+    return w(this, e, t, s, true);
+  };
+  c.prototype.removeListener = function(e, t, s, i) {
+    var u3 = l ? l + e : e;
+    if (!this._events[u3]) return this;
+    if (!t) return y3(this, u3), this;
+    var o = this._events[u3];
+    if (o.fn) o.fn === t && (!i || o.once) && (!s || o.context === s) && y3(this, u3);
+    else {
+      for (var a = 0, r2 = [], p2 = o.length; a < p2; a++) (o[a].fn !== t || i && !o[a].once || s && o[a].context !== s) && r2.push(o[a]);
+      r2.length ? this._events[u3] = r2.length === 1 ? r2[0] : r2 : y3(this, u3);
+    }
+    return this;
+  };
+  c.prototype.removeAllListeners = function(e) {
+    var t;
+    return e ? (t = l ? l + e : e, this._events[t] && y3(this, t)) : (this._events = new _(), this._eventsCount = 0), this;
+  };
+  c.prototype.off = c.prototype.removeListener;
+  c.prototype.addListener = c.prototype.on;
+  c.prefixed = l;
+  c.EventEmitter = c;
+  typeof x < "u" && (x.exports = c);
+});
+var g = N2(m(), 1);
+var z = g.default;
+var export_EventEmitter = g.default;
+
+// deno:https://esm.sh/p-timeout@7.0.1/denonext/p-timeout.mjs
+var u = class r extends Error {
+  name = "TimeoutError";
+  constructor(a, e) {
+    super(a, e), Error.captureStackTrace?.(this, r);
+  }
+};
+var p = (r2) => r2.reason ?? new DOMException("This operation was aborted.", "AbortError");
+function E2(r2, a) {
+  let { milliseconds: e, fallback: m3, message: n, customTimers: f = {
+    setTimeout,
+    clearTimeout
+  }, signal: t } = a, s, i, c = new Promise((l, o) => {
+    if (typeof e != "number" || Math.sign(e) !== 1) throw new TypeError(`Expected \`milliseconds\` to be a positive number, got \`${e}\``);
+    if (t?.aborted) {
+      o(p(t));
+      return;
+    }
+    if (t && (i = () => {
+      o(p(t));
+    }, t.addEventListener("abort", i, {
+      once: true
+    })), r2.then(l, o), e === Number.POSITIVE_INFINITY) return;
+    let d3 = new u();
+    s = f.setTimeout.call(void 0, () => {
+      if (m3) {
+        try {
+          l(m3());
+        } catch (b) {
+          o(b);
+        }
+        return;
+      }
+      typeof r2.cancel == "function" && r2.cancel(), n === false ? l() : n instanceof Error ? o(n) : (d3.message = n ?? `Promise timed out after ${e} milliseconds`, o(d3));
+    }, e);
+  }).finally(() => {
+    c.clear(), i && t && t.removeEventListener("abort", i);
+  });
+  return c.clear = () => {
+    f.clearTimeout.call(void 0, s), s = void 0;
+  }, c;
 }
-function is_still_referenced(id) {
-    for(const session_id in SESSIONS){
-        const [tracked_objects, status] = SESSIONS[session_id];
-        if (!tracked_objects.has(id)) continue;
-        if (status === "delete" || status === "root") return true;
+
+// deno:https://esm.sh/p-queue@9.3.0/denonext/p-queue.mjs
+function d2(l, t, e) {
+  let i = 0, s = l.length;
+  for (; s > 0; ) {
+    let h = Math.trunc(s / 2), r2 = i + h;
+    e(l[r2], t) <= 0 ? (i = ++r2, s -= h + 1) : s = h;
+  }
+  return i;
+}
+var y2 = 100;
+var u2 = class {
+  #e = [];
+  #t = 0;
+  enqueue(t, e) {
+    let { priority: i = 0, id: s } = e ?? {}, { size: h } = this, r2 = {
+      priority: i,
+      id: s,
+      run: t
+    };
+    if (h === 0) {
+      this.#e.length = 0, this.#t = 0, this.#e.push(r2);
+      return;
+    }
+    if (this.#e.at(-1).priority >= i) {
+      this.#e.push(r2);
+      return;
+    }
+    this.#n();
+    let o = d2(this.#e, r2, (f, a) => a.priority - f.priority);
+    this.#e.splice(o, 0, r2);
+  }
+  setPriority(t, e) {
+    let i = this.#e.findIndex((h, r2) => r2 >= this.#t && h.id === t);
+    if (i === -1) throw new ReferenceError(`No promise function with the id "${t}" exists in the queue.`);
+    let [s] = this.#e.splice(i, 1);
+    this.enqueue(s.run, {
+      priority: e,
+      id: t
+    });
+  }
+  remove(t) {
+    let e = this.#e.findIndex((i, s) => s < this.#t ? false : typeof t == "string" ? i.id === t : i.run === t);
+    e !== -1 && this.#e.splice(e, 1);
+  }
+  dequeue() {
+    if (this.#t === this.#e.length) return;
+    let t = this.#e[this.#t];
+    return this.#t++, this.#t === this.#e.length ? (this.#e.length = 0, this.#t = 0) : this.#t > y2 && this.#t > this.#e.length / 2 && this.#n(), t?.run;
+  }
+  filter(t) {
+    let e = [];
+    for (let i = this.#t; i < this.#e.length; i++) {
+      let s = this.#e[i];
+      s.priority === t.priority && e.push(s.run);
+    }
+    return e;
+  }
+  get size() {
+    return this.#e.length - this.#t;
+  }
+  #n() {
+    this.#t !== 0 && (this.#e.splice(0, this.#t), this.#t = 0);
+  }
+};
+var m2 = class extends export_EventEmitter {
+  #e;
+  #t;
+  #n = 0;
+  #d;
+  #v = false;
+  #w = false;
+  #u;
+  #S = 0;
+  #p = 0;
+  #l;
+  #o;
+  #a;
+  #h = [];
+  #r = 0;
+  #i;
+  #q;
+  #s = 0;
+  #g;
+  #c;
+  #$ = 1n;
+  #y = /* @__PURE__ */ new Map();
+  #T = /* @__PURE__ */ new Set();
+  timeout;
+  constructor(t) {
+    if (super(), t = {
+      carryoverIntervalCount: false,
+      intervalCap: Number.POSITIVE_INFINITY,
+      interval: 0,
+      concurrency: Number.POSITIVE_INFINITY,
+      autoStart: true,
+      queueClass: u2,
+      strict: false,
+      ...t
+    }, !(typeof t.intervalCap == "number" && t.intervalCap >= 1)) throw new TypeError(`Expected \`intervalCap\` to be a number from 1 and up, got \`${t.intervalCap?.toString() ?? ""}\` (${typeof t.intervalCap})`);
+    if (t.interval === void 0 || !(Number.isFinite(t.interval) && t.interval >= 0)) throw new TypeError(`Expected \`interval\` to be a finite number >= 0, got \`${t.interval?.toString() ?? ""}\` (${typeof t.interval})`);
+    if (t.strict && t.interval === 0) throw new TypeError("The `strict` option requires a non-zero `interval`");
+    if (t.strict && t.intervalCap === Number.POSITIVE_INFINITY) throw new TypeError("The `strict` option requires a finite `intervalCap`");
+    if (this.#e = t.carryoverIntervalCount ?? t.carryoverConcurrencyCount ?? false, this.#t = t.intervalCap === Number.POSITIVE_INFINITY || t.interval === 0, this.#d = t.intervalCap, this.#u = t.interval, this.#a = t.strict, this.#i = new t.queueClass(), this.#q = t.queueClass, this.concurrency = t.concurrency, t.timeout !== void 0 && !(Number.isFinite(t.timeout) && t.timeout > 0)) throw new TypeError(`Expected \`timeout\` to be a positive finite number, got \`${t.timeout}\` (${typeof t.timeout})`);
+    this.timeout = t.timeout, this.#c = t.autoStart === false, this.#Q();
+  }
+  #b(t) {
+    for (; this.#r < this.#h.length; ) {
+      let i = this.#h[this.#r];
+      if (i !== void 0 && t - i >= this.#u) this.#r++;
+      else break;
+    }
+    (this.#r > 100 && this.#r > this.#h.length / 2 || this.#r === this.#h.length) && (this.#h = this.#h.slice(this.#r), this.#r = 0);
+  }
+  #A(t) {
+    this.#a ? this.#h.push(t) : this.#n++;
+  }
+  #R() {
+    this.#a ? this.#h.length > this.#r && this.#h.pop() : this.#n > 0 && this.#n--;
+  }
+  #E() {
+    return this.#h.length - this.#r;
+  }
+  get #F() {
+    return this.#t ? true : this.#a ? this.#E() < this.#d : this.#n < this.#d;
+  }
+  get #D() {
+    return this.#s < this.#g;
+  }
+  #_() {
+    this.#s--, this.#s === 0 && this.emit("pendingZero"), this.#I(), this.emit("next");
+  }
+  #M() {
+    this.#o = void 0, this.#P(), this.#k();
+  }
+  #B(t) {
+    if (this.#a) {
+      if (this.#b(t), this.#E() >= this.#d) {
+        let i = this.#h[this.#r], s = this.#u - (t - i);
+        return this.#C(s), true;
+      }
+      return false;
+    }
+    if (this.#l === void 0) {
+      let e = this.#S - t;
+      if (e < 0) {
+        if (this.#p > 0) {
+          let i = t - this.#p;
+          if (i < this.#u) return this.#C(this.#u - i), true;
+        }
+        this.#n = this.#e ? this.#s : 0;
+      } else return this.#C(e), true;
     }
     return false;
+  }
+  #C(t) {
+    this.#o === void 0 && (this.#o = setTimeout(() => {
+      this.#M();
+    }, t));
+  }
+  #x() {
+    this.#l && (clearInterval(this.#l), this.#l = void 0);
+  }
+  #z() {
+    this.#o && (clearTimeout(this.#o), this.#o = void 0);
+  }
+  #I() {
+    if (this.#i.size === 0) {
+      if (this.#x(), this.emit("empty"), this.#s === 0) {
+        if (this.#z(), this.#a && this.#r > 0) {
+          let e = Date.now();
+          this.#b(e);
+        }
+        this.emit("idle");
+      }
+      return false;
+    }
+    let t = false;
+    if (!this.#c) {
+      let e = Date.now(), i = !this.#B(e);
+      if (this.#F && this.#D) {
+        let s = this.#i.dequeue();
+        this.#t || (this.#A(e), this.#m()), this.emit("active"), s(), i && this.#k(), t = true;
+      }
+    }
+    return t;
+  }
+  #k() {
+    this.#t || this.#l !== void 0 || this.#a || (this.#l = setInterval(() => {
+      this.#P();
+    }, this.#u), this.#S = Date.now() + this.#u);
+  }
+  #P() {
+    this.#a || (this.#n === 0 && this.#s === 0 && this.#l && this.#x(), this.#n = this.#e ? this.#s : 0), this.#L(), this.#m();
+  }
+  #L() {
+    for (; this.#I(); ) ;
+  }
+  get concurrency() {
+    return this.#g;
+  }
+  set concurrency(t) {
+    if (!(typeof t == "number" && t >= 1)) throw new TypeError(`Expected \`concurrency\` to be a number from 1 and up, got \`${t}\` (${typeof t})`);
+    this.#g = t, this.#L();
+  }
+  setPriority(t, e) {
+    if (typeof e != "number" || !Number.isFinite(e)) throw new TypeError(`Expected \`priority\` to be a finite number, got \`${e}\` (${typeof e})`);
+    this.#i.setPriority(t, e);
+  }
+  async add(t, e = {}) {
+    return e = {
+      timeout: this.timeout,
+      ...e,
+      id: e.id ?? (this.#$++).toString()
+    }, new Promise((i, s) => {
+      let h = Symbol(`task-${e.id}`), r2 = () => {
+      }, o = async () => {
+        r2(), this.#s++, this.#y.set(h, {
+          id: e.id,
+          priority: e.priority ?? 0,
+          startTime: Date.now(),
+          timeout: e.timeout
+        });
+        let a;
+        try {
+          try {
+            e.signal?.throwIfAborted();
+          } catch (c) {
+            throw this.#V(), this.#y.delete(h), c;
+          }
+          this.#p = Date.now();
+          let n = t({
+            signal: e.signal
+          });
+          if (e.timeout && (n = E2(Promise.resolve(n), {
+            milliseconds: e.timeout,
+            message: `Task timed out after ${e.timeout}ms (queue has ${this.#s} running, ${this.#i.size} waiting)`
+          })), e.signal) {
+            let { signal: c } = e;
+            n = Promise.race([
+              n,
+              new Promise((p2, g2) => {
+                a = () => {
+                  g2(c.reason);
+                }, c.addEventListener("abort", a, {
+                  once: true
+                });
+              })
+            ]);
+          }
+          let v = await n;
+          i(v), this.emit("completed", v);
+        } catch (n) {
+          s(n), this.emit("error", n);
+        } finally {
+          a && e.signal?.removeEventListener("abort", a), this.#y.delete(h), queueMicrotask(() => {
+            this.#_();
+          });
+        }
+      };
+      this.#i.enqueue(o, e);
+      let f = () => {
+        if (this.#i instanceof u2) {
+          this.#i.remove(o);
+          return;
+        }
+        this.#i.remove?.(e.id);
+      };
+      if (e.signal) {
+        let { signal: a } = e, n = () => {
+          r2(), f(), s(a.reason), this.#I(), this.emit("next");
+        };
+        if (r2 = () => {
+          a.removeEventListener("abort", n), this.#T.delete(r2);
+        }, a.aborted) {
+          n();
+          return;
+        }
+        a.addEventListener("abort", n, {
+          once: true
+        }), this.#T.add(r2);
+      }
+      this.emit("add"), this.#I();
+    });
+  }
+  async addAll(t, e) {
+    return Promise.all(t.map(async (i) => this.add(i, e)));
+  }
+  start() {
+    return this.#c ? (this.#c = false, this.#L(), this) : this;
+  }
+  pause() {
+    this.#c = true;
+  }
+  clear() {
+    for (let t of this.#T) t();
+    this.#i = new this.#q(), this.#x(), this.#N(), this.emit("empty"), this.#s === 0 && (this.#z(), this.emit("idle")), this.emit("next");
+  }
+  async onEmpty() {
+    this.#i.size !== 0 && await this.#f("empty");
+  }
+  async onSizeLessThan(t) {
+    this.#i.size < t || await this.#f("next", () => this.#i.size < t);
+  }
+  async onIdle() {
+    this.#s === 0 && this.#i.size === 0 || await this.#f("idle");
+  }
+  async onPendingZero() {
+    this.#s !== 0 && await this.#f("pendingZero");
+  }
+  async onRateLimit() {
+    this.isRateLimited || await this.#f("rateLimit");
+  }
+  async onRateLimitCleared() {
+    this.isRateLimited && await this.#f("rateLimitCleared");
+  }
+  onError() {
+    return new Promise((t, e) => {
+      let i = (s) => {
+        this.off("error", i), e(s);
+      };
+      this.on("error", i);
+    });
+  }
+  async #f(t, e) {
+    return new Promise((i) => {
+      let s = () => {
+        e && !e() || (this.off(t, s), i());
+      };
+      this.on(t, s);
+    });
+  }
+  get size() {
+    return this.#i.size;
+  }
+  sizeBy(t) {
+    return this.#i.filter(t).length;
+  }
+  get pending() {
+    return this.#s;
+  }
+  get isPaused() {
+    return this.#c;
+  }
+  #Q() {
+    this.#t || (this.on("add", () => {
+      this.#i.size > 0 && this.#m();
+    }), this.on("next", () => {
+      this.#m();
+    }));
+  }
+  #m() {
+    this.#t || this.#w || (this.#w = true, queueMicrotask(() => {
+      this.#w = false, this.#N();
+    }));
+  }
+  #V() {
+    this.#t || (this.#R(), this.#m());
+  }
+  #N() {
+    let t = this.#v;
+    if (this.#t || this.#i.size === 0) {
+      t && (this.#v = false, this.emit("rateLimitCleared"));
+      return;
+    }
+    let e;
+    if (this.#a) {
+      let s = Date.now();
+      this.#b(s), e = this.#E();
+    } else e = this.#n;
+    let i = e >= this.#d;
+    i !== t && (this.#v = i, this.emit(i ? "rateLimit" : "rateLimitCleared"));
+  }
+  get isRateLimited() {
+    return this.#v;
+  }
+  get isSaturated() {
+    return this.#s === this.#g && this.#i.size > 0 || this.isRateLimited && this.#i.size > 0;
+  }
+  get runningTasks() {
+    return [
+      ...this.#y.values()
+    ].map((t) => ({
+      ...t,
+      timeoutRemaining: t.timeout ? Math.max(0, t.startTime + t.timeout - Date.now()) : void 0
+    }));
+  }
+};
+
+// dev/Bonito/js_dependencies/Sessions.js
+var SESSIONS = {};
+var GLOBAL_OBJECT_CACHE = {};
+var FREED_SESSION_TOMBSTONES = /* @__PURE__ */ new Set();
+var TOMBSTONE_TTL_MS = 3e4;
+function tombstone_session(session_id) {
+  FREED_SESSION_TOMBSTONES.add(session_id);
+  setTimeout(() => FREED_SESSION_TOMBSTONES.delete(session_id), TOMBSTONE_TTL_MS);
+}
+var OBJECT_FREEING_LOCK = new m2({
+  concurrency: 1
+});
+function lock_loading(f) {
+  OBJECT_FREEING_LOCK.add(f).catch((error) => {
+    send_error("Error inside object-freeing-locked task", error);
+  });
+}
+function lookup_global_object(key) {
+  const object = GLOBAL_OBJECT_CACHE[key];
+  if (object) {
+    return object;
+  }
+  console.warn(`Key ${key} not found! ${object}`);
+  return null;
+}
+function is_still_referenced(id) {
+  for (const session_id in SESSIONS) {
+    const [tracked_objects] = SESSIONS[session_id];
+    if (tracked_objects.has(id)) {
+      return true;
+    }
+  }
+  return false;
 }
 function force_free_object(id) {
-    for(const session_id in SESSIONS){
-        const [tracked_objects, allow_delete] = SESSIONS[session_id];
-        tracked_objects.delete(id);
-    }
-    delete GLOBAL_OBJECT_CACHE[id];
+  for (const session_id in SESSIONS) {
+    const [tracked_objects, allow_delete] = SESSIONS[session_id];
+    tracked_objects.delete(id);
+  }
+  delete GLOBAL_OBJECT_CACHE[id];
 }
 function free_object(id) {
-    const data = GLOBAL_OBJECT_CACHE[id];
-    if (data) {
-        if (data instanceof Promise) {
-            return;
-        }
-        if (!is_still_referenced(id)) {
-            delete GLOBAL_OBJECT_CACHE[id];
-        }
-        return;
-    } else {
-        console.warn(`Trying to delete object ${id}, which is not in global session cache.`);
+  const data = GLOBAL_OBJECT_CACHE[id];
+  if (data) {
+    if (data instanceof Promise) {
+      return;
+    }
+    if (!is_still_referenced(id)) {
+      delete GLOBAL_OBJECT_CACHE[id];
     }
     return;
+  } else {
+    console.warn(`Trying to delete object ${id}, which is not in global session cache.`);
+  }
+  return;
 }
-let DELETE_OBSERVER = undefined;
+var DELETE_OBSERVER = void 0;
 function move_dom_node(node, parent, ref) {
-    const id = node.id;
-    if (!id || !(id in SESSIONS)) {
-        parent.insertBefore(node, ref);
-        return;
-    }
-    const restore = SESSIONS[id][1];
-    SESSIONS[id][1] = "moving";
+  const id = node.id;
+  if (!id || !(id in SESSIONS)) {
     parent.insertBefore(node, ref);
-    setTimeout(()=>{
-        SESSIONS[id][1] = restore;
-    }, 0);
+    return;
+  }
+  const entry = SESSIONS[id];
+  if (entry[1] !== "moving") {
+    entry[2] = entry[1];
+  }
+  entry[1] = "moving";
+  const token = (entry[3] || 0) + 1;
+  entry[3] = token;
+  parent.insertBefore(node, ref);
+  setTimeout(() => {
+    const current = SESSIONS[id];
+    if (!current || current[3] !== token) {
+      return;
+    }
+    current[1] = current[2];
+    current[2] = void 0;
+    current[3] = void 0;
+  }, 0);
 }
 function track_deleted_sessions() {
-    if (!DELETE_OBSERVER) {
-        const observer = new MutationObserver(function(mutations) {
-            let removal_occured = false;
-            const to_delete = new Set();
-            mutations.forEach((mutation)=>{
-                mutation.removedNodes.forEach((x)=>{
-                    if (x.id in SESSIONS) {
-                        const status = SESSIONS[x.id][1];
-                        if (status === "delete") {
-                            to_delete.add(x.id);
-                        }
-                    } else {
-                        removal_occured = true;
-                    }
-                });
-            });
-            if (removal_occured) {
-                Object.keys(SESSIONS).forEach((id)=>{
-                    const status = SESSIONS[id][1];
-                    if (status === "delete") {
-                        if (!document.getElementById(id)) {
-                            console.debug(`adding session to delete candidates: ${id}`);
-                            to_delete.add(id);
-                        }
-                    }
-                });
+  if (!DELETE_OBSERVER) {
+    const observer = new MutationObserver(function(mutations) {
+      let removal_occured = false;
+      const to_delete = /* @__PURE__ */ new Set();
+      mutations.forEach((mutation) => {
+        mutation.removedNodes.forEach((x) => {
+          if (x.id in SESSIONS) {
+            const status = SESSIONS[x.id][1];
+            if (status === "delete") {
+              to_delete.add(x.id);
             }
-            to_delete.forEach((id)=>{
-                close_session(id);
-            });
+          } else {
+            removal_occured = true;
+          }
         });
-        observer.observe(document, {
-            attributes: false,
-            childList: true,
-            characterData: false,
-            subtree: true
+      });
+      if (removal_occured) {
+        Object.keys(SESSIONS).forEach((id) => {
+          const status = SESSIONS[id][1];
+          if (status === "delete") {
+            if (!document.getElementById(id)) {
+              console.debug(`adding session to delete candidates: ${id}`);
+              to_delete.add(id);
+            }
+          }
         });
-        DELETE_OBSERVER = observer;
+      }
+      to_delete.forEach((id) => {
+        close_session(id);
+      });
+    });
+    observer.observe(document, {
+      attributes: false,
+      childList: true,
+      characterData: false,
+      subtree: true
+    });
+    DELETE_OBSERVER = observer;
+  }
+}
+var INITIALIZED_SESSIONS = /* @__PURE__ */ new Set();
+function reannounce_initialized_sessions() {
+  INITIALIZED_SESSIONS.forEach((session_id) => {
+    if (session_id in SESSIONS) {
+      send_done_loading(session_id, null);
+    } else {
+      INITIALIZED_SESSIONS.delete(session_id);
     }
+  });
 }
 function done_initializing_session(session_id) {
-    if (!(session_id in SESSIONS)) {
-        console.warn(`Session ${session_id} got deleted before done initializing!`);
-        send_done_loading(session_id, new Error("Session deleted before initialization completed"));
-        return;
-    }
-    send_done_loading(session_id, null);
-    if (SESSIONS[session_id][1] != "root") {
-        SESSIONS[session_id][1] = "delete";
-    }
+  if (!(session_id in SESSIONS)) {
+    console.warn(`Session ${session_id} got deleted before done initializing!`);
+    send_done_loading(session_id, new Error("Session deleted before initialization completed"));
+    return;
+  }
+  INITIALIZED_SESSIONS.add(session_id);
+  send_done_loading(session_id, null);
+  if (SESSIONS[session_id][1] != "root") {
+    SESSIONS[session_id][1] = "delete";
+  }
 }
 function init_session_from_msgs(session_id, messages) {
-    try {
-        messages.forEach(process_message);
-        done_initializing_session(session_id);
-    } catch (error) {
-        send_done_loading(session_id, error);
-        console.error(error.stack);
-        throw error;
-    }
+  try {
+    messages.forEach(process_message);
+    done_initializing_session(session_id);
+  } catch (error) {
+    send_done_loading(session_id, error);
+    console.error(error.stack || error);
+  }
 }
-register_ext(102, (uint_8_array, context)=>{
-    const [interpolated_objects, source, julia_file] = unpack(uint_8_array, context);
-    const lookup_interpolated = (id)=>interpolated_objects[id];
-    try {
-        const eval_func = new Function("__lookup_interpolated", "Bonito", source);
-        return ()=>{
-            try {
-                return eval_func(lookup_interpolated, window.Bonito);
-            } catch (err) {
-                console.log(`error in closure from: ${julia_file}`);
-                console.log(`Source:`);
-                console.log(source);
-                throw err;
-            }
-        };
-    } catch (err) {
+function init_session(session_id, message_promise, session_status, compression) {
+  SESSIONS[session_id] = [
+    /* @__PURE__ */ new Set(),
+    session_status
+  ];
+  track_deleted_sessions();
+  lock_loading(() => {
+    return Promise.resolve(message_promise).then((binary) => {
+      const messages = binary ? decode_binary(binary, compression) : [];
+      init_session_from_msgs(session_id, messages);
+    }).catch((error) => {
+      send_done_loading(session_id, error);
+      console.error(error.stack || error);
+    });
+  });
+}
+function close_session(session_id) {
+  const session = SESSIONS[session_id];
+  if (!session) {
+    console.warn("double freeing session from JS!");
+    return;
+  }
+  const [session_objects, status] = session;
+  const root_node = document.getElementById(session_id);
+  if (root_node) {
+    root_node.style.display = "none";
+    root_node.parentNode.removeChild(root_node);
+  }
+  if (status === "delete") {
+    send_close_session(session_id, status);
+    SESSIONS[session_id] = [
+      session_objects,
+      false
+    ];
+  }
+  return;
+}
+function free_session(session_id) {
+  lock_loading(() => {
+    const session = SESSIONS[session_id];
+    if (!session) {
+      console.warn("double freeing session from Julia!");
+      return;
+    }
+    const [tracked_objects, status] = session;
+    delete SESSIONS[session_id];
+    tombstone_session(session_id);
+    INITIALIZED_SESSIONS.delete(session_id);
+    tracked_objects.forEach(free_object);
+    tracked_objects.clear();
+  });
+}
+function on_node_available(node_id, timeout2, max_timeout = 3e4) {
+  return new Promise((resolve, reject) => {
+    let elapsed = 0;
+    function test_node(current_timeout) {
+      const node = document.querySelector(`[data-jscall-id='${node_id}']`);
+      if (node) {
+        resolve(node);
+      } else {
+        elapsed += current_timeout;
+        if (elapsed > max_timeout) {
+          reject(new Error(`Timeout waiting for DOM node with data-jscall-id='${node_id}' after ${max_timeout}ms`));
+          return;
+        }
+        const new_timeout = Math.min(current_timeout * 2, 1e3);
+        setTimeout(test_node, new_timeout, new_timeout);
+      }
+    }
+    test_node(timeout2);
+  });
+}
+function update_or_replace(node, new_html, replace) {
+  if (replace) {
+    node.parentNode.replaceChild(new_html, node);
+  } else {
+    while (node.firstChild) {
+      node.removeChild(node.firstChild);
+    }
+    node.append(new_html);
+  }
+}
+function update_session_dom(message) {
+  const { session_id, session_status, messages, html, dom_node_selector, replace } = message;
+  ensure_session_exists(session_id, session_status || "sub");
+  return on_node_available(dom_node_selector, 1).then((dom) => {
+    lock_loading(() => {
+      update_or_replace(dom, html, replace);
+      init_session_from_msgs(session_id, messages);
+    });
+  }).catch((error) => {
+    send_done_loading(session_id, error);
+  });
+}
+function ensure_session_exists(session_id, session_status) {
+  if (session_id in SESSIONS) {
+    return;
+  }
+  if (FREED_SESSION_TOMBSTONES.has(session_id)) {
+    console.warn(`Ignoring (re)creation of freed session ${session_id} (tombstoned)`);
+    return;
+  }
+  SESSIONS[session_id] = [
+    /* @__PURE__ */ new Set(),
+    session_status
+  ];
+}
+function track_in_session(session_id, key, session_status) {
+  ensure_session_exists(session_id, session_status);
+  const session = SESSIONS[session_id];
+  if (!session) {
+    console.warn(`track_in_session for freed session ${session_id} ignored`);
+    return;
+  }
+  const tracked_objects = session[0];
+  tracked_objects.add(key);
+  if (!(key in GLOBAL_OBJECT_CACHE)) {
+    console.warn(`TrackingOnly: Key ${key} not found in GLOBAL_OBJECT_CACHE`);
+  }
+}
+function register_in_session_cache(session_id, key, object, session_status) {
+  ensure_session_exists(session_id, session_status);
+  const session = SESSIONS[session_id];
+  if (!session) {
+    console.warn(`register_in_session_cache for freed session ${session_id} ignored`);
+    return;
+  }
+  const tracked_objects = session[0];
+  tracked_objects.add(key);
+  if (!(key in GLOBAL_OBJECT_CACHE)) {
+    GLOBAL_OBJECT_CACHE[key] = object;
+  }
+}
+function update_session_cache(session_id, new_jl_objects, session_status) {
+  function update_cache(tracked_objects) {
+    for (const [key, new_object] of new_jl_objects) {
+      tracked_objects.add(key);
+      if (!(key in GLOBAL_OBJECT_CACHE)) {
+        GLOBAL_OBJECT_CACHE[key] = new_object;
+      }
+    }
+  }
+  const session = SESSIONS[session_id];
+  if (session) {
+    update_cache(session[0]);
+  } else {
+    const tracked_items = /* @__PURE__ */ new Set();
+    SESSIONS[session_id] = [
+      tracked_items,
+      session_status
+    ];
+    update_cache(tracked_items);
+  }
+}
+
+// dev/Bonito/js_dependencies/Protocol.js
+var UnpackContext = class {
+  constructor(session_id, session_status) {
+    this.session_id = session_id;
+    this.session_status = session_status;
+  }
+};
+var EXTENSION_CODEC = new ExtensionCodec();
+window.EXTENSION_CODEC = EXTENSION_CODEC;
+function unpack(uint8array, context) {
+  return decode(uint8array, {
+    extensionCodec: EXTENSION_CODEC,
+    context
+  });
+}
+function pack(object) {
+  return encode(object, {
+    extensionCodec: EXTENSION_CODEC
+  });
+}
+function reinterpret_array(ArrayType, uint8array) {
+  if (ArrayType === Uint8Array) {
+    return uint8array;
+  } else {
+    const bo = uint8array.byteOffset;
+    const bpe = ArrayType.BYTES_PER_ELEMENT;
+    const new_array_length = uint8array.byteLength / bpe;
+    const buffer = uint8array.buffer.slice(bo, bo + uint8array.byteLength);
+    return new ArrayType(buffer, 0, new_array_length);
+  }
+}
+function register_ext_array(type_tag, array_type) {
+  EXTENSION_CODEC.register({
+    type: type_tag,
+    decode: (uint8array) => reinterpret_array(array_type, uint8array),
+    encode: (object) => {
+      if (object instanceof array_type) {
+        return new Uint8Array(object.buffer, object.byteOffset, object.byteLength);
+      } else {
+        return null;
+      }
+    }
+  });
+}
+register_ext_array(17, Int8Array);
+register_ext_array(18, Uint8Array);
+register_ext_array(19, Int16Array);
+register_ext_array(20, Uint16Array);
+register_ext_array(21, Int32Array);
+register_ext_array(22, Uint32Array);
+register_ext_array(23, Float32Array);
+register_ext_array(24, Float64Array);
+function register_ext(type_tag, decode2, encode2) {
+  EXTENSION_CODEC.register({
+    type: type_tag,
+    decode: (data, extType, context) => decode2(data, context),
+    encode: encode2
+  });
+}
+var JLArray = class {
+  constructor(size, array) {
+    this.size = size;
+    this.array = array;
+  }
+};
+register_ext(99, (uint_8_array, context) => {
+  const [size, array] = unpack(uint_8_array, context);
+  return new JLArray(size, array);
+}, (object) => {
+  if (object instanceof JLArray) {
+    return pack([
+      object.size,
+      object.array
+    ]);
+  } else {
+    return null;
+  }
+});
+var OBSERVABLE_TAG = 101;
+var JSCODE_TAG = 102;
+var CACHE_KEY_TAG = 104;
+var DOM_NODE_TAG = 105;
+var SESSION_CACHE_TAG = 106;
+var SERIALIZED_MESSAGE_TAG = 107;
+var RAW_HTML_TAG = 108;
+var TRACKING_ONLY_TAG = 109;
+register_ext(OBSERVABLE_TAG, (uint_8_array, context) => {
+  const [id, value] = unpack(uint_8_array, context);
+  const existing = GLOBAL_OBJECT_CACHE[id];
+  const obs = existing instanceof Observable ? existing : new Observable(id, value);
+  register_in_session_cache(context.session_id, id, obs, context.session_status);
+  return obs;
+});
+register_ext(JSCODE_TAG, (uint_8_array, context) => {
+  const [interpolated_objects, source, julia_file] = unpack(uint_8_array, context);
+  const lookup_interpolated = (id) => interpolated_objects[id];
+  try {
+    const eval_func = new Function("__lookup_interpolated", "Bonito", source);
+    return () => {
+      try {
+        return eval_func(lookup_interpolated, window.Bonito);
+      } catch (err) {
         console.log(`error in closure from: ${julia_file}`);
         console.log(`Source:`);
         console.log(source);
         throw err;
-    }
+      }
+    };
+  } catch (err) {
+    console.log(`error in closure from: ${julia_file}`);
+    console.log(`Source:`);
+    console.log(source);
+    throw err;
+  }
 });
-function send_error(message, exception) {
-    console.error(message);
-    console.error(exception);
-    send_to_julia({
-        msg_type: JavascriptError,
-        message: message,
-        exception: String(exception),
-        stacktrace: exception === null ? "" : clean_stack(exception.stack)
-    });
-}
-register_ext(104, (uint_8_array, context)=>{
-    const key = unpack(uint_8_array, context);
-    return lookup_global_object(key);
+register_ext(CACHE_KEY_TAG, (uint_8_array, context) => {
+  const key = unpack(uint_8_array, context);
+  return lookup_global_object(key);
 });
-function close_session(session_id) {
-    const session = SESSIONS[session_id];
-    if (!session) {
-        console.warn("double freeing session from JS!");
-        return;
-    }
-    const [session_objects, status] = session;
-    const root_node = document.getElementById(session_id);
-    if (root_node) {
-        root_node.style.display = "none";
-        root_node.parentNode.removeChild(root_node);
-    }
-    if (status === "delete") {
-        send_close_session(session_id, status);
-        SESSIONS[session_id] = [
-            session_objects,
-            false
-        ];
-    }
-    return;
-}
-function free_session(session_id) {
-    lock_loading(()=>{
-        const session = SESSIONS[session_id];
-        if (!session) {
-            console.warn("double freeing session from Julia!");
-            return;
-        }
-        const [tracked_objects, status] = session;
-        delete SESSIONS[session_id];
-        tracked_objects.forEach(free_object);
-        tracked_objects.clear();
-    });
-}
-function on_node_available(node_id, timeout, max_timeout = 30000) {
-    return new Promise((resolve, reject)=>{
-        let elapsed = 0;
-        function test_node(current_timeout) {
-            const node = document.querySelector(`[data-jscall-id='${node_id}']`);
-            if (node) {
-                resolve(node);
-            } else {
-                elapsed += current_timeout;
-                if (elapsed > max_timeout) {
-                    reject(new Error(`Timeout waiting for DOM node with data-jscall-id='${node_id}' after ${max_timeout}ms`));
-                    return;
-                }
-                const new_timeout = Math.min(current_timeout * 2, 1000);
-                setTimeout(test_node, new_timeout, new_timeout);
-            }
-        }
-        test_node(timeout);
-    });
-}
-function update_or_replace(node, new_html, replace) {
-    if (replace) {
-        node.parentNode.replaceChild(new_html, node);
-    } else {
-        while(node.childElementCount > 0){
-            node.removeChild(node.firstChild);
-        }
-        node.append(new_html);
-    }
-}
-function ensure_session_exists(session_id, session_status) {
-    if (!(session_id in SESSIONS)) {
-        SESSIONS[session_id] = [
-            new Set(),
-            session_status
-        ];
-    }
-}
-function update_session_dom(message) {
-    lock_loading(()=>{
-        const { session_id , session_status , messages , html , dom_node_selector , replace  } = message;
-        ensure_session_exists(session_id, session_status || "sub");
-        return on_node_available(dom_node_selector, 1).then((dom)=>{
-            update_or_replace(dom, html, replace);
-            init_session_from_msgs(session_id, messages);
-        }).catch((error)=>{
-            send_done_loading(session_id, error);
-        });
-    });
-}
-function track_in_session(session_id, key, session_status) {
-    ensure_session_exists(session_id, session_status);
-    const tracked_objects = SESSIONS[session_id][0];
-    tracked_objects.add(key);
-    if (!(key in GLOBAL_OBJECT_CACHE)) {
-        console.warn(`TrackingOnly: Key ${key} not found in GLOBAL_OBJECT_CACHE`);
-    }
-}
-register_ext(109, (uint_8_array, context)=>{
-    const key = unpack(uint_8_array, context);
-    track_in_session(context.session_id, key, context.session_status);
-    return lookup_global_object(key);
+register_ext(TRACKING_ONLY_TAG, (uint_8_array, context) => {
+  const key = unpack(uint_8_array, context);
+  track_in_session(context.session_id, key, context.session_status);
+  return lookup_global_object(key);
 });
 function create_tag(tag, attributes) {
-    if (attributes.juliasvgnode) {
-        return document.createElementNS("http://www.w3.org/2000/svg", tag);
+  if (attributes.juliasvgnode) {
+    return document.createElementNS("http://www.w3.org/2000/svg", tag);
+  } else {
+    return document.createElement(tag);
+  }
+}
+register_ext(DOM_NODE_TAG, (uint_8_array, context) => {
+  const [tag, children, attributes] = unpack(uint_8_array, context);
+  const node = create_tag(tag, attributes);
+  Object.keys(attributes).forEach((key) => {
+    if (key == "juliasvgnode") {
+      return;
+    }
+    if (key == "class") {
+      node.className = attributes[key];
     } else {
-        return document.createElement(tag);
+      node.setAttribute(key, attributes[key]);
     }
-}
-register_ext(105, (uint_8_array, context)=>{
-    const [tag, children, attributes] = unpack(uint_8_array, context);
-    const node = create_tag(tag, attributes);
-    Object.keys(attributes).forEach((key)=>{
-        if (key == "juliasvgnode") {
-            return;
-        }
-        if (key == "class") {
-            node.className = attributes[key];
-        } else {
-            node.setAttribute(key, attributes[key]);
-        }
-    });
-    children.forEach((child)=>node.append(child));
-    return node;
+  });
+  children.forEach((child) => node.append(child));
+  return node;
 });
-register_ext(108, (uint_8_array, context)=>{
-    const html = unpack(uint_8_array, context);
-    const div = document.createElement("div");
-    div.innerHTML = html;
-    return div;
+register_ext(RAW_HTML_TAG, (uint_8_array, context) => {
+  const html = unpack(uint_8_array, context);
+  const div = document.createElement("div");
+  div.innerHTML = html;
+  return div;
 });
-function encode_binary(data, compression_enabled) {
-    if (compression_enabled) {
-        return ml(pack(data));
-    } else {
-        return pack(data);
-    }
-}
-function send_to_julia(message) {
-    const { send_message , status , compression_enabled  } = CONNECTION;
-    if (send_message !== undefined && status === "open") {
-        send_message(encode_binary(message, compression_enabled));
-    } else if (status === "connecting") {
-        CONNECTION.queue.push(message);
-    } else {
-        console.log(`Trying to send messages while connection is offline: ${status}`);
-    }
-}
-class Observable {
-    #callbacks = [];
-    constructor(id, value){
-        this.id = id;
-        this.value = value;
-    }
-    notify(value, dont_notify_julia) {
-        this.value = value;
-        this.#callbacks.forEach((callback)=>{
-            try {
-                const deregister = callback(value);
-                if (deregister == false) {
-                    this.#callbacks.splice(this.#callbacks.indexOf(callback), 1);
-                }
-            } catch (exception) {
-                send_error("Error during running onjs callback\n" + "Callback:\n" + callback.toString(), exception);
-            }
-        });
-        if (!dont_notify_julia) {
-            send_to_julia({
-                msg_type: UpdateObservable,
-                id: this.id,
-                payload: value
-            });
-        }
-    }
-    on(callback) {
-        this.#callbacks.push(callback);
-    }
-}
-register_ext(106, (uint_8_array, context)=>{
-    const [session_id, session_status, packed_objects_ext] = decode(uint_8_array);
-    ensure_session_exists(session_id, session_status);
-    const ctx = new UnpackContext(session_id, session_status);
-    unpack(packed_objects_ext.data, ctx);
-    return session_id;
+register_ext(SESSION_CACHE_TAG, (uint_8_array, context) => {
+  const [session_id, session_status, packed_objects_ext] = decode(uint_8_array);
+  ensure_session_exists(session_id, session_status);
+  const ctx = new UnpackContext(session_id, session_status);
+  unpack(packed_objects_ext.data, ctx);
+  return session_id;
 });
-register_ext(107, (uint_8_array, context)=>{
-    const [session_id, session_status, packed_cache_ext, packed_data_ext] = decode(uint_8_array);
-    const ctx = new UnpackContext(session_id, session_status);
-    ensure_session_exists(session_id, session_status);
-    unpack(packed_cache_ext.data, ctx);
-    return unpack(packed_data_ext.data, ctx);
+register_ext(SERIALIZED_MESSAGE_TAG, (uint_8_array, context) => {
+  const [session_id, session_status, packed_cache_ext, packed_data_ext] = decode(uint_8_array);
+  const ctx = new UnpackContext(session_id, session_status);
+  ensure_session_exists(session_id, session_status);
+  unpack(packed_cache_ext.data, ctx);
+  return unpack(packed_data_ext.data, ctx);
 });
 function base64encode(data_as_uint8array) {
-    const base64_promise = new Promise((resolve)=>{
-        const reader = new FileReader();
-        reader.onload = ()=>{
-            const len = 37;
-            const base64url = reader.result;
-            resolve(base64url.slice(len, base64url.length));
-        };
-        reader.readAsDataURL(new Blob([
-            data_as_uint8array
-        ]));
-    });
-    return base64_promise;
+  const base64_promise = new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const len = 37;
+      const base64url = reader.result;
+      resolve(base64url.slice(len, base64url.length));
+    };
+    reader.onerror = () => {
+      reject(reader.error || new Error("FileReader failed during base64encode"));
+    };
+    reader.onabort = () => {
+      reject(new Error("FileReader aborted during base64encode"));
+    };
+    try {
+      reader.readAsDataURL(new Blob([
+        data_as_uint8array
+      ]));
+    } catch (error) {
+      reject(error);
+    }
+  });
+  return base64_promise;
 }
 function base64decode(base64_str) {
-    return new Promise((resolve)=>{
-        fetch("data:application/octet-stream;base64," + base64_str).then((response)=>{
-            response.arrayBuffer().then((array)=>{
-                resolve(new Uint8Array(array));
-            });
-        });
-    });
+  return new Promise((resolve, reject) => {
+    fetch("data:application/octet-stream;base64," + base64_str).then((response) => response.arrayBuffer()).then((array) => resolve(new Uint8Array(array))).catch(reject);
+  });
 }
 function decode_base64_message(base64_string, compression_enabled) {
-    return base64decode(base64_string).then((x)=>decode_binary(x, compression_enabled));
+  return base64decode(base64_string).then((x) => decode_binary(x, compression_enabled));
 }
 function decode_binary(binary, compression_enabled) {
-    return unpack_binary(binary, compression_enabled);
+  return unpack_binary(binary, compression_enabled);
 }
 function unpack_binary(binary, compression_enabled) {
-    if (compression_enabled) {
-        return unpack(Ol(binary));
-    } else {
-        return unpack(binary);
-    }
+  if (compression_enabled) {
+    return unpack(Ol(binary));
+  } else {
+    return unpack(binary);
+  }
 }
-const mod = {
-    base64encode: base64encode,
-    base64decode: base64decode,
-    decode_base64_message: decode_base64_message,
-    decode_binary: decode_binary,
-    unpack_binary: unpack_binary,
-    encode_binary: encode_binary
+function encode_binary(data, compression_enabled) {
+  if (compression_enabled) {
+    return ml(pack(data));
+  } else {
+    return pack(data);
+  }
+}
+
+// dev/Bonito/js_dependencies/Connection.js
+var UpdateObservable = "0";
+var OnjsCallback = "1";
+var EvalJavascript = "2";
+var JavascriptError = "3";
+var JavascriptWarning = "4";
+var RegisterObservable = "5";
+var JSDoneLoading = "8";
+var FusedMessage = "9";
+var CloseSession = "10";
+var PingPong = "11";
+var UpdateSession = "12";
+var PING_INTERVAL = 5e3;
+function clean_stack(stack) {
+  return stack.replaceAll(/(data:\w+\/\w+;base64,)[a-zA-Z0-9\+\/=]+:/g, "$1<<BASE64>>:");
+}
+var ConnectionStatus = {
+  CONNECTING: "connecting",
+  CONNECTED: "connected",
+  DISCONNECTED: "disconnected",
+  NO_CONNECTION: "no_connection"
 };
-function init_session(session_id, message_promise, session_status, compression) {
-    SESSIONS[session_id] = [
-        new Set(),
-        session_status
-    ];
-    track_deleted_sessions();
-    lock_loading(()=>{
-        return Promise.resolve(message_promise).then((binary)=>{
-            const messages = binary ? decode_binary(binary, compression) : [];
-            init_session_from_msgs(session_id, messages);
-        }).catch((error)=>{
-            send_done_loading(session_id, error);
-            console.error(error.stack);
-            throw error;
-        });
-    });
-}
-function register_in_session_cache(session_id, key, object, session_status) {
-    ensure_session_exists(session_id, session_status);
-    const tracked_objects = SESSIONS[session_id][0];
-    tracked_objects.add(key);
-    if (!(key in GLOBAL_OBJECT_CACHE)) {
-        GLOBAL_OBJECT_CACHE[key] = object;
-    }
-}
-function update_session_cache(session_id, new_jl_objects, session_status) {
-    function update_cache(tracked_objects) {
-        for (const [key, new_object] of new_jl_objects){
-            tracked_objects.add(key);
-            if (!(key in GLOBAL_OBJECT_CACHE)) {
-                GLOBAL_OBJECT_CACHE[key] = new_object;
-            }
-        }
-    }
-    const session = SESSIONS[session_id];
-    if (session) {
-        update_cache(session[0]);
-    } else {
-        const tracked_items = new Set();
-        SESSIONS[session_id] = [
-            tracked_items,
-            session_status
-        ];
-        update_cache(tracked_items);
-    }
-}
-const mod1 = {
-    SESSIONS: SESSIONS,
-    GLOBAL_OBJECT_CACHE: GLOBAL_OBJECT_CACHE,
-    OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK,
-    lock_loading: lock_loading,
-    lookup_global_object: lookup_global_object,
-    force_free_object: force_free_object,
-    free_object: free_object,
-    move_dom_node: move_dom_node,
-    track_deleted_sessions: track_deleted_sessions,
-    done_initializing_session: done_initializing_session,
-    init_session: init_session,
-    close_session: close_session,
-    free_session: free_session,
-    on_node_available: on_node_available,
-    update_or_replace: update_or_replace,
-    update_session_dom: update_session_dom,
-    ensure_session_exists: ensure_session_exists,
-    track_in_session: track_in_session,
-    register_in_session_cache: register_in_session_cache,
-    update_session_cache: update_session_cache
+var CONNECTION = {
+  send_message: void 0,
+  queue: [],
+  status: "connecting",
+  compression_enabled: false,
+  lastPing: Date.now(),
+  indicator: null
 };
-register_ext(101, (uint_8_array, context)=>{
-    const [id, value] = unpack(uint_8_array, context);
-    const obs = new Observable(id, value);
-    register_in_session_cache(context.session_id, id, obs, context.session_status);
-    return obs;
-});
+function register_connection_indicator(indicator) {
+  CONNECTION.indicator = indicator;
+  notify_indicator_status();
+}
+function unregister_connection_indicator() {
+  CONNECTION.indicator = null;
+}
+function set_no_connection() {
+  CONNECTION.status = "no_connection";
+  notify_indicator_status();
+}
+function notify_indicator_status() {
+  if (CONNECTION.indicator && typeof CONNECTION.indicator.onStatusChange === "function") {
+    let status;
+    if (CONNECTION.status === "no_connection") {
+      status = ConnectionStatus.NO_CONNECTION;
+    } else if (CONNECTION.status === "open") {
+      status = ConnectionStatus.CONNECTED;
+    } else if (CONNECTION.status === "connecting") {
+      status = ConnectionStatus.CONNECTING;
+    } else {
+      status = ConnectionStatus.DISCONNECTED;
+    }
+    CONNECTION.indicator.onStatusChange(status);
+  }
+}
+function on_connection_connecting() {
+  CONNECTION.status = "connecting";
+  notify_indicator_status();
+}
+function on_connection_open(send_message_callback, compression_enabled, enable_pings = true) {
+  CONNECTION.send_message = send_message_callback;
+  CONNECTION.status = "open";
+  CONNECTION.compression_enabled = compression_enabled;
+  notify_indicator_status();
+  const pending = CONNECTION.queue;
+  CONNECTION.queue = [];
+  pending.forEach((message) => send_to_julia(message));
+  if (enable_pings) {
+    send_pings();
+  }
+}
+function on_connection_close() {
+  CONNECTION.status = "closed";
+  notify_indicator_status();
+  arm_reconnect_triggers();
+}
+var reconnect_triggers_armed = false;
+function arm_reconnect_triggers() {
+  if (reconnect_triggers_armed) {
+    return;
+  }
+  if (typeof window === "undefined" || !window.addEventListener) {
+    return;
+  }
+  reconnect_triggers_armed = true;
+  const try_revive = () => {
+    if (CONNECTION.status === "open" || CONNECTION.status === "connecting" || CONNECTION.status === "no_connection") {
+      return;
+    }
+    if (typeof window !== "undefined" && window.WEBSOCKET && typeof window.WEBSOCKET.retry_connection === "function") {
+      CONNECTION.status = "connecting";
+      notify_indicator_status();
+      window.WEBSOCKET.retry_connection();
+    }
+  };
+  window.addEventListener("online", try_revive);
+  window.addEventListener("focus", try_revive);
+}
+function can_send_to_julia() {
+  return CONNECTION.status === "open";
+}
+function is_julia_responsive() {
+  return Date.now() - CONNECTION.lastPing < 2 * PING_INTERVAL;
+}
+function send_to_julia(message) {
+  const { send_message, status, compression_enabled } = CONNECTION;
+  if (send_message !== void 0 && status === "open") {
+    const sent = send_message(encode_binary(message, compression_enabled));
+    if (sent === false || sent === void 0) {
+      CONNECTION.queue.push(message);
+      if (CONNECTION.status === "open") {
+        CONNECTION.status = "closed";
+        notify_indicator_status();
+        arm_reconnect_triggers();
+      }
+    }
+  } else if (status === "no_connection") {
+    console.log("Trying to send messages while in no_connection (static) mode");
+  } else {
+    CONNECTION.queue.push(message);
+  }
+}
 function send_pingpong() {
-    send_to_julia({
-        msg_type: PingPong
-    });
+  send_to_julia({
+    msg_type: PingPong
+  });
 }
-let timeout = null;
+var timeout = null;
 function send_pings() {
-    clearTimeout(timeout);
-    if (!can_send_to_julia()) {
-        return;
-    }
-    send_pingpong();
-    timeout = setTimeout(send_pings, PING_INTERVAL);
+  clearTimeout(timeout);
+  if (!can_send_to_julia()) {
+    return;
+  }
+  send_pingpong();
+  timeout = setTimeout(send_pings, PING_INTERVAL);
+}
+function send_error(message, exception) {
+  console.error(message);
+  console.error(exception);
+  send_to_julia({
+    msg_type: JavascriptError,
+    message,
+    exception: String(exception),
+    stacktrace: exception === null ? "" : clean_stack(exception.stack)
+  });
 }
 function send_warning(message) {
-    console.warn(message);
-    send_to_julia({
-        msg_type: JavascriptWarning,
-        message: message
-    });
+  console.warn(message);
+  send_to_julia({
+    msg_type: JavascriptWarning,
+    message
+  });
 }
 function send_done_loading(session, exception) {
-    send_to_julia({
-        msg_type: JSDoneLoading,
-        session,
-        message: "",
-        exception: exception === null ? "nothing" : String(exception),
-        stacktrace: exception === null ? "" : clean_stack(exception.stack)
-    });
+  send_to_julia({
+    msg_type: JSDoneLoading,
+    session,
+    message: "",
+    exception: exception === null ? "nothing" : String(exception),
+    stacktrace: exception === null ? "" : clean_stack(exception.stack)
+  });
 }
 function send_close_session(session, subsession) {
-    send_to_julia({
-        msg_type: CloseSession,
-        session,
-        subsession
-    });
+  send_to_julia({
+    msg_type: CloseSession,
+    session,
+    subsession
+  });
 }
 function process_message(data) {
-    try {
-        switch(data.msg_type){
-            case UpdateObservable:
-                lookup_global_object(data.id).notify(data.payload, true);
-                break;
-            case OnjsCallback:
-                data.obs.on(data.payload());
-                break;
-            case EvalJavascript:
-                data.payload();
-                break;
-            case FusedMessage:
-                data.payload.forEach(process_message);
-                break;
-            case PingPong:
-                console.debug("ping");
-                CONNECTION.lastPing = Date.now();
-                break;
-            case UpdateSession:
-                update_session_dom(data);
-                break;
-            default:
-                throw new Error("Unrecognized message type: " + data.msg_type + ".");
-        }
-    } catch (e) {
-        send_error(`Error while processing message ${JSON.stringify(data)}`, e);
+  try {
+    switch (data.msg_type) {
+      case UpdateObservable:
+        lookup_global_object(data.id).notify(data.payload, true);
+        break;
+      case OnjsCallback:
+        data.obs.on(data.payload());
+        break;
+      case EvalJavascript:
+        data.payload();
+        break;
+      case FusedMessage:
+        data.payload.forEach(process_message);
+        break;
+      case PingPong:
+        console.debug("ping");
+        CONNECTION.lastPing = Date.now();
+        break;
+      case UpdateSession:
+        update_session_dom(data);
+        break;
+      default:
+        throw new Error("Unrecognized message type: " + data.msg_type + ".");
     }
+  } catch (e) {
+    send_error(`Error while processing message ${JSON.stringify(data)}`, e);
+  }
 }
-const mod2 = {
-    UpdateObservable: UpdateObservable,
-    OnjsCallback: OnjsCallback,
-    EvalJavascript: EvalJavascript,
-    JavascriptError: JavascriptError,
-    JavascriptWarning: JavascriptWarning,
-    RegisterObservable: RegisterObservable,
-    JSDoneLoading: JSDoneLoading,
-    FusedMessage: FusedMessage,
-    ConnectionStatus: ConnectionStatus,
-    register_connection_indicator: register_connection_indicator,
-    unregister_connection_indicator: unregister_connection_indicator,
-    set_no_connection: set_no_connection,
-    on_connection_connecting: on_connection_connecting,
-    on_connection_open: on_connection_open,
-    on_connection_close: on_connection_close,
-    can_send_to_julia: can_send_to_julia,
-    is_julia_responsive: is_julia_responsive,
-    send_to_julia: send_to_julia,
-    send_pingpong: send_pingpong,
-    send_error: send_error,
-    send_warning: send_warning,
-    send_done_loading: send_done_loading,
-    send_close_session: send_close_session,
-    process_message: process_message
-};
-function onany(observables, f) {
-    const callback = (x)=>f(observables.map((x)=>x.value));
-    observables.forEach((obs)=>{
-        obs.on(callback);
-    });
-}
-const { send_error: send_error1 , send_warning: send_warning1 , process_message: process_message1 , on_connection_open: on_connection_open1 , on_connection_close: on_connection_close1 , on_connection_connecting: on_connection_connecting1 , send_close_session: send_close_session1 , send_pingpong: send_pingpong1 , can_send_to_julia: can_send_to_julia1 , send_to_julia: send_to_julia1 , register_connection_indicator: register_connection_indicator1 , unregister_connection_indicator: unregister_connection_indicator1 , set_no_connection: set_no_connection1 , ConnectionStatus: ConnectionStatus1  } = mod2;
-const { base64decode: base64decode1 , base64encode: base64encode1 , decode_binary: decode_binary1 , encode_binary: encode_binary1 , decode_base64_message: decode_base64_message1  } = mod;
-const { init_session: init_session1 , free_session: free_session1 , lookup_global_object: lookup_global_object1 , update_or_replace: update_or_replace1 , lock_loading: lock_loading1 , OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK1 , free_object: free_object1 , force_free_object: force_free_object1  } = mod1;
+
+// dev/Bonito/js_dependencies/Bonito.js
+var {
+  send_error: send_error2,
+  send_warning: send_warning2,
+  process_message: process_message2,
+  on_connection_open: on_connection_open2,
+  on_connection_close: on_connection_close2,
+  on_connection_connecting: on_connection_connecting2,
+  send_close_session: send_close_session2,
+  send_pingpong: send_pingpong2,
+  can_send_to_julia: can_send_to_julia2,
+  send_to_julia: send_to_julia2,
+  register_connection_indicator: register_connection_indicator2,
+  unregister_connection_indicator: unregister_connection_indicator2,
+  set_no_connection: set_no_connection2,
+  ConnectionStatus: ConnectionStatus2
+} = Connection_exports;
+var {
+  base64decode: base64decode2,
+  base64encode: base64encode2,
+  decode_binary: decode_binary2,
+  encode_binary: encode_binary2,
+  decode_base64_message: decode_base64_message2
+} = Protocol_exports;
+var {
+  init_session: init_session2,
+  free_session: free_session2,
+  lookup_global_object: lookup_global_object2,
+  update_or_replace: update_or_replace2,
+  lock_loading: lock_loading2,
+  OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK2,
+  free_object: free_object2,
+  force_free_object: force_free_object2,
+  move_dom_node: move_dom_node2
+} = Sessions_exports;
 function update_node_attribute(node, attribute, value) {
-    if (node) {
-        if (attribute === "class") {
-            node.className = value;
-        } else if (node[attribute] != value) {
-            node[attribute] = value;
-        }
-        return true;
-    } else {
-        return false;
+  if (node) {
+    if (attribute === "class") {
+      node.className = value;
+    } else if (node[attribute] != value) {
+      node[attribute] = value;
     }
+    return true;
+  } else {
+    return false;
+  }
 }
 function update_dom_node(dom, html) {
-    if (dom) {
-        dom.innerHTML = html;
-        return true;
-    } else {
-        return false;
-    }
+  if (dom) {
+    dom.innerHTML = html;
+    return true;
+  } else {
+    return false;
+  }
 }
 function fetch_binary(url) {
-    return fetch(url).then((response)=>{
-        if (!response.ok) {
-            throw new Error("HTTP error, status = " + response.status);
-        }
-        return response.arrayBuffer();
-    });
+  return fetch(url).then((response) => {
+    if (!response.ok) {
+      throw new Error("HTTP error, status = " + response.status);
+    }
+    return response.arrayBuffer();
+  });
 }
 function load_script(url, global_name) {
-    if (window[global_name]) {
-        return Promise.resolve(window[global_name]);
-    }
-    const existing_script = document.querySelector(`script[src="${url}"]`);
-    const script = existing_script || document.createElement("script");
-    return new Promise((resolve, reject)=>{
-        const waitForGlobal = (retries = 0, maxRetries = 10, delay = 10)=>{
-            setTimeout(()=>{
-                if (window[global_name]) {
-                    resolve(window[global_name]);
-                } else if (retries < maxRetries) {
-                    waitForGlobal(retries + 1, maxRetries, delay * 2);
-                } else {
-                    reject(new Error(`Global '${global_name}' not found after loading ${url} (tried ${maxRetries + 1} times)`));
-                }
-            }, delay);
-        };
-        script.addEventListener("load", ()=>{
-            script.dataset.loaded = "true";
-            waitForGlobal();
-        });
-        script.addEventListener("error", ()=>{
-            reject(new Error(`Failed to load script: ${url}`));
-        });
-        if (!existing_script) {
-            script.src = url;
-            script.dataset.loaded = "false";
-            document.head.appendChild(script);
+  if (window[global_name]) {
+    return Promise.resolve(window[global_name]);
+  }
+  const existing_script = document.querySelector(`script[src="${url}"]`);
+  const script = existing_script || document.createElement("script");
+  return new Promise((resolve, reject) => {
+    const waitForGlobal = (retries = 0, maxRetries = 10, delay = 10) => {
+      setTimeout(() => {
+        if (window[global_name]) {
+          resolve(window[global_name]);
+        } else if (retries < maxRetries) {
+          waitForGlobal(retries + 1, maxRetries, delay * 2);
+        } else {
+          reject(
+            new Error(
+              `Global '${global_name}' not found after loading ${url} (tried ${maxRetries + 1} times)`
+            )
+          );
         }
+      }, delay);
+    };
+    if (existing_script && existing_script.dataset.loaded === "true") {
+      waitForGlobal();
+      return;
+    }
+    script.addEventListener("load", () => {
+      script.dataset.loaded = "true";
+      waitForGlobal();
     });
+    script.addEventListener("error", () => {
+      reject(new Error(`Failed to load script: ${url}`));
+    });
+    if (!existing_script) {
+      script.src = url;
+      script.dataset.loaded = "false";
+      document.head.appendChild(script);
+    }
+  });
 }
 function throttle_function(func, delay) {
-    let prev = 0;
-    let future_id = undefined;
-    function inner_throttle(...args) {
-        const now = new Date().getTime();
-        if (future_id !== undefined) {
-            clearTimeout(future_id);
-            future_id = undefined;
-        }
-        if (now - prev > delay) {
-            prev = now;
-            return func(...args);
-        } else {
-            future_id = setTimeout(()=>inner_throttle(...args), delay - (now - prev) + 1);
-        }
+  let prev = 0;
+  let future_id = void 0;
+  function inner_throttle(...args) {
+    const now = (/* @__PURE__ */ new Date()).getTime();
+    if (future_id !== void 0) {
+      clearTimeout(future_id);
+      future_id = void 0;
     }
-    return inner_throttle;
+    if (now - prev > delay) {
+      prev = now;
+      return func(...args);
+    } else {
+      future_id = setTimeout(
+        () => inner_throttle(...args),
+        delay - (now - prev) + 1
+      );
+    }
+  }
+  return inner_throttle;
 }
 function generate_state_key(v) {
-    if (typeof v === 'number') {
-        if (isNaN(v)) {
-            return 'NaN';
-        } else if (!isFinite(v)) {
-            return v > 0 ? 'Infinity' : '-Infinity';
-        } else {
-            let formatted = v.toFixed(6);
-            if (formatted.includes('.')) {
-                formatted = formatted.replace(/\.?0+$/, '');
-            }
-            return formatted;
-        }
-    } else if (typeof v === 'boolean') {
-        return v ? 'true' : 'false';
+  if (typeof v === "number") {
+    if (isNaN(v)) {
+      return "NaN";
+    } else if (!isFinite(v)) {
+      return v > 0 ? "Infinity" : "-Infinity";
     } else {
-        return String(v);
+      let formatted = v.toFixed(6);
+      if (formatted.includes(".")) {
+        formatted = formatted.replace(/\.?0+$/, "");
+      }
+      return formatted;
     }
+  } else if (typeof v === "boolean") {
+    return v ? "true" : "false";
+  } else {
+    return String(v);
+  }
 }
-const Bonito = {
-    Protocol: mod,
-    base64decode: base64decode1,
-    base64encode: base64encode1,
-    decode_binary: decode_binary1,
-    encode_binary: encode_binary1,
-    decode_base64_message: decode_base64_message1,
-    fetch_binary,
-    load_script,
-    Connection: mod2,
-    send_error: send_error1,
-    send_warning: send_warning1,
-    process_message: process_message1,
-    on_connection_open: on_connection_open1,
-    on_connection_close: on_connection_close1,
-    on_connection_connecting: on_connection_connecting1,
-    send_close_session: send_close_session1,
-    send_pingpong: send_pingpong1,
-    register_connection_indicator: register_connection_indicator1,
-    unregister_connection_indicator: unregister_connection_indicator1,
-    set_no_connection: set_no_connection1,
-    ConnectionStatus: ConnectionStatus1,
-    Sessions: mod1,
-    init_session: init_session1,
-    free_session: free_session1,
-    lock_loading: lock_loading1,
-    update_node_attribute,
-    update_dom_node,
-    lookup_global_object: lookup_global_object1,
-    update_or_replace: update_or_replace1,
-    force_free_object: force_free_object1,
-    OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK1,
-    can_send_to_julia: can_send_to_julia1,
-    onany,
-    free_object: free_object1,
-    send_to_julia: send_to_julia1,
-    throttle_function,
-    generate_state_key
+var Bonito = {
+  Protocol: Protocol_exports,
+  base64decode: base64decode2,
+  base64encode: base64encode2,
+  decode_binary: decode_binary2,
+  encode_binary: encode_binary2,
+  decode_base64_message: decode_base64_message2,
+  fetch_binary,
+  load_script,
+  Connection: Connection_exports,
+  send_error: send_error2,
+  send_warning: send_warning2,
+  process_message: process_message2,
+  on_connection_open: on_connection_open2,
+  on_connection_close: on_connection_close2,
+  on_connection_connecting: on_connection_connecting2,
+  send_close_session: send_close_session2,
+  send_pingpong: send_pingpong2,
+  // Connection indicator API
+  register_connection_indicator: register_connection_indicator2,
+  unregister_connection_indicator: unregister_connection_indicator2,
+  set_no_connection: set_no_connection2,
+  ConnectionStatus: ConnectionStatus2,
+  Sessions: Sessions_exports,
+  init_session: init_session2,
+  free_session: free_session2,
+  lock_loading: lock_loading2,
+  move_dom_node: move_dom_node2,
+  // Util
+  update_node_attribute,
+  update_dom_node,
+  lookup_global_object: lookup_global_object2,
+  update_or_replace: update_or_replace2,
+  force_free_object: force_free_object2,
+  OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK2,
+  can_send_to_julia: can_send_to_julia2,
+  onany,
+  free_object: free_object2,
+  send_to_julia: send_to_julia2,
+  throttle_function,
+  generate_state_key
 };
 window.Bonito = Bonito;
-export { mod as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, fetch_binary as fetch_binary, load_script as load_script, mod2 as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, on_connection_connecting1 as on_connection_connecting, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, register_connection_indicator1 as register_connection_indicator, unregister_connection_indicator1 as unregister_connection_indicator, set_no_connection1 as set_no_connection, ConnectionStatus1 as ConnectionStatus, mod1 as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany, OBJECT_FREEING_LOCK1 as OBJECT_FREEING_LOCK, can_send_to_julia1 as can_send_to_julia, free_object1 as free_object, send_to_julia1 as send_to_julia, throttle_function as throttle_function };
-export { generate_state_key as generate_state_key };
+export {
+  Connection_exports as Connection,
+  ConnectionStatus2 as ConnectionStatus,
+  OBJECT_FREEING_LOCK2 as OBJECT_FREEING_LOCK,
+  Protocol_exports as Protocol,
+  Sessions_exports as Sessions,
+  base64decode2 as base64decode,
+  base64encode2 as base64encode,
+  can_send_to_julia2 as can_send_to_julia,
+  decode_base64_message2 as decode_base64_message,
+  decode_binary2 as decode_binary,
+  encode_binary2 as encode_binary,
+  fetch_binary,
+  free_object2 as free_object,
+  free_session2 as free_session,
+  generate_state_key,
+  init_session2 as init_session,
+  load_script,
+  lock_loading2 as lock_loading,
+  lookup_global_object2 as lookup_global_object,
+  move_dom_node2 as move_dom_node,
+  on_connection_close2 as on_connection_close,
+  on_connection_connecting2 as on_connection_connecting,
+  on_connection_open2 as on_connection_open,
+  onany,
+  process_message2 as process_message,
+  register_connection_indicator2 as register_connection_indicator,
+  send_close_session2 as send_close_session,
+  send_error2 as send_error,
+  send_pingpong2 as send_pingpong,
+  send_to_julia2 as send_to_julia,
+  send_warning2 as send_warning,
+  set_no_connection2 as set_no_connection,
+  throttle_function,
+  unregister_connection_indicator2 as unregister_connection_indicator,
+  update_dom_node,
+  update_node_attribute,
+  update_or_replace2 as update_or_replace
+};
+/*! Bundled license information:
 
+pako/dist/pako.esm.mjs:
+  (*! pako 2.0.4 https://github.com/nodeca/pako @license (MIT AND Zlib) *)
+*/

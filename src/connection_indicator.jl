@@ -152,7 +152,9 @@ function jsrender(session::Session, indicator::ConnectionIndicator)
     # swaps into the page when the value changes. Apps that want a richer
     # error UI can construct their own `ConnectionIndicator` and overload
     # `render_error`.
-    error_dom = map(render_error, indicator.error)
+    # B21: session-scope so the listener is deregistered by `free(session)`
+    # instead of leaking one per render of the indicator.
+    error_dom = map(render_error, session, indicator.error)
 
     children = banner_element === nothing ?
         (indicator_css, led_element, error_dom) :

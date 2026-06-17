@@ -14,7 +14,13 @@ function DualWebsocket(server::Server)
     return DualWebsocket(server, nothing, WebSocketHandler(), WebSocketHandler())
 end
 
-Base.isopen(ws::DualWebsocket) = isopen(ws.low_latency)
+# Both legs must be open: a DualWebsocket is only usable while BOTH the
+# low-latency and large-data sockets are alive. Checking only `low_latency`
+# meant that if the large-data leg died alone, the session stayed "ready",
+# `write_large` kept failing/queueing forever, and nothing triggered a
+# reconnect or flush (B33). Requiring both flips the session not-ready so the
+# normal reconnect/queue-replay path runs.
+Base.isopen(ws::DualWebsocket) = isopen(ws.low_latency) && isopen(ws.large_data)
 
 function Base.write(ws::DualWebsocket, binary::AbstractVector{UInt8})
     write(ws.low_latency, binary)
@@ -52,19 +58,25 @@ function (connection::DualWebsocket)(context, websocket::WebSocket)
     try
         run_connection_loop(session, handler, websocket)
     finally
-        # Close our own handler so the other finally block can see it's dead.
-        close(handler)
-        # Only close/soft-close the session when both sockets are dead.
-        # Otherwise the first socket to disconnect kills the session
-        # while the other is still processing messages (e.g. JSDoneLoading).
-        if !isopen(connection.low_latency) && !isopen(connection.large_data)
-            if allow_soft_close(CLEANUP_POLICY[])
-                @debug("Soft closing: $(session.id)")
-                soft_close(session)
-            else
-                @debug("Closing: $(session.id)")
-                close(session)
+        # A stale loop (this socket was already replaced by a reconnect) must
+        # not tear anything down — the new socket owns the handler now (B3).
+        if is_current_socket(handler, websocket)
+            # Close our own handler so the other finally block can see it's dead.
+            close(handler)
+            # Only close/soft-close the session when both sockets are dead.
+            # Otherwise the first socket to disconnect kills the session
+            # while the other is still processing messages (e.g. JSDoneLoading).
+            if !isopen(connection.low_latency) && !isopen(connection.large_data)
+                if allow_soft_close(CLEANUP_POLICY[])
+                    @debug("Soft closing: $(session.id)")
+                    soft_close(session)
+                else
+                    @debug("Closing: $(session.id)")
+                    close(session)
+                end
             end
+        else
+            @debug("Stale ws loop for $(session.id) exiting; not tearing down")
         end
     end
 end

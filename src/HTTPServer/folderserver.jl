@@ -21,6 +21,26 @@ struct FolderServer
     folder::String
 end
 
+"""
+    is_path_contained(root::AbstractString, path::AbstractString) -> Bool
+
+Return `true` if `path` resolves to `root` itself or a location strictly
+inside `root`. Both arguments must already be absolute. Uses a normalized
+path-segment comparison so that sibling directories sharing a name prefix
+(`/data/site-backup` vs `/data/site`) are NOT considered contained — a bug
+a naive `startswith`/`occursin` check would have (B43).
+"""
+function is_path_contained(root::AbstractString, path::AbstractString)
+    root_n = normpath(root)
+    path_n = normpath(path)
+    path_n == root_n && return true
+    # Ensure a trailing separator so that "/data/site" only matches
+    # "/data/site/..." and never "/data/site-backup".
+    prefix = endswith(root_n, Base.Filesystem.path_separator) ? root_n :
+             root_n * Base.Filesystem.path_separator
+    return startswith(path_n, prefix)
+end
+
 function longest_common_prefix(a::AbstractString, b::AbstractString)
     len = min(length(a), length(b))
     for i in 1:len
@@ -57,7 +77,15 @@ function Bonito.HTTPServer.apply_handler(app::FolderServer, context)
         relative_path = relative_path[2:end]
     end
 
-    path = joinpath(app.folder, relative_path)
+    # B10: Path traversal guard. `relative_path` is attacker-controlled (e.g.
+    # `../../../../etc/passwd` via `--path-as-is`), so we must ensure the
+    # resolved path stays inside `app.folder`. `normpath` collapses any `..`
+    # segments; we then require the absolute result to live under the folder.
+    folder = abspath(app.folder)
+    path = normpath(joinpath(folder, relative_path))
+    if !is_path_contained(folder, path)
+        return HTTP.Response(403, "Forbidden")
+    end
     if !isfile(path)
         path = joinpath(path, "index.html")
     end

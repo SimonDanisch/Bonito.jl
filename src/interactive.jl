@@ -1,6 +1,10 @@
 function update_route!(server, (route, app))
     old = route!(server, route => app)
-    if old isa App && !isnothing(old.session[]) && isready(old.session[])
+    # `throw=false` (B46): a recorded init/render error on the old session must
+    # NOT propagate here and abort the Revise route refresh. We only care
+    # whether the old session's connection is live enough to reload — if it
+    # errored, we just skip the reload (the new route is already installed).
+    if old isa App && !isnothing(old.session[]) && isready(old.session[]; throw=false)
         try
             Bonito.evaljs(old.session[], js"window.location.reload()")
         catch e

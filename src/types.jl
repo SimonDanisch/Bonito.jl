@@ -114,6 +114,12 @@ struct Asset <: AbstractAsset
     bundle_file::Union{String, Path}
     bundle_data::Vector{UInt8}
     content_hash::RefValue{String}
+    # `bundle!`/`rebundle!` mutate `bundle_data` in place (resize!+copyto!) while
+    # HTTP tasks read the same vector (http.jl serves it directly, proxy.jl too).
+    # A reader hitting it mid-resize! gets a torn body or BoundsError, so every
+    # bundle/read is serialized through this lock; it also stops two tasks running
+    # deno for the same asset at once.
+    bundle_lock::ReentrantLock
 end
 
 
@@ -387,6 +393,12 @@ mutable struct Session{Connection <: FrontendConnection}
     # out with `isready(session; throw=false)`.
     init_error::RefValue{Union{Nothing, Exception}}
     on_close::Observable{Bool}
+    # Notified (with `true`) every time a frontend connection is established
+    # for this session - both the initial connect and websocket reconnects
+    # (fired by `init_session` after the queued messages were flushed).
+    # Integrations that treat the frontend as a cache of julia-side state
+    # (e.g. WGLMakie) use this to re-synchronize on reconnect.
+    on_open::Observable{Bool}
     deregister_callbacks::Vector{Observables.ObserverFunction}
     session_objects::Dict{String, Any}
     # Per-session message filter — `_send` consults this to drop outgoing
@@ -498,7 +510,7 @@ function Base.propertynames(s::Session, private::Bool=false)
     direct = (
         :parent_or_root, :parent, :status, :closing_time, :children, :id,
         :asset_server, :message_queue, :on_document_load, :connection_ready,
-        :on_connection_ready, :init_error, :on_close, :deregister_callbacks,
+        :on_connection_ready, :init_error, :on_close, :on_open, :deregister_callbacks,
         :session_objects, :ignore_message, :style_counter, :imports,
         :global_stylesheets, :title, :current_app, :io_context, :stylesheets,
         :pack_io,
@@ -524,12 +536,16 @@ Creates a Julia exception from data passed to us by the frondend!
 """
 function JSException(session::Session, js_data::AbstractDict)
     stacktrace = String[]
-    if js_data["stacktrace"] != "nothing"
-        for line in split(js_data["stacktrace"], "\n")
-            push!(stacktrace, js_to_local_stacktrace(session.asset_server, line))
+    # The Dict values infer as Any; convert eagerly so this method carries no
+    # `convert(String, ::Any)` edges - those get invalidated by any package
+    # adding a `convert(::Type{String}, ...)` method (JSON, FilePathsBase, ...)
+    trace = String(js_data["stacktrace"])::String
+    if trace != "nothing"
+        for line in split(trace, "\n")
+            push!(stacktrace, String(js_to_local_stacktrace(session.asset_server, line))::String)
         end
     end
-    return JSException(js_data["exception"], js_data["message"], stacktrace)
+    return JSException(String(js_data["exception"])::String, String(js_data["message"])::String, stacktrace)
 end
 
 """
@@ -549,13 +565,18 @@ function Session(connection::Connection=default_connection();
                  init_error=Ref{Union{Nothing, Exception}}(nothing),
                  js_comm=Observable{Union{Nothing, Dict{String, Any}}}(nothing),
                  on_close=Observable(false),
+                 on_open=Observable(false),
                  deregister_callbacks=Observables.ObserverFunction[],
                  session_objects=Dict{String, Any}(),
                  imports=OrderedSet{Asset}(),
                  title="Bonito App",
                  compression_enabled=default_compression(),
                  ignore_message=RefValue{Function}(x -> false),
-                 n_inbox=Inf) where {Connection <: FrontendConnection}
+                 n_inbox=1024) where {Connection <: FrontendConnection}
+    # Finite inbox capacity (B22): an unbounded `Channel(Inf)` let a flooding
+    # frontend — or a wedged reader (e.g. deletion_lock contention) — grow the
+    # inbox without limit, pinning memory and spawning unbounded work. A
+    # bounded buffer applies backpressure to the WS read loop's `put!` instead.
     inbox = Channel{Vector{UInt8}}(n_inbox)
     root_state = RootSession{Connection}(
         connection,
@@ -580,6 +601,7 @@ function Session(connection::Connection=default_connection();
         on_connection_ready,
         init_error,
         on_close,
+        on_open,
         deregister_callbacks,
         session_objects,
         ignore_message,
@@ -598,8 +620,17 @@ function Session(connection::Connection=default_connection();
     # collects the resulting Session ↔ inbox ↔ task ↔ closure cycle once
     # nothing outside it holds the session.
     task = Task() do
+        # Process inbox messages SEQUENTIALLY (B22). The old per-message
+        # `@async` removed all ordering guarantees: an `UpdateObservable`
+        # could be overtaken by a later message and a stale value would win.
+        # The branches that genuinely need to run off the reader (so they
+        # don't block the connection — `JSDoneLoading`'s `on_connection_ready`,
+        # `GetSessionDOM`) already spawn their own `@async` *inside*
+        # `process_message`, so sequential dispatch here keeps ordering for
+        # the synchronous branches (notably UpdateObservable) without stalling
+        # on the slow ones.
         for message in inbox
-            @async try
+            try
                 process_message(session, message)
             catch e
                 @warn "error while processing received msg" exception = (
@@ -632,7 +663,7 @@ function Session(parent_session::Session{Connection};
             UNINITIALIZED,
             time(),
             Dict{String, Session{Connection}}(),             # children
-            string(uuid4()),                                 # id
+            proxied_session_id(parent_session),              # id (namespaced if proxied)
             asset_server,
             SerializedMessage[],                             # message_queue
             JSCode[],                                        # on_document_load
@@ -640,6 +671,7 @@ function Session(parent_session::Session{Connection};
             on_connection_ready,
             Ref{Union{Nothing, Exception}}(nothing),         # init_error
             Observable(false),                               # on_close
+            Observable(false),                               # on_open
             Observables.ObserverFunction[],                  # deregister_callbacks
             Dict{String, Any}(),                             # session_objects
             RefValue{Function}(x -> false),                  # ignore_message
@@ -692,8 +724,14 @@ function loading_page_handler(app, loadingpage, handler, session, request)
     app.loading_task[] = @async try
         obs[] = handler(session, request)
     catch err
-        @debug "Error rendering app with loading_page" exception = (err, Base.catch_backtrace())
-        obs[] = HTTPServer.err_to_html(err, Base.catch_backtrace())
+        # B32: record the error on the session (mirrors the synchronous path's
+        # `handle_render_error`) so `isready`/`wait_for_ready`/the connection
+        # indicator learn the handler failed — otherwise waiters see a "healthy"
+        # session that merely shows an error div, and the failure is invisible.
+        bt = Base.catch_backtrace()
+        @error "Error rendering app with loading_page" exception = (err, bt)
+        err isa Exception && record_session_error!(session, err)
+        obs[] = HTTPServer.err_to_html(err, bt)
     end
     return DOM.div(obs)
 end
