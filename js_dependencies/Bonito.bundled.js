@@ -3400,12 +3400,14 @@ function lock_loading(f) {
         send_error("Error inside object-freeing-locked task", error);
     });
 }
-function lookup_global_object(key) {
+function lookup_global_object(key, warn = true) {
     const object = GLOBAL_OBJECT_CACHE[key];
     if (object) {
         return object;
     }
-    console.warn(`Key ${key} not found! ${object}`);
+    if (warn) {
+        console.warn(`Key ${key} not found! ${object}`);
+    }
     return null;
 }
 function is_still_referenced(id) {
@@ -3958,8 +3960,11 @@ function process_message(data) {
     try {
         switch(data.msg_type){
             case UpdateObservable:
-                lookup_global_object(data.id).notify(data.payload, true);
-                break;
+                {
+                    const observable = lookup_global_object(data.id, false);
+                    observable && observable.notify(data.payload, true);
+                    break;
+                }
             case OnjsCallback:
                 data.obs.on(data.payload());
                 break;
