@@ -81,6 +81,14 @@ export function set_no_connection() {
 }
 
 /**
+ * True when running in static/offline mode (no Julia backend). Widgets use this
+ * to derive dependent observables client-side, since there's no server to do it.
+ */
+export function is_no_connection() {
+    return CONNECTION.status === "no_connection";
+}
+
+/**
  * Notify the indicator of the current connection status
  */
 function notify_indicator_status() {

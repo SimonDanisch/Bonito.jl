@@ -304,5 +304,8 @@ function wait_for_ready(app::App; timeout=100)
 end
 
 function jsrender(session::Session, app::App)
-    return rendered_dom(session, app; apply_jsrender=false)
+    # Render an embedded app (e.g. `DOM.div(app)`) into the current session,
+    # jsrendering its DOM so interactive children (widgets, plots, assets) are
+    # wired up against this session instead of falling back to a standalone `show`.
+    return rendered_dom(session, app; apply_jsrender=true)
 end

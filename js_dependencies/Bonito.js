@@ -17,6 +17,7 @@ const {
     register_connection_indicator,
     unregister_connection_indicator,
     set_no_connection,
+    is_no_connection,
     ConnectionStatus,
 } = Connection;
 
@@ -228,6 +229,7 @@ const Bonito = {
     register_connection_indicator,
     unregister_connection_indicator,
     set_no_connection,
+    is_no_connection,
     ConnectionStatus,
 
     Sessions,
@@ -277,6 +279,7 @@ export {
     register_connection_indicator,
     unregister_connection_indicator,
     set_no_connection,
+    is_no_connection,
     ConnectionStatus,
     Sessions,
     init_session,

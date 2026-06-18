@@ -237,9 +237,9 @@ function StylableSlider(
     track_height=slider_height / 2,
     track_active_height=track_height + 2,
     backgroundcolor="transparent",
-    track_color="#eee",
-    track_active_color="#ddd",
-    thumb_color="#fff",
+    track_color="var(--bonito-widget-muted-bg, #eee)",
+    track_active_color="var(--bonito-widget-border, #ddd)",
+    thumb_color="var(--bonito-widget-bg, #fff)",
     style::Styles=Styles(),
     track_style::Styles=Styles(),
     thumb_style::Styles=Styles(),
@@ -266,7 +266,7 @@ function StylableSlider(
         "height" => "$(track_height)px",
         "background-color" => track_color,
         "border-radius" => "3px",
-        "border" => "1px solid #ccc",
+        "border" => "1px solid var(--bonito-widget-border, #ccc)",
     )
     track_style = Styles(default_track_style, track_style)
 
@@ -276,7 +276,7 @@ function StylableSlider(
         "height" => "$(track_active_height)px",
         "background-color" => track_active_color,
         "border-radius" => "3px",
-        "border" => "1px solid #ccc",
+        "border" => "1px solid var(--bonito-widget-border, #ccc)",
     )
     track_active_style = Styles(default_track_active_style, track_active_style)
 
@@ -287,7 +287,7 @@ function StylableSlider(
         "border-radius" => "50%",
         "cursor" => "pointer",
         "position" => "absolute",
-        "border" => "1px solid #ccc",
+        "border" => "1px solid var(--bonito-widget-border, #ccc)",
         "left" => "$(-half_thumb_width)px",
         "background-color" => thumb_color,
     )
