@@ -17,7 +17,7 @@
 
 get_field(nt, key, default) = hasproperty(nt, key) ? getproperty(nt, key) : default
 
-function hero_dom(home)
+function hero_dom(home; blog_link = nothing)
     main = Any[]
     name = get_field(home, :name, nothing)
     text = get_field(home, :text, nothing)
@@ -29,14 +29,17 @@ function hero_dom(home)
     blocks = Any[heading]
     tagline === nothing || push!(blocks, DOM.p(tagline; class = "tagline"))
 
-    actions = get_field(home, :actions, ())
-    if !isempty(actions)
-        btns = map(actions) do a
-            theme = get_field(a, :theme, "brand")
-            DOM.a(a.text; class = "VPButton $(theme)", href = a.link)
-        end
-        push!(blocks, DOM.div(btns...; class = "actions"))
+    btns = Any[]
+    for a in get_field(home, :actions, ())
+        theme = get_field(a, :theme, "brand")
+        push!(btns, DOM.a(a.text; class = "VPButton $(theme)", href = a.link))
     end
+    # When a blog is configured, surface it as an extra hero action (unless the
+    # user already added one pointing at the blog).
+    if blog_link !== nothing && !any(a -> get_field(a, :link, "") == blog_link, get_field(home, :actions, ()))
+        push!(btns, DOM.a("Blog"; class = "VPButton alt", href = blog_link))
+    end
+    isempty(btns) || push!(blocks, DOM.div(btns...; class = "actions"))
 
     cols = Any[DOM.div(blocks...; class = "main")]
     image = get_field(home, :image, nothing)
@@ -60,7 +63,8 @@ function features_dom(home)
 end
 
 function home_page(ctx, home, content_dom; settings, version_label, search_index_script)
-    hero = hero_dom(home)
+    blog_link = blog_enabled(ctx.doc, settings) ? "blog.html" : nothing
+    hero = hero_dom(home; blog_link = blog_link)
     feats = features_dom(home)
     home_children = Any[hero]
     feats === nothing || push!(home_children, feats)

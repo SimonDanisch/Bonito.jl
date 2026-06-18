@@ -122,6 +122,9 @@ end
 
 function navbar(settings, sitename; version_label)
     right = Any[]
+    if settings.blog !== nothing
+        push!(right, DOM.div(DOM.a("Blog"; href = "blog.html"); class = "nav-links"))
+    end
     push!(right, DOM.button(
         icon(ICON_SEARCH), DOM.span("Search"), DOM.span("Ctrl K"; class = "kbd");
         class = "search-btn", dataOpenSearch = true, type = "button",

@@ -5,6 +5,8 @@ using Bonito: DOM
 import Documenter
 import MarkdownAST
 const MA = MarkdownAST
+import Markdown
+import Dates
 using Base64: base64encode, base64decode
 
 # ---------------------------------------------------------------------------
@@ -38,6 +40,10 @@ Base.@kwdef struct BonitoFormat <: Documenter.Writer
     home::Any = nothing
     description::String = ""
     ansicolor::Bool = true
+    # Folder of blog posts (relative to the docs root, e.g. `"blog"`); each
+    # subfolder is one post (`post.xml` + `post.md` + `images/`). `nothing`
+    # disables the blog. See `blog.jl`.
+    blog::Union{Nothing, String} = nothing
 end
 
 Bonito.DocumenterBonito(; kwargs...) = BonitoFormat(; kwargs...)
@@ -58,6 +64,7 @@ include("expanders.jl")
 include("domify.jl")
 include("layout.jl")
 include("home.jl")
+include("blog.jl")
 include("writer.jl")
 
 end # module

@@ -88,5 +88,8 @@ function render(doc::Documenter.Document, settings::BonitoFormat)
     end
 
     @info "BonitoDocumenter: wrote $(length(doc.blueprint.pages)) pages to $(builddir)."
+
+    build_blog(doc, settings, builddir, assets;
+        version_label = version_label, search_index_script = search_script)
     return
 end

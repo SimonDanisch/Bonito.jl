@@ -40,6 +40,7 @@ makedocs(
         version = "dev",
         logo = "bonito.svg",
         home = home,
+        blog = "blog",
     ),
     pages = [
         "Home" => "index.md",
