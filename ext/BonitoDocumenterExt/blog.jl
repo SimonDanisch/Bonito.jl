@@ -232,7 +232,7 @@ function build_blog(doc, settings, builddir, assets; version_label, search_index
     isempty(posts) && return posts
 
     export_page(body, file, title) = begin
-        nav = navbar(settings, doc.user.sitename; version_label = version_label)
+        nav = navbar(settings, doc.user.sitename; version_label = version_label, has_sidebar = false)
         shell = page_shell(; head_assets = head_assets(), navbar_dom = nav,
             body = body, search_index_script = search_index_script)
         app = Bonito.App(shell; title = title)

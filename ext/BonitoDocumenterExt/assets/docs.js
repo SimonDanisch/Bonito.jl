@@ -118,10 +118,17 @@
     // `versions.js` is written by Documenter's `deploydocs` at the docs root and
     // defines `DOC_VERSIONS` (an array of version folder names).
     var versions = window.DOC_VERSIONS;
-    if (!Array.isArray(versions) || !versions.length) return;
-    menu.innerHTML = versions.map(function (v) {
-      return '<a href="../' + v + '/">' + esc(v) + "</a>";
-    }).join("");
+    if (Array.isArray(versions) && versions.length) {
+      menu.innerHTML = versions.map(function (v) {
+        return '<a href="../' + v + '/">' + esc(v) + "</a>";
+      }).join("");
+      return;
+    }
+    // No versions.js (local build, or before deploydocs has written it): fall
+    // back to a single entry for the current version so the menu isn't empty.
+    var label = document.querySelector(".VPVersion .trigger span");
+    var name = label ? label.textContent.trim() : "dev";
+    menu.innerHTML = '<a href=".">' + esc(name) + "</a>";
   }
 
   function renderMath() {

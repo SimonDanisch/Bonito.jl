@@ -1,26 +1,47 @@
-# Announcing Bonito 5.0
+# Bonito 5.0
 
-Bonito 5.0 is here — and it's the biggest release since the package was renamed from JSServe. This version rebuilds large parts of the foundation (networking, sessions, asset serving) while adding the features that make Bonito a complete toolkit for building interactive web UIs, dashboards **and** documentation in pure Julia.
+Bonito 5 is the biggest release since the package was renamed from JSServe. Most of the work went into networking, session handling, asset serving and serialization, and the result is that talking to the browser got a lot faster and a lot more stable.
 
-Here are the highlights.
+There's also a new documentation system (the one you're reading), a companion widget package, dark-mode-aware widgets, remote apps, and a long list of bug fixes and lifecycle cleanups.
 
-## A new, fully Bonito-powered documentation site
+## Performance
 
-The site you're reading right now is built with Bonito itself. The new `DocumenterBonito` writer plugs into [Documenter.jl](https://documenter.juliadocs.org/) and renders the whole site — landing page, sidebar, search, version switcher and this blog — as Bonito DOM, styled after VitePress with first-class light/dark themes.
+First, we put quite some work into performance.
+Part of it was upgrading to HTTP@2, but also rework the serialization protocol and removing allocations where we could.
 
-The best part: interactive examples are rendered **inline and statically**. The widgets, plots and apps in the docs are real Bonito apps exported to static HTML, so they stay interactive without a running Julia server.
+A Bonito app sends two kinds of traffic: many tiny updates (a slider drag or a click, a few hundred bytes) and fewer large ones (a plot or data view, tens to hundreds of kilobytes). Small messages are limited by message rate, large ones by serialization speed.
 
-```julia
-using Bonito
+![End-to-end throughput vs message size](images/throughput-vs-size.png)
 
-App() do
-    s = Slider(1:100)
-    value = DOM.div(s.value)
-    return DOM.div(s, value)
-end
-```
+Bonito 5 is ahead of 4.2 across the whole range, and the two big pieces of work behind that land on opposite ends of the curve: the transport for small messages, serialization for large ones.
 
-Pointing your own package's docs at it is a one-liner in `make.jl`:
+Small, frequent updates are limited by the WebSocket transport, which is what the HTTP/2 move buys. On the raw HTTP.jl layer, draining messages from server to client went from 2.64M to 8.42M per second once the read path stopped copying and reallocating, roughly a 3× jump:
+
+![Server to client WebSocket throughput](images/ws-throughput.png)
+
+That took some care at Bonito's default of 32 threads, where a naive HTTP/2 port regressed the receive path badly: a ~30µs round-trip crept into the hundreds of microseconds because the WebSocket reader kept waking on a cold worker. Pinning the reader to its home thread ([Reseau #112](https://github.com/JuliaServices/Reseau.jl/pull/112), [HTTP.jl #1268](https://github.com/JuliaWeb/HTTP.jl/pull/1268)) and dropping a 64KB-per-frame allocation (also #1268) brought latency back flat across thread counts, within a couple of microseconds of HTTP 1.11.
+
+Through the full protocol those updates come out about 20% faster end to end than 4.2: the session rework alone takes server-to-browser throughput from 125k to 140k Observable updates a second, and HTTP/2 brings it to 150k. Browser-to-server stays around 140k.
+
+![End-to-end message throughput](images/burst-throughput.png)
+
+Large payloads are limited by serialization instead, where the session rework, a reusable per-session pack buffer (`SessionIO`), and the upstream [MsgPack.jl](https://github.com/JuliaIO/MsgPack.jl/pull/69) changes pay off:
+
+![Server-side serialize time and allocations vs message size](images/serialize-vs-size.png)
+
+The two builds are even at a few hundred bytes, but by a quarter-megabyte plot update Bonito 5 serializes about 2.8× faster and allocates about 3.5× less — under 2× the message size in temporaries, where 4.2 churned through 6×. (MsgPack writes multi-byte values without boxing them in a `Ref`, takes a `sizehint`, and has a leaner `unpack`.)
+
+Those temporaries matter even with CPU to spare, because they turn into GC pauses and latency spikes. Streaming 32KB updates as fast as the link allows, a single echo round-trip on 4.2 stalls behind 15 seconds of GC at a p50 of 83ms; Bonito 5 spends under a second in GC and holds 8ms.
+
+![Latency and GC under a saturating stream](images/gc-under-load.png)
+
+(Numbers are from Julia 1.12.6 with an ElectronCall client driving a `Bonito.Server` at 32 threads, medians over repeated runs, give or take 10% between runs. The longer write-up, including the approaches that didn't pan out, is in the perf notes.)
+
+## The documentation system
+
+You're looking at it. This whole site, the landing page, the sidebar, search, the version switcher and this blog, is rendered by Bonito, with a VitePress-style theme and proper light and dark modes.
+
+It's a Documenter plugin, so there's no second static-site generator to learn and no Node build step. You write normal Documenter markdown like before, and switching the theme on is one line in your `make.jl`:
 
 ```julia
 using Documenter, Bonito
@@ -28,45 +49,53 @@ using Documenter, Bonito
 makedocs(
     sitename = "MyPackage",
     format = Bonito.DocumenterBonito(),
+    # ...
 )
 ```
 
-## HTTP/2 under the hood
+The landing page and the blog are extra keyword arguments on the same plugin: give it a `home` config and a `blog` folder and you get the hero, the post index and an RSS feed. And since it's Bonito underneath, the examples are interactive but exported to static HTML, so the widgets and plots in the docs keep working without a Julia process behind them.
 
-Bonito 5 moves to HTTP.jl 2.x. The server now speaks HTTP/2, multiplexing requests and WebSocket traffic over a single connection, which improves server→client throughput noticeably for app-heavy pages. The WebSocket upgrade is handled inline, so a single port serves assets, pages and the live connection.
+The blog is still experimental, the build and Julia integration have rough edges, and the plan is to improve [BonitoSites](https://github.com/SimonDanisch/BonitoSites.jl) and get the best from the build caching, for efficiently building blogposts with many Julia code blocks and heavy dependencies.
 
-## A composable handler & authentication system
+## BonitoWidgets
 
-Apps and routes can now be wrapped with composable handlers — think middleware — for authentication, rate limiting or custom logic. For example, `ProtectedRoute` adds HTTP Basic Authentication with password hashing and rate limiting to any app or static folder:
+[BonitoWidgets.jl](https://github.com/SimonDanisch/BonitoWidgets.jl) is a new companion package with the layout pieces you end up needing once an app grows: tabs, resizable splits, collapsibles, floating windows, and a VSCode-style `Workspace` (a tree of splits whose leaves are tab groups). It grew out of the layout code in BonitoBook and a couple of not yet published apps.
 
-```julia
-using Bonito
+![BonitoWidgets walkthrough](images/bonitowidgets-walkthrough.mp4)
 
-server = Server("127.0.0.1", 8081)
-admin = App(() -> DOM.h1("Admin Panel"))
-protected = ProtectedRoute(admin, SingleUser("admin", "secret"))
-route!(server, "/admin" => protected)
-```
-
-`SingleUser` covers simple cases, but the `AbstractPasswordStore` interface lets you back authentication with a database or any other source by implementing a single method. Handlers compose, so building a protected, rate-limited, statically-served site is just a matter of stacking them. This work was made possible by an investment from the [Sovereign Tech Agency](https://www.sovereign.tech).
-
-## Remote apps
-
-You can now drive a Bonito app running in one Julia process from another — handy for embedding live apps into separate servers, notebooks or tooling without colocating all the code in a single process.
-
-## A cleaner session & asset lifecycle
-
-Under the hood, the session model was split into a `RootSession` and per-render sub-sessions, removing a whole class of lifecycle races around connect/close and freeing of observables. Asset serving was rewritten around explicit reference counting (no more finalizer-on-lock footguns), and now supports HTTP range requests for media.
+The important part here is that the content stays alive. Panels are mounted once and only re-flowed with CSS, so switching a tab or flipping a split never re-renders the children, and a WGLMakie figure keeps its WebGL context and camera through any layout change. All the layout state (active tab, split fraction, orientation, window position) is an Observable you can read and set from Julia, dragging works with both mouse and touch, and everything themes through `--bw-*` CSS variables with light/dark defaults.
 
 ## Dark-mode-aware widgets
 
-Bonito's built-in widgets — buttons, sliders, dropdowns, tables, range sliders — now follow a small set of `--bonito-widget-*` CSS variables, and ship a default mapping keyed off `prefers-color-scheme`. Standalone apps follow the operating system's light/dark setting automatically, and a host page (like these docs) can re-theme every widget by redefining a handful of variables.
+The built-in widgets (buttons, sliders, dropdowns, tables, range sliders) now read a handful of `--bonito-widget-*` CSS variables and ship a default mapping based on `prefers-color-scheme`. A standalone app follows the OS light/dark setting on its own now, and a page that wants its own look (like these docs) can restyle every widget by setting those variables.
 
-## Getting started
+## Remote apps
 
-```julia
-using Pkg
-Pkg.add("Bonito")
-```
+Bonito 5 can drive an app that runs in one Julia process from another one. That's handy on its own, but mostly it's a teaser: it's the groundwork for running [BonitoBook](https://bonitobook.org) notebooks against remote workers, so the heavy compute can live somewhere other than the process serving the UI. More on that later.
 
-Bonito 5 requires Julia 1.11 or newer. Head over to the [documentation](app.html) to dive in, and thanks to everyone who contributed, tested and gave feedback along the way!
+## Under the hood
+
+A lot of this release is plumbing you'll mostly notice as fewer bugs and less jank:
+
+- `Session` was split into a `RootSession` and per-render sub-sessions, and `SubConnection` is gone. Object and asset lifetimes are handled with proper reference counting now (no more finalizers running inside locks), which closed a bunch of connect/close races.
+- The HTTP asset server learned range requests for media, `Cache-Control` headers, automatic registration of interpolated ES6 modules, and it now tells the precompiler about the source and bundle files it depends on.
+- A new `KeyedList` for keyed list rendering, and reactive wrappers that no longer break `flex`/`grid` layout when you put an Observable in the middle of one.
+- Terminal output handles ANSI escapes and renders markdown through CommonMark.
+- App rendering has a single error boundary: render and init errors get caught and shown through the reconnect indicator's `error[]` observable and a minimal error page, instead of taking down the session.
+- Various reconnect deadlocks, stale-error reconnects and thread-safety races are fixed, and `isready` no longer closes sessions or blocks sends on you.
+- `port:0` works, `proxy_url` got some fixes, and the JS is rebundled.
+- Lots of new tests came with all of this: error handling, a race-condition audit, protocol round-trips, static export, CommonMark and cache lifetime.
+
+## Tooling and compile time
+
+Testing and display now run on [ElectronCall](https://github.com/IanButterworth/ElectronCall.jl), and the old Electron backend still works too. There's a small testing layer on top of it that drives real browser input for end-to-end tests; it's what runs the interactive tests in this repo, though it's still settling in and not released yet.
+
+Compile time and time-to-first-plot have also been getting attention, including some unreleased WGLMakie changes that pair with this release ([Makie #5584](https://github.com/MakieOrg/Makie.jl/pull/5584)). The MsgPack `unpack` cleanup above is part of that, and so is [HTTP.jl #1296](https://github.com/JuliaWeb/HTTP.jl/pull/1296), which removes a batch of `write` invalidations.
+
+![WGLMakie time-to-first-plot](images/WGLMakie.svg)
+
+It's an ongoing effort and should keep getting better.
+
+## Thanks
+
+A big chunk of this work was funded by [ReynKo](https://reynko.com/), thank you for making all these improvements possible.

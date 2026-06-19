@@ -57,7 +57,9 @@ function features_dom(home)
         icon === nothing || push!(parts, DOM.div(icon; class = "icon"))
         push!(parts, DOM.div(f.title; class = "title"))
         push!(parts, DOM.div(get_field(f, :details, ""); class = "details"))
-        DOM.div(parts...; class = "VPFeature")
+        link = get_field(f, :link, nothing)
+        link === nothing ? DOM.div(parts...; class = "VPFeature") :
+            DOM.a(parts...; class = "VPFeature", href = link)
     end
     return DOM.div(cards...; class = "VPFeatures")
 end
@@ -73,6 +75,6 @@ function home_page(ctx, home, content_dom; settings, version_label, search_index
         DOM.div(home_children...; class = "VPHome");
         class = "VPContent is-home no-sidebar",
     )
-    nav = navbar(settings, ctx.doc.user.sitename; version_label = version_label)
+    nav = navbar(settings, ctx.doc.user.sitename; version_label = version_label, has_sidebar = false)
     return page_shell(; head_assets = head_assets(), navbar_dom = nav, body = body, search_index_script = search_index_script)
 end

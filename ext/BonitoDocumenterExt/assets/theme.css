@@ -191,6 +191,12 @@ body {
 
 img, video { max-width: 100%; height: auto; }
 
+/* Inline example canvases (WGLMakie figures, Bonito logos, ...) carry an inline
+   pixel size. Cap their width to the content column so a fixed-size example
+   can't push the whole page wider than the viewport (the `!important` on height
+   is needed to beat the inline `height` and keep the aspect ratio). */
+.vp-doc canvas, .blog-article canvas { max-width: 100%; height: auto !important; }
+
 /* ============================================================ app shell == */
 .vp-layout {
   display: flex;
@@ -719,6 +725,8 @@ img, video { max-width: 100%; height: auto; }
   transition: border-color 0.25s, background-color 0.25s;
 }
 .VPFeature:hover { border-color: var(--vp-c-brand-1); }
+/* feature cards can be links; keep them looking like cards, not text links */
+a.VPFeature, a.VPFeature:hover { color: inherit; text-decoration: none; }
 .VPFeature .icon { font-size: 28px; margin-bottom: 12px; }
 .VPFeature .title { font-size: 16px; font-weight: 600; margin: 0 0 8px; color: var(--vp-c-text-1); }
 .VPFeature .details { font-size: 14px; color: var(--vp-c-text-2); line-height: 1.6; }

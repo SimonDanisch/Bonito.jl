@@ -19,13 +19,17 @@ home = (
     ],
     features = [
         (title = "Composable components",
-         details = "Cards, Grids, Rows and plain HTML widgets you can style and combine freely."),
+         details = "Cards, Grids, Rows and plain HTML widgets you can style and combine freely.",
+         link = "components.html"),
         (title = "WGLMakie integration",
-         details = "High-performance, interactive visualizations that pair perfectly with Bonito."),
+         details = "High-performance, interactive visualizations that pair perfectly with Bonito.",
+         link = "plotting.html"),
         (title = "Any JS library",
-         details = "Wrap any CSS/JavaScript library through `Asset` and `js\"...\"`."),
+         details = "Wrap any CSS/JavaScript library through `Asset` and `js\"...\"`.",
+         link = "javascript-libraries.html"),
         (title = "Static export",
-         details = "Ship dashboards and documentation as standalone static sites with `export_static`."),
+         details = "Ship dashboards and documentation as standalone static sites with `export_static`.",
+         link = "static.html"),
     ],
 )
 

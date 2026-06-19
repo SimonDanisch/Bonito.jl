@@ -120,7 +120,7 @@ end
 
 # ---- chrome components -----------------------------------------------------
 
-function navbar(settings, sitename; version_label)
+function navbar(settings, sitename; version_label, has_sidebar = true)
     right = Any[]
     if settings.blog !== nothing
         push!(right, DOM.div(DOM.a("Blog"; href = "blog.html"); class = "nav-links"))
@@ -136,7 +136,11 @@ function navbar(settings, sitename; version_label)
         push!(right, DOM.a(icon(ICON_GITHUB); class = "icon-btn", href = repo_url(settings.repo), target = "_blank", title = "GitHub"))
     end
     push!(right, DOM.button(icon(ICON_SUN); class = "icon-btn", dataToggleTheme = true, type = "button", title = "Toggle theme"))
-    push!(right, DOM.button(icon(ICON_MENU); class = "icon-btn hamburger", dataToggleSidebar = true, type = "button", title = "Menu"))
+    # The hamburger only toggles the sidebar, so it's pointless on pages that
+    # don't have one (the landing page and blog).
+    if has_sidebar
+        push!(right, DOM.button(icon(ICON_MENU); class = "icon-btn hamburger", dataToggleSidebar = true, type = "button", title = "Menu"))
+    end
 
     title_children = Any[]
     settings.logo === nothing || push!(title_children, DOM.img(; src = settings.logo, alt = sitename))
