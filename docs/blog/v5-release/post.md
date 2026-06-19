@@ -35,6 +35,12 @@ Those temporaries matter even with CPU to spare, because they turn into GC pause
 
 ![Latency and GC under a saturating stream](images/gc-under-load.png)
 
+All of that is still one connection, and a real server has many: every open tab is its own session, serializing and sending on its own thread, which is what the 32 threads are for. That turns out to be where HTTP/2 matters most. Driving many independent sessions at once, Bonito 5's aggregate server-to-client throughput keeps climbing, while 4.2's HTTP 1.1 stack collapses under connection contention. At 32 concurrent connections the shipped stack pushes roughly 30× more updates per second, and the gap only widens with load:
+
+![Aggregate throughput vs concurrent connections](images/concurrent-scaling.png)
+
+This one is purely the transport: the serialization rework doesn't move it, and Bonito 5 on HTTP 1.1 collapses just like 4.2. For an app serving more than a handful of users at once, it's probably the single biggest reason to upgrade.
+
 (Numbers are from Julia 1.12.6 with an ElectronCall client driving a `Bonito.Server` at 32 threads, medians over repeated runs, give or take 10% between runs. The longer write-up, including the approaches that didn't pan out, is in the perf notes.)
 
 ## The documentation system
