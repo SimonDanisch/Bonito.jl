@@ -51,16 +51,15 @@ function process_message(session::Session, data::AbstractDict)
         # The lock only needs to guard the Dict access against a concurrent
         # `close(session)` tearing down `session_objects`; once we have the
         # object reference, we re-check `isclosed` and dispatch outside it.
-        # See test/key_not_found_race.jl and test/stability_core.jl B1.
         root = root_session(session)
         # Look up the object AND claim a dispatch slot under the lock, so the
         # decision to dispatch is atomic w.r.t. `close` (which sets `closing`
         # under the same lock and then drains `dispatch_count` before flipping
         # CLOSED). Once admitted, the listener runs OUTSIDE the lock (it may
         # call `evaljs_value`, which needs the lock — holding it across the
-        # callback deadlocks, B1). `close` waiting for `dispatch_count == 0`
+        # callback deadlocks). `close` waiting for `dispatch_count == 0`
         # without the lock is what guarantees no listener fires after CLOSED
-        # (test/key_not_found_race.jl) while staying deadlock-free (B1).
+        # while staying deadlock-free.
         obj = lock(root.deletion_lock) do
             (isclosed(session) || root.closing) && return nothing
             # Sub sessions only carry markers (`nothing`) — the actual
@@ -82,7 +81,7 @@ function process_message(session::Session, data::AbstractDict)
                 # `session` is the originating session: `update_nocycle!` skips
                 # only that session's JS updater so the value doesn't echo back
                 # to the browser that just sent it, while OTHER sessions sharing
-                # the same observable still receive the update (B15).
+                # the same observable still receive the update.
                 Base.invokelatest(update_nocycle!, obj, data["payload"], session)
             finally
                 Threads.atomic_sub!(root.dispatch_count, 1)
@@ -95,7 +94,7 @@ function process_message(session::Session, data::AbstractDict)
     elseif typ == JSDoneLoading
         # Bail early if the receiving session is already torn down. The
         # message may have been dispatched from the inbox @async pool
-        # *after* close() ran. See test/race_conditions_audit.jl F3.
+        # *after* close() ran.
         if isclosed(session)
             @debug "JSDoneLoading on a closed session — ignoring"
         elseif data["exception"] != "nothing"
@@ -109,7 +108,7 @@ function process_message(session::Session, data::AbstractDict)
         else
             # `get_session` recurses through `session.children`, which is
             # mutated under `deletion_lock` by close/free/Session(parent).
-            # Iterating it unlocked races those mutations (B28). Snapshot the
+            # Iterating it unlocked races those mutations. Snapshot the
             # lookup under the lock; fire `on_connection_ready` outside it.
             root = root_session(session)
             sub = lock(root.deletion_lock) do
@@ -136,7 +135,7 @@ function process_message(session::Session, data::AbstractDict)
         if isclosed(session)
             @debug "CloseSession on already-closed session — ignoring"
         else
-            # Same unlocked-recursion race as JSDoneLoading (B28): take the
+            # Same unlocked-recursion race as JSDoneLoading: take the
             # lock for the `get_session` walk over `session.children`.
             root = root_session(session)
             sub = lock(root.deletion_lock) do
@@ -149,7 +148,7 @@ function process_message(session::Session, data::AbstractDict)
                     # We only empty root sessions, since they will be reused.
                     empty!(sub)
                 else
-                    # B29: `subsession` is client-controlled — a stale/malformed
+                    # `subsession` is client-controlled — a stale/malformed
                     # frame claiming "root" for a sub-session id must not crash
                     # the inbox task (the old `@assert` did). Log and ignore.
                     @warn "CloseSession claimed subsession==\"root\" for a non-root session — ignoring" id=data["session"]
@@ -167,7 +166,6 @@ function process_message(session::Session, data::AbstractDict)
         # called `empty!(session.session_objects)` and mutated
         # `session.children` outside any lock, which races concurrent
         # `add_cached!` paths and silently wipes the root cache mid-flight.
-        # See test/race_conditions_audit.jl F2.
         root = root_session(session)
         @async try
             lock(root.deletion_lock) do

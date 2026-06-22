@@ -54,7 +54,7 @@ end
 is_closed(ws::HTTP.WebSockets.WebSocket) = HTTP.WebSockets.isclosed(ws)
 
 # ── IO interface ───────────────────────────────────────────────────────────
-function _refill!(io::WebSocketIO)
+function refill!(io::WebSocketIO)
     io.eof_seen && return false
     frame = recv_frame(io.ws)
     if frame === nothing
@@ -68,7 +68,7 @@ end
 
 function Base.eof(io::WebSocketIO)
     io.inpos <= length(io.inbuf) && return false
-    return !_refill!(io)
+    return !refill!(io)
 end
 
 Base.isopen(io::WebSocketIO) = !io.closed && !is_closed(io.ws)
@@ -84,7 +84,7 @@ function Base.close(io::WebSocketIO)
     catch e
         # The peer may already be gone — a transport-closed error on the final
         # flush is expected and fine to ignore. Anything else is a real bug we
-        # must not swallow (B35): no bare `catch end`.
+        # must not swallow: no bare `catch end`.
         if e isa Union{HTTP.WebSockets.WebSocketError, Base.IOError, EOFError}
             @debug "WebSocketIO close: final flush failed (peer closed)" exception = e
         else
@@ -96,7 +96,7 @@ end
 
 function Base.read(io::WebSocketIO, ::Type{UInt8})
     while io.inpos > length(io.inbuf)
-        _refill!(io) || throw(EOFError())
+        refill!(io) || throw(EOFError())
     end
     b = io.inbuf[io.inpos]
     io.inpos += 1
@@ -110,7 +110,7 @@ function Base.readbytes!(io::WebSocketIO, dst::Vector{UInt8}, n = length(dst))
     while written < n
         avail = length(io.inbuf) - io.inpos + 1
         if avail == 0
-            _refill!(io) || break
+            refill!(io) || break
             avail = length(io.inbuf) - io.inpos + 1
             avail == 0 && break
         end
@@ -151,7 +151,7 @@ function Base.unsafe_read(io::WebSocketIO, p::Ptr{UInt8}, n::UInt)
     nr = 0
     while nr < n
         if io.inpos > length(io.inbuf)
-            _refill!(io) || throw(EOFError())
+            refill!(io) || throw(EOFError())
         end
         avail = length(io.inbuf) - io.inpos + 1
         take = min(avail, Int(n) - nr)

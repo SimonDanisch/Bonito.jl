@@ -30,14 +30,14 @@ end
 
 function init_session(session::Session)
     root = root_session(session)
-    # Ordering invariant (F10/B4): the queued setup messages (object
+    # Ordering invariant: the queued setup messages (object
     # registrations + on_document_load) MUST reach the wire BEFORE any later
     # direct `_send`. `_send` gates writes on `isready(session)`, which is
     # `connection_ready` (the one-shot Channel) AND `isopen`. So as long as
     # `connection_ready` is NOT yet signaled, every concurrent `_send` queues
     # rather than writes. We exploit that to keep ordering WITHOUT holding the
     # lock across the (potentially blocking, backpressured) init-bundle socket
-    # write (B36): drain + status flip under the lock, write the bundle with
+    # write: drain + status flip under the lock, write the bundle with
     # the lock RELEASED, then re-acquire and signal `connection_ready` (+ flush
     # anything that queued during the write). The lock is now only held across
     # in-memory work, never across a slow socket write.
@@ -73,7 +73,7 @@ function init_session(session::Session)
     # particular don't fire the on_open notification below.
     opened || return
     # Blocking socket write OUTSIDE the lock, so a slow/backpressured client no
-    # longer stalls every other lock taker (B36). We write the serialized
+    # longer stalls every other lock taker. We write the serialized
     # bundle DIRECTLY to the connection rather than via `_send`: `_send` would
     # see `isready == false` (connection_ready not yet signaled) and queue it.
     # If the direct write fails (disconnect mid-init), re-queue the bundle so a
@@ -162,7 +162,6 @@ function free(session::Session)
     # @async caller) can otherwise interleave with `close()` (which holds
     # the lock), corrupting `session_objects` mid-iteration. The lock is
     # reentrant, so callers that already hold it pay nothing extra.
-    # See test/race_conditions_audit.jl F1.
     root = root_session(session)
     lock(root.deletion_lock) do
         # don't double free!
@@ -208,7 +207,7 @@ function free(session::Session)
     return
 end
 
-# B29: empty a *root* session for reuse — free its cached objects and queued
+# Empty a *root* session for reuse — free its cached objects and queued
 # state but keep the connection and status alive (unlike `free`, which sets
 # CLOSED). Mirrors the root branch of `free` minus the status transition.
 function Base.empty!(session::Session)
@@ -233,7 +232,7 @@ end
 
 function soft_close(session::Session)
     # Guard against resurrecting a session that was explicitly CLOSED by user
-    # code (B6). The WS handler's `finally` calls `soft_close` unconditionally;
+    # code. The WS handler's `finally` calls `soft_close` unconditionally;
     # without this guard a CLOSED session would flip to SOFT_CLOSED, `isclosed`
     # would report false again, and late `_send`s would queue into a
     # never-drained queue. Take the lock so the CLOSED-check and the status
@@ -263,9 +262,9 @@ const DISPATCH_DRAIN_TIMEOUT = 5.0
 # Quiesce UpdateObservable dispatch before tearing the root down. Sets `closing`
 # (under deletion_lock) so `process_message` admits no new dispatches, then waits
 # for in-flight listeners to finish WITHOUT holding the lock — they run outside it
-# and may call `evaljs_value`, which needs the lock (B1). After this returns no
+# and may call `evaljs_value`, which needs the lock. After this returns no
 # user listener is running, so the subsequent locked teardown flips CLOSED with
-# nothing in flight (test/key_not_found_race.jl).
+# nothing in flight.
 function drain_dispatch!(root::Session)
     already = lock(deletion_lock(root)) do
         root.status === CLOSED && return true
@@ -294,10 +293,10 @@ function close_root_session(session::Session)
         # Capture + clear listeners under the lock, then fire them OUTSIDE
         # the lock so user `on(session.on_close)` handlers can do anything
         # they like (including `evaljs_value` which spawns its own task to
-        # acquire deletion_lock) without deadlock or recursion (B5). We also
+        # acquire deletion_lock) without deadlock or recursion. We also
         # mark the session CLOSED before firing so a listener that re-enters
         # `close()` short-circuits immediately on the guard above instead of
-        # recursing forever (test/race_conditions_audit.jl F12).
+        # recursing forever.
         listeners = copy(session.on_close.listeners)
         Observables.clear(session.on_close)
 
@@ -380,7 +379,7 @@ function close_subsession(session::Session)
         session.status = CLOSED
         return listeners
     end
-    # Fire on_close OUTSIDE the lock (B5): a listener may call `evaljs_value`,
+    # Fire on_close OUTSIDE the lock: a listener may call `evaljs_value`,
     # which spawns a task that takes deletion_lock — firing under the lock
     # would deadlock.
     on_close_listeners === nothing && return
@@ -420,7 +419,7 @@ end
 function collect_messages(f)
     empty!(COLLECTED_MESSAGES)
     COLLECT_MESSAGES[] = true
-    # MUST reset the flag in a `finally` (B16): otherwise a throw in `f()` (or
+    # MUST reset the flag in a `finally`: otherwise a throw in `f()` (or
     # even a normal return before this was guarded) left `COLLECT_MESSAGES[]`
     # true process-wide, so EVERY subsequent outbound message got deep-decoded
     # and retained forever in `COLLECTED_MESSAGES` (unbounded memory growth).
@@ -465,20 +464,20 @@ Base.write(connection::FrontendConnection, sm::SerializedMessage) = write(connec
 
 function _send(session::Session, sm::SerializedMessage, large::Bool)
     # The ready-check and the write/queue decision MUST be atomic w.r.t. the
-    # UNINITIALIZED→OPEN transition (B4). `init_session` flushes the queue and
+    # UNINITIALIZED→OPEN transition. `init_session` flushes the queue and
     # flips the session OPEN while holding `deletion_lock`; without the lock
     # here, three interleavings lose or reorder messages:
     #   (a) we see not-ready, init flushes + goes OPEN, then we push → the
     #       message strands in the queue until a reconnect that may not come;
     #   (b) we see ready in the gap between `put!(connection_ready)` and the
     #       flush → our direct write overtakes the queued registration
-    #       messages (the F10 reordering the lock was meant to prevent);
+    #       messages (the reordering the lock was meant to prevent);
     #   (c) `push!` races `get_messages!`'s `empty!` (called unlocked from
     #       `update_session_dom!`) → the message is erased unsent.
     # Holding `deletion_lock` across the decision + the write/push serializes
     # all of these against init_session, free, and get_messages!. The write is
     # non-blocking for the WS handler (it only buffers/sends one frame); the
-    # blocking init-bundle write lives in init_session (B36), not here.
+    # blocking init-bundle write lives in init_session, not here.
     #
     # `throw=false`: queueing-vs-writing is a connection-state question; if a
     # render error has been recorded we still want this message to land in the
@@ -496,7 +495,7 @@ function _send(session::Session, sm::SerializedMessage, large::Bool)
             catch e
                 # A write failure (disconnect mid-write) must fall back to the
                 # queue for replay, not propagate out and lose the message
-                # (B2/F11). `Base.write(::WebSocketHandler)` now rethrows on a
+                # `Base.write(::WebSocketHandler)` now rethrows on a
                 # failed send so this catch actually fires.
                 @debug "_send write failed; falling back to message_queue for replay" exception = (e, catch_backtrace())
                 # fall through to push!
@@ -694,11 +693,11 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
     # `register_observable!` attaches a JSUpdateObservable listener keyed by the
     # observable's cache key, so we must strip it explicitly here — the
     # session's own `free()` won't, since this comm lives outside the session
-    # lifetime. See test/race_conditions_audit.jl F5.
+    # lifetime.
     # Registration is keyed by `cache_key(session, comm)`, NOT `comm.id` — on a
     # ProxyConnection session those differ (the key is `prefix/comm.id`).
     # Deleting by `comm.id` left a leaked CachedEntry per call on proxied
-    # sessions (B27). Use the same key the registration used. `remove_js_updates!`
+    # sessions. Use the same key the registration used. `remove_js_updates!`
     # also matches by key (the JSUpdateObservable's `.id` is the cache key).
     key = cache_key(session, comm)
     lock(root.deletion_lock) do
@@ -793,7 +792,7 @@ function push_dependencies!(childs, session::Session)
 end
 
 function mark_displayed!(session::Session)
-    # Don't overwrite a CLOSED session with DISPLAYED (B6) — `isclosed` would
+    # Don't overwrite a CLOSED session with DISPLAYED — `isclosed` would
     # flip back to false on a freed session. Atomic with a concurrent close.
     lock(deletion_lock(root_session(session))) do
         session.status === CLOSED && return

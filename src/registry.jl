@@ -23,7 +23,7 @@ function force_type!(conn, forced_types::Base.RefValue)
 end
 
 function force_type(f, conn, forced_types::Base.RefValue)
-    # B12: these used to call `force_connection!(conn, forced_types)`, a method
+    # These used to call `force_connection!(conn, forced_types)`, a method
     # that doesn't exist (force_connection! takes only the type) → instant
     # MethodError, masked by a second MethodError from the `finally`. The
     # generic primitive is `force_type!`.

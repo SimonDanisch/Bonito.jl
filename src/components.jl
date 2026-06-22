@@ -296,7 +296,7 @@ function StylableSlider(
         error("Values for value=$(value) and index=$(index) given, please only set one.")
     end
     if !isnothing(value) && isnothing(index)
-        # B40: snap to the nearest tick (same tolerant behaviour `Slider` got
+        # Snap to the nearest tick (same tolerant behaviour `Slider` got
         # via `slider_value_index`) instead of throwing on a non-exact float
         # default, e.g. `StylableSlider(range(0, 2π, 100); value=π/2)`.
         index = slider_value_index(collect(range), value)
@@ -371,7 +371,7 @@ function jsrender(session::Session, slider::StylableSlider)
             track_active.style.width = new_left + 'px';  // Update the active track
             // `index` is 0-based here; `slider.index` is 1-based. The previous
             // comparison `index !== value` mixed the two bases, so the
-            // echo-dedup guard never matched and every drag re-notified (B40).
+            // echo-dedup guard never matched and every drag re-notified.
             const index = Math.round((new_left / width) * (nsteps - 1));
             const index_1based = index + 1;
             last_index = index_1based;

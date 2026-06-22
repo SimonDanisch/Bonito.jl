@@ -65,7 +65,7 @@ function Base.write(ws::WebSocketHandler, binary::AbstractVector{UInt8})
         written = safe_write(ws.socket, binary)
         if written != true
             # The send failed (dying socket). Close our side, then THROW so
-            # `_send` falls into its queue-for-replay branch (B2). Returning
+            # `_send` falls into its queue-for-replay branch. Returning
             # normally here used to silently drop the first message into a
             # dead socket — not on the wire, not queued. The `close(ws)` runs
             # first so the handler is torn down before we signal failure.
@@ -95,7 +95,7 @@ end
 True iff `websocket` is still the socket `handler` is bound to. Used by the WS
 connection callback's `finally` so a *stale* loop (an old, half-open socket
 still parked in `safe_read` when the browser reconnected and installed a new
-socket) does NOT tear down the session now owned by the new socket (B3).
+socket) does NOT tear down the session now owned by the new socket.
 """
 function is_current_socket(handler::WebSocketHandler, websocket::WebSocket)
     lock(handler.lock) do
@@ -120,7 +120,7 @@ function run_connection_loop(session::Session, handler::WebSocketHandler, websoc
         bytes = safe_read(websocket)
         # nothing means the browser closed the connection so we're done
         isnothing(bytes) && break
-        # `isopen(inbox) || break` then `put!` is a check-then-act race (B23):
+        # `isopen(inbox) || break` then `put!` is a check-then-act race:
         # the channel can close in the gap (a concurrent `close(session)`),
         # and `put!` then throws InvalidStateException, which escapes the loop
         # and lets the `finally` soft_close an already-CLOSED session. Catch

@@ -77,7 +77,7 @@ function record_values(f, session, widget_ids)
         end
         return messages
     finally
-        # B18: previously this swallowed the error (showerror to stderr +
+        # Previously this swallowed the error (showerror to stderr +
         # implicit `return nothing`), so a failure here surfaced downstream as
         # an unrelated MethodError on `nothing` that masked the real cause. Let
         # the exception propagate to the caller (which logs it with full
@@ -192,7 +192,7 @@ function record_states(session::Session, dom::Hyperscript.Node)
             widget_statemap = Dict{String, Vector{SerializedMessage}}()
             widget_id_set = Set([widget_id])
 
-            # B18: snapshot the current value so we can restore it after
+            # Snapshot the current value so we can restore it after
             # sweeping through `value_range` — otherwise every widget
             # observable is silently left holding `last(value_range(widget))`
             # once export finishes.
@@ -360,7 +360,7 @@ function export_static(folder::String, routes::Routes; connection=nothing, asset
 
             # Create session for this route
             route_session = Session(actual_connection; asset_server=actual_asset_server)
-            # B44: we pass `session=...`, so the inner `export_static` won't
+            # We pass `session=...`, so the inner `export_static` won't
             # close it for us — close it here, otherwise every route leaks a
             # Session (and its listeners) for the life of the process.
             try

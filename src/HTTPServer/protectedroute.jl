@@ -276,12 +276,12 @@ struct ProtectedRoute{T, PS <: AbstractPasswordStore, H}
     lockout_window::Float64
     auth_required_handler::H # both error handlers share one type param H
     rate_limited_handler::H
-    # B11: all `failed_attempts` access is concurrent (one task per request);
+    # All `failed_attempts` access is concurrent (one task per request);
     # the Dict needs a lock. Also bounds growth of the per-IP buckets.
     lock::Base.ReentrantLock
     # Only honor X-Forwarded-For when explicitly told we sit behind a trusted
     # proxy — otherwise any client spoofs the header to dodge the limiter and
-    # to grow the Dict without bound (B11).
+    # to grow the Dict without bound.
     trust_forwarded_for::Bool
     # Upper bound on tracked IPs; oldest-pruned buckets are evicted past this
     # to keep an attacker rotating XFF values from exhausting memory.
@@ -337,7 +337,7 @@ end
 # `protected.trust_forwarded_for` is set (and then takes precedence, since the
 # direct peer is the proxy): the header is attacker-controlled, so without a
 # trusted proxy spoofing it would let a client dodge the limit and grow
-# `failed_attempts` without bound (B11). Otherwise use the real TCP peer IP that
+# `failed_attempts` without bound. Otherwise use the real TCP peer IP that
 # `stream_handler` resolved into `context.peer_ip`. Returns "" when the client
 # can't be identified, which the caller treats as "don't rate-limit" rather than
 # bucketing every unidentified client together.

@@ -146,7 +146,7 @@ end
 
 function delegate(routes::Routes, application, request::Request, args...; peer_ip::String="")
     try
-        # B8: snapshot the table under the lock before iterating. `route!`
+        # Snapshot the table under the lock before iterating. `route!`
         # concurrently `push!`es + `sort!`s (every page render registers a
         # websocket route), so iterating the live vector risks skipped routes,
         # the wrong handler, or a BoundsError under threaded requests.
@@ -368,7 +368,7 @@ function Base.close(server::Server)
     # below. The previous version called `close` unconditionally and
     # spammed `MethodError: no method matching close(::Function)` warnings
     # on every test/server teardown.
-    # B9: `close(::WebSocketConnection)` calls `delete_websocket_route!` (a
+    # `close(::WebSocketConnection)` calls `delete_websocket_route!` (a
     # `filter!`) on `websocket_routes.table` — mutating the very vector we
     # iterate would deterministically skip every second handler (leaking those
     # sessions). Iterate a snapshot instead.
@@ -381,7 +381,7 @@ function Base.close(server::Server)
         end
     end
     close(server.server)
-    # B7: stop the per-server cleanup task and drop its registry entry, so the
+    # Stop the per-server cleanup task and drop its registry entry, so the
     # server (and its route/connection/session chain) can be GC'd instead of
     # being pinned forever by an immortal 1-Hz task.
     Bonito.stop_cleanup_task!(server)

@@ -191,8 +191,8 @@ function route_to_remote(session::Session, data::AbstractDict)
     id = remote_route_id(data)
     id isa AbstractString || return false
     # `register_remote!`/`unregister_remote!` mutate `remote_routes` under
-    # `deletion_lock`; reading + iterating it unlocked races a Dict rehash
-    # (B34). Snapshot the matching driver under the lock, then forward outside
+    # `deletion_lock`; reading + iterating it unlocked races a Dict rehash.
+    # Snapshot the matching driver under the lock, then forward outside
     # it (forwarding may be a network call we don't want to hold the lock for).
     target = lock(root.deletion_lock) do
         routes = get(metadata_dict(root), REMOTE_ROUTES_KEY, nothing)

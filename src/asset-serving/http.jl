@@ -171,7 +171,7 @@ function js_to_local_url(server::HTTPAssetServer, url::AbstractString)
         return url
     else
         key = URIs.URI(m[1]).path
-        # B38: the asset may no longer be registered (a child closed and dropped
+        # The asset may no longer be registered (a child closed and dropped
         # its refcount) while we're formatting a JS stack trace — a bare
         # `server.files[key]` would KeyError and kill the whole error-reporting
         # path. Fall back to the original url when the entry is gone.
@@ -256,7 +256,7 @@ function serve_asset(request, data::Union{Vector{UInt8},Nothing},
         "Cache-Control" => cache_control,
         "Accept-Ranges" => "bytes",
     ]
-    # B38: plain (mutable) assets are marked `must-revalidate` but never emitted
+    # Plain (mutable) assets are marked `must-revalidate` but never emitted
     # a validator, so browsers couldn't actually revalidate and served stale
     # CSS/JS for the full max-age after an edit. For file-backed assets, emit
     # `Last-Modified` and honor `If-Modified-Since` with a 304. Content-keyed
@@ -292,7 +292,7 @@ function (server::HTTPAssetServer)(context)
     # Hold server.lock around the Dict access — `close(::ChildAssetServer)`
     # mutates `files` (delete!) under the same lock; without this guard, a
     # concurrent close can corrupt the Dict mid-fetch (or delete the entry
-    # between our haskey and getindex). See test/race_conditions_audit.jl F4.
+    # between our haskey and getindex).
     asset = lock(server.lock) do
         entry = get(server.files, path, nothing)
         entry === nothing ? nothing : entry.asset
@@ -306,7 +306,7 @@ function (server::HTTPAssetServer)(context)
         return serve_asset(context.request, asset.data, nothing,
                            asset.mime, cache_control_for(asset))
     elseif !isempty(asset.bundle_data)
-        # B17: serve a snapshot taken under the per-asset bundle lock, so a
+        # Serve a snapshot taken under the per-asset bundle lock, so a
         # concurrent `bundle!`/`rebundle!` can't tear the vector mid-response.
         return serve_asset(context.request, bundle_data_snapshot(asset), nothing,
                            file_mimetype(local_path(asset)), cache_control_for(asset))

@@ -220,8 +220,7 @@ function uuid(session::Union{Nothing,Session}, node::Node)
             return string(rand(UInt64))
         else
             root = root_session(session) # counter needs to be unique to root session
-            # Atomic so concurrent renders never hand out the same id; see
-            # test/race_conditions_audit.jl F6.
+            # Atomic so concurrent renders never hand out the same id.
             raw = string(Threads.atomic_add!(root.dom_uuid_counter, 1) + 1)
             # A proxied (worker) session's dom ids share the browser's one
             # `data-jscall-id` namespace with the host's — and both counters

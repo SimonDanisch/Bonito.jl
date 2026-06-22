@@ -18,7 +18,7 @@ end
 # low-latency and large-data sockets are alive. Checking only `low_latency`
 # meant that if the large-data leg died alone, the session stayed "ready",
 # `write_large` kept failing/queueing forever, and nothing triggered a
-# reconnect or flush (B33). Requiring both flips the session not-ready so the
+# reconnect or flush. Requiring both flips the session not-ready so the
 # normal reconnect/queue-replay path runs.
 Base.isopen(ws::DualWebsocket) = isopen(ws.low_latency) && isopen(ws.large_data)
 
@@ -59,7 +59,7 @@ function (connection::DualWebsocket)(context, websocket::WebSocket)
         run_connection_loop(session, handler, websocket)
     finally
         # A stale loop (this socket was already replaced by a reconnect) must
-        # not tear anything down — the new socket owns the handler now (B3).
+        # not tear anything down — the new socket owns the handler now.
         if is_current_socket(handler, websocket)
             # Close our own handler so the other finally block can see it's dead.
             close(handler)

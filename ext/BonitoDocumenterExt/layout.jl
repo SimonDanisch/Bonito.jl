@@ -45,7 +45,7 @@ function build_nav(pages)
 
     collect_links(entry) = begin
         out = NavLink[]
-        _collect!(out, entry)
+        collect_links!(out, entry)
         out
     end
 
@@ -70,16 +70,16 @@ function build_nav(pages)
     return groups, flat
 end
 
-function _collect!(out, entry)
+function collect_links!(out, entry)
     if entry isa AbstractString
         push!(out, NavLink(default_title(entry), entry))
     elseif entry isa Pair && entry.second isa AbstractString
         push!(out, NavLink(String(entry.first), entry.second))
     elseif entry isa Pair
-        _collect!(out, entry.second)
+        collect_links!(out, entry.second)
     elseif entry isa AbstractVector
         for sub in entry
-            _collect!(out, sub)
+            collect_links!(out, sub)
         end
     end
     return out

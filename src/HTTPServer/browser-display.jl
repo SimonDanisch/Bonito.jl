@@ -18,7 +18,7 @@ function server(display::BrowserDisplay)
 end
 
 function Base.close(display::BrowserDisplay)
-    # B26: do NOT close `display.server` — `server(display)` hands out the
+    # Do NOT close `display.server` — `server(display)` hands out the
     # shared `GLOBAL_SERVER`, so closing it here tears down every other
     # display/route on the page (ElectronDisplay's close deliberately avoids
     # this). Only the per-display handler/session is ours to close. If the

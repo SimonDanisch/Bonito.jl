@@ -161,7 +161,7 @@ mutable struct DisplayHandler
     previous_session::Union{Session, Nothing}
     # Serializes `apply_handler` (and `update_app!`): both read-then-replace
     # `session`/`previous_session`. Two concurrent GETs would otherwise close
-    # each other's session mid-render and leak one replacement (B24).
+    # each other's session mid-render and leak one replacement.
     lock::ReentrantLock
 end
 DisplayHandler(session, server, route, current_app, previous_session) =
@@ -196,7 +196,7 @@ function DisplayHandler(server::HTTPServer.Server, app::App; route="/browser-dis
 end
 
 function update_app!(handler::DisplayHandler, app::App)
-    # Serialize with `apply_handler` (B24) — both read-then-replace
+    # Serialize with `apply_handler` — both read-then-replace
     # `session`/`previous_session`.
     lock(handler.lock) do
         # the connection is open, so we can just use it to update the dom!
@@ -230,7 +230,7 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
     # But if UNINITIALIZED, it's simply the first request to the page!
     # The check-then-act on `handler.session` (read status, maybe close +
     # replace) is racy under two concurrent GETs — they'd close each other's
-    # session mid-render and leak a replacement (B24). Hold `handler.lock`
+    # session mid-render and leak a replacement. Hold `handler.lock`
     # across the whole read-replace-render region.
     lock(handler.lock) do
         parent = handler.session

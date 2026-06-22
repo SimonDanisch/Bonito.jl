@@ -276,7 +276,7 @@ No-op for non-ES6 assets (they have no bundle to drop).
 function rebundle!(asset::Asset)
     asset.es6module || return asset
     # Guard the in-memory drop with the same per-asset lock `bundle!` uses, so
-    # a concurrent serve never sees a half-emptied vector (B17).
+    # a concurrent serve never sees a half-emptied vector.
     lock(asset.bundle_lock) do
         isempty(String(asset.bundle_file)) || rm(String(asset.bundle_file); force = true)
         empty!(asset.bundle_data)
@@ -391,7 +391,7 @@ bundle!(asset::BinaryAsset) = nothing
 
 Return a copy of the asset's current bundle bytes taken under the per-asset
 bundle lock, so a concurrent `bundle!` can't tear the vector out from under a
-serving HTTP task (B17). Callers serve the returned copy.
+serving HTTP task. Callers serve the returned copy.
 """
 function bundle_data_snapshot(asset::Asset)
     return lock(asset.bundle_lock) do

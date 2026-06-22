@@ -166,7 +166,7 @@ function add_cached!(create_cached_object::Function, session::Session, send_to_j
         # `haskey` is true even when root never registered as an owner (the
         # entry may have been created by a sub-session). In that case root
         # must still become an owner, otherwise the entry is evicted when the
-        # sub closes while root's DOM still references the CacheKey (B13).
+        # sub closes while root's DOM still references the CacheKey.
         # Check membership in the entry's `owners` set for root instead.
         if session === root
             entry = get(root.session_objects, key, nothing)
@@ -214,7 +214,7 @@ end
 # JSUpdateObservable was registered by the FIRST session to serialize the
 # observable (see `register_observable!`), which is not necessarily the last
 # owner to close. Filtering by `f.session === session` therefore leaks
-# updaters (retaining closed Sessions) across connection cycles (B14).
+# updaters (retaining closed Sessions) across connection cycles.
 function remove_js_updates!(key::String, observable::Observable)
     filter!(observable.listeners) do (prio, f)
         !(f isa JSUpdateObservable && f.id == key)

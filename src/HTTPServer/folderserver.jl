@@ -28,7 +28,7 @@ Return `true` if `path` resolves to `root` itself or a location strictly
 inside `root`. Both arguments must already be absolute. Uses a normalized
 path-segment comparison so that sibling directories sharing a name prefix
 (`/data/site-backup` vs `/data/site`) are NOT considered contained — a bug
-a naive `startswith`/`occursin` check would have (B43).
+a naive `startswith`/`occursin` check would have.
 """
 function is_path_contained(root::AbstractString, path::AbstractString)
     root_n = normpath(root)
@@ -77,7 +77,7 @@ function Bonito.HTTPServer.apply_handler(app::FolderServer, context)
         relative_path = relative_path[2:end]
     end
 
-    # B10: Path traversal guard. `relative_path` is attacker-controlled (e.g.
+    # Path traversal guard. `relative_path` is attacker-controlled (e.g.
     # `../../../../etc/passwd` via `--path-as-is`), so we must ensure the
     # resolved path stays inside `app.folder`. `normpath` collapses any `..`
     # segments; we then require the absolute result to live under the folder.

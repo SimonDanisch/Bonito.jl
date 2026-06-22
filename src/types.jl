@@ -350,18 +350,17 @@ mutable struct RootSession{Connection <: FrontendConnection}
     # rendering/hyperscript_integration.jl) is called from any task that touches
     # a render — concurrent renders would otherwise hand out the same id to
     # multiple nodes, causing JS-side DOM lookups by data-jscall-id to collide.
-    # See test/race_conditions_audit.jl F6.
     dom_uuid_counter::Threads.Atomic{Int}
     compression_enabled::Bool
     deletion_lock::Base.ReentrantLock
     threadid::Int
     # User metadata storage. Always accessed via the root.
     metadata::Dict{Symbol, Any}
-    # Listener-after-close handshake (see test/key_not_found_race.jl). `closing`
+    # Listener-after-close handshake. `closing`
     # (set + read under `deletion_lock`) stops `process_message` from starting
     # new `UpdateObservable` dispatches once close begins; `dispatch_count`
     # counts in-flight listener dispatches, which run OUTSIDE `deletion_lock`
-    # (B1) so `close` can drain them before flipping the session to CLOSED.
+    # so `close` can drain them before flipping the session to CLOSED.
     closing::Bool
     dispatch_count::Threads.Atomic{Int}
 end
@@ -586,7 +585,7 @@ function Session(connection::Connection=default_connection();
                  compression_enabled=default_compression(),
                  ignore_message=RefValue{Function}(x -> false),
                  n_inbox=1024) where {Connection <: FrontendConnection}
-    # Finite inbox capacity (B22): an unbounded `Channel(Inf)` let a flooding
+    # Finite inbox capacity: an unbounded `Channel(Inf)` let a flooding
     # frontend — or a wedged reader (e.g. deletion_lock contention) — grow the
     # inbox without limit, pinning memory and spawning unbounded work. A
     # bounded buffer applies backpressure to the WS read loop's `put!` instead.
@@ -635,7 +634,7 @@ function Session(connection::Connection=default_connection();
     # collects the resulting Session ↔ inbox ↔ task ↔ closure cycle once
     # nothing outside it holds the session.
     task = Task() do
-        # Process inbox messages SEQUENTIALLY (B22). The old per-message
+        # Process inbox messages SEQUENTIALLY. The old per-message
         # `@async` removed all ordering guarantees: an `UpdateObservable`
         # could be overtaken by a later message and a stale value would win.
         # The branches that genuinely need to run off the reader (so they
@@ -739,7 +738,7 @@ function loading_page_handler(app, loadingpage, handler, session, request)
     app.loading_task[] = @async try
         obs[] = handler(session, request)
     catch err
-        # B32: record the error on the session (mirrors the synchronous path's
+        # Record the error on the session (mirrors the synchronous path's
         # `handle_render_error`) so `isready`/`wait_for_ready`/the connection
         # indicator learn the handler failed — otherwise waiters see a "healthy"
         # session that merely shows an error div, and the failure is invisible.

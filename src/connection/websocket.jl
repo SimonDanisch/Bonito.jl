@@ -48,7 +48,7 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
         # Only tear down if THIS loop's socket is still the handler's current
         # one. A stale loop (old socket that finally died after the browser
         # reconnected and installed a new socket) must NOT close the session
-        # now owned by the live socket (B3).
+        # now owned by the live socket.
         if !is_current_socket(connection.handler, websocket)
             @debug("Stale ws loop for $(session.id) exiting; not tearing down")
         elseif allow_soft_close(CLEANUP_POLICY[])
@@ -66,7 +66,7 @@ end
 const SERVER_CLEANUP_TASKS = Dict{Server, Tuple{Task, Base.Threads.Atomic{Bool}}}()
 # `get!`/`delete!` on SERVER_CLEANUP_TASKS run from render tasks (via
 # `setup_connection` → `add_cleanup_task!`) and from `close(server)`. The Dict
-# has no internal synchronization, so concurrent access races a rehash (B7).
+# has no internal synchronization, so concurrent access races a rehash.
 const SERVER_CLEANUP_LOCK = Base.ReentrantLock()
 
 """
@@ -168,7 +168,7 @@ function cleanup_server(server::Server)
     # *while* calling close therefore inverts the order any user-initiated
     # close uses (deletion_lock → routes_lock) — the two paths can
     # deadlock. Snapshot the to-close set under routes_lock, RELEASE it,
-    # then close. See test/race_conditions_audit.jl F7.
+    # then close.
     remove = FrontendConnection[]
     lock(server.websocket_routes.lock) do
         for (route, connection) in server.websocket_routes.table
@@ -217,7 +217,7 @@ end
 Stop and forget `server`'s 1-Hz cleanup task. Without this, the task runs
 forever and the `SERVER_CLEANUP_TASKS` entry keeps a strong ref chain
 (Dict → Server → routes → sessions) alive, defeating GC for every server ever
-created (B7). `close(server)` should call this. Idempotent / safe to call on a
+created. `close(server)` should call this. Idempotent / safe to call on a
 server that never had a cleanup task.
 """
 function stop_cleanup_task!(server::Server)

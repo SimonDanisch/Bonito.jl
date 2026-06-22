@@ -396,7 +396,8 @@ function domify(ctx::DCtx, node::MA.Node, other)
     @debug "BonitoDocumenter: no domify method for $(typeof(other)); flattening to text."
     txt = try
         Documenter.MDFlatten.mdflatten(node)
-    catch
+    catch e
+        @debug "BonitoDocumenter: mdflatten failed, falling back to string()" exception = e
         string(other)
     end
     return DOM.div(txt)

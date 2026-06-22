@@ -37,7 +37,7 @@ function (x::JSUpdateObservable)(@nospecialize(value))
         end
     catch e
         # Don't swallow real failures at @debug — a serialization/pack error
-        # here means the frontend silently stops updating (B30). Record it on
+        # here means the frontend silently stops updating. Record it on
         # the session (surfaces via the connection indicator + `isready`) and
         # log at @error with a backtrace so it's diagnosable.
         @error "Error while sending update for JSUpdateObservable" exception=(e, catch_backtrace())
@@ -54,8 +54,8 @@ frontend session that originated it.
 ONLY that session's `JSUpdateObservable` (so the value doesn't bounce back to
 the tab that sent it), but still fire every OTHER session's updater — when two
 browser sessions share one observable, session B has to see A's update.
-Skipping all `JSUpdateObservable`s (the old behavior) silently desynced them
-(B15). All non-`JSUpdateObservable` listeners (user `on`/`map`) always fire.
+Skipping all `JSUpdateObservable`s (the old behavior) silently desynced them.
+All non-`JSUpdateObservable` listeners (user `on`/`map`) always fire.
 """
 function update_nocycle!(obs::Observable, @nospecialize(value), origin::Union{Session,Nothing}=nothing)
     obs.val = value
@@ -79,7 +79,7 @@ function Observables.on(f, session::Session, observable::Observable; update=fals
     # If the session already closed (a late render task running after
     # `free(session)` emptied `deregister_callbacks`), nothing will ever
     # deregister this listener — it would leak permanently and keep firing
-    # into a dead session (B31). Deregister immediately instead.
+    # into a dead session. Deregister immediately instead.
     if isclosed(session)
         off(to_deregister)
         return to_deregister

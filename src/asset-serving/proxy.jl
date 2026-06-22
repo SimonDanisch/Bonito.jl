@@ -19,7 +19,7 @@
 
 # Bytes the host must serve for an asset (read lazily so we only touch the file
 # when shipping eagerly).
-# B17: snapshot the bundle bytes under the per-asset lock so a concurrent
+# Snapshot the bundle bytes under the per-asset lock so a concurrent
 # `bundle!` can't tear the vector while we ship it to the host.
 proxy_asset_bytes(asset::Asset) =
     isempty(asset.bundle_data) ? read(local_path(asset)) : bundle_data_snapshot(asset)
@@ -79,7 +79,7 @@ function url(server::ProxyAssetServer, asset::AbstractAsset)
     is_online(asset) && return online_path(asset)
     key = unique_file_key(asset)
     reg = server.registry
-    # B39: `proxy_asset_add` is a Malt `remote_call` to the worker. Running it
+    # `proxy_asset_add` is a Malt `remote_call` to the worker. Running it
     # under `reg.lock` pins every other lock taker (e.g. `close`) on a dead /
     # slow worker. Decide the 0→1 transition under the lock, then issue the
     # remote call after releasing it. The refcount bookkeeping (incl. claiming
@@ -109,7 +109,7 @@ end
 # Releasing this (sub)session's refs; on 1→0 tell the host to drop the key.
 function Base.close(server::ProxyAssetServer)
     reg = server.registry
-    # B39: collect the 1→0 keys under the lock, then fire `proxy_asset_remove`
+    # Collect the 1→0 keys under the lock, then fire `proxy_asset_remove`
     # (a Malt remote_call) outside it, so a dead worker can't wedge the lock.
     to_remove = lock(reg.lock) do
         removed = String[]
@@ -150,7 +150,7 @@ mediatype(asset::RemoteAsset) = Symbol(HTTPServer.mimetype_to_extension(asset.mi
 is_online(::RemoteAsset) = false
 unique_file_key(asset::RemoteAsset) = asset.key
 
-# B39: a `proxy_fetch` to a dead/hung worker would otherwise pin the host HTTP
+# A `proxy_fetch` to a dead/hung worker would otherwise pin the host HTTP
 # task forever. Run it on a spawned task and give up after a bounded wait,
 # returning a 504 instead of hanging. (The spawned task may still be parked on
 # the dead worker, but the HTTP task is freed.)

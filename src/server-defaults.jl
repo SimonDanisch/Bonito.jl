@@ -1,5 +1,5 @@
 const GLOBAL_SERVER = Ref{Union{Server,Nothing}}(nothing)
-# B25: `singleton_server` does a check-then-create on `GLOBAL_SERVER`; two
+# `singleton_server` does a check-then-create on `GLOBAL_SERVER`; two
 # concurrent render tasks could otherwise both see `nothing` and each spin up a
 # Server, the loser leaking a listening socket forever. Serialize the whole
 # check-create-recreate with this lock.

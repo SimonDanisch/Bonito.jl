@@ -207,7 +207,7 @@ end
 
 function jsrender(session::Session, widget::TerminalOutput)
     html_obs = Observable(HTML(""))
-    # B21: scope to `session` so `free(session)` deregisters this listener;
+    # Scope to `session` so `free(session)` deregisters this listener;
     # otherwise every render of a long-lived TerminalOutput leaks one permanent
     # listener on `widget.content`.
     on(session, widget.content) do str

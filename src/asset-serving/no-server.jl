@@ -64,7 +64,7 @@ setup_asset_server(::AbstractAssetFolder) = nothing
 
 subdir(asset::Union{BinaryAsset,Asset}) = string(mediatype(asset))
 
-# B43: these referenced an undefined `link` (UndefVarError if ever called) —
+# These referenced an undefined `link` (UndefVarError if ever called) —
 # the parameter is `asset`.
 desired_location(assetfolder, asset::Link) = asset.target
 write_to_assetfolder(assetfolder, asset::Link) = asset.target
@@ -72,7 +72,7 @@ write_to_assetfolder(assetfolder, asset::Link) = asset.target
 function desired_location(assetfolder, asset)
     folder = abspath(assetfolder.folder)
     path = abspath(local_path(asset))
-    # B43: `occursin` treats `/data/site-backup` as inside `/data/site`; use a
+    # `occursin` treats `/data/site-backup` as inside `/data/site`; use a
     # proper segment-aware containment check.
     if !is_path_contained(folder, path)
         file = basename(path)

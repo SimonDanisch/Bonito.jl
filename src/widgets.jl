@@ -275,7 +275,7 @@ function Dropdown(options; index=1, option_to_string=string, style=Styles(), att
     options = convert(Observable{Vector{Any}}, options)
     option = Observable{Any}(options[][option_index[]])
     onany(option_index, options) do index, options
-        # B19: when `options` shrinks, a stale `option_index` would index out of
+        # When `options` shrinks, a stale `option_index` would index out of
         # bounds inside this notify chain (BoundsError). Clamp the index to the
         # current option range; correct `option_index` itself if it drifted.
         isempty(options) && return nothing
@@ -313,7 +313,7 @@ function jsrender(session::Session, dropdown::Dropdown)
             // https://stackoverflow.com/questions/3364493/how-do-i-clear-all-options-in-a-dropdown-box
             element.options.length = 0;
             opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
-            // B19: resetting selectedIndex to 0 here silently desynced Julia,
+            // Resetting selectedIndex to 0 here silently desynced Julia,
             // which still believed the old `option_index`. Notify it (1-based)
             // so both sides agree on the new selection.
             if ($(dropdown.option_index).value !== 1) {
@@ -363,7 +363,7 @@ function Slider(values::AbstractArray{T}; value=first(values), kw...) where {T}
     initial_idx = slider_value_index(values_obs[], value)
     index = Observable(initial_idx)
     value_obs = Observable(values_obs[][initial_idx])
-    # B20: keep `value` in sync with `index` Julia-side, so `slider.index[] = 5`
+    # Keep `value` in sync with `index` Julia-side, so `slider.index[] = 5`
     # updates `slider.value` immediately — offline, before the page loads, and
     # in static exports — instead of only via a browser round-trip (which also
     # made echoes apply out of order). Clamp the index against the current
@@ -383,7 +383,7 @@ function jsrender(session::Session, slider::Slider)
     values = slider.values
     index = slider.index
     value = slider.value
-    # B20: `value` is derived from `index` Julia-side in the constructor, so
+    # `value` is derived from `index` Julia-side in the constructor, so
     # `slider.index[] = 5` updates `slider.value` immediately (offline / before
     # the page loads). In a *live* session the browser notifies `index` and the
     # Julia-side map keeps `value` in sync. But a static export has no Julia, so
@@ -396,7 +396,7 @@ function jsrender(session::Session, slider::Slider)
         DOM.input(;
             type="range",
             min=1,
-            # B21: session-scope the derived observable so `free(session)`
+            # Session-scope the derived observable so `free(session)`
             # deregisters it — a bare `map(length, values)` leaks one permanent
             # listener per render of a long-lived widget (the bt_show_app pattern).
             max=map(length, session, values),
@@ -412,7 +412,7 @@ function jsrender(session::Session, slider::Slider)
                     }
                 }
             }""",
-            # B42: was `style=styles`, which is the `Hyperscript.styles`
+            # Was `style=styles`, which is the `Hyperscript.styles`
             # *function* leaking into the attribute (no local `styles` binding
             # exists). Style, if any, is passed through `slider.attributes`.
             slider.attributes...,
@@ -914,7 +914,7 @@ struct FileInput <: Bonito.WidgetsBase.AbstractWidget{String}
     multiple::Bool
 end
 
-# B41: previously this discarded the caller's observable and substituted a
+# Previously this discarded the caller's observable and substituted a
 # fresh `Observable([""])`, so a user passing their own value observable never
 # saw file selections. Keep the supplied observable.
 FileInput(value::Observable{Vector{String}}; multiple = true) = FileInput(value, multiple)
