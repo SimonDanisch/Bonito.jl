@@ -1,0 +1,685 @@
+<!doctype html>
+<html class="bonito-fragment"><head><script src="bonito/js/Bonito.bundled1018692352274101644.js" type="module"></script><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta charset="UTF-8" /><title>Widgets</title><style>.style_2 {
+  min-width: 8rem;
+  font-weight: 500;
+  padding-right: 0.75rem;
+  border-color: var(--bonito-widget-border, #9CA3AF);
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: var(--bonito-widget-bg, white);
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  color: var(--bonito-widget-fg, inherit);
+  margin: 0.25rem;
+}
+.style_3:hover {
+  background-color: silver;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+.style_4:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 0px 5px;
+  outline: 1px solid transparent;
+}
+.style_5 {
+  height: 200px;
+  padding: 20px;
+  background-color: white;
+  box-shadow: 0 0 10px blue;
+  width: 200px;
+  border-radius: 20px;
+  margin: 20px;
+}
+.style_6hover {
+  background-color: lightgray;
+}
+.style_7 {
+  height: 10.0px;
+  border: 1px solid black;
+  background-color: lightblue;
+  position: absolute;
+  width: 100%;
+  border-radius: 3px;
+}
+.style_8 {
+  height: 12.0px;
+  border: 1px solid var(--bonito-widget-border, #ccc);
+  background-color: #F0F8FF;
+  position: absolute;
+  width: 0px;
+  border-radius: 3px;
+}
+.style_9 {
+  left: -10.0px;
+  height: 20px;
+  border: 1px solid black;
+  background-color: #fff;
+  position: absolute;
+  width: 20px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.style_10 {
+  align-items: center;
+  display: grid;
+  background-color: transparent;
+  grid-template-columns: 1fr;
+  padding-right: 12.0px;
+  position: relative;
+  border-radius: 0px;
+  grid-template-rows: 20px;
+  margin: 6px;
+  padding-left: 12.0px;
+}
+.style_11 {
+  height: 7.5px;
+  border: 1px solid var(--bonito-widget-border, #ccc);
+  background-color: var(--bonito-widget-muted-bg, #eee);
+  position: absolute;
+  width: 100%;
+  border-radius: 3px;
+}
+.style_12 {
+  height: 9.5px;
+  border: 1px solid var(--bonito-widget-border, #ccc);
+  background-color: var(--bonito-widget-border, #ddd);
+  position: absolute;
+  width: 0px;
+  border-radius: 3px;
+}
+.style_13 {
+  left: -7.5px;
+  height: 15px;
+  border: 1px solid var(--bonito-widget-border, #ccc);
+  background-color: var(--bonito-widget-bg, #fff);
+  position: absolute;
+  width: 15px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.style_14 {
+  align-items: center;
+  display: grid;
+  background-color: transparent;
+  grid-template-columns: 1fr;
+  padding-right: 9.5px;
+  position: relative;
+  margin: 5px;
+  grid-template-rows: 15px;
+  padding-left: 9.5px;
+}
+.style_15 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  padding: 3px;
+  text-shadow: 0px 0px 10px black, 1px 1px 3px black;
+  color: white;
+}
+.style_16 {
+  justify-items: stretch;
+  align-items: center;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: 1fr;
+  justify-content: normal;
+  grid-template-columns: 1fr min-content;
+  width: auto;
+  grid-template-areas: none;
+}
+.style_17 {
+  height: auto;
+  padding: 12px;
+  background-color: gray;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  width: auto;
+  border-radius: 10px;
+  margin: 2px;
+}
+.style_18 {
+  min-width: 8rem;
+  font-weight: 600;
+  padding-right: 0.75rem;
+  border-color: var(--bonito-widget-border, #9CA3AF);
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: var(--bonito-widget-bg, white);
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  color: var(--bonito-widget-fg, inherit);
+  margin: 0.25rem;
+}
+.style_19:hover {
+  background-color: var(--bonito-widget-hover-bg, #F9FAFB);
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+.style_20:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(66, 153, 225, 0.5) 0px 0px 0px 1px;
+  outline: 1px solid transparent;
+}
+.style_21 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.style_22 {
+  justify-items: legacy;
+  align-items: center;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: begin;
+  grid-template-columns: 1fr min-content;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_23 {
+  height: auto;
+  padding: 12px;
+  background-color: rgba(255.0, 255.0, 255.0, 0.2);
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  width: 300px;
+  border-radius: 10px;
+  margin: 2px;
+}
+.style_24 {
+  height: 300px;
+  position: relative;
+}
+.style_25 {
+  min-width: auto;
+  font-weight: 600;
+  padding-right: 0.75rem;
+  border-color: var(--bonito-widget-border, #9CA3AF);
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: var(--bonito-widget-bg, white);
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  color: var(--bonito-widget-fg, inherit);
+  margin: 0.25rem;
+  transform: scale(1.5);
+}
+.style_26 {
+  height: 200px;
+  position: relative;
+}
+</style><style>.comparison-table {
+  border-collapse: collapse;
+  font-family: Arial, sans-serif;
+  width: 100%;
+}
+.table-header {
+  border: 1px solid var(--bonito-widget-border, #ddd);
+  background-color: var(--bonito-widget-muted-bg, #f5f5f5);
+  font-weight: bold;
+  padding: 8px;
+  user-select: none;
+  color: var(--bonito-widget-fg, inherit);
+  text-align: left;
+  cursor: pointer;
+}
+.table-header:hover {
+  background-color: var(--bonito-widget-hover-bg, #e9e9e9);
+}
+.table-cell {
+  border: 1px solid var(--bonito-widget-border, #ddd);
+  padding: 8px;
+  text-align: left;
+}
+.table-row:hover .table-cell {
+  background-color: var(--bonito-widget-hover-bg, #f9f9f9);
+}
+.cell-good {
+  background-color: #d4edda;
+  color: #155724;
+}
+.cell-bad {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+.cell-neutral {
+  background-color: #fff3cd;
+  color: #856404;
+}
+.cell-default {
+  background-color: var(--bonito-widget-bg, white);
+  color: var(--bonito-widget-fg, black);
+}
+.table-container {
+  overflow-x: auto;
+}
+</style><style>@media (prefers-color-scheme: light) {
+  :root {
+    --bonito-widget-fg: #1a1a1a;
+    --bonito-widget-accent: #3182bb;
+    --bonito-widget-bg: #ffffff;
+    --bonito-widget-border: #9ca3af;
+    --bonito-widget-hover-bg: #f3f4f6;
+    --bonito-widget-muted-bg: #f3f4f6;
+    accent-color: #3182bb;
+    color-scheme: light;
+  }
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bonito-widget-fg: #e8e8ea;
+    --bonito-widget-accent: #6ea8e0;
+    --bonito-widget-bg: #2a2a2e;
+    --bonito-widget-border: #52525b;
+    --bonito-widget-hover-bg: #3a3a40;
+    --bonito-widget-muted-bg: #36363c;
+    accent-color: #6ea8e0;
+    color-scheme: dark;
+  }
+}
+html .noUi-target {
+  border-color: var(--bonito-widget-border, #d3d3d3);
+  box-shadow: none;
+  background: var(--bonito-widget-muted-bg, #fafafa);
+}
+html .noUi-connects {
+  background: var(--bonito-widget-muted-bg, #fafafa);
+}
+html .noUi-connect {
+  background: var(--bonito-widget-accent, #3182bb);
+}
+html .noUi-handle {
+  border-color: var(--bonito-widget-border, #d3d3d3);
+  box-shadow: none;
+  background: var(--bonito-widget-bg, #fff);
+}
+html .noUi-handle::before {
+  background: var(--bonito-widget-border, #d3d3d3);
+}
+html .noUi-handle::after {
+  background: var(--bonito-widget-border, #d3d3d3);
+}
+html .noUi-tooltip {
+  border-color: var(--bonito-widget-border, #d3d3d3);
+  color: var(--bonito-widget-fg, #000);
+  background: var(--bonito-widget-bg, #fff);
+}
+html .noUi-marker {
+  background: var(--bonito-widget-border, #ccc);
+}
+html .noUi-value {
+  color: var(--bonito-widget-fg, inherit);
+}
+</style><script>    window.__define = window.define;
+    window.__require = window.require;
+    window.define = undefined;
+    window.require = undefined;
+</script><link href="bonito/css/theme1151101740082275702.css" rel="stylesheet" type="text/css" /><link href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" rel="stylesheet" type="text/css" /><script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script><script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script><script src="bonito/js/docs4657619327909430185.js"></script><link href="bonito/css/tailwind.min8774971868340764599.css" rel="stylesheet" type="text/css" /><link href="bonito/css/noUISlider17745511426356288094.css" rel="stylesheet" type="text/css" /><script src="bonito/js/nouislider.min.bundled113311460393021395.js" type="module"></script><script>    window.define = window.__define;
+    window.require = window.__require;
+    window.__define = undefined;
+    window.__require = undefined;
+</script></head><body><script type="module">Bonito.init_session("ba6aff45-530b-40d2-a734-804cd7e10eee", Bonito.fetch_binary('bonito/bin/97b9fbe294e2a5e494036acf197fd934e90c8b4a-6092553025634565991.bin'), "root", false);
+</script><div id="ba6aff45-530b-40d2-a734-804cd7e10eee" data-jscall-id="root"><div class="bonito-docs vp-layout" data-jscall-id="1"><div class="VPNav" data-jscall-id="2"><div class="container" data-jscall-id="3"><a class="title" href="index.html" data-jscall-id="4"><img alt="Bonito" data-jscall-id="5" src="assets/bonito-dark.svg" /><span data-jscall-id="6">Bonito</span></a><div class="content" data-jscall-id="7"><div class="nav-links" data-jscall-id="8"><a href="blog.html" data-jscall-id="9">Blog</a></div><button class="search-btn" data-open-search="true" data-jscall-id="10" type="button"><span style="display:inline-flex" data-jscall-id="11"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></span><span data-jscall-id="12">Search</span><span class="kbd" data-jscall-id="13">Ctrl K</span></button><div class="VPVersion" data-jscall-id="14"><script data-jscall-id="15" src="../versions.js"></script><button class="trigger" data-jscall-id="16" type="button"><span data-jscall-id="17">dev</span><span data-jscall-id="18">▾</span></button><div class="menu" data-jscall-id="19" data-versions="true"></div></div><a class="icon-btn" href="https://github.com/SimonDanisch/Bonito.jl" data-jscall-id="20" target="_blank" title="GitHub"><span style="display:inline-flex" data-jscall-id="21"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path></svg></span></a><button data-toggle-theme="true" class="icon-btn" data-jscall-id="22" title="Toggle theme" type="button"><span style="display:inline-flex" data-jscall-id="23"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg></span></button><button class="icon-btn hamburger" data-jscall-id="24" data-toggle-sidebar="true" title="Menu" type="button"><span style="display:inline-flex" data-jscall-id="25"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></span></button></div></div></div><div class="VPContent" data-jscall-id="26"><nav class="VPSidebar" data-jscall-id="27"><a class="link" href="index.html" data-jscall-id="28">Home</a><a class="link" href="app.html" data-jscall-id="29">App</a><div class="group" data-jscall-id="30"><div class="group-title" data-jscall-id="31">Components</div><a class="link" href="styling.html" data-jscall-id="32">Styling</a><a class="link" href="components.html" data-jscall-id="33">Components</a><a class="link" href="layouting.html" data-jscall-id="34">Layouting</a><a class="link active" href="widgets.html" data-jscall-id="35">Widgets</a><a class="link" href="interactions.html" data-jscall-id="36">Interactions</a></div><div class="group" data-jscall-id="37"><div class="group-title" data-jscall-id="38">Examples</div><a class="link" href="plotting.html" data-jscall-id="39">Plotting</a><a class="link" href="javascript-libraries.html" data-jscall-id="40">Wrapping JS libraries</a><a class="link" href="assets.html" data-jscall-id="41">Assets</a><a class="link" href="extending.html" data-jscall-id="42">Extending</a></div><a class="link" href="handlers.html" data-jscall-id="43">Handlers</a><a class="link" href="deployment.html" data-jscall-id="44">Deployment</a><a class="link" href="static.html" data-jscall-id="45">Static Sites</a><a class="link" href="api.html" data-jscall-id="46">Api</a></nav><div class="VPSidebar-backdrop" data-jscall-id="47"></div><div class="VPMain" data-jscall-id="48"><div class="VPDoc" data-jscall-id="49"><div class="doc-container" data-jscall-id="50"><div class="doc-content" data-jscall-id="51"><div class="vp-doc" data-jscall-id="52"><h1 id="Widgets" data-jscall-id="53">Widgets<a class="header-anchor" href="#Widgets" data-jscall-id="54" aria-label="Permalink">​#</a></h1><h2 id="All-Available-widgets" data-jscall-id="55">All Available widgets<a class="header-anchor" href="#All-Available-widgets" data-jscall-id="56" aria-label="Permalink">​#</a></h2><details open="true" class="jldocstring custom-block" data-jscall-id="57"><summary data-jscall-id="58"><a id="WidgetsBase.Button-widgets" data-jscall-id="59" href="#WidgetsBase.Button-widgets"><span class="jlbinding" data-jscall-id="60">WidgetsBase.Button</span></a><span class="VPBadge info" data-jscall-id="61">Type</span></summary><div class="docstring-body" data-jscall-id="62"><div class="language-julia" data-jscall-id="63"><span class="lang" data-jscall-id="64"><span>julia</span></span><button class="copy" data-jscall-id="65" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="66"><code class="language-julia" data-jscall-id="67">Button&#40;name; style&#61;Styles&#40;&#41;, dom_attributes...&#41;</code></pre></div><p data-jscall-id="68">A simple button, which can be styled a <code data-jscall-id="69">style::Styles</code>. Set kwarg <code data-jscall-id="70">style&#61;nothing</code> to turn off the default Bonito styling.</p><p data-jscall-id="71"><strong data-jscall-id="72">Example</strong></p><div class="language-julia" data-jscall-id="73"><span class="lang" data-jscall-id="74"><span>julia</span></span><button class="copy" data-jscall-id="75" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="76"><code class="language-julia" data-jscall-id="77">App&#40;&#41; do
+    style &#61; Styles&#40;
+        CSS&#40;&#34;font-weight&#34; &#61;&#62; &#34;500&#34;&#41;,
+        CSS&#40;&#34;:hover&#34;, &#34;background-color&#34; &#61;&#62; &#34;silver&#34;&#41;,
+        CSS&#40;&#34;:focus&#34;, &#34;box-shadow&#34; &#61;&#62; &#34;rgba&#40;0, 0, 0, 0.5&#41; 0px 0px 5px&#34;&#41;,
+    &#41;
+    button &#61; Button&#40;&#34;Click me&#34;; style&#61;style&#41;
+    on&#40;button.value&#41; do click::Bool
+        &#64;info &#34;Button clicked&#33;&#34;
+    end
+    return button
+end
+</code></pre></div><a class="VPBadge info source-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/187c81eb2497a829eb9d69f3c3b1591e74dec05f/src/widgets.jl#L112-L123" data-jscall-id="78" rel="noreferrer" target="_blank">source</a></div></details><div class="bonito-output" data-jscall-id="79"><button onclick="" class=" style_2 style_3 style_4" style="" data-jscall-id="80">Click me</button></div><details open="true" class="jldocstring custom-block" data-jscall-id="81"><summary data-jscall-id="82"><a id="WidgetsBase.TextField-widgets" data-jscall-id="83" href="#WidgetsBase.TextField-widgets"><span class="jlbinding" data-jscall-id="84">WidgetsBase.TextField</span></a><span class="VPBadge info" data-jscall-id="85">Type</span></summary><div class="docstring-body" data-jscall-id="86"><div class="language-julia" data-jscall-id="87"><span class="lang" data-jscall-id="88"><span>julia</span></span><button class="copy" data-jscall-id="89" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="90"><code class="language-julia" data-jscall-id="91">TextField&#40;default_text; style&#61;Styles&#40;&#41;, dom_attributes...&#41;</code></pre></div><p data-jscall-id="92">A simple TextField, which can be styled via the <code data-jscall-id="93">style::Styles</code> attribute, <code data-jscall-id="94">style&#61;nothing</code> turns off the default Bonito styling.</p><p data-jscall-id="95"><strong data-jscall-id="96">Example</strong></p><div class="language-julia" data-jscall-id="97"><span class="lang" data-jscall-id="98"><span>julia</span></span><button class="copy" data-jscall-id="99" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="100"><code class="language-julia" data-jscall-id="101">App&#40;&#41; do
+    style &#61; Styles&#40;
+        CSS&#40;&#34;font-weight&#34; &#61;&#62; &#34;500&#34;&#41;,
+        CSS&#40;&#34;:hover&#34;, &#34;background-color&#34; &#61;&#62; &#34;silver&#34;&#41;,
+        CSS&#40;&#34;:focus&#34;, &#34;box-shadow&#34; &#61;&#62; &#34;rgba&#40;0, 0, 0, 0.5&#41; 0px 0px 5px&#34;&#41;,
+    &#41;
+    textfield &#61; TextField&#40;&#34;write something&#34;; style&#61;style&#41;
+    on&#40;textfield.value&#41; do text::String
+        &#64;info text
+    end
+    return textfield
+end
+</code></pre></div><a class="VPBadge info source-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/187c81eb2497a829eb9d69f3c3b1591e74dec05f/src/widgets.jl#L155-L166" data-jscall-id="102" rel="noreferrer" target="_blank">source</a></div></details><div class="bonito-output" data-jscall-id="103"><input class=" style_2 style_3 style_4" style="" data-jscall-id="104" value="write something" onchange="" type="textfield" autocomplete="off" /></div><details open="true" class="jldocstring custom-block" data-jscall-id="105"><summary data-jscall-id="106"><a id="WidgetsBase.NumberInput-widgets" data-jscall-id="107" href="#WidgetsBase.NumberInput-widgets"><span class="jlbinding" data-jscall-id="108">WidgetsBase.NumberInput</span></a><span class="VPBadge info" data-jscall-id="109">Type</span></summary><div class="docstring-body" data-jscall-id="110"><div class="language-julia" data-jscall-id="111"><span class="lang" data-jscall-id="112"><span>julia</span></span><button class="copy" data-jscall-id="113" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="114"><code class="language-julia" data-jscall-id="115">NumberInput&#40;default_value; style&#61;Styles&#40;&#41;, dom_attributes...&#41;</code></pre></div><p data-jscall-id="116">A simple NumberInput, which can be styled via the <code data-jscall-id="117">style::Styles</code> attribute, <code data-jscall-id="118">style&#61;nothing</code> turns off the default Bonito styling.</p><p data-jscall-id="119"><strong data-jscall-id="120">Example</strong></p><div class="language-julia" data-jscall-id="121"><span class="lang" data-jscall-id="122"><span>julia</span></span><button class="copy" data-jscall-id="123" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="124"><code class="language-julia" data-jscall-id="125">App&#40;&#41; do
+    style &#61; Styles&#40;
+        CSS&#40;&#34;font-weight&#34; &#61;&#62; &#34;500&#34;&#41;,
+        CSS&#40;&#34;:hover&#34;, &#34;background-color&#34; &#61;&#62; &#34;silver&#34;&#41;,
+        CSS&#40;&#34;:focus&#34;, &#34;box-shadow&#34; &#61;&#62; &#34;rgba&#40;0, 0, 0, 0.5&#41; 0px 0px 5px&#34;&#41;,
+    &#41;
+    numberinput &#61; NumberInput&#40;0.0; style&#61;style&#41;
+    on&#40;numberinput.value&#41; do value::Float64
+        &#64;info value
+    end
+    return numberinput
+end
+</code></pre></div><a class="VPBadge info source-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/187c81eb2497a829eb9d69f3c3b1591e74dec05f/src/widgets.jl#L201-L212" data-jscall-id="126" rel="noreferrer" target="_blank">source</a></div></details><div class="bonito-output" data-jscall-id="127"><input class=" style_2 style_3 style_4" style="" data-jscall-id="128" value="0.0" onchange="" type="number" autocomplete="off" /></div><details open="true" class="jldocstring custom-block" data-jscall-id="129"><summary data-jscall-id="130"><a id="Bonito.Dropdown-widgets" data-jscall-id="131" href="#Bonito.Dropdown-widgets"><span class="jlbinding" data-jscall-id="132">Bonito.Dropdown</span></a><span class="VPBadge info" data-jscall-id="133">Type</span></summary><div class="docstring-body" data-jscall-id="134"><div class="language-julia" data-jscall-id="135"><span class="lang" data-jscall-id="136"><span>julia</span></span><button class="copy" data-jscall-id="137" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="138"><code class="language-julia" data-jscall-id="139">Dropdown&#40;options; index&#61;1, option_to_string&#61;string, style&#61;Styles&#40;&#41;, dom_attributes...&#41;</code></pre></div><p data-jscall-id="140">A simple Dropdown, which can be styled via the <code data-jscall-id="141">style::Styles</code> attribute, <code data-jscall-id="142">style&#61;nothing</code> turns off the default Bonito styling.</p><p data-jscall-id="143"><strong data-jscall-id="144">Example</strong></p><div class="language-julia" data-jscall-id="145"><span class="lang" data-jscall-id="146"><span>julia</span></span><button class="copy" data-jscall-id="147" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="148"><code class="language-julia" data-jscall-id="149">App&#40;&#41; do
+    style &#61; Styles&#40;
+        CSS&#40;&#34;font-weight&#34; &#61;&#62; &#34;500&#34;&#41;,
+        CSS&#40;&#34;:hover&#34;, &#34;background-color&#34; &#61;&#62; &#34;silver&#34;&#41;,
+        CSS&#40;&#34;:focus&#34;, &#34;box-shadow&#34; &#61;&#62; &#34;rgba&#40;0, 0, 0, 0.5&#41; 0px 0px 5px&#34;&#41;,
+    &#41;
+    dropdown &#61; Dropdown&#40;&#91;&#34;a&#34;, &#34;b&#34;, &#34;c&#34;&#93;; index&#61;2, style&#61;style&#41;
+    on&#40;dropdown.value&#41; do value
+        &#64;info value
+    end
+    return dropdown
+end
+</code></pre></div><a class="VPBadge info source-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/187c81eb2497a829eb9d69f3c3b1591e74dec05f/src/widgets.jl#L252-L263" data-jscall-id="150" rel="noreferrer" target="_blank">source</a></div></details><div class="bonito-output" data-jscall-id="151"><select class=" style_2 style_3 style_4" style="" data-jscall-id="152" autocomplete="off"><option data-jscall-id="153">a</option><option data-jscall-id="154">b</option><option data-jscall-id="155">c</option></select></div><details open="true" class="jldocstring custom-block" data-jscall-id="156"><summary data-jscall-id="157"><a id="Bonito.Card" data-jscall-id="158" href="#Bonito.Card"><span class="jlbinding" data-jscall-id="159">Bonito.Card</span></a><span class="VPBadge info" data-jscall-id="160">Function</span></summary><div class="docstring-body" data-jscall-id="161"><div class="language-julia" data-jscall-id="162"><span class="lang" data-jscall-id="163"><span>julia</span></span><button class="copy" data-jscall-id="164" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="165"><code class="language-julia" data-jscall-id="166">Card&#40;
+    content;
+    style::Styles&#61;Styles&#40;&#41;,
+    backgroundcolor&#61;RGBA&#40;1, 1, 1, 0.2&#41;,
+    shadow_size&#61;&#34;0 4px 8px&#34;,
+    padding&#61;&#34;12px&#34;,
+    margin&#61;&#34;2px&#34;,
+    shadow_color&#61;RGBA&#40;0, 0, 0.2, 0.2&#41;,
+    width&#61;&#34;auto&#34;,
+    height&#61;&#34;auto&#34;,
+    border_radius&#61;&#34;10px&#34;,
+    div_attributes...,
+&#41;</code></pre></div><p data-jscall-id="167">A Card is a container with a shadow and rounded corners. It is a good way to group elements together and make them stand out from the background. One can easily style them via the above keyword arguments or via the <code data-jscall-id="168">style</code> argument with any CSS attribute.</p><p data-jscall-id="169"><strong data-jscall-id="170">Example</strong></p><div class="language-julia" data-jscall-id="171"><span class="lang" data-jscall-id="172">julia</span><button class="copy" data-jscall-id="173" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="174"><code class="language-julia" data-jscall-id="175">    App&#40;&#41; do
+        Card&#40;
+            DOM.h1&#40;&#34;This is a card&#34;&#41;;
+            width&#61;&#34;200px&#34;,
+            height&#61;&#34;200px&#34;,
+            backgroundcolor&#61;&#34;white&#34;,
+            shadow_size&#61;&#34;0 0 10px&#34;,
+            shadow_color&#61;&#34;blue&#34;,
+            padding&#61;&#34;20px&#34;,
+            margin&#61;&#34;20px&#34;,
+            border_radius&#61;&#34;20px&#34;,
+            style &#61; Styles&#40;
+                CSS&#40;&#34;hover&#34;, &#34;background-color&#34; &#61;&#62; &#34;lightgray&#34;&#41;
+            &#41;
+        &#41;
+    end
+</code></pre></div><a class="VPBadge info source-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/187c81eb2497a829eb9d69f3c3b1591e74dec05f/src/components.jl#L20-L44" data-jscall-id="176" rel="noreferrer" target="_blank">source</a></div></details><div class="bonito-output" data-jscall-id="177"><div class=" style_5 style_6" style="" data-jscall-id="178"><h1 data-jscall-id="179">This is a card</h1></div></div><details open="true" class="jldocstring custom-block" data-jscall-id="180"><summary data-jscall-id="181"><a id="Bonito.StylableSlider" data-jscall-id="182" href="#Bonito.StylableSlider"><span class="jlbinding" data-jscall-id="183">Bonito.StylableSlider</span></a><span class="VPBadge info" data-jscall-id="184">Type</span></summary><div class="docstring-body" data-jscall-id="185"><div class="language-julia" data-jscall-id="186"><span class="lang" data-jscall-id="187"><span>julia</span></span><button class="copy" data-jscall-id="188" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="189"><code class="language-julia" data-jscall-id="190">StylableSlider&#40;
+    range::AbstractVector;
+    value&#61;first&#40;range&#41;,
+    slider_height&#61;15,
+    thumb_width&#61;slider_height,
+    thumb_height&#61;slider_height,
+    track_height&#61;slider_height / 2,
+    track_active_height&#61;track_height &#43; 2,
+    backgroundcolor&#61;&#34;transparent&#34;,
+    track_color&#61;&#34;#eee&#34;,
+    track_active_color&#61;&#34;#ddd&#34;,
+    thumb_color&#61;&#34;#fff&#34;,
+    style::Styles&#61;Styles&#40;&#41;,
+    track_style::Styles&#61;Styles&#40;&#41;,
+    thumb_style::Styles&#61;Styles&#40;&#41;,
+    track_active_style::Styles&#61;Styles&#40;&#41;,
+&#41;</code></pre></div><p data-jscall-id="191">Creates a Stylable Slider, where the basic attributes are easily custimizable via keyword arguments, while the more advanced details can be styled via the <code data-jscall-id="192">style</code>, <code data-jscall-id="193">track_style</code>, <code data-jscall-id="194">thumb_style</code> and <code data-jscall-id="195">track_active_style</code> arguments with the whole might of CSS. This does not use <code data-jscall-id="196">&#60;input type&#61;&#34;range&#34;&#62;</code> but is a custom implementation using <code data-jscall-id="197">&#60;div&#62;</code>s javascript, since it is not easily possible to style the native slider in a cross-browser way. For using pure HTML sliders, use <code data-jscall-id="198">Bonito.Slider</code>.</p><p data-jscall-id="199"><strong data-jscall-id="200">Example</strong></p><div class="language-julia" data-jscall-id="201"><span class="lang" data-jscall-id="202">julia</span><button class="copy" data-jscall-id="203" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="204"><code class="language-julia" data-jscall-id="205">App&#40;&#41; do
+    Bonito.StylableSlider&#40;
+        1:10;
+        value&#61;5,
+        slider_height&#61;20,
+        track_color&#61;&#34;lightblue&#34;,
+        track_active_color&#61;&#34;#F0F8FF&#34;,
+        thumb_color&#61;&#34;#fff&#34;,
+        style&#61;Styles&#40;
+            CSS&#40;&#34;hover&#34;, &#34;background-color&#34; &#61;&#62; &#34;lightgray&#34;&#41;,
+            CSS&#40;&#34;border-radius&#34; &#61;&#62; &#34;0px&#34;&#41;,
+        &#41;,
+        track_style&#61;Styles&#40;
+            &#34;border-radius&#34; &#61;&#62; &#34;3px&#34;,
+            &#34;border&#34; &#61;&#62; &#34;1px solid black&#34;,
+        &#41;,
+        thumb_style&#61;Styles&#40;
+            &#34;border-radius&#34; &#61;&#62; &#34;3px&#34;,
+            &#34;border&#34; &#61;&#62; &#34;1px solid black&#34;,
+        &#41;,
+    &#41;
+end
+</code></pre></div><a class="VPBadge info source-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/187c81eb2497a829eb9d69f3c3b1591e74dec05f/src/components.jl#L199-L229" data-jscall-id="206" rel="noreferrer" target="_blank">source</a></div></details><div class="bonito-output" data-jscall-id="207"><div class=" style_6 style_10" style="" data-jscall-id="208"><div class=" style_7" style="" data-jscall-id="209"></div><div class=" style_8" style="" data-jscall-id="210"></div><div class=" style_9" style="" data-jscall-id="211"></div></div></div><details open="true" class="jldocstring custom-block" data-jscall-id="212"><summary data-jscall-id="213"><a id="Bonito.Table-widgets" data-jscall-id="214" href="#Bonito.Table-widgets"><span class="jlbinding" data-jscall-id="215">Bonito.Table</span></a><span class="VPBadge info" data-jscall-id="216">Type</span></summary><div class="docstring-body" data-jscall-id="217"><p data-jscall-id="218">A simple wrapper for types that conform to the Tables.jl Table interface, which gets rendered nicely&#33;</p><a class="VPBadge info source-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/187c81eb2497a829eb9d69f3c3b1591e74dec05f/src/widgets.jl#L522-L525" data-jscall-id="219" rel="noreferrer" target="_blank">source</a></div></details><p data-jscall-id="220">The <code data-jscall-id="221">Table</code> widget provides an interactive way to display tabular data that conforms to the Tables.jl interface. It supports custom styling, interactive sorting, and flexible cell rendering.</p><h3 id="Basic-Usage" data-jscall-id="222">Basic Usage<a class="header-anchor" href="#Basic-Usage" data-jscall-id="223" aria-label="Permalink">​#</a></h3><div class="language-julia" data-jscall-id="224"><span class="lang" data-jscall-id="225">julia</span><button class="copy" data-jscall-id="226" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="227"><code class="language-julia" data-jscall-id="228"># Create sample data using named tuples
+data &#61; &#91;
+    &#40;name&#61;&#34;Alice&#34;, age&#61;25, score&#61;95.5&#41;,
+    &#40;name&#61;&#34;Bob&#34;, age&#61;30, score&#61;87.2&#41;,
+    &#40;name&#61;&#34;Charlie&#34;, age&#61;22, score&#61;92.8&#41;
+&#93;
+
+# Basic table
+basic_table &#61; Bonito.Table&#40;data&#41;
+App&#40;basic_table&#41;</code></pre></div><div class="bonito-output" data-jscall-id="229"><div data-jscall-id="230"><div class="table-container" data-jscall-id="231"><table class="comparison-table " data-jscall-id="232"><thead data-jscall-id="233"><tr data-jscall-id="234"><th class="table-header" data-jscall-id="235" data-column="0">name</th><th class="table-header" data-jscall-id="236" data-column="1">age</th><th class="table-header" data-jscall-id="237" data-column="2">score</th></tr></thead><tbody data-jscall-id="238"><tr class="table-row" data-jscall-id="239" data-row="0"><td data-value="Alice" class="table-cell cell-default" style="" data-jscall-id="240">Alice</td><td data-value="25" class="table-cell cell-default" style="" data-jscall-id="241"><span class="text-plain" style="white-space: pre-wrap">25</span></td><td data-value="95.5" class="table-cell cell-default" style="" data-jscall-id="242"><span class="text-plain" style="white-space: pre-wrap">95.5</span></td></tr><tr class="table-row" data-jscall-id="243" data-row="1"><td data-value="Bob" class="table-cell cell-default" style="" data-jscall-id="244">Bob</td><td data-value="30" class="table-cell cell-default" style="" data-jscall-id="245"><span class="text-plain" style="white-space: pre-wrap">30</span></td><td data-value="87.2" class="table-cell cell-default" style="" data-jscall-id="246"><span class="text-plain" style="white-space: pre-wrap">87.2</span></td></tr><tr class="table-row" data-jscall-id="247" data-row="2"><td data-value="Charlie" class="table-cell cell-default" style="" data-jscall-id="248">Charlie</td><td data-value="22" class="table-cell cell-default" style="" data-jscall-id="249"><span class="text-plain" style="white-space: pre-wrap">22</span></td><td data-value="92.8" class="table-cell cell-default" style="" data-jscall-id="250"><span class="text-plain" style="white-space: pre-wrap">92.8</span></td></tr></tbody></table></div></div></div><h3 id="Custom-Cell-Styling" data-jscall-id="251">Custom Cell Styling<a class="header-anchor" href="#Custom-Cell-Styling" data-jscall-id="252" aria-label="Permalink">​#</a></h3><p data-jscall-id="253">You can provide custom class and style callbacks to control the appearance of individual cells:</p><div class="language-julia" data-jscall-id="254"><span class="lang" data-jscall-id="255">julia</span><button class="copy" data-jscall-id="256" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="257"><code class="language-julia" data-jscall-id="258"># Color coding function based on values
+function score_class_callback&#40;table, row, col, val&#41;
+    # Color the score column based on value
+    if col &#61;&#61; 3 &#38;&#38; isa&#40;val, Number&#41;  # Score column
+        if val &#62;&#61; 90
+            return &#34;cell-good&#34;
+        elseif val &#62;&#61; 80
+            return &#34;cell-neutral&#34;
+        else
+            return &#34;cell-bad&#34;
+        end
+    end
+    return &#34;cell-default&#34;
+end
+
+# Style callback for additional formatting
+function score_style_callback&#40;table, row, col, val&#41;
+    if col &#61;&#61; 3 &#38;&#38; isa&#40;val, Number&#41;  # Score column
+        return &#34;font-weight: bold;&#34;
+    end
+    return &#34;&#34;
+end
+
+styled_table &#61; Bonito.Table&#40;data;
+                    class_callback&#61;score_class_callback,
+                    style_callback&#61;score_style_callback&#41;
+App&#40;styled_table&#41;</code></pre></div><div class="bonito-output" data-jscall-id="259"><div data-jscall-id="260"><div class="table-container" data-jscall-id="261"><table class="comparison-table " data-jscall-id="262"><thead data-jscall-id="263"><tr data-jscall-id="264"><th class="table-header" data-jscall-id="265" data-column="0">name</th><th class="table-header" data-jscall-id="266" data-column="1">age</th><th class="table-header" data-jscall-id="267" data-column="2">score</th></tr></thead><tbody data-jscall-id="268"><tr class="table-row" data-jscall-id="269" data-row="0"><td data-value="Alice" class="table-cell cell-default" style="" data-jscall-id="270">Alice</td><td data-value="25" class="table-cell cell-default" style="" data-jscall-id="271"><span class="text-plain" style="white-space: pre-wrap">25</span></td><td data-value="95.5" class="table-cell cell-good" style="font-weight: bold;" data-jscall-id="272"><span class="text-plain" style="white-space: pre-wrap">95.5</span></td></tr><tr class="table-row" data-jscall-id="273" data-row="1"><td data-value="Bob" class="table-cell cell-default" style="" data-jscall-id="274">Bob</td><td data-value="30" class="table-cell cell-default" style="" data-jscall-id="275"><span class="text-plain" style="white-space: pre-wrap">30</span></td><td data-value="87.2" class="table-cell cell-neutral" style="font-weight: bold;" data-jscall-id="276"><span class="text-plain" style="white-space: pre-wrap">87.2</span></td></tr><tr class="table-row" data-jscall-id="277" data-row="2"><td data-value="Charlie" class="table-cell cell-default" style="" data-jscall-id="278">Charlie</td><td data-value="22" class="table-cell cell-default" style="" data-jscall-id="279"><span class="text-plain" style="white-space: pre-wrap">22</span></td><td data-value="92.8" class="table-cell cell-good" style="font-weight: bold;" data-jscall-id="280"><span class="text-plain" style="white-space: pre-wrap">92.8</span></td></tr></tbody></table></div></div></div><h3 id="Sorting-Options" data-jscall-id="281">Sorting Options<a class="header-anchor" href="#Sorting-Options" data-jscall-id="282" aria-label="Permalink">​#</a></h3><p data-jscall-id="283">Tables support interactive sorting by clicking on headers &#40;column sorting&#41; or first cells &#40;row sorting&#41;:</p><div class="language-julia" data-jscall-id="284"><span class="lang" data-jscall-id="285">julia</span><button class="copy" data-jscall-id="286" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="287"><code class="language-julia" data-jscall-id="288"># Table with only column sorting enabled
+column_sort_table &#61; Bonito.Table&#40;data;
+                         allow_row_sorting&#61;false,
+                         allow_column_sorting&#61;true&#41;
+
+# Table with all sorting disabled
+no_sort_table &#61; Bonito.Table&#40;data;
+                     allow_row_sorting&#61;false,
+                     allow_column_sorting&#61;false&#41;
+App&#40;&#41; do
+    DOM.div&#40;column_sort_table, no_sort_table&#41;
+end</code></pre></div><div class="bonito-output" data-jscall-id="289"><div data-jscall-id="290"><div data-jscall-id="291"><div class="table-container" data-jscall-id="292"><table class="comparison-table " data-jscall-id="293"><thead data-jscall-id="294"><tr data-jscall-id="295"><th class="table-header" data-jscall-id="296" data-column="0">name</th><th class="table-header" data-jscall-id="297" data-column="1">age</th><th class="table-header" data-jscall-id="298" data-column="2">score</th></tr></thead><tbody data-jscall-id="299"><tr class="table-row" data-jscall-id="300" data-row="0"><td data-value="Alice" class="table-cell cell-default" style="" data-jscall-id="301">Alice</td><td data-value="25" class="table-cell cell-default" style="" data-jscall-id="302"><span class="text-plain" style="white-space: pre-wrap">25</span></td><td data-value="95.5" class="table-cell cell-default" style="" data-jscall-id="303"><span class="text-plain" style="white-space: pre-wrap">95.5</span></td></tr><tr class="table-row" data-jscall-id="304" data-row="1"><td data-value="Bob" class="table-cell cell-default" style="" data-jscall-id="305">Bob</td><td data-value="30" class="table-cell cell-default" style="" data-jscall-id="306"><span class="text-plain" style="white-space: pre-wrap">30</span></td><td data-value="87.2" class="table-cell cell-default" style="" data-jscall-id="307"><span class="text-plain" style="white-space: pre-wrap">87.2</span></td></tr><tr class="table-row" data-jscall-id="308" data-row="2"><td data-value="Charlie" class="table-cell cell-default" style="" data-jscall-id="309">Charlie</td><td data-value="22" class="table-cell cell-default" style="" data-jscall-id="310"><span class="text-plain" style="white-space: pre-wrap">22</span></td><td data-value="92.8" class="table-cell cell-default" style="" data-jscall-id="311"><span class="text-plain" style="white-space: pre-wrap">92.8</span></td></tr></tbody></table></div></div><div data-jscall-id="312"><div class="table-container" data-jscall-id="313"><table class="comparison-table " data-jscall-id="314"><thead data-jscall-id="315"><tr data-jscall-id="316"><th class="table-header" data-jscall-id="317" data-column="0">name</th><th class="table-header" data-jscall-id="318" data-column="1">age</th><th class="table-header" data-jscall-id="319" data-column="2">score</th></tr></thead><tbody data-jscall-id="320"><tr class="table-row" data-jscall-id="321" data-row="0"><td data-value="Alice" class="table-cell cell-default" style="" data-jscall-id="322">Alice</td><td data-value="25" class="table-cell cell-default" style="" data-jscall-id="323"><span class="text-plain" style="white-space: pre-wrap">25</span></td><td data-value="95.5" class="table-cell cell-default" style="" data-jscall-id="324"><span class="text-plain" style="white-space: pre-wrap">95.5</span></td></tr><tr class="table-row" data-jscall-id="325" data-row="1"><td data-value="Bob" class="table-cell cell-default" style="" data-jscall-id="326">Bob</td><td data-value="30" class="table-cell cell-default" style="" data-jscall-id="327"><span class="text-plain" style="white-space: pre-wrap">30</span></td><td data-value="87.2" class="table-cell cell-default" style="" data-jscall-id="328"><span class="text-plain" style="white-space: pre-wrap">87.2</span></td></tr><tr class="table-row" data-jscall-id="329" data-row="2"><td data-value="Charlie" class="table-cell cell-default" style="" data-jscall-id="330">Charlie</td><td data-value="22" class="table-cell cell-default" style="" data-jscall-id="331"><span class="text-plain" style="white-space: pre-wrap">22</span></td><td data-value="92.8" class="table-cell cell-default" style="" data-jscall-id="332"><span class="text-plain" style="white-space: pre-wrap">92.8</span></td></tr></tbody></table></div></div></div></div><h3 id="Working-with-DataFrames" data-jscall-id="333">Working with DataFrames<a class="header-anchor" href="#Working-with-DataFrames" data-jscall-id="334" aria-label="Permalink">​#</a></h3><p data-jscall-id="335">The Table widget works seamlessly with DataFrames and other Tables.jl-compatible structures:</p><div class="language-julia" data-jscall-id="336"><span class="lang" data-jscall-id="337">julia</span><button class="copy" data-jscall-id="338" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="339"><code class="language-julia" data-jscall-id="340">using DataFrames
+
+df &#61; DataFrame&#40;
+    Product &#61; &#91;&#34;Laptop&#34;, &#34;Mouse&#34;, &#34;Keyboard&#34;, &#34;Monitor&#34;&#93;,
+    Price &#61; &#91;999.99, 29.99, 79.99, 299.99&#93;,
+    Stock &#61; &#91;15, 120, 45, 8&#93;,
+    Available &#61; &#91;true, true, false, true&#93;
+&#41;
+
+# Custom formatter for currency and boolean values
+function product_class_callback&#40;table, row, col, val&#41;
+    if col &#61;&#61; 2  # Price column
+        return val &#62; 100 ? &#34;cell-neutral&#34; : &#34;cell-good&#34;
+    elseif col &#61;&#61; 4  # Available column
+        return val ? &#34;cell-good&#34; : &#34;cell-bad&#34;
+    end
+    return &#34;cell-default&#34;
+end
+
+product_table &#61; Bonito.Table&#40;df; class_callback&#61;product_class_callback&#41;
+App&#40;product_table&#41;</code></pre></div><div class="bonito-output" data-jscall-id="341"><div data-jscall-id="342"><div class="table-container" data-jscall-id="343"><table class="comparison-table " data-jscall-id="344"><thead data-jscall-id="345"><tr data-jscall-id="346"><th class="table-header" data-jscall-id="347" data-column="0">Product</th><th class="table-header" data-jscall-id="348" data-column="1">Price</th><th class="table-header" data-jscall-id="349" data-column="2">Stock</th><th class="table-header" data-jscall-id="350" data-column="3">Available</th></tr></thead><tbody data-jscall-id="351"><tr class="table-row" data-jscall-id="352" data-row="0"><td data-value="Laptop" class="table-cell cell-default" style="" data-jscall-id="353">Laptop</td><td data-value="999.99" class="table-cell cell-neutral" style="" data-jscall-id="354"><span class="text-plain" style="white-space: pre-wrap">999.99</span></td><td data-value="15" class="table-cell cell-default" style="" data-jscall-id="355"><span class="text-plain" style="white-space: pre-wrap">15</span></td><td data-value="true" class="table-cell cell-good" style="" data-jscall-id="356"><span class="text-plain" style="white-space: pre-wrap">true</span></td></tr><tr class="table-row" data-jscall-id="357" data-row="1"><td data-value="Mouse" class="table-cell cell-default" style="" data-jscall-id="358">Mouse</td><td data-value="29.99" class="table-cell cell-good" style="" data-jscall-id="359"><span class="text-plain" style="white-space: pre-wrap">29.99</span></td><td data-value="120" class="table-cell cell-default" style="" data-jscall-id="360"><span class="text-plain" style="white-space: pre-wrap">120</span></td><td data-value="true" class="table-cell cell-good" style="" data-jscall-id="361"><span class="text-plain" style="white-space: pre-wrap">true</span></td></tr><tr class="table-row" data-jscall-id="362" data-row="2"><td data-value="Keyboard" class="table-cell cell-default" style="" data-jscall-id="363">Keyboard</td><td data-value="79.99" class="table-cell cell-good" style="" data-jscall-id="364"><span class="text-plain" style="white-space: pre-wrap">79.99</span></td><td data-value="45" class="table-cell cell-default" style="" data-jscall-id="365"><span class="text-plain" style="white-space: pre-wrap">45</span></td><td data-value="false" class="table-cell cell-bad" style="" data-jscall-id="366"><span class="text-plain" style="white-space: pre-wrap">false</span></td></tr><tr class="table-row" data-jscall-id="367" data-row="3"><td data-value="Monitor" class="table-cell cell-default" style="" data-jscall-id="368">Monitor</td><td data-value="299.99" class="table-cell cell-neutral" style="" data-jscall-id="369"><span class="text-plain" style="white-space: pre-wrap">299.99</span></td><td data-value="8" class="table-cell cell-default" style="" data-jscall-id="370"><span class="text-plain" style="white-space: pre-wrap">8</span></td><td data-value="true" class="table-cell cell-good" style="" data-jscall-id="371"><span class="text-plain" style="white-space: pre-wrap">true</span></td></tr></tbody></table></div></div></div><h3 id="Advanced-Example:-Financial-Data" data-jscall-id="372">Advanced Example: Financial Data<a class="header-anchor" href="#Advanced-Example:-Financial-Data" data-jscall-id="373" aria-label="Permalink">​#</a></h3><div class="language-julia" data-jscall-id="374"><span class="lang" data-jscall-id="375">julia</span><button class="copy" data-jscall-id="376" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="377"><code class="language-julia" data-jscall-id="378"># Financial data with multiple metrics
+financial_data &#61; &#91;
+    &#40;company&#61;&#34;TechCorp&#34;, revenue&#61;1.2e6, profit_margin&#61;0.15, employees&#61;150&#41;,
+    &#40;company&#61;&#34;DataInc&#34;, revenue&#61;2.8e6, profit_margin&#61;0.08, employees&#61;300&#41;,
+    &#40;company&#61;&#34;CloudSys&#34;, revenue&#61;0.9e6, profit_margin&#61;0.22, employees&#61;85&#41;,
+    &#40;company&#61;&#34;WebFlow&#34;, revenue&#61;1.8e6, profit_margin&#61;0.12, employees&#61;220&#41;
+&#93;
+
+function financial_class_callback&#40;table, row, col, val&#41;
+    if col &#61;&#61; 2  # Revenue column
+        return val &#62; 1.5e6 ? &#34;cell-good&#34; : &#34;cell-neutral&#34;
+    elseif col &#61;&#61; 3  # Profit margin column
+        if val &#62; 0.15
+            return &#34;cell-good&#34;
+        elseif val &#62; 0.10
+            return &#34;cell-neutral&#34;
+        else
+            return &#34;cell-bad&#34;
+        end
+    end
+    return &#34;cell-default&#34;
+end
+
+function financial_style_callback&#40;table, row, col, val&#41;
+    if col &#61;&#61; 3  # Profit margin column
+        return &#34;font-family: monospace;&#34;
+    end
+    return &#34;&#34;
+end
+
+financial_table &#61; Bonito.Table&#40;financial_data;
+                       class_callback&#61;financial_class_callback,
+                       style_callback&#61;financial_style_callback,
+                       class&#61;&#34;financial-data&#34;&#41;
+App&#40;financial_table&#41;</code></pre></div><div class="bonito-output" data-jscall-id="379"><div data-jscall-id="380"><div class="table-container" data-jscall-id="381"><table class="comparison-table financial-data" data-jscall-id="382"><thead data-jscall-id="383"><tr data-jscall-id="384"><th class="table-header" data-jscall-id="385" data-column="0">company</th><th class="table-header" data-jscall-id="386" data-column="1">revenue</th><th class="table-header" data-jscall-id="387" data-column="2">profit_margin</th><th class="table-header" data-jscall-id="388" data-column="3">employees</th></tr></thead><tbody data-jscall-id="389"><tr class="table-row" data-jscall-id="390" data-row="0"><td data-value="TechCorp" class="table-cell cell-default" style="" data-jscall-id="391">TechCorp</td><td data-value="1.2e6" class="table-cell cell-neutral" style="" data-jscall-id="392"><span class="text-plain" style="white-space: pre-wrap">1.2e6</span></td><td data-value="0.15" class="table-cell cell-neutral" style="font-family: monospace;" data-jscall-id="393"><span class="text-plain" style="white-space: pre-wrap">0.15</span></td><td data-value="150" class="table-cell cell-default" style="" data-jscall-id="394"><span class="text-plain" style="white-space: pre-wrap">150</span></td></tr><tr class="table-row" data-jscall-id="395" data-row="1"><td data-value="DataInc" class="table-cell cell-default" style="" data-jscall-id="396">DataInc</td><td data-value="2.8e6" class="table-cell cell-good" style="" data-jscall-id="397"><span class="text-plain" style="white-space: pre-wrap">2.8e6</span></td><td data-value="0.08" class="table-cell cell-bad" style="font-family: monospace;" data-jscall-id="398"><span class="text-plain" style="white-space: pre-wrap">0.08</span></td><td data-value="300" class="table-cell cell-default" style="" data-jscall-id="399"><span class="text-plain" style="white-space: pre-wrap">300</span></td></tr><tr class="table-row" data-jscall-id="400" data-row="2"><td data-value="CloudSys" class="table-cell cell-default" style="" data-jscall-id="401">CloudSys</td><td data-value="900000.0" class="table-cell cell-neutral" style="" data-jscall-id="402"><span class="text-plain" style="white-space: pre-wrap">900000.0</span></td><td data-value="0.22" class="table-cell cell-good" style="font-family: monospace;" data-jscall-id="403"><span class="text-plain" style="white-space: pre-wrap">0.22</span></td><td data-value="85" class="table-cell cell-default" style="" data-jscall-id="404"><span class="text-plain" style="white-space: pre-wrap">85</span></td></tr><tr class="table-row" data-jscall-id="405" data-row="3"><td data-value="WebFlow" class="table-cell cell-default" style="" data-jscall-id="406">WebFlow</td><td data-value="1.8e6" class="table-cell cell-good" style="" data-jscall-id="407"><span class="text-plain" style="white-space: pre-wrap">1.8e6</span></td><td data-value="0.12" class="table-cell cell-neutral" style="font-family: monospace;" data-jscall-id="408"><span class="text-plain" style="white-space: pre-wrap">0.12</span></td><td data-value="220" class="table-cell cell-default" style="" data-jscall-id="409"><span class="text-plain" style="white-space: pre-wrap">220</span></td></tr></tbody></table></div></div></div><h2 id="Widgets-in-Layouts" data-jscall-id="410">Widgets in Layouts<a class="header-anchor" href="#Widgets-in-Layouts" data-jscall-id="411" aria-label="Permalink">​#</a></h2><p data-jscall-id="412">There are a few helpers to e.g. put a label next to a widget:</p><details open="true" class="jldocstring custom-block" data-jscall-id="413"><summary data-jscall-id="414"><a id="Bonito.Labeled" data-jscall-id="415" href="#Bonito.Labeled"><span class="jlbinding" data-jscall-id="416">Bonito.Labeled</span></a><span class="VPBadge info" data-jscall-id="417">Function</span></summary><div class="docstring-body" data-jscall-id="418"><div class="language-julia" data-jscall-id="419"><span class="lang" data-jscall-id="420"><span>julia</span></span><button class="copy" data-jscall-id="421" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="422"><code class="language-julia" data-jscall-id="423">Labeled&#40;object, label; label_style&#61;Styles&#40;&#41;, attributes...&#41;</code></pre></div><p data-jscall-id="424">A Labeled container with a simople layout to put a label next to an object.</p><div class="language-julia" data-jscall-id="425"><span class="lang" data-jscall-id="426">julia</span><button class="copy" data-jscall-id="427" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="428"><code class="language-julia" data-jscall-id="429">App&#40;&#41; do
+    label_style &#61; Styles&#40;
+        &#34;color&#34; &#61;&#62; &#34;white&#34;,
+        &#34;padding&#34; &#61;&#62; &#34;3px&#34;,
+        &#34;font-size&#34; &#61;&#62; &#34;1.5rem&#34;,
+        &#34;text-shadow&#34; &#61;&#62; &#34;0px 0px 10px black, 1px 1px 3px black&#34;&#41;
+    slider &#61; StylableSlider&#40;1:10&#41;
+    Card&#40;Labeled&#40;slider, slider.value; label_style&#61;label_style, width&#61;&#34;auto&#34;&#41;; backgroundcolor&#61;&#34;gray&#34;&#41;
+end
+</code></pre></div><a class="VPBadge info source-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/187c81eb2497a829eb9d69f3c3b1591e74dec05f/src/components.jl#L435-L443" data-jscall-id="430" rel="noreferrer" target="_blank">source</a></div></details><div class="bonito-output" data-jscall-id="431"><div class=" style_17" style="" data-jscall-id="432"><div class=" style_16" style="" data-jscall-id="433"><div class=" style_14" style="" data-jscall-id="434"><div class=" style_11" style="" data-jscall-id="435"></div><div class=" style_12" style="" data-jscall-id="436"></div><div class=" style_13" style="" data-jscall-id="437"></div></div><span class=" style_15" style="" data-jscall-id="438"><span data-jscall-id="439">1</span></span></div></div></div><p data-jscall-id="440">To create more complex layouts, one should use e.g. <a href="layouting.html#Bonito.Grid" data-jscall-id="441"><code data-jscall-id="442">Grid</code></a>, and visit the <a href="layouting.html#Layouting" data-jscall-id="443">Layouting</a> tutorial.</p><div class="language-julia" data-jscall-id="444"><span class="lang" data-jscall-id="445">julia</span><button class="copy" data-jscall-id="446" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="447"><code class="language-julia" data-jscall-id="448">App&#40;&#41; do session
+    s &#61; Bonito.StylableSlider&#40;0:10;&#41;
+    d &#61; Dropdown&#40;&#91;&#34;a&#34;, &#34;b&#34;, &#34;c&#34;&#93;&#41;
+    ni &#61; NumberInput&#40;10.0&#41;
+    ti &#61; Bonito.TextField&#40;&#34;helo&#34;&#41;
+    button &#61; Button&#40;&#34;click&#34;&#41;
+    clicks &#61; Observable&#40;0&#41;
+    on&#40;session, button.value&#41; do bool
+        clicks&#91;&#93; &#61; clicks&#91;&#93; &#43; 1
+    end
+    return Card&#40;Grid&#40;
+            button, Bonito.Label&#40;clicks&#41;,
+            s, Bonito.Label&#40;s.value&#41;,
+            d, Bonito.Label&#40;d.value&#41;,
+            ni, Bonito.Label&#40;ni.value&#41;,
+            ti, Bonito.Label&#40;ti.value&#41;;
+            columns&#61;&#34;1fr min-content&#34;,
+            justify_content&#61;&#34;begin&#34;,
+            align_items&#61;&#34;center&#34;,
+        &#41;; width&#61;&#34;300px&#34;,&#41;
+end</code></pre></div><div class="bonito-output" data-jscall-id="449"><div class=" style_23" style="" data-jscall-id="450"><div class=" style_22" style="" data-jscall-id="451"><button onclick="" class=" style_18 style_19 style_20" style="" data-jscall-id="452">click</button><span class=" style_21" style="" data-jscall-id="453"><span data-jscall-id="454">0</span></span><div class=" style_14" style="" data-jscall-id="455"><div class=" style_11" style="" data-jscall-id="456"></div><div class=" style_12" style="" data-jscall-id="457"></div><div class=" style_13" style="" data-jscall-id="458"></div></div><span class=" style_21" style="" data-jscall-id="459"><span data-jscall-id="460">0</span></span><select class=" style_18 style_19 style_20" style="" data-jscall-id="461" autocomplete="off"><option data-jscall-id="462">a</option><option data-jscall-id="463">b</option><option data-jscall-id="464">c</option></select><span class=" style_21" style="" data-jscall-id="465"><div style="display:contents" data-jscall-id="467"><div class="bonito-fragment" id="0ed92cbe-1f33-466e-a55d-17060673da62" data-jscall-id="subsession-application-dom" style="display:contents"><div style="display:contents" data-jscall-id="468"><style data-jscall-id="469"></style></div><div style="display:contents" data-jscall-id="470"><script data-jscall-id="471" type="module">Bonito.init_session("0ed92cbe-1f33-466e-a55d-17060673da62", null, "sub", false);
+</script><span data-jscall-id="466">a</span></div></div></div></span><input class=" style_18 style_19 style_20" style="" data-jscall-id="472" value="10.0" onchange="" type="number" autocomplete="off" /><span class=" style_21" style="" data-jscall-id="473"><span data-jscall-id="474">10.0</span></span><input class=" style_18 style_19 style_20" style="" data-jscall-id="475" value="helo" onchange="" type="textfield" autocomplete="off" /><span class=" style_21" style="" data-jscall-id="476"><span data-jscall-id="477">helo</span></span></div></div></div><h2 id="Editor" data-jscall-id="478">Editor<a class="header-anchor" href="#Editor" data-jscall-id="479" aria-label="Permalink">​#</a></h2><p data-jscall-id="480">This editor works in pure Javascript, so feel free to try out editing the Javascript and clicking <code data-jscall-id="481">eval</code> to see how the output changes. In <code data-jscall-id="482">Bonito/examples/editor.jl</code>, you will find a version that works with Julia code, but that requires a running Julia server of course.</p><div class="language-julia" data-jscall-id="483"><span class="lang" data-jscall-id="484">julia</span><button class="copy" data-jscall-id="485" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="486"><code class="language-julia" data-jscall-id="487">using Bonito, Observables
+src &#61; &#34;&#34;&#34;
+&#40;&#40;&#41; &#61;&#62; &#123;
+    const canvas &#61; document.createElement&#40;&#34;canvas&#34;&#41;;
+    const context &#61; canvas.getContext&#40;&#39;2d&#39;&#41;;
+    const width &#61; 500
+    const height &#61; 400
+    canvas.width &#61; width;
+    canvas.height &#61; height;
+    const gradient &#61; context.createRadialGradient&#40;200, 200, 0, 200, 200, 200&#41;;
+    gradient.addColorStop&#40;&#34;0&#34;, &#34;magenta&#34;&#41;;
+    gradient.addColorStop&#40;&#34;.25&#34;, &#34;blue&#34;&#41;;
+    gradient.addColorStop&#40;&#34;.50&#34;, &#34;green&#34;&#41;;
+    gradient.addColorStop&#40;&#34;.75&#34;, &#34;yellow&#34;&#41;;
+    gradient.addColorStop&#40;&#34;1.0&#34;, &#34;red&#34;&#41;;
+    context.fillStyle &#61; gradient;
+    context.fillRect&#40;0, 0, width, height&#41;;
+    return canvas;
+&#125;&#41;&#40;&#41;;
+&#34;&#34;&#34;
+App&#40;&#41; do session::Session
+    editor &#61; CodeEditor&#40;&#34;javascript&#34;; initial_source&#61;src, width&#61;800, height&#61;300&#41;
+    eval_button &#61; Button&#40;&#34;eval&#34;&#41;
+    output &#61; DOM.div&#40;DOM.span&#40;&#41;&#41;
+    Bonito.onjs&#40;session, eval_button.value, js&#34;&#34;&#34;function &#40;click&#41;&#123;
+        const js_src &#61; &#36;&#40;editor.onchange&#41;.value;
+        const result &#61; new Function&#40;&#34;return &#34; &#43; &#40;js_src&#41;&#41;&#40;&#41;
+        let dom;
+        if &#40;typeof result &#61;&#61;&#61; &#39;object&#39; &#38;&#38; result.nodeName&#41; &#123;
+            dom &#61; result
+        &#125; else &#123;
+            const span &#61; document.createElement&#40;&#34;span&#34;&#41;
+            span.innerText &#61; result;
+            dom &#61; span
+        &#125;
+        Bonito.update_or_replace&#40;&#36;&#40;output&#41;, dom, false&#41;;
+        return
+    &#125;
+    &#34;&#34;&#34;&#41;
+    notify&#40;eval_button.value&#41;
+    return DOM.div&#40;editor, eval_button, output&#41;
+end</code></pre></div><div class="bonito-output" data-jscall-id="488"><div data-jscall-id="490"><div data-jscall-id="491"><div class=" style_24" style="" data-jscall-id="492"></div></div><button onclick="" class=" style_18 style_19 style_20" style="" data-jscall-id="493">eval</button><div data-jscall-id="489"><span data-jscall-id="494"></span></div></div></div><h2 id="Tailwinddashboard" data-jscall-id="495">Tailwinddashboard<a class="header-anchor" href="#Tailwinddashboard" data-jscall-id="496" aria-label="Permalink">​#</a></h2><p data-jscall-id="497"><a href="api.html#Bonito.Styles" data-jscall-id="498"><code data-jscall-id="499">Styles</code></a> is preferred to style components, but Bonito also includes some <a href="https://tailwindcss.com/" data-jscall-id="500" title="">Tailwind</a> based components. They&#39;re from before <code data-jscall-id="501">Styles</code> and will likely get removed in the future.</p><div class="language-julia" data-jscall-id="502"><span class="lang" data-jscall-id="503">julia</span><button class="copy" data-jscall-id="504" title="Copy to clipboard" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button><pre data-jscall-id="505"><code class="language-julia" data-jscall-id="506">using Bonito
+import Bonito.TailwindDashboard as D
+
+function range_slider&#40;orientation&#41;
+    range_slider &#61; RangeSlider&#40;1:100; value&#61;&#91;10, 80&#93;&#41;
+    range_slider.tooltips&#91;&#93; &#61; true
+    range_slider.ticks&#91;&#93; &#61; Dict&#40;
+        &#34;mode&#34; &#61;&#62; &#34;range&#34;,
+        &#34;density&#34; &#61;&#62; 3
+    &#41;
+    range_slider.orientation&#91;&#93; &#61; orientation
+    return range_slider
+end
+
+App&#40;&#41; do
+    button &#61; D.Button&#40;&#34;click&#34;&#41;
+    textfield &#61; D.TextField&#40;&#34;type in your text&#34;&#41;
+    numberinput &#61; D.NumberInput&#40;0.0&#41;
+    file_input &#61; D.FileInput&#40;&#41;
+    on&#40;file_input.value&#41; do file
+        &#64;show file
+    end
+    slider &#61; D.Slider&#40;&#34;Test&#34;, 1:5&#41;
+
+    checkbox &#61; D.Checkbox&#40;&#34;check this&#34;, true&#41;
+    table &#61; Bonito.Table&#40;&#91;&#40;a&#61;22, b&#61;33, c&#61;44&#41;, &#40;a&#61;22, b&#61;33, c&#61;44&#41;&#93;&#41;
+
+    source &#61; &#34;&#34;&#34;
+    function test&#40;a, b&#41;
+        return a &#43; b
+    end
+    &#34;&#34;&#34;
+    editor &#61; CodeEditor&#40;&#34;julia&#34;; initial_source&#61;source, width&#61;250, height&#61;200, scrollPastEnd&#61;false&#41;
+    dropdown &#61; D.Dropdown&#40;&#34;chose&#34;, &#91;&#34;option 1&#34;, &#34;option 2&#34;, &#34;option 3&#34;&#93;&#41;
+
+    vrange_slider &#61; range_slider&#40;Bonito.WidgetsBase.vertical&#41;
+
+    hrange_slider &#61; range_slider&#40;Bonito.WidgetsBase.horizontal&#41;
+
+
+    return DOM.div&#40;
+        D.Card.&#40;&#91;
+            D.FlexRow&#40;
+                D.Card&#40;D.FlexCol&#40;
+                    button,
+                    textfield,
+                    numberinput,
+                    dropdown,
+                    file_input,
+                    slider,
+                    checkbox,
+                    class&#61;&#34;items-start&#34;
+                &#41;&#41;,
+                D.Card&#40;D.FlexCol&#40;
+                    D.Card&#40;DOM.div&#40;vrange_slider; style&#61;&#34;height: 200px; padding: 1px 50px&#34;&#41;&#41;,
+                    D.Card&#40;DOM.div&#40;hrange_slider; style&#61;&#34;width: 200px; padding: 50px 1px&#34;&#41;,
+                    &#41;&#41;,
+                &#41;&#41;,
+            D.FlexRow&#40;
+                D.Card.&#40;&#91;
+
+                    D.Card&#40;table; class&#61;&#34;w-64&#34;&#41;
+                    editor
+                &#93;&#41;
+            &#41;,
+        &#93;&#41;...
+    &#41;
+end</code></pre></div><div class="bonito-output" data-jscall-id="507"><div data-jscall-id="508"><div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="509"><div class="mx-2 flex flex-row " data-jscall-id="510"><div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="511"><div class="my-2 flex flex-col items-start" data-jscall-id="512"><button onclick="" class=" focus:outline-none focus:shadow-outline focus:border-blue-300 font-semibold m-1 py-1 px-3 border rounded shadow style_18 style_19 style_20" style="" data-jscall-id="513">click</button><input class=" focus:outline-none focus:shadow-outline focus:border-blue-300 font-semibold m-1 py-1 px-3 border rounded shadow style_18 style_19 style_20" style="" data-jscall-id="514" value="type in your text" onchange="" type="textfield" autocomplete="off" /><input class=" focus:outline-none focus:shadow-outline focus:border-blue-300 font-semibold m-1 py-1 px-3 border rounded shadow style_18 style_19 style_20" style="" data-jscall-id="515" value="0.0" onchange="" type="number" autocomplete="off" /><div class="flex-row, mb-1 mt-1 " data-jscall-id="516"><h2 class="font-semibold " data-jscall-id="517">chose</h2><select class=" focus:outline-none focus:shadow-outline focus:border-blue-300 font-semibold m-1 py-1 px-3 border rounded shadow style_18 style_19 style_20" style="" data-jscall-id="518" autocomplete="off"><option data-jscall-id="519">option 1</option><option data-jscall-id="520">option 2</option><option data-jscall-id="521">option 3</option></select></div><input multiple="true" onchange="event =&#62; {&#10;    if (event.target.files) {&#10;        const files = [];&#10;        for (const file of event.target.files) {&#10;            files.push(URL.createObjectURL(file))&#10;        }&#10;        __lookup_interpolated('14208828136646966934').notify(files);&#10;    }&#10;}" type="file" /><div class="flex-row, mb-1 mt-1 " data-jscall-id="522"><h2 class="font-semibold " data-jscall-id="523"><div data-jscall-id="524">Test<div class="float-right text-right text w-32" data-jscall-id="525"><span data-jscall-id="526">1</span></div></div></h2><input step="1" max="5" min="1" style="width: 100%;" data-jscall-id="527" value="1" oninput="" type="range" autocomplete="off" /></div><div class="flex-row, mb-1 mt-1 " data-jscall-id="528"><h2 class="font-semibold " data-jscall-id="529">check this</h2><input checked="true" class=" style_19 style_20 style_25" style="" data-jscall-id="530" onchange="" type="checkbox" autocomplete="off" /></div></div></div><div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="531"><div class="my-2 flex flex-col " data-jscall-id="532"><div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="533"><div style="height: 200px; padding: 1px 50px" data-jscall-id="534"><div><div data-jscall-id="535"></div></div></div></div><div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="536"><div style="width: 200px; padding: 50px 1px" data-jscall-id="537"><div><div data-jscall-id="538"></div></div></div></div></div></div></div></div><div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="539"><div class="mx-2 flex flex-row " data-jscall-id="540"><div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="541"><div class="rounded-md p-2 m-2 shadow w-64" style="width: fit-content; height: fit-content; " data-jscall-id="542"><div data-jscall-id="543"><div class="table-container" data-jscall-id="544"><table class="comparison-table " data-jscall-id="545"><thead data-jscall-id="546"><tr data-jscall-id="547"><th class="table-header" data-jscall-id="548" data-column="0">a</th><th class="table-header" data-jscall-id="549" data-column="1">b</th><th class="table-header" data-jscall-id="550" data-column="2">c</th></tr></thead><tbody data-jscall-id="551"><tr class="table-row" data-jscall-id="552" data-row="0"><td data-value="22" class="table-cell cell-default" style="" data-jscall-id="553"><span class="text-plain" style="white-space: pre-wrap">22</span></td><td data-value="33" class="table-cell cell-default" style="" data-jscall-id="554"><span class="text-plain" style="white-space: pre-wrap">33</span></td><td data-value="44" class="table-cell cell-default" style="" data-jscall-id="555"><span class="text-plain" style="white-space: pre-wrap">44</span></td></tr><tr class="table-row" data-jscall-id="556" data-row="1"><td data-value="22" class="table-cell cell-default" style="" data-jscall-id="557"><span class="text-plain" style="white-space: pre-wrap">22</span></td><td data-value="33" class="table-cell cell-default" style="" data-jscall-id="558"><span class="text-plain" style="white-space: pre-wrap">33</span></td><td data-value="44" class="table-cell cell-default" style="" data-jscall-id="559"><span class="text-plain" style="white-space: pre-wrap">44</span></td></tr></tbody></table></div></div></div></div><div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="560"><div data-jscall-id="561"><div class=" style_26" style="" data-jscall-id="562"></div></div></div></div></div></div></div></div><footer class="VPDocFooter" data-jscall-id="563"><div class="edit-info" data-jscall-id="564"><div class="edit-link" data-jscall-id="565"><a href="https://github.com/SimonDanisch/Bonito.jl/blob/master/docs/src/widgets.md" data-jscall-id="566" target="_blank">Edit this page</a></div></div><nav class="prev-next" data-jscall-id="567"><a class="pager-link prev" href="layouting.html" data-jscall-id="568"><span class="desc" data-jscall-id="569">Previous</span><span class="title" data-jscall-id="570">Layouting</span></a><a class="pager-link next" href="interactions.html" data-jscall-id="571"><span class="desc" data-jscall-id="572">Next</span><span class="title" data-jscall-id="573">Interactions</span></a></nav></footer></div><div class="VPAside" data-jscall-id="574"><div class="aside-inner" data-jscall-id="575"><div class="outline-title" data-jscall-id="576">On this page</div><nav class="outline" data-jscall-id="577"><a class="lvl-2" href="#All-Available-widgets" data-jscall-id="578">All Available widgets</a><a class="lvl-3" href="#Basic-Usage" data-jscall-id="579">Basic Usage</a><a class="lvl-3" href="#Custom-Cell-Styling" data-jscall-id="580">Custom Cell Styling</a><a class="lvl-3" href="#Sorting-Options" data-jscall-id="581">Sorting Options</a><a class="lvl-3" href="#Working-with-DataFrames" data-jscall-id="582">Working with DataFrames</a><a class="lvl-3" href="#Advanced-Example:-Financial-Data" data-jscall-id="583">Advanced Example: Financial Data</a><a class="lvl-2" href="#Widgets-in-Layouts" data-jscall-id="584">Widgets in Layouts</a><a class="lvl-2" href="#Editor" data-jscall-id="585">Editor</a><a class="lvl-2" href="#Tailwinddashboard" data-jscall-id="586">Tailwinddashboard</a></nav></div></div></div></div></div></div><div class="VPSearch-backdrop" data-jscall-id="587"><div class="VPSearch" data-jscall-id="588"><div class="search-bar" data-jscall-id="589"><span style="display:inline-flex" data-jscall-id="590"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></span><input spellcheck="false" data-jscall-id="591" placeholder="Search docs" type="text" autocomplete="off" /></div><div class="results" data-jscall-id="592"></div></div></div><script data-jscall-id="231">window.__DOCS_SEARCH__ = [{"title":"Home","text":"Bonito.jl is a pretty simple package allowing you to render HTML and serve it from within Julia and build up a communication bridge with the Browser. This allows to combine any of your Julia applications with libraries like WGLMakie and create interactive Dashboards like this:\n\n(Image: dashboard)\n\nBonito is tightly integrated with WGLMakie, which makes them a great pair for high performance, interactive visualizations. If performance is not a high priority, many other plotting/visualization libraries which overload the Julia display system should work with Bonito.jl as well.\n\nBonito.jl itself tries to stay out of major choices like the HTML/CSS/Javascript framework to use for creating UIs and Dashboards. Instead, it allows to create modular components and makes it easy to use any CSS/Javascript library.\n\nIt uses plain HTML widgets for UI elements where it can, and there are a few styleable components like Card, Grid, Row, Col to make it easy to create some more complex dashboards out of the box.\n\nIf you look at the source of those components, one will see that they're very simple and easy to create, which should help to create a rich ecosystem of extensions around Bonito.jl. Read more about it in Components.\n\nQuickstart\n\nusing Bonito\nBonito.Page()\n\nAt the core of Bonito you have DOM to create any HTML tag, js\"...\" to run Javascript, and App to wrap your creation and serve it anywhere:\n\nusing Bonito\napp = App() do\n    return DOM.div(DOM.h1(\"hello world\"), js\"\"\"console.log('hel","url":"index.html"},{"title":"Quickstart","text":"Home › Quickstart","url":"index.html#Quickstart"},{"title":"Easy integration with existing JS + CSS libraries","text":"Home › Easy integration with existing JS + CSS libraries","url":"index.html#Easy-integration-with-existing-JS-CSS-libraries"},{"title":"Deploying","text":"Home › Deploying","url":"index.html#Deploying"},{"title":"App","text":"App\n\nThe App type is the main entry point for creating Bonito applications. It wraps your content and handles the connection between Julia and the browser.\n\nBasic Usage\n\nusing Bonito\n\n# Simple app with static content\napp = App(DOM.div(\"Hello World\"))\n\n# App with session access\napp = App() do session::Session\n    button = Button(\"Click me\")\n    on(button.value) do _\n        println(\"Button clicked!\")\n    end\n    return button\nend\n\n# App with request access (useful for routing)\napp = App() do session::Session, request::HTTP.Request\n    path = request.target\n    return DOM.div(\"You requested: $path\")\nend\n\nApp Options\n\nThe App constructor accepts the following keyword arguments:\n\nApp(handler;\n    title=\"Bonito App\",     # Browser tab title\n    indicator=nothing,       # Connection status indicator (nothing by default)\n    loading_page=nothing     # Loading page shown while handler runs (nothing by default)\n)\n\nLoading Page\n\nWhen an app takes time to initialize (e.g. loading data, compiling code), users see a blank page. The loading_page option shows a loading spinner while the handler runs, then replaces it with the real content once ready.\n\nBasic Usage\n\napp = App(; loading_page=LoadingPage()) do session\n    data = expensive_setup()  # Takes a few seconds\n    return DOM.div(data)\nend\n\nWhen loading_page is set, the app DOM is wrapped in an Observable. The loading page is displayed immediately, and the handler runs asynchronously. Once the handler returns, the loading page is replac","url":"app.html"},{"title":"Basic Usage","text":"App › Basic Usage","url":"app.html#Basic-Usage"},{"title":"App Options","text":"App › App Options","url":"app.html#App-Options"},{"title":"Loading Page","text":"App › Loading Page","url":"app.html#Loading-Page"},{"title":"Basic Usage","text":"App › Basic Usage","url":"app.html#Basic-Usage-2"},{"title":"Customization","text":"App › Customization","url":"app.html#Customization"},{"title":"How It Works","text":"App › How It Works","url":"app.html#How-It-Works"},{"title":"Connection Indicator","text":"App › Connection Indicator","url":"app.html#Connection-Indicator"},{"title":"Enabling the Indicator","text":"App › Enabling the Indicator","url":"app.html#Enabling-the-Indicator"},{"title":"Customizing Colors and Size","text":"App › Customizing Colors and Size","url":"app.html#Customizing-Colors-and-Size"},{"title":"Customizing Position","text":"App › Customizing Position","url":"app.html#Customizing-Position"},{"title":"ConnectionIndicator Arguments","text":"App › ConnectionIndicator Arguments","url":"app.html#ConnectionIndicator-Arguments"},{"title":"Creating a Custom Indicator","text":"App › Creating a Custom Indicator","url":"app.html#Creating-a-Custom-Indicator"},{"title":"JavaScript API for Custom Indicators","text":"App › JavaScript API for Custom Indicators","url":"app.html#JavaScript-API-for-Custom-Indicators"},{"title":"Styling","text":"Styling\n\nBasics\n\nusing Bonito\nPage()\n\nThe main type to style the DOM via css is Style:\n\nStyles\n\nUsing CSS and pseudo classes\n\nThe CSS object allows to specify a selector, which will be used to apply the styling to a specific DOM node. Since the main usage is to apply the Style object to a DOM node, the selector is usually empty and we use it mainly for pseudo classes like :hover:\n\nApp() do session\n    return DOM.div(\n        \"This turns red on hover\",\n        style=Styles(\n            CSS(\":hover\", \"color\" => \"red\", \"text-size\" => \"2rem\")\n        )\n    )\nend\n\nA more involved example is the style we use for Button:\n\nApp() do\n    style = Styles(\n        CSS(\n            \"font-weight\" => 600,\n            \"border-width\" => \"1px\",\n            \"border-color\" => \"#9CA3AF\",\n            \"border-radius\" => \"0.25rem\",\n            \"padding-left\" => \"0.75rem\",\n            \"padding-right\" => \"0.75rem\",\n            \"padding-top\" => \"0.25rem\",\n            \"padding-bottom\" => \"0.25rem\",\n            \"margin\" => \"0.25rem\",\n            \"cursor\" => \"pointer\",\n            \"min-width\" => \"8rem\",\n            \"font-size\" => \"1rem\",\n            \"background-color\" => \"white\",\n            \"box-shadow\" => \"rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px\";\n        ),\n        CSS(\n            \":hover\",\n            \"background-color\" => \"#F9FAFB\",\n            \"box-shadow\" => \"rgba(0, 0, 0, 0) 0px 0px 0px 0px\",\n      ","url":"styling.html"},{"title":"Basics","text":"Styling › Basics","url":"styling.html#Basics"},{"title":"Using CSS and pseudo classes","text":"Styling › Using CSS and pseudo classes","url":"styling.html#Using-CSS-and-pseudo-classes"},{"title":"Using Styles as global Stylesheet","text":"Styling › Using Styles as global Stylesheet","url":"styling.html#Using-Styles-as-global-Stylesheet"},{"title":"Components","text":"Components\n\nComponents in Bonito are meant to be re-usable, easily shareable types and functions to create complex Bonito Apps. We invite everyone to share their Components by turning them into a Julia library.\n\nThere are two ways of defining components in Bonito:\n\nWrite a function which returns DOM objects\nOverload jsrender for a type\n\nThe first is a very lightweight form of defining reusable components, which should be preferred if possible.\n\nBut, for e.g. widgets the second form is unavoidable, since you will want to return a type that the user can register interactions with. Also, the second form is great for integrating existing types into Bonito like plot objects. How to do the latter for Plotly is described in Plotting.\n\nLet's start with the simple function based components that reuses existing Bonito components:\n\nusing Bonito\nBonito.Page()\n\nusing Dates\nfunction CurrentMonth(date=now(); style=Styles(), div_attributes...)\n    current_day = Dates.day(date)\n    month = Dates.monthname(date)\n    ndays = Dates.daysinmonth(date)\n    current_day_style = Styles(style, \"background-color\" => \"gray\", \"color\" => \"white\")\n    days = map(1:ndays) do day\n        if day == current_day\n            return Card(Centered(day); style=current_day_style)\n        else\n            return Card(Centered(day); style=style)\n        end\n    end\n    grid = Grid(days...; columns=\"repeat(7, 1fr)\")\n    return DOM.div(DOM.h2(month), grid; style=Styles(\"width\" => \"400px\", \"margin\" => \"5px\"))\nend\n\n\nApp(()","url":"components.html"},{"title":"Layouting","text":"Layouting\n\nThe main layouting primitive Bonito offers is Grid, Column and Row. They are all based on css display: grid and Bonito offers a small convenience wrapper around it.\n\nWe recommend reading through the great introduction to Styles grids by Josh Comeau: interactive guide to grid, for a better understanding of how grids work. It's recommended to read this before following this tutorial, since the examples are styled much nicer and explain everything in much greater detail.\n\nTo easier apply the tutorial to Bonito, we ported all the examples of the tutorial, while only describing them with the bare minimum. To get the full picture, please refer to the linked, original tutorial!\n\nLet's start with the docstring for Grid:\n\nGrid\n\nIt pretty much just sets the css attributes to some defaults, but everything can be overwritten or extended by passing your own style=Styles(...) object. All Styles objects inside one App will be merged into a single stylesheet, so using many grids with the same keyword arguments will only generate one entry into the global stylesheet. You can read more about this in the styling section.\n\nThere's also Row and Col which uses Grid under the hood:\n\nRow\nCol\n\nusing Bonito\nPage()\n\nImplicit Grids\n\nIf we don't specify any attributes for the Grid, the default will be one dynamic column, where every item gets their own row:\n\n\n\nDemoCard(content=DOM.div(); style=Styles(), attributes...) = Card(content; backgroundcolor=:silver, border_radius=\"2px\", style=Styles(s","url":"layouting.html"},{"title":"Implicit Grids","text":"Layouting › Implicit Grids","url":"layouting.html#Implicit-Grids"},{"title":"Assigning children","text":"Layouting › Assigning children","url":"layouting.html#Assigning-children"},{"title":"Grid areas","text":"Layouting › Grid areas","url":"layouting.html#Grid-areas"},{"title":"Alignment","text":"Layouting › Alignment","url":"layouting.html#Alignment"},{"title":"Widgets","text":"Widgets\n\nusing Bonito\nPage()\n\nAll Available widgets\n\nButton\n\ninclude_string(@__MODULE__, Bonito.BUTTON_EXAMPLE) # hide\n\nTextField\n\ninclude_string(@__MODULE__, Bonito.TEXTFIELD_EXAMPLE) # hide\n\nNumberInput\n\ninclude_string(@__MODULE__, Bonito.NUMBERINPUT_EXAMPLE) # hide\n\nDropdown\n\ninclude_string(@__MODULE__, Bonito.DROPDOWN_EXAMPLE) # hide\n\nCard\n\ninclude_string(@__MODULE__, Bonito.CARD_EXAMPLE) # hide\n\nStylableSlider\n\ninclude_string(@__MODULE__, Bonito.STYLABLE_SLIDER_EXAMPLE) # hide\n\nBonito.Table\n\nThe Table widget provides an interactive way to display tabular data that conforms to the Tables.jl interface. It supports custom styling, interactive sorting, and flexible cell rendering.\n\nBasic Usage\n\n\n# Create sample data using named tuples\ndata = [\n    (name=\"Alice\", age=25, score=95.5),\n    (name=\"Bob\", age=30, score=87.2),\n    (name=\"Charlie\", age=22, score=92.8)\n]\n\n# Basic table\nbasic_table = Bonito.Table(data)\nApp(basic_table)\n\nCustom Cell Styling\n\nYou can provide custom class and style callbacks to control the appearance of individual cells:\n\n# Color coding function based on values\nfunction score_class_callback(table, row, col, val)\n    # Color the score column based on value\n    if col == 3 && isa(val, Number)  # Score column\n        if val >= 90\n            return \"cell-good\"\n        elseif val >= 80\n            return \"cell-neutral\"\n        else\n            return \"cell-bad\"\n        end\n    end\n    return \"cell-default\"\nend\n\n# Style callback for additional formatting\nfunc","url":"widgets.html"},{"title":"All Available widgets","text":"Widgets › All Available widgets","url":"widgets.html#All-Available-widgets"},{"title":"Basic Usage","text":"Widgets › Basic Usage","url":"widgets.html#Basic-Usage"},{"title":"Custom Cell Styling","text":"Widgets › Custom Cell Styling","url":"widgets.html#Custom-Cell-Styling"},{"title":"Sorting Options","text":"Widgets › Sorting Options","url":"widgets.html#Sorting-Options"},{"title":"Working with DataFrames","text":"Widgets › Working with DataFrames","url":"widgets.html#Working-with-DataFrames"},{"title":"Advanced Example: Financial Data","text":"Widgets › Advanced Example: Financial Data","url":"widgets.html#Advanced-Example:-Financial-Data"},{"title":"Widgets in Layouts","text":"Widgets › Widgets in Layouts","url":"widgets.html#Widgets-in-Layouts"},{"title":"Editor","text":"Widgets › Editor","url":"widgets.html#Editor"},{"title":"Tailwinddashboard","text":"Widgets › Tailwinddashboard","url":"widgets.html#Tailwinddashboard"},{"title":"Interactions","text":"Interactions\n\nAnimations in Bonito are done via Observables.jl, much like it's the case for Makie.jl, so the same docs apply:\n\nobservables\nanimation\n\nBut lets quickly get started with a Bonito specific example:\n\nusing Bonito\nPage()\n\nApp() do session\n    s = Slider(1:3)\n    value = map(s.value) do x\n        return x ^ 2\n    end\n    # record_states captures widget interactions for static HTML export\n    # This allows the slider to remain interactive even without a Julia backend!\n    return Bonito.record_states(session, DOM.div(s, value))\nend\n\nThe s.value is an Observable which can be mapp'ed to take on new values, and one can insert observables as an input to DOM.tag or as any attribute. The value of the observable will be rendered via jssrender(session, observable[]), and then updated whenever the value changes. So anything that supports being inserted into the DOM can be inside an observable, and the fallback is to use the display system (so plots etc. work as well). This way, one can also return DOM elements as the result of an observable:\n\nApp() do session\n    s = Slider(1:3)\n    # use map!(result_observable, ...)\n    # To use any as the result type, otherwise you can't return\n    # different types from the map callback\n    value = map!(Observable{Any}(), s.value) do x\n        if x == 1\n            return DOM.h1(\"hello from slider: $(x)\")\n        elseif x == 2\n            return DOM.img(src=\"https://docs.makie.org/stable/logo.svg\", width=\"200px\")\n        else\n            re","url":"interactions.html"},{"title":"Understanding record_states Limitations","text":"Interactions › Understanding record_states Limitations","url":"interactions.html#Understanding-record_states-Limitations"},{"title":"Creating Interactive Examples","text":"Interactions › Creating Interactive Examples","url":"interactions.html#Creating-Interactive-Examples"},{"title":"Plotting","text":"Plotting\n\nAll plotting frameworks overloading the Julia display system should work out of the box and all Javascript plotting libraries should be easy to integrate! The following example shows how to integrate popular libraries like Makie, Plotly and Gadfly.\n\nusing Bonito\nusing WGLMakie\nimport WGLMakie as W\nimport Gadfly as G\nimport PlotlyLight as PL\n\nPage() # required for multi cell output inside documenter\n\nfunction makie_plot()\n    N = 10\n    function xy_data(x, y)\n        r = sqrt(x^2 + y^2)\n        r == 0.0 ? 1.0f0 : (sin(r) / r)\n    end\n    l = range(-10, stop=10, length=N)\n    z = Float32[xy_data(x, y) for x in l, y in l]\n    W.surface(\n        -1 .. 1, -1 .. 1, z,\n        colormap=:Spectral,\n        figure=(; size=(300, 300))\n    )\nend\n\n# As far as I can tell, PlotlyLight doesn't handle require inside documenter correctly\n# So we just use Bonito to do it correctly via `Asset`:\nconst Plotly = Bonito.Asset(PL.plotly.url)\n\nfunction Bonito.jsrender(session::Session, plot::PL.Plot)\n    # Pretty much copied from the PlotlyLight source to create the JS + div for creating the plot:\n    div = DOM.div(style=\"width: 300px;height: 300px;\")\n    src = js\"\"\"\n        Plotly.newPlot($(div), $(plot.data), $(plot.layout), $(plot.config))\n    \"\"\"\n    return Bonito.jsrender(session, DOM.div(Plotly, div, src))\nend\n\nApp() do\n    p = PL.plot(x = 1:20, y = cumsum(randn(20)), type=\"scatter\", mode=\"lines+markers\")\n    G.set_default_plot_size(300G.px, 300G.px)\n    gp = G.plot([sin, cos], 0, 2pi)","url":"plotting.html"},{"title":"Javascript","text":"Javascript\n\nWrapping Javascript Libraries\n\nusing Bonito\nBonito.Page()\n\nleafletjs = Bonito.ES6Module(\"https://esm.sh/v133/leaflet@1.9.4/es2022/leaflet.mjs\")\nleafletcss = Bonito.Asset(\"https://unpkg.com/leaflet@1.9.4/dist/leaflet.css\")\nstruct LeafletMap\n    position::NTuple{2,Float64}\n    zoom::Int\nend\n\nfunction Bonito.jsrender(session::Session, map::LeafletMap)\n\n    map_div = DOM.div(id=\"map\"; style=\"height: 500px;\")\n\n    return Bonito.jsrender(session, DOM.div(\n        leafletcss,\n        leafletjs,\n        map_div,\n        js\"\"\"\n            $(leafletjs).then(L=> {\n                const map = L.map('map').setView($(map.position), $(map.zoom));\n                L.tileLayer(\n                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png', {\n                    maxZoom: 19,\n                    attribution: '&copy; <a href=\"http://www.openstreetmap.org/copyright\">OpenStreetMap</a>'\n                }).addTo(map);\n            })\n\n        \"\"\"\n    ))\nend\n\n\nApp() do\n    return LeafletMap((51.505, -0.09), 13)\nend\n\n","url":"javascript-libraries.html"},{"title":"Wrapping Javascript Libraries","text":"Javascript › Wrapping Javascript Libraries","url":"javascript-libraries.html#Wrapping-Javascript-Libraries"},{"title":"Assets","text":"Assets\n\nAssets in Bonito represent external resources like JavaScript libraries, CSS files, images, and other files. They handle loading, bundling, and serving these resources efficiently across different deployment ways (Server/Plotpane/Notebooks/Static Site/Documenter).\n\nBasic Usage\n\nAssets can reference local files or remote URLs and are automatically served with the appropriate URLs:\n\nusing Bonito\nPage()\n\nusing Bonito\n\n# Load a local image\ndashi_logo = Asset(joinpath(@__DIR__, \"dashi.png\"))\n\n# Create an app that displays the image\napp = App() do\n    # Use CSS class selector to style child images of this specific container\n    img_styles = Styles(CSS(\".asset-container > img\", \"width\" => \"400px\"))\n    DOM.div(\n        img_styles,\n        DOM.div(\n            DOM.h2(\"Asset Example\"),\n            DOM.p(\"Assets render automatically as the appropriate DOM element:\"),\n            dashi_logo,  # Automatically becomes DOM.img(src=url_to_asset)\n            DOM.p(\"Or use assets as src attributes for more control:\"),\n            DOM.img(src=dashi_logo; width=\"400px\");  # Asset URL is inserted as src\n            class=\"asset-container\"\n        )\n    )\nend\n\nJavaScript Assets\n\nJavaScript assets come in two flavors: ES6 modules and traditional scripts.\n\nES6 Modules\n\nES6Module\n\nYou can also use the convenient CDN helper (uses esm.sh):\n\nTHREE = CDNSource(\"three\"; version=\"0.137.5\")\n\nTraditional Scripts (Non-module)\n\nFor traditional JavaScript libraries that expose global variables (like jQ","url":"assets.html"},{"title":"Basic Usage","text":"Assets › Basic Usage","url":"assets.html#Basic-Usage"},{"title":"JavaScript Assets","text":"Assets › JavaScript Assets","url":"assets.html#JavaScript-Assets"},{"title":"ES6 Modules","text":"Assets › ES6 Modules","url":"assets.html#ES6-Modules"},{"title":"Traditional Scripts (Non-module)","text":"Assets › Traditional Scripts (Non-module)","url":"assets.html#Traditional-Scripts-(Non-module)"},{"title":"Binary Assets","text":"Assets › Binary Assets","url":"assets.html#Binary-Assets"},{"title":"Extending Bonito","text":"Extending Bonito\n\nConnection\n\nBy default, Bonito uses its own WebSocket server to create the connection between Julia and JavaScript. By extending Bonito.FrontendConnection, you can create a new type of connection, e.g. using WebRTC to connect Julia and JavaScript.\n\nYour new connection type should support bidirectional messages of binary data. \n\nusing Bonito\nBonito.Page()\n\nmutable struct MyConnection <: Bonito.FrontendConnection\n    # TODO: your implementation here\n    isopen::Bool\n    socket\n    blabla\n    ...\nend\n\nfunction MyConnection()\n    # If you need to do something like start an HTTP server, you can do it here, synchronously.\n    \n    \n    return new(\n        true,\n        ...\n    )\nend\n\nfunction Base.write(connection::MyConnection, binary)\n    # TODO: send the data to JavaScript\n    write(connection.socket, binary)\nend\n\nBase.isopen(connection::MyConnection) = connection.isopen\nBase.close(connection::MyConnection) = (connection.isopen = false)\nopen!(connection::MyConnection) = (connection.isopen = true)\n\nfunction setup_connection(session::Session{MyConnection})\n    # If you need to do something specific for this new session, you can do it here.\n\n    return js\"\"\"\n    // TODO: create a connection\n    create_connection(...).then((conn) => {\n        \n        // TODO: when your connection receives a message from Julia, relay the message to `Bonito.process_message(msg)`.\n        conn.on_msg((msg) => {\n            Bonito.process_message(msg)\n        });\n        \n        // T","url":"extending.html"},{"title":"Connection","text":"Extending Bonito › Connection","url":"extending.html#Connection"},{"title":"Managing your own WebSocket server","text":"Extending Bonito › Managing your own WebSocket server","url":"extending.html#Managing-your-own-WebSocket-server"},{"title":"Customising the websocket cleanup policy","text":"Extending Bonito › Customising the websocket cleanup policy","url":"extending.html#Customising-the-websocket-cleanup-policy"},{"title":"Handlers","text":"Handlers\n\nHandlers are the building blocks for serving content in Bonito. Any type that implements the apply_handler interface can be used with route! to respond to HTTP requests. This makes Bonito's routing system highly extensible - you can wrap existing handlers to add functionality like authentication, rate limiting, or logging.\n\nUnderstanding Handlers\n\nA handler is any type that implements the apply_handler method:\n\nfunction Bonito.HTTPServer.apply_handler(handler::YourHandlerType, context)\n    request = context.request\n    # ... process the request and return HTTP.Response\n    return HTTP.Response(200, \"Hello World\")\nend\n\nThe context parameter provides access to:\n\ncontext.request - The HTTP request object\ncontext.application - The server instance\ncontext.routes - The routes table\ncontext.match - The pattern match result (string or regex match)\n\nBonito's built-in App type is itself a handler, which is why you can use route!(server, \"/\" => app) directly.\n\nCreating Custom Handlers\n\nHere's a simple example of a custom handler that logs requests:\n\nusing Bonito, Dates\n\nstruct LoggingHandler{T}\n    handler::T\n    log_file::String\nend\n\nfunction Bonito.HTTPServer.apply_handler(logger::LoggingHandler, context)\n    request = context.request\n    # Log the request\n    open(logger.log_file, \"a\") do io\n        println(io, \"$(now()): $(request.method) $(request.target)\")\n    end\n    # Delegate to wrapped handler\n    return Bonito.HTTPServer.apply_handler(logger.handler, context)\nend\n\n#","url":"handlers.html"},{"title":"Understanding Handlers","text":"Handlers › Understanding Handlers","url":"handlers.html#Understanding-Handlers"},{"title":"Creating Custom Handlers","text":"Handlers › Creating Custom Handlers","url":"handlers.html#Creating-Custom-Handlers"},{"title":"Built-in Handlers","text":"Handlers › Built-in Handlers","url":"handlers.html#Built-in-Handlers"},{"title":"FolderServer","text":"Handlers › FolderServer","url":"handlers.html#FolderServer"},{"title":"ProtectedRoute","text":"Handlers › ProtectedRoute","url":"handlers.html#ProtectedRoute"},{"title":"Password Storage","text":"Handlers › Password Storage","url":"handlers.html#Password-Storage"},{"title":"SingleUser","text":"Handlers › SingleUser","url":"handlers.html#SingleUser"},{"title":"Custom Password Stores","text":"Handlers › Custom Password Stores","url":"handlers.html#Custom-Password-Stores"},{"title":"Combining Handlers","text":"Handlers › Combining Handlers","url":"handlers.html#Combining-Handlers"},{"title":"Advanced: Handler Context","text":"Handlers › Advanced: Handler Context","url":"handlers.html#Advanced:-Handler-Context"},{"title":"Deployment","text":"Deployment\n\nApps can be deployed in a wide variety of scenarios.\n\nLets start with a very simple example app and show how to deploy that App:\n\nusing Bonito\nexample_app = App(DOM.div(\"hello world\"), title=\"hello world\")\n\nServer\n\n# Depending on your servers setup, you may need to listen on another port or URL\n# But 0.0.0.0:80 is pretty standard for most server setups\nport = 80\nurl = \"0.0.0.0\"\nserver = Bonito.Server(example_app, url, port)\n\nNow, you should see the webpage at http://0.0.0.0:80.\n\nProxy + Julia Hub\n\nIf the server is behind a proxy, you can set the proxy like this:\n\nserver = Bonito.Server(example_app, \"0.0.0.0\", 8080; proxy_url=\"https://my-domain.de/my-app\");\n# or set it later\n# this can be handy for interactive use cases where one isn't sure which port is open, and let Bonito find a free port (which will then be different from the one created with, but is stored in `server.port`)\nserver.proxy_url = \".../$(server.port)\"\n\nYou can also set the proxy_url to \".\" to use relative to the served page url. This works well e.g. for accessing the webpage on a local network, or when serving it online with your own server. This needs to support then establish the websocket connection via the same relative url (so if only the HTML is served via that URL, but not all requests are forwarded to the Bonito server, this won't work).\n\nBonito tries to do this for known environments like JuliaHub via get_server(). This will find the most common proxy setup and return a started server:\n\nse","url":"deployment.html"},{"title":"Server","text":"Deployment › Server","url":"deployment.html#Server"},{"title":"Proxy + Julia Hub","text":"Deployment › Proxy + Julia Hub","url":"deployment.html#Proxy-Julia-Hub"},{"title":"Secure HTTPS connections with SSL","text":"Deployment › Secure HTTPS connections with SSL","url":"deployment.html#Secure-HTTPS-connections-with-SSL"},{"title":"Logging requests","text":"Deployment › Logging requests","url":"deployment.html#Logging-requests"},{"title":"nginx","text":"Deployment › nginx","url":"deployment.html#nginx"},{"title":"Heroku","text":"Deployment › Heroku","url":"deployment.html#Heroku"},{"title":"Terminal","text":"Deployment › Terminal","url":"deployment.html#Terminal"},{"title":"VScode","text":"Deployment › VScode","url":"deployment.html#VScode"},{"title":"Notebooks","text":"Deployment › Notebooks","url":"deployment.html#Notebooks"},{"title":"IJulia","text":"Deployment › IJulia","url":"deployment.html#IJulia"},{"title":"Jupyterlab","text":"Deployment › Jupyterlab","url":"deployment.html#Jupyterlab"},{"title":"Pluto","text":"Deployment › Pluto","url":"deployment.html#Pluto"},{"title":"Electron","text":"Deployment › Electron","url":"deployment.html#Electron"},{"title":"Documenter","text":"Deployment › Documenter","url":"deployment.html#Documenter"},{"title":"Static export","text":"Deployment › Static export","url":"deployment.html#Static-export"},{"title":"Anything else","text":"Deployment › Anything else","url":"deployment.html#Anything-else"},{"title":"Static Sites","text":"Static Sites\n\nThere are several ways to generate static sites with Bonito. The main one is:\n\nexport_static\n\nThe simplest one, which also allows an interactive Revise based workflow is enabled by interactive_server:\n\ninteractive_server\n\nWhen exporting interactions defined within Julia not using Javascript, one can use, to cache all interactions:\n\nBonito.record_states\n\n","url":"static.html"},{"title":"Api","text":"Api\n\nPublic Functions\n\nModules = [Bonito]\nOrder   = [:module, :constant, :type, :function, :macro]\nPublic  = true\nPrivate = false\n\nPrivate Functions\n\nModules = [Bonito]\nOrder   = [:module, :constant, :type, :function, :macro]\nPublic  = false\nPrivate = true\n\nModules = [Bonito.HTTPServer]\nOrder   = [:module, :constant, :type, :function, :macro]\nPublic  = true\nPrivate = true\n\n","url":"api.html"},{"title":"Public Functions","text":"Api › Public Functions","url":"api.html#Public-Functions"},{"title":"Private Functions","text":"Api › Private Functions","url":"api.html#Private-Functions"}];</script></div></div></body></html>
