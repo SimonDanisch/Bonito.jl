@@ -183,6 +183,10 @@ end
 
 function default_security_config()
     EC = current_electron()
+    # `SecurityConfig` is an ElectronCall-only feature. Plain `Electron` has no
+    # equivalent (and its `Application` has no `security` kwarg), so we return
+    # `nothing` and let `EWindow` skip the security argument entirely.
+    isdefined(EC, :SecurityConfig) || return nothing
     # Bonito needs context_isolation=false because:
     # - executeJavaScript must access page-level JS objects (Bonito, WEBSOCKET, etc.)
     # - run(window, code) relies on shared context between page and Electron APIs
@@ -203,10 +207,16 @@ instead of creating a new one (avoids multiple Electron processes).
 function EWindow(args...; app=nothing, options=Dict{String, Any}(), electron_args=default_electron_args())
     EC = current_electron()
     if app === nothing
-        app = EC.Application(;
-            additional_electron_args=electron_args,
-            security=default_security_config(),
-        )
+        security = default_security_config()
+        if security === nothing
+            # plain `Electron` backend: no `security` kwarg available
+            app = EC.Application(; additional_electron_args=electron_args)
+        else
+            app = EC.Application(;
+                additional_electron_args=electron_args,
+                security=security,
+            )
+        end
     end
     if isempty(args)
         window = EC.Window(app, options)

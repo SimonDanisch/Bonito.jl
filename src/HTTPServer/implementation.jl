@@ -282,7 +282,20 @@ function stream_handler(application::Server, stream::Stream)
             # won't match Host. `upgrade` keeps HTTP and websockets on a single
             # (route-dispatched) port and drains any bytes buffered with the
             # handshake into the codec.
-            HTTP.WebSockets.upgrade(stream; check_origin = (_...) -> true) do ws
+            # HTTP 2.4 started capping inbound WebSocket messages by default
+            # (`maxframesize` 16 MiB, was `typemax(Int)` through 2.3.1; plus a
+            # 1024-frame `maxfragmentation` cap) and closes with 1009
+            # "frame/message too large" when exceeded. Bonito round-trips large
+            # binary payloads (WGLMakie meshes, images, volumes; the typed-array
+            # serialization tests) over this socket from a trusted local browser
+            # (Electron / notebook / VSCode webview), so lift both caps back to
+            # unbounded.
+            HTTP.WebSockets.upgrade(
+                stream;
+                check_origin = (_...) -> true,
+                maxframesize = typemax(Int),
+                maxfragmentation = typemax(Int),
+            ) do ws
                 delegate(application.websocket_routes, application, stream.message, ws; peer_ip = peer)
             end
             return
