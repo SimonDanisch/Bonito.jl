@@ -237,9 +237,9 @@ function StylableSlider(
     track_height=slider_height / 2,
     track_active_height=track_height + 2,
     backgroundcolor="transparent",
-    track_color="#eee",
-    track_active_color="#ddd",
-    thumb_color="#fff",
+    track_color="var(--bonito-widget-muted-bg, #eee)",
+    track_active_color="var(--bonito-widget-border, #ddd)",
+    thumb_color="var(--bonito-widget-bg, #fff)",
     style::Styles=Styles(),
     track_style::Styles=Styles(),
     thumb_style::Styles=Styles(),
@@ -266,7 +266,7 @@ function StylableSlider(
         "height" => "$(track_height)px",
         "background-color" => track_color,
         "border-radius" => "3px",
-        "border" => "1px solid #ccc",
+        "border" => "1px solid var(--bonito-widget-border, #ccc)",
     )
     track_style = Styles(default_track_style, track_style)
 
@@ -276,7 +276,7 @@ function StylableSlider(
         "height" => "$(track_active_height)px",
         "background-color" => track_active_color,
         "border-radius" => "3px",
-        "border" => "1px solid #ccc",
+        "border" => "1px solid var(--bonito-widget-border, #ccc)",
     )
     track_active_style = Styles(default_track_active_style, track_active_style)
 
@@ -287,7 +287,7 @@ function StylableSlider(
         "border-radius" => "50%",
         "cursor" => "pointer",
         "position" => "absolute",
-        "border" => "1px solid #ccc",
+        "border" => "1px solid var(--bonito-widget-border, #ccc)",
         "left" => "$(-half_thumb_width)px",
         "background-color" => thumb_color,
     )
@@ -296,8 +296,10 @@ function StylableSlider(
         error("Values for value=$(value) and index=$(index) given, please only set one.")
     end
     if !isnothing(value) && isnothing(index)
-        index = findfirst(isequal(value), range)
-        index === nothing && error("value=$(value) not in range=$(range)")
+        # Snap to the nearest tick (same tolerant behaviour `Slider` got
+        # via `slider_value_index`) instead of throwing on a non-exact float
+        # default, e.g. `StylableSlider(range(0, 2π, 100); value=π/2)`.
+        index = slider_value_index(collect(range), value)
     end
     if isnothing(value) && isnothing(index)
         index = 1
@@ -341,7 +343,7 @@ function jsrender(session::Session, slider::StylableSlider)
         const track_active = $(track_active);
         const track = $(track);
         let isDragging = false;
-        const nsteps_obs = $(map(length, slider.values))
+        const nsteps_obs = $(map(length, session, slider.values))
         let last_index = -1;
         function set_thumb_index(index) {
             if (index === last_index) {
@@ -367,16 +369,20 @@ function jsrender(session::Session, slider::StylableSlider)
             new_left = Math.round(new_left / step_width) * step_width;
             thumb.style.left = (new_left - thumb_width) + 'px';  // Update the left position of the thumb
             track_active.style.width = new_left + 'px';  // Update the active track
+            // `index` is 0-based here; `slider.index` is 1-based. The previous
+            // comparison `index !== value` mixed the two bases, so the
+            // echo-dedup guard never matched and every drag re-notified.
             const index = Math.round((new_left / width) * (nsteps - 1));
-            last_index = index;
-            if (index !== $(slider.index).value) {
-                $(slider.index).notify(index + 1);
+            const index_1based = index + 1;
+            last_index = index_1based;
+            if (index_1based !== $(slider.index).value) {
+                $(slider.index).notify(index_1based);
             }
         }
         const set_thumb_throttled = Bonito.throttle_function(set_thumb, 100);
         const controller = new AbortController();
         document.addEventListener('mousedown', function (e) {
-            if(e.target === thumb || e.target === track_active || e.target === track || e.targar === container){
+            if(e.target === thumb || e.target === track_active || e.target === track || e.target === container){
                 isDragging = true;
                 set_thumb(e);
                 e.preventDefault();  // Prevent default behavior
@@ -605,7 +611,7 @@ end
 
 @deprecate MathJax(source::String, config=Dict()) KaTeX(source)
 
-const KaTeXCSS = Asset(dependency_path("katex.min.css"))
+const KaTeXCSS = Asset(@path(dependency_path("katex.min.css")))  # @path: embed bytes so it survives bundle relocation
 const KaTeXJS = ES6Module(dependency_path("katex.mjs"))
 
 function jsrender(session::Session, katex::KaTeX)

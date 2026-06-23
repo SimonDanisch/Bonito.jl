@@ -17,14 +17,17 @@ class Observable {
      */
     notify(value, dont_notify_julia) {
         this.value = value;
-        this.#callbacks.forEach((callback) => {
+        // J15: iterate a snapshot. A callback that returns false deregisters
+        // itself (splice from this.#callbacks); mutating the array we're
+        // iterating with forEach would skip the immediately-following listener.
+        // Collect the callbacks to remove and splice them afterwards.
+        const callbacks = this.#callbacks.slice();
+        const to_remove = [];
+        callbacks.forEach((callback) => {
             try {
                 const deregister = callback(value);
                 if (deregister == false) {
-                    this.#callbacks.splice(
-                        this.#callbacks.indexOf(callback),
-                        1
-                    );
+                    to_remove.push(callback);
                 }
             } catch (exception) {
                 send_error(
@@ -33,6 +36,12 @@ class Observable {
                         callback.toString(),
                     exception
                 );
+            }
+        });
+        to_remove.forEach((callback) => {
+            const idx = this.#callbacks.indexOf(callback);
+            if (idx !== -1) {
+                this.#callbacks.splice(idx, 1);
             }
         });
         if (!dont_notify_julia) {

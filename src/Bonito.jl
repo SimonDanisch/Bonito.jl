@@ -10,6 +10,7 @@ using Hyperscript
 using Hyperscript: Node, children, tag
 using Observables
 using Markdown
+using CommonMark
 using HTTP
 using Base64
 using MsgPack
@@ -54,6 +55,9 @@ include("session.jl")
 include("rendering/rendering.jl")
 
 include("asset-serving/asset-serving.jl")
+# KeyedList depends on `ES6Module` (defined in asset-serving), `Observable`,
+# `Session`, `dom_in_js`, and `jsrender` — all of which are loaded by now.
+include("rendering/keyed_list.jl")
 include("connection/connection.jl")
 include("registry.jl")
 
@@ -71,9 +75,12 @@ include("connection_indicator.jl")
 include("tailwind-dashboard.jl")
 
 include("interactive.jl")
+include("terminal_output.jl")
+include("documenter.jl")
 
 # Core functionality
-export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset, CSS, LoadingPage
+export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset, CSS, LoadingPage, rebundle!
+export KeyedList
 export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor
 export browser_display, configure_server!, Server, show_html, html, route!, online_url, use_electron_display
 export Observable, on, onany, bind_global
@@ -89,6 +96,9 @@ export ProtectedRoute, User, SingleUser, AbstractPasswordStore, FolderServer
 export ConnectionIndicator, AbstractConnectionIndicator
 export get_metadata, set_metadata!
 export cleanup_globals
+export RichText, TerminalOutput, ANSI_CSS, ansi_to_html, has_ansi_codes, append_html!
+export bonito_parser, commonmark_to_dom
+export DocumenterBonito
 
 function has_html_display()
     for display in Base.Multimedia.displays
@@ -116,6 +126,19 @@ function cleanup_globals()
         close(GLOBAL_SERVER[])
     end
     GLOBAL_SERVER[] = nothing
+    if Base.generating_output() && isdefined(HTTP, :IOPoll)
+        # On HTTP.jl 2.x, starting a server spins up Reseau's IO poller, a
+        # detached native thread that keeps the precompile worker from exiting.
+        # HTTP.jl's own workload shuts it down the same way (see
+        # HTTP/src/precompile.jl). Only do this while precompiling: at runtime
+        # the poller is shared process-global state and other servers/clients
+        # may still use it.
+        try
+            HTTP.IOPoll.shutdown!()
+        catch e
+            @debug "IOPoll.shutdown! failed during precompile cleanup" exception = e
+        end
+    end
     return
 end
 
@@ -128,5 +151,7 @@ function __init__()
     # Note: This doesn't affect precompilation since __init__ doesn't run during precompile
     atexit(cleanup_globals)
 end
+
+include("precompiles.jl")
 
 end # module

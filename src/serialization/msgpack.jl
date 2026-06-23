@@ -8,18 +8,13 @@ MsgPack.msgpack_type(::Type{<: AbstractVector{<: JSTypedNumber}}) = MsgPack.Exte
 
 function real_unsafe_write(io::IOBuffer, data::Array{T}) where T
     @assert isbitstype(T)
-    nbytes = sizeof(data)
-    Base.ensureroom(io, nbytes)
-    ptr = (io.append ? io.size + 1 : io.ptr)
-    written = Int(min(nbytes, Int(length(io.data))::Int - ptr + 1))
+    # Delegate to Base's `unsafe_write`, which owns all ensureroom/offset/size
+    # bookkeeping. The previous hand-rolled version clamped the size update to the
+    # available room but still `unsafe_copyto!`'d the *full* byte count, so a
+    # too-small buffer overflowed `io.data` and corrupted the heap (segfault).
     GC.@preserve data begin
-        Base.unsafe_copyto!(pointer(io.data, ptr), Ptr{UInt8}(pointer(data)), nbytes)
+        return Int(Base.unsafe_write(io, Ptr{UInt8}(pointer(data)), UInt(sizeof(data))))
     end
-    io.size = max(io.size, ptr - 1 + written)
-    if !io.append
-        io.ptr += written
-    end
-    return written
 end
 
 convert_for_write(x::Array) = x
@@ -70,7 +65,7 @@ end
 
 const OBSERVABLE_TAG = Int8(101)
 const JSCODE_TAG = Int8(102)
-const RETAIN_TAG = Int8(103)
+# 103 was RETAIN_TAG — removed in the cache-refcount refactor
 const CACHE_KEY_TAG = Int8(104)
 const DOM_NODE_TAG = Int8(105)
 const SESSION_CACHE_TAG = Int8(106)
@@ -94,11 +89,6 @@ function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedJSCode)
     return MsgPack.Extension(JSCODE_TAG, pack([x.interpolated_objects, x.source, x.julia_file]))
 end
 
-MsgPack.msgpack_type(::Type{Retain}) = MsgPack.ExtensionType()
-function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::Retain)
-    return MsgPack.Extension(RETAIN_TAG, pack(x.value))
-end
-
 MsgPack.msgpack_type(::Type{CacheKey}) = MsgPack.ExtensionType()
 function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::CacheKey)
     return MsgPack.Extension(CACHE_KEY_TAG, pack(x.key))
@@ -119,12 +109,92 @@ function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::Base.HTML)
     return MsgPack.Extension(RAW_HTML_TAG, pack(x.content))
 end
 
+# ── SessionIO forwarding + pack_extension! API ─────────────────────────────
+#
+# SessionIO is defined in types.jl. Here we wire it up as a writable IO that
+# routes through a stack of reusable scratch buffers — so nested msgpack
+# Extension payloads can be packed without allocating an IOBuffer per layer.
+
+@inline current_buffer(s::SessionIO) =
+    s.depth == 0 ? (s.output::IOBuffer) : @inbounds s.scratches[s.depth]
+
+# Only override the two write methods that the rest of Julia's IO machinery
+# funnels through: a direct byte write and the bulk unsafe_write. Real / String /
+# Array writes in `Base` all reduce to one of these, so we don't have to
+# enumerate them (and avoid ambiguity with Base's specialized `write(::IO, ::Int8)`
+# etc.).
+@inline Base.write(s::SessionIO, x::UInt8) = write(current_buffer(s), x)
+@inline Base.unsafe_write(s::SessionIO, p::Ptr{UInt8}, n::UInt) = unsafe_write(current_buffer(s), p, n)
+# Typed-array fast paths in this module's `pack_type` overrides (line 36 below)
+# call `real_unsafe_write` directly on the IO; forward to the active buffer.
+@inline real_unsafe_write(s::SessionIO, data::Array) = real_unsafe_write(current_buffer(s), data)
+
+@inline function reset_for_reuse!(io::IOBuffer)
+    # No public IOBuffer API resets size+ptr without dropping the backing
+    # Memory's capacity (`take!` empties it, `truncate(io,0)` resizes it to 0).
+    # We need to keep the capacity so subsequent messages don't re-grow.
+    io.size = 0
+    io.ptr  = 1
+    return nothing
+end
+
+"""
+    pack_extension!(f, s::SessionIO, tag::Int8)
+
+Open a nested-extension scope: pushes a fresh scratch IOBuffer onto `s`'s stack,
+runs `f()` (which writes the payload via `pack(s, ...)` / `write(s, ...)`), then
+emits `[ext_header(tag, payload_size), payload_bytes]` to the layer below.
+
+No try/finally — if `f` errors the next top-level pack call will reset the
+SessionIO from a clean state (see `pack_type(::IOBuffer, ::SerializedMessage)`).
+"""
+function pack_extension!(f, s::SessionIO, tag::Int8)
+    s.depth += 1
+    if s.depth > length(s.scratches)
+        # Grow scratch stack lazily. Sizehint matches typical inner-extension
+        # payloads (cache and data sections of a small Bonito message).
+        push!(s.scratches, IOBuffer(UInt8[]; sizehint=512, append=true))
+    end
+    scratch = @inbounds s.scratches[s.depth]
+    f()
+    payload_size = scratch.size
+    # Pop FIRST so write_extension_header writes into the parent layer.
+    s.depth -= 1
+    parent = current_buffer(s)
+    MsgPack.write_extension_header(parent, payload_size, tag)
+    if payload_size > 0
+        GC.@preserve scratch unsafe_write(parent, pointer(scratch.data), UInt(payload_size))
+    end
+    reset_for_reuse!(scratch)
+    return nothing
+end
+
 MsgPack.msgpack_type(::Type{SessionCache}) = MsgPack.ExtensionType()
-function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SessionCache)
-    # Pack: [session_id, session_status, pack(objects)]
-    # This lets JS extract session info first, create context, then decode objects
-    objects_array = [v for (k, v) in x.objects]
-    return MsgPack.Extension(SESSION_CACHE_TAG, pack([x.session_id, x.session_type, pack(objects_array)]))
+
+# Wire format: Extension(SESSION_CACHE_TAG, msgpack array of 3 elements
+# [session_id, session_type, Extension(18){packed_objects}]). JS extracts
+# session_id / session_type first to set up its decode context before
+# materializing the observables (see js_dependencies/Protocol.js
+# `register_ext(SESSION_CACHE_TAG, ...)`).
+function MsgPack.pack_type(io::SessionIO, ::MsgPack.ExtensionType, x::SessionCache)
+    pack_extension!(io, SESSION_CACHE_TAG) do
+        write(io, MsgPack.magic_byte_min(MsgPack.ArrayFixFormat) | UInt8(3))  # fix-array(3)
+        pack(io, x.session_id)
+        pack(io, x.session_type)
+        pack_extension!(io, Int8(18)) do  # objects, wrapped to match Bonito's Vector{UInt8} ext
+            pack(io, collect(values(x.objects)))
+        end
+    end
+    return nothing
+end
+
+# Fallback: pack(::IOBuffer, ::SessionCache) — called when tests pack a
+# SessionCache standalone (no enclosing Session). Wrap the io in a one-shot
+# SessionIO so the stream-pack logic above applies uniformly.
+function MsgPack.pack_type(io, ::MsgPack.ExtensionType, x::SessionCache)
+    s = SessionIO()
+    s.output = io
+    MsgPack.pack_type(s, MsgPack.ExtensionType(), x)
 end
 
 MsgPack.msgpack_type(::Type{BinaryMessage}) = MsgPack.ExtensionType()
@@ -133,13 +203,68 @@ function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::BinaryMessage)
 end
 
 MsgPack.msgpack_type(::Type{SerializedMessage}) = MsgPack.ExtensionType()
-function MsgPack.to_msgpack(::MsgPack.ExtensionType, x::SerializedMessage)
-    # Pack: [session_id, session_status, pack(cache), pack(data)]
-    # Session info is extracted first to create context, then cache and data are decoded.
-    # Cache must be decoded before data so observables are registered.
-    session_id = x.cache.session_id
-    session_status = x.cache.session_type
-    return MsgPack.Extension(SERIALIZED_MESSAGE_TAG, pack([session_id, session_status, pack(x.cache), pack(x.data)]))
+
+# Wire format: Extension(SERIALIZED_MESSAGE_TAG, msgpack array of 4 elements
+# [session_id, session_status, Extension(18){packed_cache}, Extension(18){packed_data}]).
+# JS pulls session info first to set up its decode context, then unpacks cache
+# (so observables register) before data.
+
+# Shared payload body. Assumes the caller has already opened the outer
+# SERIALIZED_MESSAGE_TAG extension scope; we just write the 4-element array.
+function write_serialized_message_payload!(io::SessionIO, x::SerializedMessage)
+    write(io, MsgPack.magic_byte_min(MsgPack.ArrayFixFormat) | UInt8(4))  # fix-array(4)
+    pack(io, x.cache.session_id)
+    pack(io, x.cache.session_type)
+    pack_extension!(io, Int8(18)) do  # cache, wrapped to match Bonito's Vector{UInt8} ext
+        pack(io, x.cache)
+    end
+    pack_extension!(io, Int8(18)) do  # data, same wrapping
+        pack(io, x.data)
+    end
+    return nothing
+end
+
+# Top-level entry: `io` is whatever MsgPack.pack(sm) handed us (always an
+# IOBuffer in Bonito's hot path). Bootstrap the session's reusable SessionIO,
+# lock for the duration, then defer to the shared body.
+function MsgPack.pack_type(io::IOBuffer, ::MsgPack.ExtensionType, x::SerializedMessage)
+    s = x.pack_io
+    # If `pack_io` is already packing further up the stack (a nested
+    # SerializedMessage reached via a fresh `pack(...)`, e.g. inside
+    # `to_msgpack(::JSCode)`), reusing it would reset its depth/scratches
+    # mid-stream and corrupt the in-progress buffer (segfault). Use a throwaway
+    # SessionIO for the re-entrant case instead.
+    if s.in_use
+        s = SessionIO()
+    end
+    lock(s.lock) do
+        s.in_use = true
+        s.output = io
+        s.depth = 0
+        for scratch in s.scratches
+            reset_for_reuse!(scratch)
+        end
+        try
+            pack_extension!(s, SERIALIZED_MESSAGE_TAG) do
+                write_serialized_message_payload!(s, x)
+            end
+        finally
+            s.in_use = false
+            s.output = nothing
+        end
+    end
+    return nothing
+end
+
+# Nested entry: `io` is a SessionIO already mid-stream (e.g. a Vector of
+# SerializedMessages was packed by a containing pack_type). Reuse that
+# SessionIO directly — its lock is already held by the top-level caller, and
+# x.pack_io may be a different session's scratch which we don't want to touch.
+function MsgPack.pack_type(io::SessionIO, ::MsgPack.ExtensionType, x::SerializedMessage)
+    pack_extension!(io, SERIALIZED_MESSAGE_TAG) do
+        write_serialized_message_payload!(io, x)
+    end
+    return nothing
 end
 
 
@@ -157,9 +282,6 @@ function decode_extension_and_addbits(ext::MsgPack.Extension)
         elseif CACHE_KEY_TAG == ext.type
             key = MsgPack.unpack(ext.data)
             return CacheKey(key)
-        elseif RETAIN_TAG == ext.type
-            value = MsgPack.unpack(ext.data)
-            return Retain(decode_extension_and_addbits(value))
         elseif SESSION_CACHE_TAG == ext.type
             value = decode_extension_and_addbits(MsgPack.unpack(ext.data))
             return SessionCache(value...)

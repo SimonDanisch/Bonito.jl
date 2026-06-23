@@ -14,7 +14,7 @@ mutable struct Server
     # "." -> relative urls to the site it's served to
     # "" -> use local url (e.g 0.0.0.0:8081)
     proxy_url::Union{String, Nothing}
-    server::Union{Nothing, HTTP.Servers.Server}
+    server::Union{Nothing, HTTP.Server}
     routes::Routes
     websocket_routes::Routes
     protocol::String
@@ -144,16 +144,22 @@ function err_to_html(err, stacktrace)
     return linkify_stacktrace(error_msg, stacktrace_msg)
 end
 
-function delegate(routes::Routes, application, request::Request, args...)
+function delegate(routes::Routes, application, request::Request, args...; peer_ip::String="")
     try
-        for (pattern, f) in routes.table
+        # Snapshot the table under the lock before iterating. `route!`
+        # concurrently `push!`es + `sort!`s (every page render registers a
+        # websocket route), so iterating the live vector risks skipped routes,
+        # the wrong handler, or a BoundsError under threaded requests.
+        table = lock(() -> copy(routes.table), routes.lock)
+        for (pattern, f) in table
             match = match_request(pattern, request)
             if match !== nothing
                 context = (
                     routes = routes,
                     application = application,
                     request = request,
-                    match = match
+                    match = match,
+                    peer_ip = peer_ip,
                 )
                 return apply_handler(f, context, args...)
             end
@@ -162,15 +168,25 @@ function delegate(routes::Routes, application, request::Request, args...)
         # What a classic this response!
         return response_404("Didn't find route for $(request.target)")
     catch e
-        stacktrace = Base.catch_backtrace()
-        err = CapturedException(e, stacktrace)
-        Base.showerror(stderr, err)
-        html = err_to_html(e, stacktrace)
-        html_str = sprint() do io
-            Bonito.print_as_page(io,  html)
-        end
-        return response_500(html_str)
+        # invokelatest: rendering the error page builds DOM nodes through
+        # Hyperscript, whose attribute normalization carries inference edges
+        # that get invalidated by half the ecosystem (SIMD comparisons via
+        # `join`, ...). A static call here would put those edges into
+        # `delegate` - and with it into the whole serve chain up to the
+        # listener task, recompiling ~3s of it on first request. The error
+        # path is cold, so the dynamic call costs nothing.
+        return Base.invokelatest(error_response, e, Base.catch_backtrace())::Response
     end
+end
+
+function error_response(e, stacktrace)::Response
+    err = CapturedException(e, stacktrace)
+    Base.showerror(stderr, err)
+    html = err_to_html(e, stacktrace)
+    html_str = sprint() do io
+        Bonito.print_as_page(io, html)
+    end
+    return response_500(html_str)
 end
 
 function match_request(pattern::String, request)
@@ -223,19 +239,64 @@ function relative_url(server::Server, url)
     if proxy_url == ""
         # Absolute URLS!
         return online_url(server, url)
+    elseif proxy_url == "."
+        # Server-absolute path — works from any current page depth, e.g. when
+        # routes are mounted at sub-paths like /p/<id>. (Returning a page-
+        # relative "./assets/..." would break for sub-routes because the asset
+        # handler does exact-path lookup against the registered "/assets/..." key.)
+        return startswith(url, "/") ? url : "/" * url
     else
         # absolute proxy URLS
         return join_url(proxy_url, url)
     end
 end
 
+# Best-effort client IP of a live connection, for the auth rate limiter. Reaches
+# into the HTTP fork's Reseau socket (TLS conns wrap their TCP conn in `.tcp`)
+# through the socket type's own module, so Bonito needs no direct Reseau dep.
+# Returns "" when the address can't be resolved; callers treat that as
+# "unidentified client" rather than bucketing everyone together.
+format_ip(ip::NTuple{4, UInt8}) = join(Int.(ip), ".")
+format_ip(ip) = string(ip)   # IPv6 / unknown: a stable key even if not pretty
+
+function peer_ip(stream::Stream)
+    try
+        sc = stream.tracked
+        sc === nothing && return ""
+        conn = sc.conn
+        tcp = hasproperty(conn, :tcp) ? conn.tcp : conn
+        addr = getfield(parentmodule(typeof(tcp)), :remote_addr)(tcp)
+        return format_ip(addr.ip)
+    catch e
+        @debug "peer_ip: could not resolve client address" exception = e
+        return ""
+    end
+end
+
 function stream_handler(application::Server, stream::Stream)
+    peer = peer_ip(stream)
     if HTTP.WebSockets.isupgrade(stream.message)
         try
-            HTTP.WebSockets.upgrade(stream; binary=true) do ws
-                delegate(
-                    application.websocket_routes, application, stream.message, ws
-                )
+            # `check_origin = true` keeps the permissive 1.x behaviour: Bonito
+            # connects from VSCode webviews, Electron, notebooks, … whose Origin
+            # won't match Host. `upgrade` keeps HTTP and websockets on a single
+            # (route-dispatched) port and drains any bytes buffered with the
+            # handshake into the codec.
+            # HTTP 2.4 started capping inbound WebSocket messages by default
+            # (`maxframesize` 16 MiB, was `typemax(Int)` through 2.3.1; plus a
+            # 1024-frame `maxfragmentation` cap) and closes with 1009
+            # "frame/message too large" when exceeded. Bonito round-trips large
+            # binary payloads (WGLMakie meshes, images, volumes; the typed-array
+            # serialization tests) over this socket from a trusted local browser
+            # (Electron / notebook / VSCode webview), so lift both caps back to
+            # unbounded.
+            HTTP.WebSockets.upgrade(
+                stream;
+                check_origin = (_...) -> true,
+                maxframesize = typemax(Int),
+                maxfragmentation = typemax(Int),
+            ) do ws
+                delegate(application.websocket_routes, application, stream.message, ws; peer_ip = peer)
             end
             return
         catch e
@@ -247,7 +308,7 @@ function stream_handler(application::Server, stream::Stream)
     end
     http_handler = HTTP.streamhandler() do request
         delegate(
-            application.routes, application, request,
+            application.routes, application, request; peer_ip = peer,
         )
     end
     try
@@ -306,34 +367,72 @@ function Server(
 end
 
 function isrunning(server::Server)
-    return !isnothing(server.server) && !istaskdone(server.server.task)
+    # HTTP.jl 2.0 renamed the server's background task field from `task` to
+    # `serve_task`.
+    return !isnothing(server.server) && !istaskdone(server.server.serve_task)
 end
 
 function Base.close(server::Server)
     isnothing(server.server) && return
-    for (k, web_handler) in server.websocket_routes.table
+    # Close any websocket handler that opted into the close protocol (i.e.
+    # has a `close(::HandlerType)` method). Pure-function handlers are
+    # skipped — they hold no per-route state, and any in-flight WebSocket
+    # connections they accepted get torn down by `close(server.server)`
+    # below. The previous version called `close` unconditionally and
+    # spammed `MethodError: no method matching close(::Function)` warnings
+    # on every test/server teardown.
+    # `close(::WebSocketConnection)` calls `delete_websocket_route!` (a
+    # `filter!`) on `websocket_routes.table` — mutating the very vector we
+    # iterate would deterministically skip every second handler (leaking those
+    # sessions). Iterate a snapshot instead.
+    for (k, web_handler) in lock(() -> copy(server.websocket_routes.table), server.websocket_routes.lock)
+        applicable(close, web_handler) || continue
         try
             close(web_handler)
         catch e
-            @warn "Error while closing websocket handler for route $(k)" exception=(e, Base.catch_backtrace())
+            @debug "Error while closing websocket handler for route $(k)" exception=(e, Base.catch_backtrace())
         end
     end
     close(server.server)
+    # Stop the per-server cleanup task and drop its registry entry, so the
+    # server (and its route/connection/session chain) can be GC'd instead of
+    # being pinned forever by an immortal 1-Hz task.
+    Bonito.stop_cleanup_task!(server)
 end
 
 
+# HTTP.jl 2.0 binds the listener on a background task via Reseau, so a port
+# clash surfaces as a `TaskFailedException` wrapping a `Reseau` `OpError` /
+# `SystemError` (errno `EADDRINUSE`) instead of the 1.x `Base.IOError` with
+# `UV_EADDRINUSE`. Walk the wrapped causes and recognise both shapes.
+function is_address_in_use(e)
+    e isa Base.IOError && return e.code == Base.UV_EADDRINUSE
+    e isa Base.SystemError && return e.errnum == Base.Libc.EADDRINUSE
+    if e isa TaskFailedException
+        return is_address_in_use(e.task.result)
+    end
+    # Reseau's OpError (and similar wrappers) carry the underlying cause in `.err`.
+    if hasproperty(e, :err)
+        return is_address_in_use(getproperty(e, :err))
+    end
+    return false
+end
+
 function try_listen(url, port, server, verbose; listener_kw...)
     try
-        httpserver = HTTP.listen!(url, port; verbose=verbose, listener_kw...) do stream::Stream
+        httpserver = HTTP.listen!(url, port; listener_kw...) do stream::Stream
             Base.invokelatest(stream_handler, server, stream)
         end
-        return port, httpserver
+        # Ask the server what port we actually bound to. When the caller passed
+        # port=0 ("ephemeral"), HTTP.listen! succeeds on a kernel-assigned port
+        # but `port` here is still 0 — returning that would make every asset
+        # URL resolve to http://host:0/... → ERR_CONNECTION_REFUSED in the
+        # browser, with the symptom "Bonito is not defined" downstream.
+        actual_port = HTTP.port(httpserver)
+        return actual_port, httpserver
     catch e
-        if e isa Base.IOError
-            #address already in use
-            if e.code == Base.UV_EADDRINUSE
-                return try_listen(url, port+1, server, verbose; listener_kw...)
-            end
+        if is_address_in_use(e)
+            return try_listen(url, port+1, server, verbose; listener_kw...)
         end
         rethrow(e)
     end
@@ -341,8 +440,13 @@ end
 
 function start(server::Server; verbose=-1, listener_kw...)
     isrunning(server) && return
-    newport, http_server = try_listen(server.url, server.port, server, verbose; listener_kw...)
-    if server.port != newport
+    requested = server.port
+    newport, http_server = try_listen(server.url, requested, server, verbose; listener_kw...)
+    if requested == 0
+        # port=0 means "give me any free port" — the kernel-assigned port is
+        # the expected outcome, not a fallback worth warning about.
+        server.port = newport
+    elseif requested != newport
         @warn "Port in use, using different port. New port: $(newport)"
         server.port = newport
     end
@@ -356,15 +460,15 @@ end
 Wait on the server task, i.e. block execution by bringing the server event loop to the foreground.
 """
 function Base.wait(server::Server)
-    wait(server.server.task)
+    wait(server.server.serve_task)
 end
 
 function get_error(server::Server)
     # Running server has no problems!
     isrunning(server) && return nothing
-    !istaskfailed(server.server.task) && return nothing
+    !istaskfailed(server.server.serve_task) && return nothing
     try
-        return fetch(server.server.task)
+        return fetch(server.server.serve_task)
     catch e
         return e
     end

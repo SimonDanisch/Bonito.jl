@@ -7,7 +7,12 @@ function SerializedMessage(session::Session, data)
     return lock(root_session(session).deletion_lock) do
         ctx = SerializationContext(session)
         message_data = serialize_cached(ctx, data)
-        return SerializedMessage(SessionCache(session, ctx.message_cache), message_data, session.compression_enabled)
+        return SerializedMessage(
+            SessionCache(session, ctx.message_cache),
+            message_data,
+            session.compression_enabled,
+            session.pack_io,
+        )
     end
 end
 

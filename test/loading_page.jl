@@ -1,3 +1,5 @@
+timed_wait(t, x) = @time "time: $(t)" Bonito.wait_for_ready(x)
+
 @testset "LoadingPage Construction" begin
     # Default: no loading page
     app1 = App(() -> DOM.div("hello"))
@@ -31,7 +33,7 @@ end
         return DOM.div("no loading page"; class="no-lp")
     end
     display(edisplay, app)
-    Bonito.wait_for_ready(app)
+    timed_wait("no loading_page preserves behavior", app)
     success = Bonito.wait_for() do
         evaljs_value(app.session[], js"""
             document.querySelector('.no-lp') !== null
@@ -50,9 +52,15 @@ end
         return DOM.div("Real Content"; class="real-content")
     end
 
-    try
-        display(edisplay, app)
-        Bonito.wait_for_ready(app)
+    @time "shown then replaced" try
+        # `display` correctly blocks until the page is fully loaded (handler done).
+        # This handler is intentionally gated to keep the loading page visible, so
+        # run `display` in a task and wait only for the session to connect (loading
+        # page shown); we release the gate and join the task further down.
+        display_task = errormonitor(@async display(edisplay, app))
+        Bonito.wait_for(timeout=10) do
+            !isnothing(app.session[]) && isready(app.session[])
+        end
 
         # Loading page should be visible initially
         success = Bonito.wait_for(timeout=10) do
@@ -69,8 +77,10 @@ end
         })()""")
         @test text == "Test Loading..."
 
-        # Release the handler
+        # Release the handler; `display` (still running in display_task) now
+        # finishes loading the real content.
         put!(gate, nothing)
+        wait(display_task)
 
         # Real content should appear and loading page should be gone
         success = Bonito.wait_for(timeout=10) do
@@ -102,7 +112,7 @@ end
         return DOM.div("Fast Content"; class="fast-content")
     end
     display(edisplay, app)
-    Bonito.wait_for_ready(app)
+    timed_wait(" fast handler (no visible loading)", app)
 
     success = Bonito.wait_for(timeout=10) do
         evaljs_value(app.session[], js"""
@@ -126,7 +136,7 @@ end
         return DOM.div(obs_val; class="obs-container")
     end
     display(edisplay, app)
-    Bonito.wait_for_ready(app)
+    timed_wait("observables in real DOM", app)
 
     # Wait for real content to appear
     success = Bonito.wait_for(timeout=10) do
@@ -167,7 +177,7 @@ end
         return DOM.div(button; class="widget-container")
     end
     display(edisplay, app)
-    Bonito.wait_for_ready(app)
+    timed_wait("LoadingPage - widgets work", app)
 
     # Wait for button to render
     success = Bonito.wait_for(timeout=10) do
@@ -193,8 +203,13 @@ end
     app = App(; loading_page=LoadingPage()) do session
         error("Intentional test error")
     end
-    display(edisplay, app)
-    Bonito.wait_for_ready(app)
+    # The handler errors on purpose; the loading_page mechanism renders an error
+    # page (logging a deliberate @error). Suppress that expected noise — the
+    # assertions below verify the error page actually replaced the loading page.
+    silence_logs() do
+        display(edisplay, app)
+        timed_wait("LoadingPage - error in handler", app)
+    end
 
     # Should show error content, not loading page
     success = Bonito.wait_for(timeout=10) do
@@ -209,7 +224,7 @@ end
 @testset "LoadingPage - dom object constructor" begin
     app = App(DOM.div("Static DOM"; class="static-dom"); loading_page=LoadingPage())
     display(edisplay, app)
-    Bonito.wait_for_ready(app)
+    timed_wait("LoadingPage - dom object constructor", app)
 
     success = Bonito.wait_for(timeout=10) do
         evaljs_value(app.session[], js"""
@@ -239,7 +254,7 @@ end
 
     lp_path = joinpath(@__DIR__, "lp_test.html")
     s = Bonito.get_server()
-    Bonito.configure_server!(proxy_url="http://localhost:$(s.port)")
+    s.proxy_url = "http://localhost:$(s.port)"
 
     @testset "NoConnection server: $(srv)" for (srv, server) in lp_servers
         app = App(loading_page_test_app; loading_page=LoadingPage())
@@ -254,7 +269,7 @@ end
         close(app)
     end
     rm(lp_path; force=true)
-    Bonito.configure_server!(proxy_url=nothing)
+    s.proxy_url = ""
 end
 
 @testset "LoadingPage - custom text and spinner" begin
@@ -264,7 +279,7 @@ end
         return DOM.div("Done"; class="custom-done")
     end
     display(edisplay, app)
-    Bonito.wait_for_ready(app)
+    timed_wait("LoadingPage - custom text and spinner", app)
 
     # Check that eventually real content appears
     success = Bonito.wait_for(timeout=15) do

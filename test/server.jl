@@ -14,7 +14,7 @@ Bonito.set_cleanup_time!(0.0)
     window = TestWindow()
     url = URI(online_url(server, "/"))
     @testset for i in 1:10
-        load(window.window, url)
+        ElectronCall.load(window.window, url)
         @test test_dom(window) # re-use from threading.jl
     end
     if app.session[].connection isa Bonito.DualWebsocket
@@ -46,7 +46,12 @@ end
         server.proxy_url = "."
         @test online_url(server, "") == "http://localhost:$(port)"
         @test local_url(server, "") == "http://localhost:$(port)"
-        @test relative_url(server, "") == "./"
+        # `proxy_url == "."` returns server-absolute paths so sub-routes like
+        # `/p/<id>` resolve assets correctly (changed in 57d9b73). Empty url
+        # → just "/", non-empty preserves its leading slash.
+        @test relative_url(server, "") == "/"
+        @test relative_url(server, "assets/x") == "/assets/x"
+        @test relative_url(server, "/already/abs") == "/already/abs"
     end
     @testset "absolute urls" begin
         server.proxy_url = "https://bonito.makie.org"

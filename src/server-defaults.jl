@@ -1,4 +1,9 @@
 const GLOBAL_SERVER = Ref{Union{Server,Nothing}}(nothing)
+# `singleton_server` does a check-then-create on `GLOBAL_SERVER`; two
+# concurrent render tasks could otherwise both see `nothing` and each spin up a
+# Server, the loser leaking a listening socket forever. Serialize the whole
+# check-create-recreate with this lock.
+const GLOBAL_SERVER_LOCK = Base.ReentrantLock()
 
 const SERVER_CONFIGURATION = (
     # The URL used to which the default server listens to
@@ -157,18 +162,24 @@ function singleton_server(;
         listen_url = from_user # and we respect that!
     end
     create() = Server(listen_url, listen_port; verbose=verbose)
-    if isnothing(GLOBAL_SERVER[])
-        GLOBAL_SERVER[] = create()
-    else
-        server = GLOBAL_SERVER[]
-        # re-create if parameters have changed
-        if server.url != listen_url  || !HTTPServer.isrunning(server)# && server.port == listen_port # leave out port since it matters listens
-            close(server)
+    return lock(GLOBAL_SERVER_LOCK) do
+        if isnothing(GLOBAL_SERVER[])
+            @debug "singleton_server: creating new GLOBAL_SERVER at $(listen_url):$(listen_port)"
             GLOBAL_SERVER[] = create()
+        else
+            server = GLOBAL_SERVER[]
+            url_changed = server.url != listen_url
+            running = HTTPServer.isrunning(server)
+            # re-create if parameters have changed
+            if url_changed || !running
+                @debug "singleton_server: recreating GLOBAL_SERVER" old_url=server.url old_port=server.port new_url=listen_url new_port=listen_port url_changed running
+                close(server)
+                GLOBAL_SERVER[] = create()
+            end
         end
+        GLOBAL_SERVER[].proxy_url = proxy_url
+        return GLOBAL_SERVER[]
     end
-    GLOBAL_SERVER[].proxy_url = proxy_url
-    return GLOBAL_SERVER[]
 end
 
 get_server() = get_server(find_proxy_in_environment())

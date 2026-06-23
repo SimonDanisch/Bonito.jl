@@ -18,10 +18,6 @@ struct TrackingOnly
     key::String
 end
 
-struct Retain
-    value::Union{Observable, SerializedObservable} # For now, restricted to observable!
-end
-
 function SessionCache(session::Session, objects::OrderedDict{String,Any})
     return SessionCache(
         session.id,
@@ -47,7 +43,6 @@ const JSTypedNumber = Union{JSTypedArrayEltypes...}
 
 const MSGPACK_NATIVE_TYPES = Union{
     CacheKey,
-    Retain,
     SerializedJSCode,
     Observable,
     AbstractVector{<: JSTypedNumber}

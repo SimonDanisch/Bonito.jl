@@ -12,3 +12,9 @@ WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
 [compat]
 Gadfly = "1.4"
 PlotlyLight = "0.13"
+
+# Build the docs against the in-tree Bonito (incl. the BonitoDocumenterExt writer).
+# Bonito is the only path source so this resolves on CI, where no sibling dev
+# packages exist; every other dependency comes from the registry.
+[sources]
+Bonito = { path = ".." }

@@ -24,8 +24,10 @@ servers = [(:NoServer, () -> NoServer()), (:HTTPAssetServer, () -> HTTPAssetServ
 path = joinpath(@__DIR__, "test.html")
 
 # We need to use a proxy url to not have relative URLS for HTTPAssetServer, when serving from a file.
+# Set it directly on the server to avoid configure_server! recreating the GLOBAL_SERVER
+# due to implicit listen_url change.
 s = Bonito.get_server()
-Bonito.configure_server!(proxy_url="http://localhost:$(s.port)")
+s.proxy_url = "http://localhost:$(s.port)"
 
 @testset "connection $(c) server: $(s)" for ((c, connection), (s, server)) in Iterators.product(connections, servers)
     app = App(export_test_app)
@@ -41,7 +43,7 @@ Bonito.configure_server!(proxy_url="http://localhost:$(s.port)")
     close(app)
 end
 rm(path; force=true)
-Bonito.configure_server!(proxy_url=nothing)
+s.proxy_url = ""
 
 
 # Finalizers and other problems have been closing our connection unintentional,
@@ -60,8 +62,12 @@ Bonito.configure_server!(proxy_url=nothing)
         GC.gc()
     end
     session = app.session[]
-    @test session.connection isa Bonito.SubConnection
-    @test parent(session).connection isa Bonito.WebSocketConnection
+    # Subsessions no longer have their own SubConnection — they share the
+    # root's WS connection via the parent chain. Assert the structural
+    # property: app's session is a sub, root's connection is a real WS.
+    @test !Bonito.isroot(session)
+    @test session.connection === parent(session).connection
+    @test parent(session).connection isa Bonito.AbstractWebsocketConnection
     @test isready(parent(session))
 end
 
@@ -138,5 +144,14 @@ end
             obs,
         )
     end
-    export_static("test.html", app)
+    # Smoke-test that `export_static` doesn't crash with this app shape.
+    # Use a tempfile and clean up, otherwise the cwd-relative "test.html"
+    # it used to write leaks into whatever directory ran the suite.
+    out = tempname() * ".html"
+    try
+        export_static(out, app)
+        @test isfile(out) && filesize(out) > 0
+    finally
+        rm(out; force=true)
+    end
 end

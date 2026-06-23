@@ -17,6 +17,7 @@ const {
     register_connection_indicator,
     unregister_connection_indicator,
     set_no_connection,
+    is_no_connection,
     ConnectionStatus,
 } = Connection;
 
@@ -37,6 +38,7 @@ const {
     OBJECT_FREEING_LOCK,
     free_object,
     force_free_object,
+    move_dom_node,
 } = Sessions;
 
 function update_node_attribute(node, attribute, value) {
@@ -111,6 +113,17 @@ function load_script(url, global_name) {
                 }
             }, delay);
         };
+
+        // J12: when reusing a script tag whose "load" event already fired, the
+        // event listener we attach below will never run, so the promise would
+        // hang forever. Detect the already-loaded case and start polling for
+        // the global immediately. (window[global_name] is handled earlier; this
+        // covers the async-global case where the tag loaded but the global is
+        // assigned slightly later.)
+        if (existing_script && existing_script.dataset.loaded === "true") {
+            waitForGlobal();
+            return;
+        }
 
         script.addEventListener("load", () => {
             script.dataset.loaded = "true";
@@ -216,12 +229,14 @@ const Bonito = {
     register_connection_indicator,
     unregister_connection_indicator,
     set_no_connection,
+    is_no_connection,
     ConnectionStatus,
 
     Sessions,
     init_session,
     free_session,
     lock_loading,
+    move_dom_node,
     // Util
     update_node_attribute,
     update_dom_node,
@@ -264,11 +279,13 @@ export {
     register_connection_indicator,
     unregister_connection_indicator,
     set_no_connection,
+    is_no_connection,
     ConnectionStatus,
     Sessions,
     init_session,
     free_session,
     lock_loading,
+    move_dom_node,
     // Util
     update_node_attribute,
     update_dom_node,

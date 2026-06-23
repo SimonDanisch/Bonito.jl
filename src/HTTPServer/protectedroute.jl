@@ -3,21 +3,7 @@ import Base64
 using MbedTLS
 using Random
 
-"""
-    pbkdf2_simple(password::String, salt::Vector{UInt8}; iterations::Int=10_000) -> Vector{UInt8}
-
-Simple PBKDF2-HMAC-SHA256 implementation using MbedTLS.
-
-# Arguments
-- `password::String`: The password to hash
-- `salt::Vector{UInt8}`: Random salt (should be at least 16 bytes)
-- `iterations::Int`: Number of iterations (default: 10,000)
-
-# Returns
-- `Vector{UInt8}`: Derived key (32 bytes)
-
-This uses MbedTLS's HMAC-SHA256.
-"""
+# PBKDF2-HMAC-SHA256 (single 32-byte block) over MbedTLS's HMAC-SHA256.
 function pbkdf2_simple(password::String, salt::Vector{UInt8}; iterations::Int=10_000)
     password_bytes = Vector{UInt8}(codeunits(password))
 
@@ -39,11 +25,7 @@ function pbkdf2_simple(password::String, salt::Vector{UInt8}; iterations::Int=10
     return result
 end
 
-"""
-    generate_salt(length::Int=16) -> Vector{UInt8}
-
-Generate a cryptographically secure random salt.
-"""
+# Cryptographically secure random salt.
 function generate_salt(length::Int=16)
     return rand(Random.RandomDevice(), UInt8, length)
 end
@@ -52,11 +34,7 @@ end
 Default Error Pages
 =============================================================================#
 
-"""
-    default_auth_required_page() -> App
-
-Default 401 Unauthorized page.
-"""
+# Default 401 Unauthorized page.
 function default_auth_required_page()
     return App() do
         return DOM.div(
@@ -66,11 +44,7 @@ function default_auth_required_page()
     end
 end
 
-"""
-    default_rate_limited_page() -> App
-
-Default 429 Too Many Requests page.
-"""
+# Default 429 Too Many Requests page.
 function default_rate_limited_page()
     return App() do
         return DOM.div(
@@ -119,10 +93,18 @@ function User(
     return User(username, password_hash, salt, iterations, metadata)
 end
 
-# Constant-time comparison to prevent timing attacks
-# TODO, actually implement this?
-# TODO, how important is this for now?
-secure_compare(a, b) = a == b
+# Constant-time equality: always walks the full overlap so response timing can't
+# reveal how many leading bytes of a secret matched (a plain `==` short-circuits
+# on the first mismatch). Branches only on the public length, never on content.
+function secure_compare(a::AbstractVector{UInt8}, b::AbstractVector{UInt8})
+    result = UInt8(length(a) == length(b) ? 0 : 1)
+    n = min(length(a), length(b))
+    @inbounds for i in 1:n
+        result |= a[i] ⊻ b[i]
+    end
+    return result == 0
+end
+secure_compare(a::AbstractString, b::AbstractString) = secure_compare(codeunits(a), codeunits(b))
 
 """
     authenticate(user::User, password::String) -> Bool
@@ -292,8 +274,18 @@ struct ProtectedRoute{T, PS <: AbstractPasswordStore, H}
     failed_attempts::Dict{String, Vector{Float64}}
     max_attempts::Int
     lockout_window::Float64
-    auth_required_handler::H # For simplicity and performance, use same type her
+    auth_required_handler::H # both error handlers share one type param H
     rate_limited_handler::H
+    # All `failed_attempts` access is concurrent (one task per request);
+    # the Dict needs a lock. Also bounds growth of the per-IP buckets.
+    lock::Base.ReentrantLock
+    # Only honor X-Forwarded-For when explicitly told we sit behind a trusted
+    # proxy — otherwise any client spoofs the header to dodge the limiter and
+    # to grow the Dict without bound.
+    trust_forwarded_for::Bool
+    # Upper bound on tracked IPs; oldest-pruned buckets are evicted past this
+    # to keep an attacker rotating XFF values from exhausting memory.
+    max_tracked_ips::Int
 end
 
 # Main constructor
@@ -302,19 +294,17 @@ function ProtectedRoute(handler, password_store::AbstractPasswordStore;
                        max_attempts::Int=5,
                        lockout_window::Float64=60.0,
                        auth_required_handler=default_auth_required_page(),
-                       rate_limited_handler=default_rate_limited_page())
+                       rate_limited_handler=default_rate_limited_page(),
+                       trust_forwarded_for::Bool=false,
+                       max_tracked_ips::Int=10_000)
     ProtectedRoute(handler, password_store, realm,
                   Dict{String, Vector{Float64}}(), max_attempts, lockout_window,
-                  auth_required_handler, rate_limited_handler)
+                  auth_required_handler, rate_limited_handler,
+                  Base.ReentrantLock(), trust_forwarded_for, max_tracked_ips)
 end
 
 
-"""
-    check_auth(request::HTTP.Request, password_store::AbstractPasswordStore) -> Bool
-
-Check if the HTTP request contains valid Basic Authentication credentials.
-Uses the password store's authenticate method.
-"""
+# True if the request carries valid HTTP Basic credentials for the store.
 function check_auth(request::HTTP.Request, password_store::AbstractPasswordStore)
     auth_header = HTTP.header(request, "Authorization", "")
 
@@ -343,82 +333,88 @@ function check_auth(request::HTTP.Request, password_store::AbstractPasswordStore
     return false
 end
 
-"""
-    get_client_ip(request::HTTP.Request) -> String
-
-Extract client IP address from request, checking X-Forwarded-For header first.
-"""
-function get_client_ip(request::HTTP.Request)
-    # Check X-Forwarded-For header (for proxies/load balancers)
-    forwarded = HTTP.header(request, "X-Forwarded-For", "")
-    if !isempty(forwarded)
-        # Take first IP in comma-separated list
-        return String(split(forwarded, ',')[1])
+# Identify the client for rate limiting. `X-Forwarded-For` is honored only when
+# `protected.trust_forwarded_for` is set (and then takes precedence, since the
+# direct peer is the proxy): the header is attacker-controlled, so without a
+# trusted proxy spoofing it would let a client dodge the limit and grow
+# `failed_attempts` without bound. Otherwise use the real TCP peer IP that
+# `stream_handler` resolved into `context.peer_ip`. Returns "" when the client
+# can't be identified, which the caller treats as "don't rate-limit" rather than
+# bucketing every unidentified client together.
+function get_client_ip(protected::ProtectedRoute, context)
+    if protected.trust_forwarded_for
+        forwarded = HTTP.header(context.request, "X-Forwarded-For", "")
+        isempty(forwarded) || return strip(String(split(forwarded, ',')[1]))
     end
-    # Fallback to direct connection (if available in context)
-    return "unknown"
+    return String(get(context, :peer_ip, ""))
 end
 
-"""
-    check_rate_limit(protected::ProtectedRoute, client_ip::String) -> Bool
-
-Check if client has exceeded rate limit for failed authentication attempts.
-Returns true if request should be allowed, false if rate limited.
-"""
+# True if the client is still under its failed-attempt limit (false = blocked).
 function check_rate_limit(protected::ProtectedRoute, client_ip::String)
     current_time = time()
-    # Get failed attempts for this IP
-    if haskey(protected.failed_attempts, client_ip)
-        attempts = protected.failed_attempts[client_ip]
+    return lock(protected.lock) do
+        # Get failed attempts for this IP
+        if haskey(protected.failed_attempts, client_ip)
+            attempts = protected.failed_attempts[client_ip]
 
-        # Remove old attempts outside the lockout window
-        filter!(t -> (current_time - t) < protected.lockout_window, attempts)
+            # Remove old attempts outside the lockout window
+            filter!(t -> (current_time - t) < protected.lockout_window, attempts)
+            # Drop the bucket entirely once it has aged out — keeps the Dict
+            # from accumulating empty entries for every IP ever seen.
+            if isempty(attempts)
+                delete!(protected.failed_attempts, client_ip)
+                return true
+            end
 
-        # Check if exceeded max attempts
-        if length(attempts) >= protected.max_attempts
-            @warn "Rate limit exceeded for IP" ip=client_ip attempts=length(attempts)
-            return false
+            # Check if exceeded max attempts
+            if length(attempts) >= protected.max_attempts
+                @debug "Rate limit exceeded for IP" ip=client_ip attempts=length(attempts)
+                return false
+            end
         end
+        return true
     end
-
-    return true
 end
 
-"""
-    record_failed_attempt(protected::ProtectedRoute, client_ip::String)
-
-Record a failed authentication attempt for rate limiting.
-"""
+# Record a failed authentication attempt for rate limiting.
 function record_failed_attempt(protected::ProtectedRoute, client_ip::String)
     current_time = time()
+    lock(protected.lock) do
+        # If we are at the tracking cap and this is a new IP, evict aged-out
+        # buckets first so a flood of distinct (possibly spoofed-source) IPs
+        # can't grow the Dict without bound.
+        if !haskey(protected.failed_attempts, client_ip) &&
+           length(protected.failed_attempts) >= protected.max_tracked_ips
+            prune_failed_attempts!(protected, current_time)
+        end
 
-    if !haskey(protected.failed_attempts, client_ip)
-        protected.failed_attempts[client_ip] = Float64[]
+        bucket = get!(() -> Float64[], protected.failed_attempts, client_ip)
+        push!(bucket, current_time)
+
+        # Log failed attempt for security monitoring
+        @debug "Failed authentication attempt" ip=client_ip total_attempts=length(bucket)
     end
-
-    push!(protected.failed_attempts[client_ip], current_time)
-
-    # Log failed attempt for security monitoring
-    @warn "Failed authentication attempt" ip=client_ip total_attempts=length(protected.failed_attempts[client_ip])
 end
 
-"""
-    clear_failed_attempts(protected::ProtectedRoute, client_ip::String)
+# Caller must hold `protected.lock`.
+function prune_failed_attempts!(protected::ProtectedRoute, current_time::Float64)
+    for (ip, attempts) in collect(protected.failed_attempts)
+        filter!(t -> (current_time - t) < protected.lockout_window, attempts)
+        isempty(attempts) && delete!(protected.failed_attempts, ip)
+    end
+    return
+end
 
-Clear failed attempts for a client after successful authentication.
-"""
+# Clear a client's failed attempts after a successful authentication.
 function clear_failed_attempts(protected::ProtectedRoute, client_ip::String)
-    if haskey(protected.failed_attempts, client_ip)
-        delete!(protected.failed_attempts, client_ip)
+    lock(protected.lock) do
+        if haskey(protected.failed_attempts, client_ip)
+            delete!(protected.failed_attempts, client_ip)
+        end
     end
 end
 
-"""
-    create_auth_challenge(protected::ProtectedRoute, context) -> HTTP.Response
-
-Create an HTTP 401 Unauthorized response with WWW-Authenticate header.
-Renders the auth_required_handler App.
-"""
+# 401 response (rendered auth_required_handler) with a WWW-Authenticate header.
 function create_auth_challenge(protected::ProtectedRoute, context)
     # Render the custom handler
     response = Bonito.HTTPServer.apply_handler(protected.auth_required_handler, context)
@@ -430,12 +426,7 @@ function create_auth_challenge(protected::ProtectedRoute, context)
     return HTTP.Response(401, headers, response.body)
 end
 
-"""
-    create_rate_limit_response(protected::ProtectedRoute, context) -> HTTP.Response
-
-Create an HTTP 429 Too Many Requests response.
-Renders the rate_limited_handler App.
-"""
+# 429 response (rendered rate_limited_handler) with a Retry-After header.
 function create_rate_limit_response(protected::ProtectedRoute, context)
     # Render the custom handler
     response = Bonito.HTTPServer.apply_handler(protected.rate_limited_handler, context)
@@ -450,24 +441,22 @@ end
 # Enable route!(server, "/" => protected_route)
 function Bonito.HTTPServer.apply_handler(protected::ProtectedRoute, context)
     request = context.request
-    client_ip = get_client_ip(request)
+    client_ip = get_client_ip(protected, context)
 
-    # Check authentication first
-    auth_valid = check_auth(request, protected.password_store)
-
-    if auth_valid
-        # Authentication successful - clear any failed attempts and allow through
-        clear_failed_attempts(protected, client_ip)
-        # Delegate to wrapped handler
+    if check_auth(request, protected.password_store)
+        isempty(client_ip) || clear_failed_attempts(protected, client_ip)
         return Bonito.HTTPServer.apply_handler(protected.handler, context)
     end
 
-    # Authentication failed - check if rate limited
+    # Auth failed. We can only rate-limit when we know who the client is; with no
+    # identifier, bucketing every request together would let one client lock out
+    # everyone, so we just re-challenge instead.
+    if isempty(client_ip)
+        return create_auth_challenge(protected, context)
+    end
     if !check_rate_limit(protected, client_ip)
         return create_rate_limit_response(protected, context)
     end
-
-    # Record failed attempt and return auth challenge
     record_failed_attempt(protected, client_ip)
     return create_auth_challenge(protected, context)
 end

@@ -36,14 +36,21 @@ end
 
 function render_mime(session::Session, m::MIME"text/plain", @nospecialize(value))
     if value isa AbstractString
-        return DOM.span(convert(String, value))
+        str = convert(String, value)
+        if has_ansi_codes(str)
+            return jsrender(session, RichText(str))
+        end
+        return DOM.span(str)
     end
     if session.io_context[] isa Nothing
-        ctx = IOContext(Base.stdout, :limit => true)
+        ctx = IOContext(Base.stdout, :limit => true, :color => true)
     else
         ctx = session.io_context[]
     end
     val = Base.invokelatest(repr, m, value; context=ctx)
+    if has_ansi_codes(val)
+        return jsrender(session, RichText(val))
+    end
     return DOM.span(val; style="white-space: pre-wrap", class="text-plain")
 end
 
@@ -55,4 +62,25 @@ function jsrender(session::Session, @nospecialize(value))
     else
         return rendered
     end
+end
+
+# Render a `Task` as a spinner that swaps in the task's result once it
+# finishes. Lets you drop an `@async`-produced value straight into the DOM:
+#
+#     DOM.div(@async expensive_thing())
+#
+# The spinner shows immediately; when the task completes the result is rendered
+# in place via the reactive `Observable` path (so an `Asset`, a DOM node, a
+# number — anything jsrender-able — works). A failed task renders its error
+# rather than spinning forever.
+function jsrender(session::Session, task::Task)
+    obs = Observable{Any}(RippleSpinner())
+    Base.errormonitor(@async begin
+        obs[] = try
+            fetch(task)
+        catch e
+            DOM.div("Error: " * sprint(showerror, e); style="color: var(--error-color, red)")
+        end
+    end)
+    return jsrender(session, obs)
 end

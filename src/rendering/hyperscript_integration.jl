@@ -103,12 +103,23 @@ function Hyperscript.printescaped(io::IO, x::DontEscape, escapes)
     print(io, x.x)
 end
 
+# DontEscape's whole purpose is to be serialised by `Hyperscript.printescaped`
+# above, with no HTML-escaping. But `render_node` walks every child through
+# `jsrender(session, elem)` first, and without a method for `DontEscape` the
+# default mime fallback kicks in: it `repr`s the object and wraps the result
+# in a `<span class="text-plain">` — i.e. the rendered output literally shows
+# `Bonito.DontEscape("<img ...>")` instead of passing the raw HTML through.
+# Returning the value unchanged keeps it in the children list so the final
+# Hyperscript serialization can hit the `printescaped` overload.
+jsrender(session::Session, x::DontEscape) = x
+jsrender(x::DontEscape) = x
+
 function attribute_render(session::Session, parent, attribute::String, jss::JSCode)
-    # add js after parent gets loaded
-    func = js"""(() => {
-        $(parent)[$attribute] = $(jss)
-    })()"""
-    # preserve func.file
+    # `jss` often ends in `;` (e.g. Button onclick is `event=>obs.notify(true);`),
+    # which would be invalid inside `(...)` if we wrapped it as a call argument —
+    # so we inline the handler into a block-statement guard instead.
+    src = String(something(jss.file, ""))
+    func = js"""{const e=$(parent);if(e){e[$attribute]=$(jss)}else{console.warn('Bonito: skip '+$attribute+' from '+$src)}}"""
     evaljs(session, JSCode(func.source, jss.file))
     return ""
 end
@@ -209,8 +220,14 @@ function uuid(session::Union{Nothing,Session}, node::Node)
             return string(rand(UInt64))
         else
             root = root_session(session) # counter needs to be unique to root session
-            root.dom_uuid_counter += 1
-            return string(root.dom_uuid_counter)
+            # Atomic so concurrent renders never hand out the same id.
+            raw = string(Threads.atomic_add!(root.dom_uuid_counter, 1) + 1)
+            # A proxied (worker) session's dom ids share the browser's one
+            # `data-jscall-id` namespace with the host's — and both counters
+            # start at 1, so they WOULD collide. Prefix with the worker
+            # namespace (empty/zero-cost for normal sessions). See connection/proxy.jl.
+            prefix = id_prefix(connection(session))
+            return isempty(prefix) ? raw : string(prefix, "/", raw)
         end
     end
 end

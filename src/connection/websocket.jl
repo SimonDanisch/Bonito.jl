@@ -45,8 +45,13 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
     try
         run_connection_loop(session, connection.handler, websocket)
     finally
-        # This always needs to happen, which is why we need a try catch!
-        if allow_soft_close(CLEANUP_POLICY[])
+        # Only tear down if THIS loop's socket is still the handler's current
+        # one. A stale loop (old socket that finally died after the browser
+        # reconnected and installed a new socket) must NOT close the session
+        # now owned by the live socket.
+        if !is_current_socket(connection.handler, websocket)
+            @debug("Stale ws loop for $(session.id) exiting; not tearing down")
+        elseif allow_soft_close(CLEANUP_POLICY[])
             @debug("Soft closing: $(session.id)")
             soft_close(session)
         else
@@ -59,6 +64,10 @@ end
 
 
 const SERVER_CLEANUP_TASKS = Dict{Server, Tuple{Task, Base.Threads.Atomic{Bool}}}()
+# `get!`/`delete!` on SERVER_CLEANUP_TASKS run from render tasks (via
+# `setup_connection` → `add_cleanup_task!`) and from `close(server)`. The Dict
+# has no internal synchronization, so concurrent access races a rehash.
+const SERVER_CLEANUP_LOCK = Base.ReentrantLock()
 
 """
     abstract type CleanupPolicy end
@@ -153,7 +162,14 @@ function allow_soft_close(policy::DefaultCleanupPolicy=CLEANUP_POLICY[])
 end
 
 function cleanup_server(server::Server)
-    remove = Set{FrontendConnection}()
+    # Lock-order discipline: `close(session)` acquires `deletion_lock`,
+    # whose body eventually calls `delete_websocket_route!` which takes
+    # `server.websocket_routes.lock`. Holding `websocket_routes.lock`
+    # *while* calling close therefore inverts the order any user-initiated
+    # close uses (deletion_lock → routes_lock) — the two paths can
+    # deadlock. Snapshot the to-close set under routes_lock, RELEASE it,
+    # then close.
+    remove = FrontendConnection[]
     lock(server.websocket_routes.lock) do
         for (route, connection) in server.websocket_routes.table
             if connection isa FrontendConnection
@@ -163,30 +179,55 @@ function cleanup_server(server::Server)
                 end
             end
         end
-        for connection in remove
-            if !isnothing(connection.session)
-                session = connection.session
+    end
+    for connection in remove
+        session = connection.session
+        if !isnothing(session)
+            try
                 close(session)
+            catch e
+                @warn "cleanup_server: close(session) raised" exception=(e, Base.catch_backtrace())
             end
         end
     end
 end
 
 function add_cleanup_task!(server::Server)
-    get!(SERVER_CLEANUP_TASKS, server) do
-        close_ref = Base.Threads.Atomic{Bool}(true)
-        task = @async while close_ref[]
-            try
-                sleep(1)
-                cleanup_server(server)
-            catch e
-                if !(e isa EOFError)
-                    @warn "error while cleaning up server" exception=(e, Base.catch_backtrace())
+    lock(SERVER_CLEANUP_LOCK) do
+        get!(SERVER_CLEANUP_TASKS, server) do
+            close_ref = Base.Threads.Atomic{Bool}(true)
+            task = @async while close_ref[]
+                try
+                    sleep(1)
+                    cleanup_server(server)
+                catch e
+                    if !(e isa EOFError)
+                        @warn "error while cleaning up server" exception=(e, Base.catch_backtrace())
+                    end
                 end
             end
+            return (task, close_ref)
         end
-        return (task, close_ref)
     end
+end
+
+"""
+    stop_cleanup_task!(server::Server)
+
+Stop and forget `server`'s 1-Hz cleanup task. Without this, the task runs
+forever and the `SERVER_CLEANUP_TASKS` entry keeps a strong ref chain
+(Dict → Server → routes → sessions) alive, defeating GC for every server ever
+created. `close(server)` should call this. Idempotent / safe to call on a
+server that never had a cleanup task.
+"""
+function stop_cleanup_task!(server::Server)
+    lock(SERVER_CLEANUP_LOCK) do
+        entry = get(SERVER_CLEANUP_TASKS, server, nothing)
+        entry === nothing && return
+        entry[2][] = false   # close_ref → task exits on next loop check
+        delete!(SERVER_CLEANUP_TASKS, server)
+    end
+    return
 end
 
 function setup_connection(session::Session, connection::WebSocketConnection)

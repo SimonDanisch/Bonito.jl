@@ -1,10 +1,73 @@
 # Render the widgets from WidgetsBase.jl
 
+# Public theming hooks for Bonito's built-in widgets. Widget default styles read
+# these CSS variables (with light-mode fallbacks), so a host page can re-theme
+# every widget by redefining them. `BONITO_WIDGET_THEME` is registered once into
+# every root session's global stylesheets (see `session_dom`), giving standalone
+# apps an automatic dark variant via `prefers-color-scheme`; hosts with their own
+# theme toggle (e.g. the Bonito docs) override the variables at higher specificity.
+const BONITO_WIDGET_THEME = Styles(
+    CSS(
+        "@media (prefers-color-scheme: light)",
+        CSS(
+            ":root",
+            "color-scheme" => "light",
+            "accent-color" => "#3182bb",
+            "--bonito-widget-bg" => "#ffffff",
+            "--bonito-widget-fg" => "#1a1a1a",
+            "--bonito-widget-border" => "#9ca3af",
+            "--bonito-widget-hover-bg" => "#f3f4f6",
+            "--bonito-widget-muted-bg" => "#f3f4f6",
+            "--bonito-widget-accent" => "#3182bb",
+        ),
+    ),
+    CSS(
+        "@media (prefers-color-scheme: dark)",
+        CSS(
+            ":root",
+            "color-scheme" => "dark",
+            "accent-color" => "#6ea8e0",
+            "--bonito-widget-bg" => "#2a2a2e",
+            "--bonito-widget-fg" => "#e8e8ea",
+            "--bonito-widget-border" => "#52525b",
+            "--bonito-widget-hover-bg" => "#3a3a40",
+            "--bonito-widget-muted-bg" => "#36363c",
+            "--bonito-widget-accent" => "#6ea8e0",
+        ),
+    ),
+    # `RangeSlider` renders via the vendored noUiSlider stylesheet, which hardcodes
+    # light colours. Re-skin its parts through the same theme variables. Selectors
+    # are prefixed with `html ` so they outrank noUiSlider's single-class rules no
+    # matter which stylesheet the host loads last.
+    CSS("html .noUi-target",
+        "background" => "var(--bonito-widget-muted-bg, #fafafa)",
+        "border-color" => "var(--bonito-widget-border, #d3d3d3)",
+        "box-shadow" => "none"),
+    CSS("html .noUi-connects", "background" => "var(--bonito-widget-muted-bg, #fafafa)"),
+    CSS("html .noUi-connect", "background" => "var(--bonito-widget-accent, #3182bb)"),
+    CSS("html .noUi-handle",
+        "background" => "var(--bonito-widget-bg, #fff)",
+        "border-color" => "var(--bonito-widget-border, #d3d3d3)",
+        "box-shadow" => "none"),
+    CSS("html .noUi-handle::before", "background" => "var(--bonito-widget-border, #d3d3d3)"),
+    CSS("html .noUi-handle::after", "background" => "var(--bonito-widget-border, #d3d3d3)"),
+    CSS("html .noUi-tooltip",
+        "background" => "var(--bonito-widget-bg, #fff)",
+        "color" => "var(--bonito-widget-fg, #000)",
+        "border-color" => "var(--bonito-widget-border, #d3d3d3)"),
+    CSS("html .noUi-marker", "background" => "var(--bonito-widget-border, #ccc)"),
+    CSS("html .noUi-value", "color" => "var(--bonito-widget-fg, inherit)"),
+)
+
+# Widget colours go through CSS variables so a host page can theme them (e.g. for
+# dark mode). The fallbacks are the original light-mode values, so standalone apps
+# look identical unless the host defines `--bonito-widget-*` (the Bonito docs map
+# these onto their theme tokens, which switch with light/dark).
 const BUTTON_STYLE = Styles(
     CSS(
         "font-weight" => 600,
         "border-width" => "1px",
-        "border-color" => "#9CA3AF",
+        "border-color" => "var(--bonito-widget-border, #9CA3AF)",
         "border-radius" => "0.25rem",
         "padding-left" => "0.75rem",
         "padding-right" => "0.75rem",
@@ -14,12 +77,13 @@ const BUTTON_STYLE = Styles(
         "cursor" => "pointer",
         "min-width" => "8rem",
         "font-size" => "1rem",
-        "background-color" => "white",
+        "color" => "var(--bonito-widget-fg, inherit)",
+        "background-color" => "var(--bonito-widget-bg, white)",
         "box-shadow" => "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px";
     ),
     CSS(
         ":hover",
-        "background-color" => "#F9FAFB",
+        "background-color" => "var(--bonito-widget-hover-bg, #F9FAFB)",
         "box-shadow" => "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px",
     ),
     CSS(
@@ -211,7 +275,13 @@ function Dropdown(options; index=1, option_to_string=string, style=Styles(), att
     options = convert(Observable{Vector{Any}}, options)
     option = Observable{Any}(options[][option_index[]])
     onany(option_index, options) do index, options
-        option[] = options[index]
+        # When `options` shrinks, a stale `option_index` would index out of
+        # bounds inside this notify chain (BoundsError). Clamp the index to the
+        # current option range; correct `option_index` itself if it drifted.
+        isempty(options) && return nothing
+        idx = clamp(index, firstindex(options), lastindex(options))
+        idx == option_index[] || (option_index.val = idx)
+        option[] = options[idx]
         return nothing
     end
     css = isnothing(style) ? Styles() : Styles(BUTTON_STYLE, style)
@@ -243,6 +313,12 @@ function jsrender(session::Session, dropdown::Dropdown)
             // https://stackoverflow.com/questions/3364493/how-do-i-clear-all-options-in-a-dropdown-box
             element.options.length = 0;
             opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
+            // Resetting selectedIndex to 0 here silently desynced Julia,
+            // which still believed the old `option_index`. Notify it (1-based)
+            // so both sides agree on the new selection.
+            if ($(dropdown.option_index).value !== 1) {
+                ($(dropdown.option_index)).notify(1);
+            }
         }
         $(string_options).on(set_options);
     }
@@ -266,11 +342,39 @@ struct Slider{T} <: AbstractSlider{T}
     attributes::Dict{Symbol,Any}
 end
 
+# Index of the grid point that best matches `value`. Exact match wins; for real
+# numbers we snap to the nearest point and clamp, because a float range rarely
+# contains a requested default bit-exactly — `Slider(range(0, 2π, 100); value=π)`
+# (or an out-of-range default) should pick the closest tick, not crash. Mirrors
+# the tolerant behaviour `setindex!(::Slider, value)` already has.
+function slider_value_index(values::AbstractVector, value)
+    isempty(values) && throw(ArgumentError("Slider: `values` must be non-empty"))
+    exact = findfirst((==)(value), values)
+    exact === nothing || return exact
+    if value isa Real && eltype(values) <: Real
+        return argmin(abs.(values .- value))
+    end
+    @warn "Slider: value $(value) not in values; defaulting to the first element"
+    return firstindex(values)
+end
+
 function Slider(values::AbstractArray{T}; value=first(values), kw...) where {T}
     values_obs = convert(Observable{Vector{T}}, values)
-    initial_idx = findfirst((==)(value), values_obs[])
+    initial_idx = slider_value_index(values_obs[], value)
     index = Observable(initial_idx)
     value_obs = Observable(values_obs[][initial_idx])
+    # Keep `value` in sync with `index` Julia-side, so `slider.index[] = 5`
+    # updates `slider.value` immediately — offline, before the page loads, and
+    # in static exports — instead of only via a browser round-trip (which also
+    # made echoes apply out of order). Clamp the index against the current
+    # values so a shrunk `values` can't index out of bounds.
+    onany(index, values_obs) do i, vals
+        isempty(vals) && return
+        idx = clamp(i, firstindex(vals), lastindex(vals))
+        new_value = vals[idx]
+        value_obs[] == new_value || (value_obs[] = new_value)
+        return
+    end
     return Slider(values_obs, value_obs, index, Dict{Symbol,Any}(kw))
 end
 
@@ -278,32 +382,39 @@ function jsrender(session::Session, slider::Slider)
     # Hacky, but don't want to Pr WidgetsBase yet
     values = slider.values
     index = slider.index
-    onjs(
-        session,
-        index,
-        js"""(index) => {
-            const values = $(values).value
-            $(slider.value).notify(values[index - 1])
-        }
-        """,
-    )
-
+    value = slider.value
+    # `value` is derived from `index` Julia-side in the constructor, so
+    # `slider.index[] = 5` updates `slider.value` immediately (offline / before
+    # the page loads). In a *live* session the browser notifies `index` and the
+    # Julia-side map keeps `value` in sync. But a static export has no Julia, so
+    # below we also derive `value` from `index` client-side when there is no
+    # connection (with `dont_notify_julia=true`, so live sessions are unaffected
+    # and don't double-update).
     autocomplete = get(slider.attributes, :autocomplete, "off")
     return jsrender(
         session,
         DOM.input(;
             type="range",
             min=1,
-            max=map(length, values),
+            # Session-scope the derived observable so `free(session)`
+            # deregisters it — a bare `map(length, values)` leaks one permanent
+            # listener per render of a long-lived widget (the bt_show_app pattern).
+            max=map(length, session, values),
             value=index,
             step=1,
             oninput=js"""(event)=> {
                 const idx = event.srcElement.valueAsNumber;
                 if (idx !== $(index).value) {
                     $(index).notify(idx)
+                    if (Bonito.is_no_connection()) {
+                        const vals = $(values).value;
+                        $(value).notify(vals[idx - 1], true);
+                    }
                 }
             }""",
-            style=styles,
+            # Was `style=styles`, which is the `Hyperscript.styles`
+            # *function* leaking into the attribute (no local `styles` binding
+            # exists). Style, if any, is passed through `slider.attributes`.
             slider.attributes...,
             autocomplete=autocomplete,
         ),
@@ -369,7 +480,7 @@ end
 
 # TODO, clean this up
 const noUiSlider = ES6Module(dependency_path("nouislider.min.js"))
-const noUiSliderCSS = Asset(dependency_path("noUISlider.css"))
+const noUiSliderCSS = Asset(@path(dependency_path("noUISlider.css")))  # @path: embed bytes so it survives bundle relocation
 
 function jsrender(session::Session, slider::RangeSlider)
     args = (slider.range, slider.connect, slider.orientation, slider.tooltips, slider.ticks)
@@ -447,8 +558,9 @@ const TableStyles = Styles(
     ),
     CSS(
         ".table-header",
-        "background-color" => "#f5f5f5",
-        "border" => "1px solid #ddd",
+        "background-color" => "var(--bonito-widget-muted-bg, #f5f5f5)",
+        "color" => "var(--bonito-widget-fg, inherit)",
+        "border" => "1px solid var(--bonito-widget-border, #ddd)",
         "padding" => "8px",
         "text-align" => "left",
         "font-weight" => "bold",
@@ -457,17 +569,17 @@ const TableStyles = Styles(
     ),
     CSS(
         ".table-header:hover",
-        "background-color" => "#e9e9e9",
+        "background-color" => "var(--bonito-widget-hover-bg, #e9e9e9)",
     ),
     CSS(
         ".table-cell",
-        "border" => "1px solid #ddd",
+        "border" => "1px solid var(--bonito-widget-border, #ddd)",
         "padding" => "8px",
         "text-align" => "left",
     ),
     CSS(
         ".table-row:hover .table-cell",
-        "background-color" => "#f9f9f9",
+        "background-color" => "var(--bonito-widget-hover-bg, #f9f9f9)",
     ),
     CSS(
         ".cell-good",
@@ -486,8 +598,8 @@ const TableStyles = Styles(
     ),
     CSS(
         ".cell-default",
-        "background-color" => "white",
-        "color" => "black",
+        "background-color" => "var(--bonito-widget-bg, white)",
+        "color" => "var(--bonito-widget-fg, black)",
     ),
     CSS(
         ".table-container",
@@ -802,7 +914,10 @@ struct FileInput <: Bonito.WidgetsBase.AbstractWidget{String}
     multiple::Bool
 end
 
-FileInput(value::Observable{Vector{String}}; multiple = true) = FileInput(Observable([""]), multiple)
+# Previously this discarded the caller's observable and substituted a
+# fresh `Observable([""])`, so a user passing their own value observable never
+# saw file selections. Keep the supplied observable.
+FileInput(value::Observable{Vector{String}}; multiple = true) = FileInput(value, multiple)
 FileInput(; kws...) = FileInput(Observable([""]); kws...)
 
 function Bonito.jsrender(session::Session, fi::FileInput)
@@ -860,7 +975,7 @@ end
 # External JavaScript library assets
 # https://github.com/Choices-js/Choices/blob/main/README.md
 const ChoicesJS = ES6Module(dependency_path("choices.min.js"))
-const ChoicesCSS = Asset(dependency_path("choices.min.css"))
+const ChoicesCSS = Asset(@path(dependency_path("choices.min.css")))  # @path: embed bytes so it survives bundle relocation
 
 """
     ChoicesJSParams(; kwargs...)

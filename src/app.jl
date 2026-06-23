@@ -44,79 +44,53 @@ end
 App
 
 """
-    handle_app_error!(err, app::App, parent_session=nothing)
+    record_session_error!(session::Session, err::Exception)
 
-Unified error handling for App rendering errors.
-- Logs the error
-- Closes the app's session if it was created (prevents wait_for_ready hanging)
-- If session was never set, creates a closed dummy session (prevents wait_for_ready hanging)
-- Returns error HTML node
-- If parent_session is provided and ready, sends error to browser via evaljs
+Record `err` as the session's most-recent failure. Sets `session.init_error[]`
+(which `isready(session)` re-throws by default, surfacing the cause to any
+waiter) and — if this session has a `current_app` with a `ConnectionIndicator`
+— pushes the error into `indicator.error[]`. That observable is rendered via
+`map(render_error, indicator.error)` into the indicator's DOM, so a connected
+browser sees the cause in the page without any custom protocol message.
 """
-function handle_app_error!(err, app::Union{App, Nothing}, parent_session=nothing)
-    bt = Base.catch_backtrace()
-    @error "Error rendering app" exception = (err, bt)
-
-    # Handle app session to prevent wait_for_ready from hanging
-    if !isnothing(app)
-        if !isnothing(app.session[])
-            # Close the session if it was created
-            try
-                close(app.session[])
-            catch close_err
-                @debug "Error closing session" exception = close_err
-            end
-        else
-            # Session was never set - create a closed dummy session
-            # so wait_for_ready doesn't wait forever
-            try
-                dummy = Session(NoConnection())
-                dummy.status = CLOSED
-                app.session[] = dummy
-            catch
-                # If even creating a dummy session fails, wait_for_ready will timeout
-            end
-        end
+function record_session_error!(session::Session, err::Exception)
+    session.init_error[] = err
+    app = session.current_app[]
+    if !isnothing(app) && !isnothing(app.indicator) &&
+       hasproperty(app.indicator, :error)
+        app.indicator.error[] = err
     end
-
-    # Generate error HTML
-    error_html = HTTPServer.err_to_html(err, bt)
-
-    # If we have a ready parent session, try to send error to browser via evaljs
-    # This bypasses the rendering pipeline that might be broken
-    if !isnothing(parent_session) && isready(parent_session)
-        try
-            error_html_str = sprint(io -> show(io, MIME"text/html"(), error_html))
-            # Construct JSCode manually since @js_str isn't defined yet at include time
-            js_code = JSCode([
-                JSString("const target = document.getElementById('subsession-application-dom'); if (target) { target.innerHTML = "),
-                error_html_str,
-                JSString("; }")
-            ])
-            evaljs(parent_session, js_code)
-        catch err2
-            @error "Failed to display error in browser" exception = (err2, Base.catch_backtrace())
-        end
-    end
-
-    return error_html
+    return nothing
 end
 
-function update_app!(parent::Session, new_app::App)
-    root = root_session(parent)
-    @assert root === parent "never call this function with a subsession"
+"""
+    handle_render_error(f, session::Session) -> Node
+
+Run `f()` and return its (Node) result. If `f` throws, log the exception,
+record it via `record_session_error!` (so `isready(session)` / `wait_for_ready`
+surface the real cause and any indicator on the app picks it up reactively),
+and return an error-HTML Node so the caller's downstream emit path (HTTP
+response, `show(io, dom)`, the UpdateSession message in `update_session_dom!`)
+doesn't have to know whether the render succeeded.
+
+The single error boundary for app rendering. Sites above this one don't
+need their own try/catch — `rendered_dom` always returns a Node.
+"""
+function handle_render_error(f, session::Session)
     try
-        update_session_dom!(parent, "subsession-application-dom", new_app)
+        return f()
     catch err
-        handle_app_error!(err, new_app, parent)
+        bt = Base.catch_backtrace()
+        @error "Error rendering app" exception = (err, bt)
+        record_session_error!(session, err)
+        return HTTPServer.err_to_html(err, bt)
     end
 end
-
 
 function rendered_dom(session::Session, app::App, target=HTTP.Request(); apply_jsrender=true)
     app.session[] = session
     session.current_app[] = app
-    try
+    return handle_render_error(session) do
         dom = Base.invokelatest(app.handler, session, target)
         if apply_jsrender
             dom = Base.invokelatest(jsrender, session, dom)
@@ -127,10 +101,19 @@ function rendered_dom(session::Session, app::App, target=HTTP.Request(); apply_j
             dom = DOM.div(dom, indicator_dom)
         end
         return dom
-    catch err
-        html = HTTPServer.err_to_html(err, Base.catch_backtrace())
-        return jsrender(session, html)
     end
+end
+
+# Live-update a sub-app inside an already-displayed parent session. The render
+# path through `update_session_dom!` → `render_subsession` → `session_dom` →
+# `rendered_dom` is wrapped by `handle_render_error`, so an erroring `new_app`
+# produces an UpdateSession message containing the error DOM. The browser
+# swaps it in the same way it would have swapped a successful render. No
+# try/catch needed here.
+function update_app!(parent::Session, new_app::App)
+    @assert root_session(parent) === parent "never call this function with a subsession"
+    update_session_dom!(parent, "subsession-application-dom", new_app)
+    return new_app
 end
 
 function bind_global(session::Session, var::AbstractObservable{T}) where T
@@ -153,9 +136,17 @@ function HTTPServer.apply_handler(app::App, context)
 end
 
 function Base.close(app::App)
-    session = app.session[]
-    # Needs to be async because of finalizers (todo, figure out better ways!)
-    !isnothing(session) && free(session)
+    # NOTE: this used to call `free(session)`, but `free` only removes the
+    # session from `parent.children` and clears bookkeeping — it does NOT
+    # close `session.asset_server`. Calling it from App's finalizer (when
+    # the App was dropped without explicit close, e.g. update_app! replacing
+    # `handler.current_app`) silently leaked refcounts on the parent
+    # HTTPAssetServer.
+    #
+    # Now, App.close just drops the back-reference. The session itself is
+    # owned by whoever else holds it (root.children, the DisplayHandler's
+    # previous_session buffer, the observable double-buffer), and those
+    # owners are responsible for the eventual close cascade.
     app.session[] = nothing
 end
 
@@ -164,10 +155,26 @@ mutable struct DisplayHandler
     server::HTTPServer.Server
     route::String
     current_app::App
+    # Double-buffer: the previously-displayed app's session is kept alive
+    # for one more swap so an in-flight browser fetch for its assets still
+    # resolves. Closed when the next swap arrives, or on `close(handler)`.
+    previous_session::Union{Session, Nothing}
+    # Serializes `apply_handler` (and `update_app!`): both read-then-replace
+    # `session`/`previous_session`. Two concurrent GETs would otherwise close
+    # each other's session mid-render and leak one replacement.
+    lock::ReentrantLock
 end
+DisplayHandler(session, server, route, current_app, previous_session) =
+    DisplayHandler(session, server, route, current_app, previous_session, ReentrantLock())
 
 function Base.close(handler::DisplayHandler)
-    close(handler.session)
+    lock(handler.lock) do
+        if !isnothing(handler.previous_session)
+            close(handler.previous_session)
+            handler.previous_session = nothing
+        end
+        close(handler.session)
+    end
 end
 
 function HTTPSession(server::HTTPServer.Server)
@@ -183,65 +190,91 @@ end
 
 function DisplayHandler(server::HTTPServer.Server, app::App; route="/browser-display")
     session = HTTPSession(server)
-    handler = DisplayHandler(session, server, route, app)
+    handler = DisplayHandler(session, server, route, app, nothing)
     route!(server, route => handler)
     return handler
 end
 
 function update_app!(handler::DisplayHandler, app::App)
-    # the connection is open, so we can just use it to update the dom!
-    old_session = handler.current_app.session[]
-    handler.current_app = app
-    if isready(handler.session)
-        if !isnothing(old_session)
-            close(old_session)
+    # Serialize with `apply_handler` — both read-then-replace
+    # `session`/`previous_session`.
+    lock(handler.lock) do
+        # the connection is open, so we can just use it to update the dom!
+        old_session = handler.current_app.session[]
+        handler.current_app = app
+        # `throw=false`: branching on connection state, not waiting for ready.
+        if isready(handler.session; throw=false)
+            # Double-buffer: close the older session (two swaps back), promote
+            # `old_session` to the previous slot. The browser may still be
+            # mid-fetch on `old_session`'s assets when we mount the new app —
+            # leaving it alive for one more swap gives those fetches a live
+            # ChildAssetServer to resolve against.
+            if !isnothing(handler.previous_session)
+                close(handler.previous_session)
+            end
+            handler.previous_session = old_session
+            update_app!(handler.session, app)
+            return false
+        else
+            # Need to wait for someone to actually visit http://.../browser-display
+            return true # needs loading!
         end
-        update_app!(handler.session, app)
-        return false
-    else
-        # Need to wait for someone to actually visit http://.../browser-display
-        return true # needs loading!
     end
 end
 
 function HTTPServer.apply_handler(handler::DisplayHandler, context)
-    try
-        # we only allow one open tab/browser to show the browser display
-        # Multiple sessions wouldn't be too hard, but that means we'd need manage multiple right here
-        # And this is already complicated enough!
-        # so, if we serve the display handler url, it means to start fresh
-        # But if UNINITIALIZED, it's simply the first request to the page!
+    # we only allow one open tab/browser to show the browser display
+    # Multiple sessions wouldn't be too hard, but that means we'd need manage multiple right here
+    # And this is already complicated enough!
+    # so, if we serve the display handler url, it means to start fresh
+    # But if UNINITIALIZED, it's simply the first request to the page!
+    # The check-then-act on `handler.session` (read status, maybe close +
+    # replace) is racy under two concurrent GETs — they'd close each other's
+    # session mid-render and leak a replacement. Hold `handler.lock`
+    # across the whole read-replace-render region.
+    lock(handler.lock) do
         parent = handler.session
         not_initialized = parent.status != UNINITIALIZED
         changed_compression = parent.compression_enabled != default_compression()
         ForcedCon = FORCED_CONNECTION[]
         changed_connection = !isnothing(ForcedCon) && !(parent.connection isa ForcedCon)
-        # We need to create a new session if either of these happen
         if not_initialized || changed_compression || changed_connection
             @debug("creating new Session for unititialized display handler")
-            parent = HTTPSession(handler.server) # new session
+            # Close the old root before replacing it. Otherwise its children +
+            # asset_server refcount contributions leak — this is exactly what
+            # the subsessions "server cleanup" test catches under
+            # Compression+DualWebsocket (which flips both globals between the
+            # two test passes, taking this branch). We also drop any buffered
+            # `previous_session` since it's a sub of the now-stale root.
+            if !isnothing(handler.previous_session)
+                close(handler.previous_session)
+                handler.previous_session = nothing
+            end
+            close(handler.session)
+            parent = HTTPSession(handler.server)
             handler.session = parent
         end
         sub = Session(parent)
-        # Use indicator from user's app on the parent wrapper (only root has indicator)
+        # The page wrapper (`<title>` etc.) is rendered from the parent session,
+        # so carry the displayed app's title onto it — otherwise `display(disp,
+        # app)` pages always show the default "Bonito App" regardless of the
+        # `title=` passed to `App(...)` (only the `route!(server, "/" => app)`
+        # path set it before).
+        parent.title = handler.current_app.title
+        # Render-time errors are absorbed by `handle_render_error` inside
+        # `rendered_dom` — we get back a valid Node either way (success DOM or
+        # inline error HTML) and the page wrap finishes normally. Infrastructure
+        # failures (Session ctor, find_head_body, sprint, …) propagate to the
+        # HTTPServer's `delegate` which returns a 500.
         parent_dom = session_dom(parent, App(nothing; indicator=handler.current_app.indicator, loading_page=nothing); html_document=true)
         sub_dom = session_dom(sub, handler.current_app)
-
-        # first time rendering in a subsession, we put the
-        # subsession dom as a bonito fragment into the parent body
         _, parent_body, _ = find_head_body(parent_dom)
         push!(children(parent_body), sub_dom)
         html_str = sprint(io -> print_as_page(io, parent_dom))
-        # The closing time is calculated from here
-        # If after 20s after rendering and sending the HTML to the browser
-        # no connection is established, it will be assumed that the browser never connected
+        # The closing time is calculated from here. If after 20s no connection is
+        # established the browser is assumed to have never connected.
         mark_displayed!(parent)
         mark_displayed!(sub)
-        return html(html_str)
-    catch err
-        # Use unified error handling - closes app session to prevent wait_for_ready hang
-        error_html = handle_app_error!(err, handler.current_app, nothing)
-        html_str = sprint(io -> print_as_page(io, error_html))
         return html(html_str)
     end
 end
@@ -250,8 +283,16 @@ function wait_for_ready(app::App; timeout=100)
     success = wait_for(()-> !isnothing(app.session[]); timeout=timeout)
     success !== :success && return nothing
     isclosed(app.session[]) && return nothing
+    # A handler/render error on an app WITH a `loading_page` is rendered to the
+    # page as an error page, so we just stop waiting — re-throwing would escape
+    # `display`/`timed_wait` for an error the user already sees on the page.
+    # Without a loading_page there is no on-page error surface, so re-throw (via
+    # `isready`) to surface the cause to the caller — the error_handling tests
+    # rely on this fast throw.
+    do_throw = isnothing(app.loading_page)
     wait_for(timeout=timeout) do
-        isready(app.session[]) || isclosed(app.session[])
+        isready(app.session[]; throw=do_throw) || isclosed(app.session[]) ||
+            !isnothing(app.session[].init_error[])
     end
     task = app.loading_task[]
     if !isnothing(task)
@@ -259,8 +300,12 @@ function wait_for_ready(app::App; timeout=100)
             istaskdone(task)
         end
     end
+    return
 end
 
 function jsrender(session::Session, app::App)
-    return rendered_dom(session, app; apply_jsrender=false)
+    # Render an embedded app (e.g. `DOM.div(app)`) into the current session,
+    # jsrendering its DOM so interactive children (widgets, plots, assets) are
+    # wired up against this session instead of falling back to a standalone `show`.
+    return rendered_dom(session, app; apply_jsrender=true)
 end

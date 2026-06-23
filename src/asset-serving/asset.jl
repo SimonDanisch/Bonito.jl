@@ -185,13 +185,27 @@ function Asset(path_or_url::Union{String,Path}; name=nothing, es6module=false, c
         end
         bundle_data = read(bundle_file) # read the into memory to make it relocatable
         content_hash = RefValue{String}(hash_content(bundle_data))
+        # Tell Julia's precompile system that the package's compile-cache
+        # validity depends on these files. Without this, a downstream
+        # package like BonitoTeam that does `const ChatLib =
+        # ES6Module(...)` at module scope captures `bundle_data` into its
+        # precompile image; subsequent edits to the .js source don't
+        # invalidate the cache, and `using BonitoTeam` keeps serving the
+        # stale bundle even though the file on disk has the new bytes.
+        if !is_online(path_or_url) && !isempty(local_path)
+            Base.include_dependency(String(local_path))
+        end
+        !isempty(bundle_file) && Base.include_dependency(String(bundle_file))
     else
-
         bundle_file = ""
         bundle_data = UInt8[]
         content_hash = RefValue{String}("")
     end
-    return Asset(name, es6module, mediatype, real_online_path, local_path, bundle_file, bundle_data, content_hash)
+    # Non-module Assets read on demand from `local_path` at serve time, so
+    # they don't snapshot bytes into the precompile image — no
+    # include_dependency needed for those. (The HTTP handler in
+    # asset-serving/http.jl does `read(local_path(asset))` on each request.)
+    return Asset(name, es6module, mediatype, real_online_path, local_path, bundle_file, bundle_data, content_hash, ReentrantLock())
 end
 
 
@@ -239,6 +253,34 @@ rm(Bonito.BonitoLib.bundle_file)
 function ES6Module(path)
     name = String(splitext(basename(path))[1])
     asset = Asset(path; name=name, es6module=true)
+    return asset
+end
+
+"""
+    rebundle!(asset::Asset)
+
+Force the next request for `asset` to re-bundle from source. Drops both
+the on-disk bundle (`asset.bundle_file`) and the in-memory cached bytes
+(`asset.bundle_data`). Useful while iterating on the JavaScript source
+of an `ES6Module(...)` — without this Bonito keeps serving the stale
+bundle even after you edit the underlying `.js`.
+
+```julia
+const ChartLib = Bonito.ES6Module("chart.js")
+# … edit chart.js …
+Bonito.rebundle!(ChartLib)   # next page reload picks up the new source
+```
+
+No-op for non-ES6 assets (they have no bundle to drop).
+"""
+function rebundle!(asset::Asset)
+    asset.es6module || return asset
+    # Guard the in-memory drop with the same per-asset lock `bundle!` uses, so
+    # a concurrent serve never sees a half-emptied vector.
+    lock(asset.bundle_lock) do
+        isempty(String(asset.bundle_file)) || rm(String(asset.bundle_file); force = true)
+        empty!(asset.bundle_data)
+    end
     return asset
 end
 
@@ -308,9 +350,29 @@ function last_modified(path::String)
     Dates.unix2datetime(Base.Filesystem.mtime(path))
 end
 
+# Can we actually write to `path`? `filemode(path) & S_IWUSR` lies on read-only
+# filesystems (squashfs/DMG app bundles preserve the writable mode bits from
+# build time), so probe by opening for append — EROFS/EACCES surface here
+# without touching the file's content or mtime.
+function file_writeable(path::String)
+    try
+        open(identity, path, "a")
+        return true
+    catch e
+        e isa Union{SystemError, Base.IOError} || rethrow()
+        return false
+    end
+end
+
 function needs_bundling(path, bundled)
     is_online(path) && return !isfile(bundled)
     !isfile(bundled) && return true
+    # A bundle we cannot rewrite is a SHIPPED bundle (read-only package dir,
+    # squashfs/DMG app bundle). Its mtime is whatever the packaging step left
+    # behind — often older than the equally-repackaged source file — so the
+    # mtime comparison below would demand a re-bundle that can never be
+    # written (each render then burns the full deno timeout). Trust it.
+    file_writeable(String(bundled)) || return false
     # If bundled happen after last modification of asset
     return last_modified(path) > last_modified(bundled)
 end
@@ -322,12 +384,33 @@ function needs_bundling(asset::Asset)
     return needs_bundling(path, bundled)
 end
 
-
-
 bundle!(asset::BinaryAsset) = nothing
+
+"""
+    bundle_data_snapshot(asset::Asset) -> Vector{UInt8}
+
+Return a copy of the asset's current bundle bytes taken under the per-asset
+bundle lock, so a concurrent `bundle!` can't tear the vector out from under a
+serving HTTP task. Callers serve the returned copy.
+"""
+function bundle_data_snapshot(asset::Asset)
+    return lock(asset.bundle_lock) do
+        copy(asset.bundle_data)
+    end
+end
 
 function bundle!(asset::Asset)
     needs_bundling(asset) || return
+    lock(asset.bundle_lock) do
+        # Re-check inside the lock: another task may have just bundled while we
+        # waited, so we don't redundantly re-run deno or re-tear the vector.
+        needs_bundling(asset) || return
+        bundle_inner!(asset)
+    end
+    return
+end
+
+function bundle_inner!(asset::Asset)
     bundle_file = String(bundle_path(asset))
     source = String(get_path(asset))
     has_been_bundled, err = deno_bundle(source, bundle_file)
