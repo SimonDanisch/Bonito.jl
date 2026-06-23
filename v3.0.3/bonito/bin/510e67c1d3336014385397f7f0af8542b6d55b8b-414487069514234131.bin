@@ -1,0 +1,42 @@
+’Ç,j“Ù$e8bc0470-4612-4624-8b7b-d39e81400445€£sub‚§payload‘ÈUk’ÇTj“Ù$e8bc0470-4612-4624-8b7b-d39e81400445‚¤1420Çe’¤1420š	
+¤1421Çe’¤1421£sub‚§payloadÈåf“‚³9445553759568024876Çh¤1421´18037620145361844881Çh¤1420Új((container)=> {
+    const thumb = document.querySelector('[data-jscall-id="13"]');
+    const track_active = document.querySelector('[data-jscall-id="12"]');
+    const track = document.querySelector('[data-jscall-id="11"]');
+    let isDragging = false;
+    function set_thumb(e) {
+        const values = __lookup_interpolated('18037620145361844881').value;
+        const nsteps = values.length;
+        const thumb_width = thumb.offsetWidth / 2;
+        const width = track.offsetWidth;
+        const step_width = width / nsteps;
+        let new_left = e.clientX - container.getBoundingClientRect().left;
+        new_left = Math.max(new_left, 0);
+        new_left = Math.min(new_left, width);
+        new_left = Math.round(new_left / step_width) * step_width;
+        thumb.style.left = (new_left - thumb_width) + 'px';  // Update the left position of the thumb
+        track_active.style.width = new_left + 'px';  // Update the active track
+        const index = Math.round((new_left / width) * (nsteps - 1));
+        __lookup_interpolated('9445553759568024876').notify(values[index]);
+    }
+    const controller = new AbortController();
+    document.addEventListener('mousedown', function (e) {
+        if(e.target === thumb || e.target === track_active || e.target === track || e.targar === container){
+            isDragging = true;
+            set_thumb(e);
+            e.preventDefault();  // Prevent default behavior
+        }
+    }, { signal: controller.signal});
+    document.addEventListener('mouseup', function () {
+        if (!document.body.contains(container)) {
+            controller.abort();
+        }
+        isDragging = false;
+    }, { signal: controller.signal });
+    document.addEventListener('mousemove', function (e) {
+        if (isDragging) {
+            set_thumb(e);
+        }
+    }, { signal: controller.signal });
+}
+)(document.querySelector('[data-jscall-id="10"]'));Ù;/home/runner/work/Bonito.jl/Bonito.jl/src/components.jl:333¨msg_type¡2¨msg_type¡9

@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Widgets · Bonito</title><meta name="title" content="Widgets · Bonito"/><meta property="og:title" content="Widgets · Bonito"/><meta property="twitter:title" content="Widgets · Bonito"/><meta name="description" content="Documentation for Bonito."/><meta property="og:description" content="Documentation for Bonito."/><meta property="twitter:description" content="Documentation for Bonito."/><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="index.html">Bonito</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li><span class="tocitem">Components</span><ul><li><a class="tocitem" href="styling.html">Styling</a></li><li><a class="tocitem" href="components.html">Components</a></li><li><a class="tocitem" href="layouting.html">Layouting</a></li><li class="is-active"><a class="tocitem" href="widgets.html">Widgets</a><ul class="internal"><li><a class="tocitem" href="#All-Available-widgets"><span>All Available widgets</span></a></li><li><a class="tocitem" href="#Widgets-in-Layouts"><span>Widgets in Layouts</span></a></li><li><a class="tocitem" href="#Editor"><span>Editor</span></a></li><li><a class="tocitem" href="#Tailwinddashboard"><span>Tailwinddashboard</span></a></li></ul></li><li><a class="tocitem" href="interactions.html">Interactions</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="plotting.html">Plotting</a></li><li><a class="tocitem" href="javascript-libraries.html">Wrapping JS libraries</a></li><li><a class="tocitem" href="assets.html">Assets</a></li><li><a class="tocitem" href="extending.html">Extending</a></li></ul></li><li><a class="tocitem" href="handlers.html">Handlers</a></li><li><a class="tocitem" href="deployment.html">Deployment</a></li><li><a class="tocitem" href="static.html">Static Sites</a></li><li><a class="tocitem" href="api.html">Api</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Components</a></li><li class="is-active"><a href="widgets.html">Widgets</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="widgets.html">Widgets</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/master/docs/src/widgets.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Widgets"><a class="docs-heading-anchor" href="#Widgets">Widgets</a><a id="Widgets-1"></a><a class="docs-heading-anchor-permalink" href="#Widgets" title="Permalink"></a></h1><h2 id="All-Available-widgets"><a class="docs-heading-anchor" href="#All-Available-widgets">All Available widgets</a><a id="All-Available-widgets-1"></a><a class="docs-heading-anchor-permalink" href="#All-Available-widgets" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="WidgetsBase.Button-widgets" href="#WidgetsBase.Button-widgets"><code>WidgetsBase.Button</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Button(name; style=Styles(), dom_attributes...)</code></pre><p>A simple button, which can be styled a <code>style::Styles</code>. Set kwarg <code>style=nothing</code> to turn off the default Bonito styling.</p><p><strong>Example</strong></p><pre><code class="language-julia hljs">App() do
+    style = Styles(
+        CSS(&quot;font-weight&quot; =&gt; &quot;500&quot;),
+        CSS(&quot;:hover&quot;, &quot;background-color&quot; =&gt; &quot;silver&quot;),
+        CSS(&quot;:focus&quot;, &quot;box-shadow&quot; =&gt; &quot;rgba(0, 0, 0, 0.5) 0px 0px 5px&quot;),
+    )
+    button = Button(&quot;Click me&quot;; style=style)
+    on(button.value) do click::Bool
+        @info &quot;Button clicked!&quot;
+    end
+    return button
+end
+</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/c81738cf1afdb684c4174737f4ceca144a80c192/src/widgets.jl#L48-L59">source</a></section></article><div>
+  <div class="bonito-fragment" id="8b57d949-84c6-4cdc-8291-0401b6e8113e" data-jscall-id="root">
+    <div>
+      <script src="bonito/js/Bonito.bundled13389133706764782584.js" type="module"></script>
+      <style></style>
+    </div>
+    <div>
+      <script type="module">Bonito.init_session("8b57d949-84c6-4cdc-8291-0401b6e8113e", null, "root", false);
+</script>
+      <span></span>
+    </div>
+  </div>
+  <div class="bonito-fragment" id="3c6d4197-d8b7-4ce8-8c78-27b2b102902b" data-jscall-id="subsession-application-dom">
+    <div>
+      <style>.style_2 {
+  min-width: 8rem;
+  font-weight: 600;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+}
+.style_3:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(66, 153, 225, 0.5) 0px 0px 0px 1px;
+  outline: 1px solid transparent;
+}
+.style_4:hover {
+  background-color: #F9FAFB;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+</style>
+    </div>
+    <div>
+      <script type="module">Bonito.init_session("3c6d4197-d8b7-4ce8-8c78-27b2b102902b", Bonito.fetch_binary('bonito/bin/b33dc42e8a30ec22786812c68683efd2927363cc-12854585119815520585.bin'), "sub", false);
+</script>
+      <button onclick="" class=" style_2 style_3 style_4" style="" data-jscall-id="1">Click me</button>
+    </div>
+  </div>
+</div><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="WidgetsBase.TextField-widgets" href="#WidgetsBase.TextField-widgets"><code>WidgetsBase.TextField</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">TextField(default_text; style=Styles(), dom_attributes...)</code></pre><p>A simple TextField, which can be styled via the <code>style::Styles</code> attribute, <code>style=nothing</code> turns off the default Bonito styling.</p><p><strong>Example</strong></p><pre><code class="language-julia hljs">App() do
+    style = Styles(
+        CSS(&quot;font-weight&quot; =&gt; &quot;500&quot;),
+        CSS(&quot;:hover&quot;, &quot;background-color&quot; =&gt; &quot;silver&quot;),
+        CSS(&quot;:focus&quot;, &quot;box-shadow&quot; =&gt; &quot;rgba(0, 0, 0, 0.5) 0px 0px 5px&quot;),
+    )
+    textfield = TextField(&quot;write something&quot;; style=style)
+    on(textfield.value) do text::String
+        @info text
+    end
+    return textfield
+end
+</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/c81738cf1afdb684c4174737f4ceca144a80c192/src/widgets.jl#L91-L102">source</a></section></article><div class="bonito-fragment" id="8e9ba501-88d7-45ad-98bf-ef23a8de6d36" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_5 {
+  min-width: 8rem;
+  font-weight: 600;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+}
+.style_6:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(66, 153, 225, 0.5) 0px 0px 0px 1px;
+  outline: 1px solid transparent;
+}
+.style_7:hover {
+  background-color: #F9FAFB;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">Bonito.init_session("8e9ba501-88d7-45ad-98bf-ef23a8de6d36", Bonito.fetch_binary('bonito/bin/85ac02703637d49aa2095fda0ca699c145b3952d-510581484123531590.bin'), "sub", false);
+</script>
+    <input class=" style_5 style_6 style_7" style="" data-jscall-id="2" value="write something" onchange="" type="textfield" />
+  </div>
+</div><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="WidgetsBase.NumberInput-widgets" href="#WidgetsBase.NumberInput-widgets"><code>WidgetsBase.NumberInput</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">NumberInput(default_value; style=Styles(), dom_attributes...)</code></pre><p>A simple NumberInput, which can be styled via the <code>style::Styles</code> attribute, <code>style=nothing</code> turns off the default Bonito styling.</p><p><strong>Example</strong></p><pre><code class="language-julia hljs">App() do
+    style = Styles(
+        CSS(&quot;font-weight&quot; =&gt; &quot;500&quot;),
+        CSS(&quot;:hover&quot;, &quot;background-color&quot; =&gt; &quot;silver&quot;),
+        CSS(&quot;:focus&quot;, &quot;box-shadow&quot; =&gt; &quot;rgba(0, 0, 0, 0.5) 0px 0px 5px&quot;),
+    )
+    numberinput = NumberInput(0.0; style=style)
+    on(numberinput.value) do value::Float64
+        @info value
+    end
+    return numberinput
+end
+</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/c81738cf1afdb684c4174737f4ceca144a80c192/src/widgets.jl#L135-L146">source</a></section></article><div class="bonito-fragment" id="51d4143b-47de-4779-bdc3-898a199ff0b8" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_8 {
+  min-width: 8rem;
+  font-weight: 600;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+}
+.style_9:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(66, 153, 225, 0.5) 0px 0px 0px 1px;
+  outline: 1px solid transparent;
+}
+.style_10:hover {
+  background-color: #F9FAFB;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">Bonito.init_session("51d4143b-47de-4779-bdc3-898a199ff0b8", Bonito.fetch_binary('bonito/bin/dd5f847fd5c95a428b9dba517f6dd0291a71841f-14188595613665539221.bin'), "sub", false);
+</script>
+    <input class=" style_8 style_9 style_10" style="" data-jscall-id="3" value="0.0" onchange="" type="number" />
+  </div>
+</div><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Bonito.Dropdown-widgets" href="#Bonito.Dropdown-widgets"><code>Bonito.Dropdown</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Dropdown(options; index=1, option_to_string=string, style=Styles(), dom_attributes...)</code></pre><p>A simple Dropdown, which can be styled via the <code>style::Styles</code> attribute, <code>style=nothing</code> turns off the default Bonito styling.</p><p><strong>Example</strong></p><pre><code class="language-julia hljs">App() do
+    style = Styles(
+        CSS(&quot;font-weight&quot; =&gt; &quot;500&quot;),
+        CSS(&quot;:hover&quot;, &quot;background-color&quot; =&gt; &quot;silver&quot;),
+        CSS(&quot;:focus&quot;, &quot;box-shadow&quot; =&gt; &quot;rgba(0, 0, 0, 0.5) 0px 0px 5px&quot;),
+    )
+    dropdown = Dropdown([&quot;a&quot;, &quot;b&quot;, &quot;c&quot;]; index=2, style=style)
+    on(dropdown.value) do value
+        @info value
+    end
+    return dropdown
+end
+</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/c81738cf1afdb684c4174737f4ceca144a80c192/src/widgets.jl#L184-L195">source</a></section></article><div class="bonito-fragment" id="8e6f6deb-6b4b-4c90-b34a-f444985123b4" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_11 {
+  min-width: 8rem;
+  font-weight: 600;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+}
+.style_12:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(66, 153, 225, 0.5) 0px 0px 0px 1px;
+  outline: 1px solid transparent;
+}
+.style_13:hover {
+  background-color: #F9FAFB;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">Bonito.init_session("8e6f6deb-6b4b-4c90-b34a-f444985123b4", Bonito.fetch_binary('bonito/bin/198029a808d23ef473633d22e3512a697d7e20be-8880668749593335402.bin'), "sub", false);
+</script>
+    <select class=" style_11 style_12 style_13" style="" data-jscall-id="4">
+      <option data-jscall-id="5">a</option>
+      <option data-jscall-id="6">b</option>
+      <option data-jscall-id="7">c</option>
+    </select>
+  </div>
+</div><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Bonito.Card" href="#Bonito.Card"><code>Bonito.Card</code></a> — <span class="docstring-category">Function</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Card(
+    content;
+    style::Styles=Styles(),
+    backgroundcolor=RGBA(1, 1, 1, 0.2),
+    shadow_size=&quot;0 4px 8px&quot;,
+    padding=&quot;12px&quot;,
+    margin=&quot;2px&quot;,
+    shadow_color=RGBA(0, 0, 0.2, 0.2),
+    width=&quot;auto&quot;,
+    height=&quot;auto&quot;,
+    border_radius=&quot;10px&quot;,
+    div_attributes...,
+)</code></pre><p>A Card is a container with a shadow and rounded corners. It is a good way to group elements together and make them stand out from the background. One can easily style them via the above keyword arguments or via the <code>style</code> argument with any CSS attribute.</p><p><strong>Example</strong></p><pre><code class="language- hljs">    App() do
+        Card(
+            DOM.h1(&quot;This is a card&quot;);
+            width=&quot;200px&quot;,
+            height=&quot;200px&quot;,
+            backgroundcolor=&quot;white&quot;,
+            shadow_size=&quot;0 0 10px&quot;,
+            shadow_color=&quot;blue&quot;,
+            padding=&quot;20px&quot;,
+            margin=&quot;20px&quot;,
+            border_radius=&quot;20px&quot;,
+            style = Styles(
+                CSS(&quot;hover&quot;, &quot;background-color&quot; =&gt; &quot;lightgray&quot;)
+            )
+        )
+    end
+</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/c81738cf1afdb684c4174737f4ceca144a80c192/src/components.jl#L20-L44">source</a></section></article><div class="bonito-fragment" id="600de67a-84c5-44f1-a7ce-59713e0f2e17" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_14 {
+  height: 200px;
+  padding: 20px;
+  background-color: white;
+  box-shadow: 0 0 10px blue;
+  width: 200px;
+  border-radius: 20px;
+  margin: 20px;
+}
+.style_15hover {
+  background-color: lightgray;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">Bonito.init_session("600de67a-84c5-44f1-a7ce-59713e0f2e17", null, "sub", false);
+</script>
+    <div class=" style_14 style_15" style="" data-jscall-id="8">
+      <h1 data-jscall-id="9">This is a card</h1>
+    </div>
+  </div>
+</div><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Bonito.StylableSlider" href="#Bonito.StylableSlider"><code>Bonito.StylableSlider</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">StylableSlider(
+    range::AbstractVector;
+    value=first(range),
+    slider_height=15,
+    thumb_width=slider_height,
+    thumb_height=slider_height,
+    track_height=slider_height / 2,
+    track_active_height=track_height + 2,
+    backgroundcolor=&quot;transparent&quot;,
+    track_color=&quot;#eee&quot;,
+    track_active_color=&quot;#ddd&quot;,
+    thumb_color=&quot;#fff&quot;,
+    style::Styles=Styles(),
+    track_style::Styles=Styles(),
+    thumb_style::Styles=Styles(),
+    track_active_style::Styles=Styles(),
+)</code></pre><p>Creates a Stylable Slider, where the basic attributes are easily custimizable via keyword arguments, while the more advanced details can be styled via the <code>style</code>, <code>track_style</code>, <code>thumb_style</code> and <code>track_active_style</code> arguments with the whole might of CSS. This does not use <code>&lt;input type=&quot;range&quot;&gt;</code> but is a custom implementation using <code>&lt;div&gt;</code>s javascript, since it is not easily possible to style the native slider in a cross-browser way. For using pure HTML sliders, use <code>Bonito.Slider</code>.</p><p><strong>Example</strong></p><pre><code class="language- hljs">App() do
+    Bonito.StylableSlider(
+        1:10;
+        value=5,
+        slider_height=20,
+        track_color=&quot;lightblue&quot;,
+        track_active_color=&quot;#F0F8FF&quot;,
+        thumb_color=&quot;#fff&quot;,
+        style=Styles(
+            CSS(&quot;hover&quot;, &quot;background-color&quot; =&gt; &quot;lightgray&quot;),
+            CSS(&quot;border-radius&quot; =&gt; &quot;0px&quot;),
+        ),
+        track_style=Styles(
+            &quot;border-radius&quot; =&gt; &quot;3px&quot;,
+            &quot;border&quot; =&gt; &quot;1px solid black&quot;,
+        ),
+        thumb_style=Styles(
+            &quot;border-radius&quot; =&gt; &quot;3px&quot;,
+            &quot;border&quot; =&gt; &quot;1px solid black&quot;,
+        ),
+    )
+end
+</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/c81738cf1afdb684c4174737f4ceca144a80c192/src/components.jl#L199-L229">source</a></section></article><div class="bonito-fragment" id="be9b853b-0d36-454c-8a38-35b85f36fc92" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_16 {
+  left: -10.0px;
+  height: 20px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  position: absolute;
+  width: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.style_17 {
+  height: 12.0px;
+  border: 1px solid #ccc;
+  background-color: #F0F8FF;
+  position: absolute;
+  width: 0px;
+  border-radius: 3px;
+}
+.style_18 {
+  align-items: center;
+  display: grid;
+  background-color: transparent;
+  grid-template-columns: 1fr;
+  padding-right: 12.0px;
+  position: relative;
+  border-radius: 0px;
+  grid-template-rows: 20px;
+  margin: 6px;
+  padding-left: 12.0px;
+}
+.style_19hover {
+  background-color: lightgray;
+}
+.style_20 {
+  height: 10.0px;
+  border: 1px solid #ccc;
+  background-color: lightblue;
+  position: absolute;
+  width: 100%;
+  border-radius: 3px;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">Bonito.init_session("be9b853b-0d36-454c-8a38-35b85f36fc92", Bonito.fetch_binary('bonito/bin/4303fedbb53db01fe6725f16f2505e573733cee4-11671720191231495687.bin'), "sub", false);
+</script>
+    <div class=" style_18 style_19" style="" data-jscall-id="10">
+      <div class=" style_20" style="" data-jscall-id="11"></div>
+      <div class=" style_17" style="" data-jscall-id="12"></div>
+      <div class=" style_16" style="" data-jscall-id="13"></div>
+    </div>
+  </div>
+</div><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Bonito.Table-widgets" href="#Bonito.Table-widgets"><code>Bonito.Table</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><p>A simple wrapper for types that conform to the Tables.jl Table interface, which gets rendered nicely!</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/c81738cf1afdb684c4174737f4ceca144a80c192/src/widgets.jl#L402-L405">source</a></section></article><p>The <code>Table</code> widget provides an interactive way to display tabular data that conforms to the Tables.jl interface. It supports custom styling, interactive sorting, and flexible cell rendering.</p><h3 id="Basic-Usage"><a class="docs-heading-anchor" href="#Basic-Usage">Basic Usage</a><a id="Basic-Usage-1"></a><a class="docs-heading-anchor-permalink" href="#Basic-Usage" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Create sample data using named tuples
+data = [
+    (name=&quot;Alice&quot;, age=25, score=95.5),
+    (name=&quot;Bob&quot;, age=30, score=87.2),
+    (name=&quot;Charlie&quot;, age=22, score=92.8)
+]
+
+# Basic table
+basic_table = Bonito.Table(data)
+App(basic_table)</code></pre><div class="bonito-fragment" id="b185db82-cd56-40d8-a2cd-b09ef51d2482" data-jscall-id="subsession-application-dom">
+  <div>
+    <style></style>
+    <style>.cell-default {
+  background-color: white;
+  color: black;
+}
+.table-header {
+  border: 1px solid #ddd;
+  background-color: #f5f5f5;
+  font-weight: bold;
+  padding: 8px;
+  user-select: none;
+  text-align: left;
+  cursor: pointer;
+}
+.table-cell {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+.table-row:hover .table-cell {
+  background-color: #f9f9f9;
+}
+.comparison-table {
+  border-collapse: collapse;
+  font-family: Arial, sans-serif;
+  width: 100%;
+}
+.cell-neutral {
+  background-color: #fff3cd;
+  color: #856404;
+}
+.table-header:hover {
+  background-color: #e9e9e9;
+}
+.table-container {
+  overflow-x: auto;
+}
+.cell-good {
+  background-color: #d4edda;
+  color: #155724;
+}
+.cell-bad {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">Bonito.init_session("b185db82-cd56-40d8-a2cd-b09ef51d2482", Bonito.fetch_binary('bonito/bin/845441631280435ffff8637b65d7ee5295229fb7-6323219790979098565.bin'), "sub", false);
+</script>
+    <div data-jscall-id="14">
+      <div class="table-container" data-jscall-id="15">
+        <table class="comparison-table " data-jscall-id="16">
+          <thead data-jscall-id="17">
+            <tr data-jscall-id="18">
+              <th class="table-header" data-jscall-id="19" data-column="0">name</th>
+              <th class="table-header" data-jscall-id="20" data-column="1">age</th>
+              <th class="table-header" data-jscall-id="21" data-column="2">score</th>
+            </tr>
+          </thead>
+          <tbody data-jscall-id="22">
+            <tr class="table-row" data-jscall-id="23" data-row="0">
+              <td data-value="Alice" class="table-cell cell-default" style="" data-jscall-id="24">Alice</td>
+              <td data-value="25" class="table-cell cell-default" style="" data-jscall-id="25">
+                <span class="text-plain" style="white-space: pre-wrap">25</span>
+              </td>
+              <td data-value="95.5" class="table-cell cell-default" style="" data-jscall-id="26">
+                <span class="text-plain" style="white-space: pre-wrap">95.5</span>
+              </td>
+            </tr>
+            <tr class="table-row" data-jscall-id="27" data-row="1">
+              <td data-value="Bob" class="table-cell cell-default" style="" data-jscall-id="28">Bob</td>
+              <td data-value="30" class="table-cell cell-default" style="" data-jscall-id="29">
+                <span class="text-plain" style="white-space: pre-wrap">30</span>
+              </td>
+              <td data-value="87.2" class="table-cell cell-default" style="" data-jscall-id="30">
+                <span class="text-plain" style="white-space: pre-wrap">87.2</span>
+              </td>
+            </tr>
+            <tr class="table-row" data-jscall-id="31" data-row="2">
+              <td data-value="Charlie" class="table-cell cell-default" style="" data-jscall-id="32">Charlie</td>
+              <td data-value="22" class="table-cell cell-default" style="" data-jscall-id="33">
+                <span class="text-plain" style="white-space: pre-wrap">22</span>
+              </td>
+              <td data-value="92.8" class="table-cell cell-default" style="" data-jscall-id="34">
+                <span class="text-plain" style="white-space: pre-wrap">92.8</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div><h3 id="Custom-Cell-Styling"><a class="docs-heading-anchor" href="#Custom-Cell-Styling">Custom Cell Styling</a><a id="Custom-Cell-Styling-1"></a><a class="docs-heading-anchor-permalink" href="#Custom-Cell-Styling" title="Permalink"></a></h3><p>You can provide custom class and style callbacks to control the appearance of individual cells:</p><pre><code class="language-julia hljs"># Color coding function based on values
+function score_class_callback(table, row, col, val)
+    # Color the score column based on value
+    if col == 3 &amp;&amp; isa(val, Number)  # Score column
+        if val &gt;= 90
+            return &quot;cell-good&quot;
+        elseif val &gt;= 80
+            return &quot;cell-neutral&quot;
+        else
+            return &quot;cell-bad&quot;
+        end
+    end
+    return &quot;cell-default&quot;
+end
+
+# Style callback for additional formatting
+function score_style_callback(table, row, col, val)
+    if col == 3 &amp;&amp; isa(val, Number)  # Score column
+        return &quot;font-weight: bold;&quot;
+    end
+    return &quot;&quot;
+end
+
+styled_table = Bonito.Table(data;
+                    class_callback=score_class_callback,
+                    style_callback=score_style_callback)
+App(styled_table)</code></pre><div class="bonito-fragment" id="c57249aa-47fe-434c-ae6d-9551b6ac6838" data-jscall-id="subsession-application-dom">
+  <div>
+    <style></style>
+    <style>.cell-default {
+  background-color: white;
+  color: black;
+}
+.table-header {
+  border: 1px solid #ddd;
+  background-color: #f5f5f5;
+  font-weight: bold;
+  padding: 8px;
+  user-select: none;
+  text-align: left;
+  cursor: pointer;
+}
+.table-cell {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+.table-row:hover .table-cell {
+  background-color: #f9f9f9;
+}
+.comparison-table {
+  border-collapse: collapse;
+  font-family: Arial, sans-serif;
+  width: 100%;
+}
+.cell-neutral {
+  background-color: #fff3cd;
+  color: #856404;
+}
+.table-header:hover {
+  background-color: #e9e9e9;
+}
+.table-container {
+  overflow-x: auto;
+}
+.cell-good {
+  background-color: #d4edda;
+  color: #155724;
+}
+.cell-bad {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">Bonito.init_session("c57249aa-47fe-434c-ae6d-9551b6ac6838", Bonito.fetch_binary('bonito/bin/9af747f1f0a68f31062d1fb7216379823383c9b6-2854642856476824786.bin'), "sub", false);
+</script>
+    <div data-jscall-id="35">
+      <div class="table-container" data-jscall-id="36">
+        <table class="comparison-table " data-jscall-id="37">
+          <thead data-jscall-id="38">
+            <tr data-jscall-id="39">
+              <th class="table-header" data-jscall-id="40" data-column="0">name</th>
+              <th class="table-header" data-jscall-id="41" data-column="1">age</th>
+              <th class="table-header" data-jscall-id="42" data-column="2">score</th>
+            </tr>
+          </thead>
+          <tbody data-jscall-id="43">
+            <tr class="table-row" data-jscall-id="44" data-row="0">
+              <td data-value="Alice" class="table-cell cell-default" style="" data-jscall-id="45">Alice</td>
+              <td data-value="25" class="table-cell cell-default" style="" data-jscall-id="46">
+                <span class="text-plain" style="white-space: pre-wrap">25</span>
+              </td>
+              <td data-value="95.5" class="table-cell cell-good" style="font-weight: bold;" data-jscall-id="47">
+                <span class="text-plain" style="white-space: pre-wrap">95.5</span>
+              </td>
+            </tr>
+            <tr class="table-row" data-jscall-id="48" data-row="1">
+              <td data-value="Bob" class="table-cell cell-default" style="" data-jscall-id="49">Bob</td>
+              <td data-value="30" class="table-cell cell-default" style="" data-jscall-id="50">
+                <span class="text-plain" style="white-space: pre-wrap">30</span>
+              </td>
+              <td data-value="87.2" class="table-cell cell-neutral" style="font-weight: bold;" data-jscall-id="51">
+                <span class="text-plain" style="white-space: pre-wrap">87.2</span>
+              </td>
+            </tr>
+            <tr class="table-row" data-jscall-id="52" data-row="2">
+              <td data-value="Charlie" class="table-cell cell-default" style="" data-jscall-id="53">Charlie</td>
+              <td data-value="22" class="table-cell cell-default" style="" data-jscall-id="54">
+                <span class="text-plain" style="white-space: pre-wrap">22</span>
+              </td>
+              <td data-value="92.8" class="table-cell cell-good" style="font-weight: bold;" data-jscall-id="55">
+                <span class="text-plain" style="white-space: pre-wrap">92.8</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div><h3 id="Sorting-Options"><a class="docs-heading-anchor" href="#Sorting-Options">Sorting Options</a><a id="Sorting-Options-1"></a><a class="docs-heading-anchor-permalink" href="#Sorting-Options" title="Permalink"></a></h3><p>Tables support interactive sorting by clicking on headers (column sorting) or first cells (row sorting):</p><pre><code class="language-julia hljs"># Table with only column sorting enabled
+column_sort_table = Bonito.Table(data;
+                         allow_row_sorting=false,
+                         allow_column_sorting=true)
+
+# Table with all sorting disabled
+no_sort_table = Bonito.Table(data;
+                     allow_row_sorting=false,
+                     allow_column_sorting=false)
+App() do
+    DOM.div(column_sort_table, no_sort_table)
+end</code></pre><div class="bonito-fragment" id="e9ffb080-bc6b-47e0-9133-cece550a9d90" data-jscall-id="subsession-application-dom">
+  <div>
+    <style></style>
+    <style>.cell-default {
+  background-color: white;
+  color: black;
+}
+.table-header {
+  border: 1px solid #ddd;
+  background-color: #f5f5f5;
+  font-weight: bold;
+  padding: 8px;
+  user-select: none;
+  text-align: left;
+  cursor: pointer;
+}
+.table-cell {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+.table-row:hover .table-cell {
+  background-color: #f9f9f9;
+}
+.comparison-table {
+  border-collapse: collapse;
+  font-family: Arial, sans-serif;
+  width: 100%;
+}
+.cell-neutral {
+  background-color: #fff3cd;
+  color: #856404;
+}
+.table-header:hover {
+  background-color: #e9e9e9;
+}
+.table-container {
+  overflow-x: auto;
+}
+.cell-good {
+  background-color: #d4edda;
+  color: #155724;
+}
+.cell-bad {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">Bonito.init_session("e9ffb080-bc6b-47e0-9133-cece550a9d90", Bonito.fetch_binary('bonito/bin/1a65fb4353ecd878ae5f4b5f2f61b24b8d8e7f64-17807658276361091246.bin'), "sub", false);
+</script>
+    <div data-jscall-id="56">
+      <div data-jscall-id="57">
+        <div class="table-container" data-jscall-id="58">
+          <table class="comparison-table " data-jscall-id="59">
+            <thead data-jscall-id="60">
+              <tr data-jscall-id="61">
+                <th class="table-header" data-jscall-id="62" data-column="0">name</th>
+                <th class="table-header" data-jscall-id="63" data-column="1">age</th>
+                <th class="table-header" data-jscall-id="64" data-column="2">score</th>
+              </tr>
+            </thead>
+            <tbody data-jscall-id="65">
+              <tr class="table-row" data-jscall-id="66" data-row="0">
+                <td data-value="Alice" class="table-cell cell-default" style="" data-jscall-id="67">Alice</td>
+                <td data-value="25" class="table-cell cell-default" style="" data-jscall-id="68">
+                  <span class="text-plain" style="white-space: pre-wrap">25</span>
+                </td>
+                <td data-value="95.5" class="table-cell cell-default" style="" data-jscall-id="69">
+                  <span class="text-plain" style="white-space: pre-wrap">95.5</span>
+                </td>
+              </tr>
+              <tr class="table-row" data-jscall-id="70" data-row="1">
+                <td data-value="Bob" class="table-cell cell-default" style="" data-jscall-id="71">Bob</td>
+                <td data-value="30" class="table-cell cell-default" style="" data-jscall-id="72">
+                  <span class="text-plain" style="white-space: pre-wrap">30</span>
+                </td>
+                <td data-value="87.2" class="table-cell cell-default" style="" data-jscall-id="73">
+                  <span class="text-plain" style="white-space: pre-wrap">87.2</span>
+                </td>
+              </tr>
+              <tr class="table-row" data-jscall-id="74" data-row="2">
+                <td data-value="Charlie" class="table-cell cell-default" style="" data-jscall-id="75">Charlie</td>
+                <td data-value="22" class="table-cell cell-default" style="" data-jscall-id="76">
+                  <span class="text-plain" style="white-space: pre-wrap">22</span>
+                </td>
+                <td data-value="92.8" class="table-cell cell-default" style="" data-jscall-id="77">
+                  <span class="text-plain" style="white-space: pre-wrap">92.8</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div data-jscall-id="78">
+        <div class="table-container" data-jscall-id="79">
+          <table class="comparison-table " data-jscall-id="80">
+            <thead data-jscall-id="81">
+              <tr data-jscall-id="82">
+                <th class="table-header" data-jscall-id="83" data-column="0">name</th>
+                <th class="table-header" data-jscall-id="84" data-column="1">age</th>
+                <th class="table-header" data-jscall-id="85" data-column="2">score</th>
+              </tr>
+            </thead>
+            <tbody data-jscall-id="86">
+              <tr class="table-row" data-jscall-id="87" data-row="0">
+                <td data-value="Alice" class="table-cell cell-default" style="" data-jscall-id="88">Alice</td>
+                <td data-value="25" class="table-cell cell-default" style="" data-jscall-id="89">
+                  <span class="text-plain" style="white-space: pre-wrap">25</span>
+                </td>
+                <td data-value="95.5" class="table-cell cell-default" style="" data-jscall-id="90">
+                  <span class="text-plain" style="white-space: pre-wrap">95.5</span>
+                </td>
+              </tr>
+              <tr class="table-row" data-jscall-id="91" data-row="1">
+                <td data-value="Bob" class="table-cell cell-default" style="" data-jscall-id="92">Bob</td>
+                <td data-value="30" class="table-cell cell-default" style="" data-jscall-id="93">
+                  <span class="text-plain" style="white-space: pre-wrap">30</span>
+                </td>
+                <td data-value="87.2" class="table-cell cell-default" style="" data-jscall-id="94">
+                  <span class="text-plain" style="white-space: pre-wrap">87.2</span>
+                </td>
+              </tr>
+              <tr class="table-row" data-jscall-id="95" data-row="2">
+                <td data-value="Charlie" class="table-cell cell-default" style="" data-jscall-id="96">Charlie</td>
+                <td data-value="22" class="table-cell cell-default" style="" data-jscall-id="97">
+                  <span class="text-plain" style="white-space: pre-wrap">22</span>
+                </td>
+                <td data-value="92.8" class="table-cell cell-default" style="" data-jscall-id="98">
+                  <span class="text-plain" style="white-space: pre-wrap">92.8</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <span></span>
+      </div>
+    </div>
+  </div>
+</div><h3 id="Working-with-DataFrames"><a class="docs-heading-anchor" href="#Working-with-DataFrames">Working with DataFrames</a><a id="Working-with-DataFrames-1"></a><a class="docs-heading-anchor-permalink" href="#Working-with-DataFrames" title="Permalink"></a></h3><p>The Table widget works seamlessly with DataFrames and other Tables.jl-compatible structures:</p><pre><code class="language-julia hljs">using DataFrames
+
+df = DataFrame(
+    Product = [&quot;Laptop&quot;, &quot;Mouse&quot;, &quot;Keyboard&quot;, &quot;Monitor&quot;],
+    Price = [999.99, 29.99, 79.99, 299.99],
+    Stock = [15, 120, 45, 8],
+    Available = [true, true, false, true]
+)
+
+# Custom formatter for currency and boolean values
+function product_class_callback(table, row, col, val)
+    if col == 2  # Price column
+        return val &gt; 100 ? &quot;cell-neutral&quot; : &quot;cell-good&quot;
+    elseif col == 4  # Available column
+        return val ? &quot;cell-good&quot; : &quot;cell-bad&quot;
+    end
+    return &quot;cell-default&quot;
+end
+
+product_table = Bonito.Table(df; class_callback=product_class_callback)
+App(product_table)</code></pre><div class="bonito-fragment" id="5b86ec4b-2e08-4839-ae96-3277ca613c78" data-jscall-id="subsession-application-dom">
+  <div>
+    <style></style>
+    <style>.cell-default {
+  background-color: white;
+  color: black;
+}
+.table-header {
+  border: 1px solid #ddd;
+  background-color: #f5f5f5;
+  font-weight: bold;
+  padding: 8px;
+  user-select: none;
+  text-align: left;
+  cursor: pointer;
+}
+.table-cell {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+.table-row:hover .table-cell {
+  background-color: #f9f9f9;
+}
+.comparison-table {
+  border-collapse: collapse;
+  font-family: Arial, sans-serif;
+  width: 100%;
+}
+.cell-neutral {
+  background-color: #fff3cd;
+  color: #856404;
+}
+.table-header:hover {
+  background-color: #e9e9e9;
+}
+.table-container {
+  overflow-x: auto;
+}
+.cell-good {
+  background-color: #d4edda;
+  color: #155724;
+}
+.cell-bad {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">Bonito.init_session("5b86ec4b-2e08-4839-ae96-3277ca613c78", Bonito.fetch_binary('bonito/bin/b47036d2dc4d7a76dd0c4548b9447635c40b4e7d-7784902660625880373.bin'), "sub", false);
+</script>
+    <div data-jscall-id="99">
+      <div class="table-container" data-jscall-id="100">
+        <table class="comparison-table " data-jscall-id="101">
+          <thead data-jscall-id="102">
+            <tr data-jscall-id="103">
+              <th class="table-header" data-jscall-id="104" data-column="0">Product</th>
+              <th class="table-header" data-jscall-id="105" data-column="1">Price</th>
+              <th class="table-header" data-jscall-id="106" data-column="2">Stock</th>
+              <th class="table-header" data-jscall-id="107" data-column="3">Available</th>
+            </tr>
+          </thead>
+          <tbody data-jscall-id="108">
+            <tr class="table-row" data-jscall-id="109" data-row="0">
+              <td data-value="Laptop" class="table-cell cell-default" style="" data-jscall-id="110">Laptop</td>
+              <td data-value="999.99" class="table-cell cell-neutral" style="" data-jscall-id="111">
+                <span class="text-plain" style="white-space: pre-wrap">999.99</span>
+              </td>
+              <td data-value="15" class="table-cell cell-default" style="" data-jscall-id="112">
+                <span class="text-plain" style="white-space: pre-wrap">15</span>
+              </td>
+              <td data-value="true" class="table-cell cell-good" style="" data-jscall-id="113">
+                <span class="text-plain" style="white-space: pre-wrap">true</span>
+              </td>
+            </tr>
+            <tr class="table-row" data-jscall-id="114" data-row="1">
+              <td data-value="Mouse" class="table-cell cell-default" style="" data-jscall-id="115">Mouse</td>
+              <td data-value="29.99" class="table-cell cell-good" style="" data-jscall-id="116">
+                <span class="text-plain" style="white-space: pre-wrap">29.99</span>
+              </td>
+              <td data-value="120" class="table-cell cell-default" style="" data-jscall-id="117">
+                <span class="text-plain" style="white-space: pre-wrap">120</span>
+              </td>
+              <td data-value="true" class="table-cell cell-good" style="" data-jscall-id="118">
+                <span class="text-plain" style="white-space: pre-wrap">true</span>
+              </td>
+            </tr>
+            <tr class="table-row" data-jscall-id="119" data-row="2">
+              <td data-value="Keyboard" class="table-cell cell-default" style="" data-jscall-id="120">Keyboard</td>
+              <td data-value="79.99" class="table-cell cell-good" style="" data-jscall-id="121">
+                <span class="text-plain" style="white-space: pre-wrap">79.99</span>
+              </td>
+              <td data-value="45" class="table-cell cell-default" style="" data-jscall-id="122">
+                <span class="text-plain" style="white-space: pre-wrap">45</span>
+              </td>
+              <td data-value="false" class="table-cell cell-bad" style="" data-jscall-id="123">
+                <span class="text-plain" style="white-space: pre-wrap">false</span>
+              </td>
+            </tr>
+            <tr class="table-row" data-jscall-id="124" data-row="3">
+              <td data-value="Monitor" class="table-cell cell-default" style="" data-jscall-id="125">Monitor</td>
+              <td data-value="299.99" class="table-cell cell-neutral" style="" data-jscall-id="126">
+                <span class="text-plain" style="white-space: pre-wrap">299.99</span>
+              </td>
+              <td data-value="8" class="table-cell cell-default" style="" data-jscall-id="127">
+                <span class="text-plain" style="white-space: pre-wrap">8</span>
+              </td>
+              <td data-value="true" class="table-cell cell-good" style="" data-jscall-id="128">
+                <span class="text-plain" style="white-space: pre-wrap">true</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div><h3 id="Advanced-Example:-Financial-Data"><a class="docs-heading-anchor" href="#Advanced-Example:-Financial-Data">Advanced Example: Financial Data</a><a id="Advanced-Example:-Financial-Data-1"></a><a class="docs-heading-anchor-permalink" href="#Advanced-Example:-Financial-Data" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Financial data with multiple metrics
+financial_data = [
+    (company=&quot;TechCorp&quot;, revenue=1.2e6, profit_margin=0.15, employees=150),
+    (company=&quot;DataInc&quot;, revenue=2.8e6, profit_margin=0.08, employees=300),
+    (company=&quot;CloudSys&quot;, revenue=0.9e6, profit_margin=0.22, employees=85),
+    (company=&quot;WebFlow&quot;, revenue=1.8e6, profit_margin=0.12, employees=220)
+]
+
+function financial_class_callback(table, row, col, val)
+    if col == 2  # Revenue column
+        return val &gt; 1.5e6 ? &quot;cell-good&quot; : &quot;cell-neutral&quot;
+    elseif col == 3  # Profit margin column
+        if val &gt; 0.15
+            return &quot;cell-good&quot;
+        elseif val &gt; 0.10
+            return &quot;cell-neutral&quot;
+        else
+            return &quot;cell-bad&quot;
+        end
+    end
+    return &quot;cell-default&quot;
+end
+
+function financial_style_callback(table, row, col, val)
+    if col == 3  # Profit margin column
+        return &quot;font-family: monospace;&quot;
+    end
+    return &quot;&quot;
+end
+
+financial_table = Bonito.Table(financial_data;
+                       class_callback=financial_class_callback,
+                       style_callback=financial_style_callback,
+                       class=&quot;financial-data&quot;)
+App(financial_table)</code></pre><div class="bonito-fragment" id="cd7f595f-b22d-4dff-b8dd-c038ec7e22a8" data-jscall-id="subsession-application-dom">
+  <div>
+    <style></style>
+    <style>.cell-default {
+  background-color: white;
+  color: black;
+}
+.table-header {
+  border: 1px solid #ddd;
+  background-color: #f5f5f5;
+  font-weight: bold;
+  padding: 8px;
+  user-select: none;
+  text-align: left;
+  cursor: pointer;
+}
+.table-cell {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+.table-row:hover .table-cell {
+  background-color: #f9f9f9;
+}
+.comparison-table {
+  border-collapse: collapse;
+  font-family: Arial, sans-serif;
+  width: 100%;
+}
+.cell-neutral {
+  background-color: #fff3cd;
+  color: #856404;
+}
+.table-header:hover {
+  background-color: #e9e9e9;
+}
+.table-container {
+  overflow-x: auto;
+}
+.cell-good {
+  background-color: #d4edda;
+  color: #155724;
+}
+.cell-bad {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">Bonito.init_session("cd7f595f-b22d-4dff-b8dd-c038ec7e22a8", Bonito.fetch_binary('bonito/bin/384445adce735905fc5565f8efa9817cf230fe84-10919418990179462932.bin'), "sub", false);
+</script>
+    <div data-jscall-id="129">
+      <div class="table-container" data-jscall-id="130">
+        <table class="comparison-table financial-data" data-jscall-id="131">
+          <thead data-jscall-id="132">
+            <tr data-jscall-id="133">
+              <th class="table-header" data-jscall-id="134" data-column="0">company</th>
+              <th class="table-header" data-jscall-id="135" data-column="1">revenue</th>
+              <th class="table-header" data-jscall-id="136" data-column="2">profit_margin</th>
+              <th class="table-header" data-jscall-id="137" data-column="3">employees</th>
+            </tr>
+          </thead>
+          <tbody data-jscall-id="138">
+            <tr class="table-row" data-jscall-id="139" data-row="0">
+              <td data-value="TechCorp" class="table-cell cell-default" style="" data-jscall-id="140">TechCorp</td>
+              <td data-value="1.2e6" class="table-cell cell-neutral" style="" data-jscall-id="141">
+                <span class="text-plain" style="white-space: pre-wrap">1.2e6</span>
+              </td>
+              <td data-value="0.15" class="table-cell cell-neutral" style="font-family: monospace;" data-jscall-id="142">
+                <span class="text-plain" style="white-space: pre-wrap">0.15</span>
+              </td>
+              <td data-value="150" class="table-cell cell-default" style="" data-jscall-id="143">
+                <span class="text-plain" style="white-space: pre-wrap">150</span>
+              </td>
+            </tr>
+            <tr class="table-row" data-jscall-id="144" data-row="1">
+              <td data-value="DataInc" class="table-cell cell-default" style="" data-jscall-id="145">DataInc</td>
+              <td data-value="2.8e6" class="table-cell cell-good" style="" data-jscall-id="146">
+                <span class="text-plain" style="white-space: pre-wrap">2.8e6</span>
+              </td>
+              <td data-value="0.08" class="table-cell cell-bad" style="font-family: monospace;" data-jscall-id="147">
+                <span class="text-plain" style="white-space: pre-wrap">0.08</span>
+              </td>
+              <td data-value="300" class="table-cell cell-default" style="" data-jscall-id="148">
+                <span class="text-plain" style="white-space: pre-wrap">300</span>
+              </td>
+            </tr>
+            <tr class="table-row" data-jscall-id="149" data-row="2">
+              <td data-value="CloudSys" class="table-cell cell-default" style="" data-jscall-id="150">CloudSys</td>
+              <td data-value="900000.0" class="table-cell cell-neutral" style="" data-jscall-id="151">
+                <span class="text-plain" style="white-space: pre-wrap">900000.0</span>
+              </td>
+              <td data-value="0.22" class="table-cell cell-good" style="font-family: monospace;" data-jscall-id="152">
+                <span class="text-plain" style="white-space: pre-wrap">0.22</span>
+              </td>
+              <td data-value="85" class="table-cell cell-default" style="" data-jscall-id="153">
+                <span class="text-plain" style="white-space: pre-wrap">85</span>
+              </td>
+            </tr>
+            <tr class="table-row" data-jscall-id="154" data-row="3">
+              <td data-value="WebFlow" class="table-cell cell-default" style="" data-jscall-id="155">WebFlow</td>
+              <td data-value="1.8e6" class="table-cell cell-good" style="" data-jscall-id="156">
+                <span class="text-plain" style="white-space: pre-wrap">1.8e6</span>
+              </td>
+              <td data-value="0.12" class="table-cell cell-neutral" style="font-family: monospace;" data-jscall-id="157">
+                <span class="text-plain" style="white-space: pre-wrap">0.12</span>
+              </td>
+              <td data-value="220" class="table-cell cell-default" style="" data-jscall-id="158">
+                <span class="text-plain" style="white-space: pre-wrap">220</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div><h2 id="Widgets-in-Layouts"><a class="docs-heading-anchor" href="#Widgets-in-Layouts">Widgets in Layouts</a><a id="Widgets-in-Layouts-1"></a><a class="docs-heading-anchor-permalink" href="#Widgets-in-Layouts" title="Permalink"></a></h2><p>There are a few helpers to e.g. put a label next to a widget:</p><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Bonito.Labeled" href="#Bonito.Labeled"><code>Bonito.Labeled</code></a> — <span class="docstring-category">Function</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Labeled(object, label; label_style=Styles(), attributes...)</code></pre><p>A Labeled container with a simople layout to put a label next to an object.</p><pre><code class="language- hljs">App() do
+    label_style = Styles(
+        &quot;color&quot; =&gt; &quot;white&quot;,
+        &quot;padding&quot; =&gt; &quot;3px&quot;,
+        &quot;font-size&quot; =&gt; &quot;1.5rem&quot;,
+        &quot;text-shadow&quot; =&gt; &quot;0px 0px 10px black, 1px 1px 3px black&quot;)
+    slider = StylableSlider(1:10)
+    Card(Labeled(slider, slider.value; label_style=label_style, width=&quot;auto&quot;); backgroundcolor=&quot;gray&quot;)
+end
+</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/c81738cf1afdb684c4174737f4ceca144a80c192/src/components.jl#L428-L436">source</a></section></article><div class="bonito-fragment" id="801d4ea7-c23a-4a81-b048-d4dd90a31d8e" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_21 {
+  align-items: center;
+  display: grid;
+  background-color: transparent;
+  grid-template-columns: 1fr;
+  padding-right: 9.5px;
+  position: relative;
+  margin: 5px;
+  grid-template-rows: 15px;
+  padding-left: 9.5px;
+}
+.style_22 {
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 3px;
+  text-shadow: 0px 0px 10px black, 1px 1px 3px black;
+  color: white;
+}
+.style_23 {
+  justify-items: stretch;
+  align-items: center;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: 1fr;
+  justify-content: normal;
+  grid-template-columns: 1fr min-content;
+  width: auto;
+  grid-template-areas: none;
+}
+.style_24 {
+  left: -7.5px;
+  height: 15px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  position: absolute;
+  width: 15px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.style_25 {
+  height: auto;
+  padding: 12px;
+  background-color: gray;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  width: auto;
+  border-radius: 10px;
+  margin: 2px;
+}
+.style_26 {
+  height: 9.5px;
+  border: 1px solid #ccc;
+  background-color: #ddd;
+  position: absolute;
+  width: 0px;
+  border-radius: 3px;
+}
+.style_27 {
+  height: 7.5px;
+  border: 1px solid #ccc;
+  background-color: #eee;
+  position: absolute;
+  width: 100%;
+  border-radius: 3px;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">Bonito.init_session("801d4ea7-c23a-4a81-b048-d4dd90a31d8e", Bonito.fetch_binary('bonito/bin/fe550229d08d4f5f99554b742419d4745e1bcd8a-6286704337067309624.bin'), "sub", false);
+</script>
+    <div class=" style_25" style="" data-jscall-id="159">
+      <div class=" style_23" style="" data-jscall-id="160">
+        <div class=" style_21" style="" data-jscall-id="161">
+          <div class=" style_27" style="" data-jscall-id="162"></div>
+          <div class=" style_26" style="" data-jscall-id="163"></div>
+          <div class=" style_24" style="" data-jscall-id="164"></div>
+        </div>
+        <span class=" style_22" style="" data-jscall-id="165">
+          <span data-jscall-id="166">1</span>
+        </span>
+      </div>
+    </div>
+  </div>
+</div><p>To create more complex layouts, one should use e.g. <a href="layouting.html#Bonito.Grid"><code>Grid</code></a>, and visit the <a href="layouting.html#Layouting">Layouting</a> tutorial.</p><pre><code class="language-julia hljs">App() do session
+    s = Bonito.StylableSlider(0:10;)
+    d = Dropdown([&quot;a&quot;, &quot;b&quot;, &quot;c&quot;])
+    ni = NumberInput(10.0)
+    ti = Bonito.TextField(&quot;helo&quot;)
+    button = Button(&quot;click&quot;)
+    clicks = Observable(0)
+    on(session, button.value) do bool
+        clicks[] = clicks[] + 1
+    end
+    return Card(Grid(
+            button, Bonito.Label(clicks),
+            s, Bonito.Label(s.value),
+            d, Bonito.Label(d.value),
+            ni, Bonito.Label(ni.value),
+            ti, Bonito.Label(ti.value);
+            columns=&quot;1fr min-content&quot;,
+            justify_content=&quot;begin&quot;,
+            align_items=&quot;center&quot;,
+        ); width=&quot;300px&quot;,)
+end</code></pre><div class="bonito-fragment" id="3f6722e9-d748-4c81-b44c-034413449a51" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_28 {
+  height: auto;
+  padding: 12px;
+  background-color: rgba(255.0, 255.0, 255.0, 0.2);
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  width: 300px;
+  border-radius: 10px;
+  margin: 2px;
+}
+.style_29 {
+  min-width: 8rem;
+  font-weight: 600;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+}
+.style_30 {
+  align-items: center;
+  display: grid;
+  background-color: transparent;
+  grid-template-columns: 1fr;
+  padding-right: 9.5px;
+  position: relative;
+  margin: 5px;
+  grid-template-rows: 15px;
+  padding-left: 9.5px;
+}
+.style_31 {
+  justify-items: legacy;
+  align-items: center;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: begin;
+  grid-template-columns: 1fr min-content;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_32 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.style_33 {
+  left: -7.5px;
+  height: 15px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  position: absolute;
+  width: 15px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.style_34 {
+  height: 9.5px;
+  border: 1px solid #ccc;
+  background-color: #ddd;
+  position: absolute;
+  width: 0px;
+  border-radius: 3px;
+}
+.style_35:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(66, 153, 225, 0.5) 0px 0px 0px 1px;
+  outline: 1px solid transparent;
+}
+.style_36 {
+  height: 7.5px;
+  border: 1px solid #ccc;
+  background-color: #eee;
+  position: absolute;
+  width: 100%;
+  border-radius: 3px;
+}
+.style_37:hover {
+  background-color: #F9FAFB;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">Bonito.init_session("3f6722e9-d748-4c81-b44c-034413449a51", Bonito.fetch_binary('bonito/bin/90ffe029bf25fbe3e8d72a78bce09de5b3e0b6e4-11659253241972895858.bin'), "sub", false);
+</script>
+    <div class=" style_28" style="" data-jscall-id="167">
+      <div class=" style_31" style="" data-jscall-id="168">
+        <button onclick="" class=" style_29 style_35 style_37" style="" data-jscall-id="169">click</button>
+        <span class=" style_32" style="" data-jscall-id="170">
+          <span data-jscall-id="171">0</span>
+        </span>
+        <div class=" style_30" style="" data-jscall-id="172">
+          <div class=" style_36" style="" data-jscall-id="173"></div>
+          <div class=" style_34" style="" data-jscall-id="174"></div>
+          <div class=" style_33" style="" data-jscall-id="175"></div>
+        </div>
+        <span class=" style_32" style="" data-jscall-id="176">
+          <span data-jscall-id="177">0</span>
+        </span>
+        <select class=" style_29 style_35 style_37" style="" data-jscall-id="178">
+          <option data-jscall-id="179">a</option>
+          <option data-jscall-id="180">b</option>
+          <option data-jscall-id="181">c</option>
+        </select>
+        <span class=" style_32" style="" data-jscall-id="182">
+          <div data-jscall-id="184">
+            <div class="bonito-fragment" id="52abcc84-2b38-44e3-986a-a05fdb591826" data-jscall-id="subsession-application-dom">
+              <div data-jscall-id="185">
+                <style data-jscall-id="186"></style>
+              </div>
+              <div data-jscall-id="187">
+                <script data-jscall-id="188" type="module">Bonito.init_session("52abcc84-2b38-44e3-986a-a05fdb591826", null, "sub", false);
+</script>
+                <span data-jscall-id="183">a</span>
+              </div>
+            </div>
+          </div>
+        </span>
+        <input class=" style_29 style_35 style_37" style="" data-jscall-id="189" value="10.0" onchange="" type="number" />
+        <span class=" style_32" style="" data-jscall-id="190">
+          <span data-jscall-id="191">10.0</span>
+        </span>
+        <input class=" style_29 style_35 style_37" style="" data-jscall-id="192" value="helo" onchange="" type="textfield" />
+        <span class=" style_32" style="" data-jscall-id="193">
+          <span data-jscall-id="194">helo</span>
+        </span>
+      </div>
+    </div>
+  </div>
+</div><h2 id="Editor"><a class="docs-heading-anchor" href="#Editor">Editor</a><a id="Editor-1"></a><a class="docs-heading-anchor-permalink" href="#Editor" title="Permalink"></a></h2><p>This editor works in pure Javascript, so feel free to try out editing the Javascript and clicking <code>eval</code> to see how the output changes. In <code>Bonito/examples/editor.jl</code>, you will find a version that works with Julia code, but that requires a running Julia server of course.</p><pre><code class="language-julia hljs">using Bonito, Observables
+src = &quot;&quot;&quot;
+(() =&gt; {
+    const canvas = document.createElement(&quot;canvas&quot;);
+    const context = canvas.getContext(&#39;2d&#39;);
+    const width = 500
+    const height = 400
+    canvas.width = width;
+    canvas.height = height;
+    const gradient = context.createRadialGradient(200, 200, 0, 200, 200, 200);
+    gradient.addColorStop(&quot;0&quot;, &quot;magenta&quot;);
+    gradient.addColorStop(&quot;.25&quot;, &quot;blue&quot;);
+    gradient.addColorStop(&quot;.50&quot;, &quot;green&quot;);
+    gradient.addColorStop(&quot;.75&quot;, &quot;yellow&quot;);
+    gradient.addColorStop(&quot;1.0&quot;, &quot;red&quot;);
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, height);
+    return canvas;
+})();
+&quot;&quot;&quot;
+App() do session::Session
+    editor = CodeEditor(&quot;javascript&quot;; initial_source=src, width=800, height=300)
+    eval_button = Button(&quot;eval&quot;)
+    output = DOM.div(DOM.span())
+    Bonito.onjs(session, eval_button.value, js&quot;&quot;&quot;function (click){
+        const js_src = $(editor.onchange).value;
+        const result = new Function(&quot;return &quot; + (js_src))()
+        let dom;
+        if (typeof result === &#39;object&#39; &amp;&amp; result.nodeName) {
+            dom = result
+        } else {
+            const span = document.createElement(&quot;span&quot;)
+            span.innerText = result;
+            dom = span
+        }
+        Bonito.update_or_replace($(output), dom, false);
+        return
+    }
+    &quot;&quot;&quot;)
+    notify(eval_button.value)
+    return DOM.div(editor, eval_button, output)
+end</code></pre><div class="bonito-fragment" id="9084f564-0718-4a95-b528-bdf1c415bb8f" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_38 {
+  min-width: 8rem;
+  font-weight: 600;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+}
+.style_39 {
+  height: 300px;
+  position: relative;
+}
+.style_40:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(66, 153, 225, 0.5) 0px 0px 0px 1px;
+  outline: 1px solid transparent;
+}
+.style_41:hover {
+  background-color: #F9FAFB;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">Bonito.init_session("9084f564-0718-4a95-b528-bdf1c415bb8f", Bonito.fetch_binary('bonito/bin/3829a8a9114786d83958b3f7f986b7dbc34b89d1-15935800378125243485.bin'), "sub", false);
+</script>
+    <div data-jscall-id="196">
+      <div data-jscall-id="197">
+        <script data-jscall-id="198"></script>
+        <div class=" style_39" style="" data-jscall-id="199"></div>
+      </div>
+      <button onclick="" class=" style_38 style_40 style_41" style="" data-jscall-id="200">eval</button>
+      <div data-jscall-id="195">
+        <span data-jscall-id="201"></span>
+      </div>
+    </div>
+  </div>
+</div><h2 id="Tailwinddashboard"><a class="docs-heading-anchor" href="#Tailwinddashboard">Tailwinddashboard</a><a id="Tailwinddashboard-1"></a><a class="docs-heading-anchor-permalink" href="#Tailwinddashboard" title="Permalink"></a></h2><p><a href="api.html#Bonito.Styles"><code>Styles</code></a> is preferred to style components, but Bonito also includes some <a href="https://tailwindcss.com/">Tailwind</a> based components. They&#39;re from before <code>Styles</code> and will likely get removed in the future.</p><pre><code class="language-julia hljs">using Bonito
+import Bonito.TailwindDashboard as D
+
+function range_slider(orientation)
+    range_slider = RangeSlider(1:100; value=[10, 80])
+    range_slider.tooltips[] = true
+    range_slider.ticks[] = Dict(
+        &quot;mode&quot; =&gt; &quot;range&quot;,
+        &quot;density&quot; =&gt; 3
+    )
+    range_slider.orientation[] = orientation
+    return range_slider
+end
+
+App() do
+
+    button = D.Button(&quot;click&quot;)
+    textfield = D.TextField(&quot;type in your text&quot;)
+    numberinput = D.NumberInput(0.0)
+    file_input = D.FileInput()
+    on(file_input.value) do file
+        @show file
+    end
+    slider = D.Slider(&quot;Test&quot;, 1:5)
+
+    checkbox = D.Checkbox(&quot;check this&quot;, true)
+    table = Bonito.Table([(a=22, b=33, c=44), (a=22, b=33, c=44)])
+
+    source = &quot;&quot;&quot;
+    function test(a, b)
+        return a + b
+    end
+    &quot;&quot;&quot;
+    editor = CodeEditor(&quot;julia&quot;; initial_source=source, width=250, height=200, scrollPastEnd=false)
+    dropdown = D.Dropdown(&quot;chose&quot;, [&quot;option 1&quot;, &quot;option 2&quot;, &quot;option 3&quot;])
+
+    vrange_slider = range_slider(Bonito.WidgetsBase.vertical)
+
+    hrange_slider = range_slider(Bonito.WidgetsBase.horizontal)
+
+
+    return DOM.div(
+        D.Card.([
+            D.FlexRow(
+                D.Card(D.FlexCol(
+                    button,
+                    textfield,
+                    numberinput,
+                    dropdown,
+                    file_input,
+                    slider,
+                    checkbox,
+                    class=&quot;items-start&quot;
+                )),
+                D.Card(D.FlexCol(
+                    D.Card(DOM.div(vrange_slider; style=&quot;height: 200px; padding: 1px 50px&quot;)),
+                    D.Card(DOM.div(hrange_slider; style=&quot;width: 200px; padding: 50px 1px&quot;),
+                    )),
+                )),
+            D.FlexRow(
+                D.Card.([
+
+                    D.Card(table; class=&quot;w-64&quot;)
+                    editor
+                ])
+            ),
+        ])...
+    )
+end</code></pre><div class="bonito-fragment" id="c61285d7-7719-40ef-85da-378f07066561" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_42 {
+  height: 200px;
+  position: relative;
+}
+.style_43 {
+  min-width: 8rem;
+  font-weight: 600;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+}
+.style_44 {
+  min-width: 8rem;
+  font-weight: 600;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+  transform: scale(1.5);
+}
+.style_45:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(66, 153, 225, 0.5) 0px 0px 0px 1px;
+  outline: 1px solid transparent;
+}
+.style_46:hover {
+  background-color: #F9FAFB;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+</style>
+    <style>.cell-default {
+  background-color: white;
+  color: black;
+}
+.table-header {
+  border: 1px solid #ddd;
+  background-color: #f5f5f5;
+  font-weight: bold;
+  padding: 8px;
+  user-select: none;
+  text-align: left;
+  cursor: pointer;
+}
+.table-cell {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+.table-row:hover .table-cell {
+  background-color: #f9f9f9;
+}
+.comparison-table {
+  border-collapse: collapse;
+  font-family: Arial, sans-serif;
+  width: 100%;
+}
+.cell-neutral {
+  background-color: #fff3cd;
+  color: #856404;
+}
+.table-header:hover {
+  background-color: #e9e9e9;
+}
+.table-container {
+  overflow-x: auto;
+}
+.cell-good {
+  background-color: #d4edda;
+  color: #155724;
+}
+.cell-bad {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+</style>
+    <link href="bonito/css/tailwind.min8774971868340764599.css" rel="stylesheet" type="text/css" />
+    <link href="bonito/css/noUISlider17745511426356288094.css" rel="stylesheet" type="text/css" />
+  </div>
+  <div>
+    <script type="module">Bonito.init_session("c61285d7-7719-40ef-85da-378f07066561", Bonito.fetch_binary('bonito/bin/8b51f8e300d8604abed0272f8aab5be515cfa890-8556871688742330239.bin'), "sub", false);
+</script>
+    <div data-jscall-id="202">
+      <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="203">
+        <div class="mx-2 flex flex-row " data-jscall-id="204">
+          <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="205">
+            <div class="my-2 flex flex-col items-start" data-jscall-id="206">
+              <button onclick="" class=" focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow style_43 style_45 style_46" style="" data-jscall-id="207">click</button>
+              <input class=" focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow style_43 style_45 style_46" style="" data-jscall-id="208" value="type in your text" onchange="" type="textfield" />
+              <input class=" focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow style_43 style_45 style_46" style="" data-jscall-id="209" value="0.0" onchange="" type="number" />
+              <div class="flex-row, mb-1 mt-1 " data-jscall-id="210">
+                <h2 class="font-semibold " data-jscall-id="211">chose</h2>
+                <select class=" focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow style_43 style_45 style_46" style="" data-jscall-id="212">
+                  <option data-jscall-id="213">option 1</option>
+                  <option data-jscall-id="214">option 2</option>
+                  <option data-jscall-id="215">option 3</option>
+                </select>
+              </div>
+              <input multiple="true" onchange="event =&#62; {&#10;    if (event.target.files) {&#10;        const files = [];&#10;        for (const file of event.target.files) {&#10;            files.push(URL.createObjectURL(file))&#10;        }&#10;        __lookup_interpolated('8052792029963479493').notify(files);&#10;    }&#10;}" type="file" />
+              <div class="flex-row, mb-1 mt-1 " data-jscall-id="216">
+                <h2 class="font-semibold " data-jscall-id="217">
+                  <div data-jscall-id="218">Test
+                    <div class="float-right text-right text w-32" data-jscall-id="219">
+                      <span data-jscall-id="220">1</span>
+                    </div>
+                  </div>
+                </h2>
+                <input step="1" max="5" min="1" style="width: 100%;" data-jscall-id="221" value="1" oninput="" type="range" />
+              </div>
+              <div class="flex-row, mb-1 mt-1 " data-jscall-id="222">
+                <h2 class="font-semibold " data-jscall-id="223">check this</h2>
+                <input checked="true" class=" style_44 style_45 style_46" style="" data-jscall-id="224" onchange="" type="checkbox" />
+              </div>
+            </div>
+          </div>
+          <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="225">
+            <div class="my-2 flex flex-col " data-jscall-id="226">
+              <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="227">
+                <div style="height: 200px; padding: 1px 50px" data-jscall-id="228">
+                  <div>
+                    <div data-jscall-id="229"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="230">
+                <div style="width: 200px; padding: 50px 1px" data-jscall-id="231">
+                  <div>
+                    <div data-jscall-id="232"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="233">
+        <div class="mx-2 flex flex-row " data-jscall-id="234">
+          <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="235">
+            <div class="rounded-md p-2 m-2 shadow w-64" style="width: fit-content; height: fit-content; " data-jscall-id="236">
+              <div data-jscall-id="237">
+                <div class="table-container" data-jscall-id="238">
+                  <table class="comparison-table " data-jscall-id="239">
+                    <thead data-jscall-id="240">
+                      <tr data-jscall-id="241">
+                        <th class="table-header" data-jscall-id="242" data-column="0">a</th>
+                        <th class="table-header" data-jscall-id="243" data-column="1">b</th>
+                        <th class="table-header" data-jscall-id="244" data-column="2">c</th>
+                      </tr>
+                    </thead>
+                    <tbody data-jscall-id="245">
+                      <tr class="table-row" data-jscall-id="246" data-row="0">
+                        <td data-value="22" class="table-cell cell-default" style="" data-jscall-id="247">
+                          <span class="text-plain" style="white-space: pre-wrap">22</span>
+                        </td>
+                        <td data-value="33" class="table-cell cell-default" style="" data-jscall-id="248">
+                          <span class="text-plain" style="white-space: pre-wrap">33</span>
+                        </td>
+                        <td data-value="44" class="table-cell cell-default" style="" data-jscall-id="249">
+                          <span class="text-plain" style="white-space: pre-wrap">44</span>
+                        </td>
+                      </tr>
+                      <tr class="table-row" data-jscall-id="250" data-row="1">
+                        <td data-value="22" class="table-cell cell-default" style="" data-jscall-id="251">
+                          <span class="text-plain" style="white-space: pre-wrap">22</span>
+                        </td>
+                        <td data-value="33" class="table-cell cell-default" style="" data-jscall-id="252">
+                          <span class="text-plain" style="white-space: pre-wrap">33</span>
+                        </td>
+                        <td data-value="44" class="table-cell cell-default" style="" data-jscall-id="253">
+                          <span class="text-plain" style="white-space: pre-wrap">44</span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="254">
+            <div data-jscall-id="255">
+              <script data-jscall-id="256"></script>
+              <div class=" style_42" style="" data-jscall-id="257"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="layouting.html">« Layouting</a><a class="docs-footer-nextpage" href="interactions.html">Interactions »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Saturday 11 October 2025 18:01">Saturday 11 October 2025</span>. Using Julia version 1.12.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

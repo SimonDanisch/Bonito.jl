@@ -1,0 +1,65 @@
+í«,jìŸ$d708bba0-634a-4547-ad95-4894cd37db4eê£subÉßpayloadí»kí«<jìŸ$d708bba0-634a-4547-ad95-4894cd37db4eëí§1284◊eí§1284°1£subÉ£obs«h§1284ßpayload«¢fìÄŸVreturn (val)=> {
+    document.querySelector('[data-jscall-id="21"]').innerText = val
+}ŸF/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/observables.jl:103®msg_type°1»[kí«LjìŸ$d708bba0-634a-4547-ad95-4894cd37db4eíí§1281«eí§1281í§1283«eí§1283
+£subÇßpayload»
+ÛfìÇ§1281«h§1281§1283«h§1283⁄
+ó((container)=> {
+    const thumb = document.querySelector('[data-jscall-id="19"]');
+    const track_active = document.querySelector('[data-jscall-id="18"]');
+    const track = document.querySelector('[data-jscall-id="17"]');
+    let isDragging = false;
+    const nsteps_obs = __lookup_interpolated('1283')
+    let last_index = -1;
+    function set_thumb_index(index) {
+        if (index === last_index) {
+            return
+        }
+        last_index = index;
+        const thumb_width = thumb.offsetWidth / 2;
+        const nsteps = nsteps_obs.value;
+        const step_width = track.offsetWidth / (nsteps-1);
+        const new_left = (index - 1) * step_width;
+        thumb.style.left = (new_left - thumb_width) + 'px';  // Update the left position of the thumb
+        track_active.style.width = new_left + 'px';  // Update the active track
+    }
+    __lookup_interpolated('1281').on(idx=> set_thumb_index(idx));
+    function set_thumb(e) {
+        const nsteps = nsteps_obs.value;
+        const thumb_width = thumb.offsetWidth / 2;
+        const width = track.offsetWidth;
+        const step_width = width / (nsteps - 1);
+        let new_left = e.clientX - container.getBoundingClientRect().left;
+        new_left = Math.max(new_left, 0);
+        new_left = Math.min(new_left, width);
+        new_left = Math.round(new_left / step_width) * step_width;
+        thumb.style.left = (new_left - thumb_width) + 'px';  // Update the left position of the thumb
+        track_active.style.width = new_left + 'px';  // Update the active track
+        const index = Math.round((new_left / width) * (nsteps - 1));
+        last_index = index;
+        if (index !== __lookup_interpolated('1281').value) {
+            __lookup_interpolated('1281').notify(index + 1);
+        }
+    }
+    const set_thumb_throttled = Bonito.throttle_function(set_thumb, 100);
+    const controller = new AbortController();
+    document.addEventListener('mousedown', function (e) {
+        if(e.target === thumb || e.target === track_active || e.target === track || e.targar === container){
+            isDragging = true;
+            set_thumb(e);
+            e.preventDefault();  // Prevent default behavior
+        }
+    }, { signal: controller.signal});
+    document.addEventListener('mouseup', function () {
+        if (!document.body.contains(container)) {
+            controller.abort();
+        }
+        isDragging = false;
+    }, { signal: controller.signal });
+    document.addEventListener('mousemove', function (e) {
+        if (isDragging) {
+            set_thumb(e);
+        }
+    }, { signal: controller.signal });
+    set_thumb_index(__lookup_interpolated('1281').value)
+}
+)(document.querySelector('[data-jscall-id="16"]'));Ÿ;/home/runner/work/Bonito.jl/Bonito.jl/src/components.jl:338®msg_type°2®msg_type°9¶cachesê

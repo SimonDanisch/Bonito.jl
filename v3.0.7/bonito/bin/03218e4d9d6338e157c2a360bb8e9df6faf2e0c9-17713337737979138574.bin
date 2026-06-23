@@ -1,0 +1,10 @@
+’Ç,j“Ù$aee00403-392b-4242-aa94-5ebe28b274fd€£sub‚§payload‘Èk’Ç;j“Ù$aee00403-392b-4242-aa94-5ebe28b274fd¤1412Çe’¤1412£sub‚§payloadÈ¬f“³3809671622448473107Çh¤1412ÚQ(function onload(element) {
+    function onchange(e) {
+        if (element === e.srcElement) {
+            (__lookup_interpolated('3809671622448473107')).notify(element.selectedIndex + 1);
+        }
+    }
+    element.addEventListener("change", onchange);
+    element.selectedIndex = 1
+}
+)(document.querySelector('[data-jscall-id="4"]'));Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:213¨msg_type¡2¨msg_type¡9

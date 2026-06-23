@@ -1,0 +1,3 @@
+’Ç,j“Ù$02df87fe-d9df-4d1d-a4cd-91504296a4c6€£sub‚§payload’Çîk’ÇCj“Ù$02df87fe-d9df-4d1d-a4cd-91504296a4c6¤1503Çe’¤1503¨Click me£subƒ£obsÇh¤1503§payloadÇ„f“€ÙGreturn x=> document.querySelector('[data-jscall-id="3"]').innerText = xÙ7/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:69¨msg_type¡1È=k’Ç;j“Ù$02df87fe-d9df-4d1d-a4cd-91504296a4c6¤1504Çe’¤1504Â£sub‚§payloadÇçf“²743347520580902089Çh¤1504Ù(() => {
+    document.querySelector('[data-jscall-id="3"]')['onclick'] = event=> __lookup_interpolated('743347520580902089').notify(true);
+})()Ù7/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:65¨msg_type¡2¨msg_type¡9

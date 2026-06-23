@@ -1,0 +1,18 @@
+‘“Ù$24736eae-3d6d-4f7e-a586-401f542003be“’¤1313Çe’¤1313Â’¤1311Èae’¤1311ÚX(() => {
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext('2d');
+    const width = 500
+    const height = 400
+    canvas.width = width;
+    canvas.height = height;
+    const gradient = context.createRadialGradient(200, 200, 0, 200, 200, 200);
+    gradient.addColorStop("0", "magenta");
+    gradient.addColorStop(".25", "blue");
+    gradient.addColorStop(".50", "green");
+    gradient.addColorStop(".75", "yellow");
+    gradient.addColorStop("1.0", "red");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, height);
+    return canvas;
+})();
+’¤1312Çe’¤1312¤eval£sub

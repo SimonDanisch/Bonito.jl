@@ -1,0 +1,55 @@
+’Ç,j“Ù$f64d2c5b-be9f-43ba-ad11-bfdea686f38c€£sub”Èxk’Ç9j“Ù$f64d2c5b-be9f-43ba-ad11-bfdea686f38c£239Çe’£239£subƒ£obsÖh£239§payloadÈf“³6974211987395400070•¬space-evenly¦center£end­space-between¬space-aroundÙ¼return  (idx) => {
+    grid = document.querySelector('[data-jscall-id="352"]')
+    const val = __lookup_interpolated('6974211987395400070')[idx-1]
+    grid.style["justify-content"] = val
+}°layouting.md:412¨msg_type¡1È[k’Ç9j“Ù$f64d2c5b-be9f-43ba-ad11-bfdea686f38c£242Çe’£242£subƒ£obsÖh£242§payloadÇýf“³6512101515035149028”§stretch¥start¦center£endÙºreturn  (idx) => {
+    grid = document.querySelector('[data-jscall-id="352"]')
+    const val = __lookup_interpolated('6512101515035149028')[idx-1]
+    grid.style["justify-items"] = val
+}°layouting.md:417¨msg_type¡1È¥k’Çlj“Ù$f64d2c5b-be9f-43ba-ad11-bfdea686f38c£245Ç9e’£245•¬space-evenly¦center£end­space-between¬space-around£sub‚§payloadÈf“‚´13123629769212519110Öh£245´14502338165359910716Öh£239Ú¨(function onload(element) {
+    function onchange(e) {
+        if (element === e.srcElement) {
+            (__lookup_interpolated('14502338165359910716')).notify(element.selectedIndex + 1);
+        }
+    }
+    element.addEventListener("change", onchange);
+    element.selectedIndex = 0
+    function set_option_index(index) {
+        if (element.selectedIndex === index - 1) {
+            return
+        }
+        element.selectedIndex = index - 1;
+    }
+    __lookup_interpolated('14502338165359910716').on(set_option_index);
+    function set_options(opts) {
+        element.selectedIndex = 0;
+        // https://stackoverflow.com/questions/3364493/how-do-i-clear-all-options-in-a-dropdown-box
+        element.options.length = 0;
+        opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
+    }
+    __lookup_interpolated('13123629769212519110').on(set_options);
+}
+)(document.querySelector('[data-jscall-id="354"]'));Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:221¨msg_type¡2Èˆk’ÇRj“Ù$f64d2c5b-be9f-43ba-ad11-bfdea686f38c£247Çe’£247”§stretch¥start¦center£end£sub‚§payloadÈf“‚³8584184559226438417Öh£242´10801442050851312705Öh£247Ú¦(function onload(element) {
+    function onchange(e) {
+        if (element === e.srcElement) {
+            (__lookup_interpolated('8584184559226438417')).notify(element.selectedIndex + 1);
+        }
+    }
+    element.addEventListener("change", onchange);
+    element.selectedIndex = 0
+    function set_option_index(index) {
+        if (element.selectedIndex === index - 1) {
+            return
+        }
+        element.selectedIndex = index - 1;
+    }
+    __lookup_interpolated('8584184559226438417').on(set_option_index);
+    function set_options(opts) {
+        element.selectedIndex = 0;
+        // https://stackoverflow.com/questions/3364493/how-do-i-clear-all-options-in-a-dropdown-box
+        element.options.length = 0;
+        opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
+    }
+    __lookup_interpolated('10801442050851312705').on(set_options);
+}
+)(document.querySelector('[data-jscall-id="360"]'));Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:221¨msg_type¡2

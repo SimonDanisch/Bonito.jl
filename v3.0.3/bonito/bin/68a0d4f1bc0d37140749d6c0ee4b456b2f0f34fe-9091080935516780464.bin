@@ -1,0 +1,53 @@
+í«,jìŸ$06f43b3d-3b3f-4c12-91e9-2a5041eb8a47Ä£subÇßpayloadò»ƒkí«9jìŸ$06f43b3d-3b3f-4c12-91e9-2a5041eb8a47Å£461«eí£461£subÉ£obs÷h£461ßpayload»efìÅ≥6974211987395400070ï¨space-evenly¶center£end≠space-between¨space-around⁄return  (idx) => {
+    const grids = [document.querySelector('[data-jscall-id="512"]'), document.querySelector('[data-jscall-id="513"]')]
+    const val = __lookup_interpolated('6974211987395400070')[idx-1]
+    grids.forEach(x=> x.style["justify-content"] = val)
+}∞layouting.md:463®msg_type°1»®kí«9jìŸ$06f43b3d-3b3f-4c12-91e9-2a5041eb8a47Å£464«eí£464£subÉ£obs÷h£464ßpayload»IfìÅ≥6512101515035149028îßstretch•start¶center£end⁄return  (idx) => {
+    const grids = [document.querySelector('[data-jscall-id="512"]'), document.querySelector('[data-jscall-id="513"]')]
+    const val = __lookup_interpolated('6512101515035149028')[idx-1]
+    grids.forEach(x=> x.style["justify-items"] = val)
+}∞layouting.md:470®msg_type°1»¬kí«9jìŸ$06f43b3d-3b3f-4c12-91e9-2a5041eb8a47Å£467«eí£467£subÉ£obs÷h£467ßpayload»cfìÅ≥6974211987395400070ï¨space-evenly¶center£end≠space-between¨space-around⁄return  (idx) => {
+    const grids = [document.querySelector('[data-jscall-id="512"]'), document.querySelector('[data-jscall-id="514"]')]
+    const val = __lookup_interpolated('6974211987395400070')[idx-1]
+    grids.forEach(x=> x.style["align-content"] = val)
+}∞layouting.md:477®msg_type°1»¶kí«9jìŸ$06f43b3d-3b3f-4c12-91e9-2a5041eb8a47Å£470«eí£470£subÉ£obs÷h£470ßpayload»GfìÅ≥6512101515035149028îßstretch•start¶center£end⁄return  (idx) => {
+    const grids = [document.querySelector('[data-jscall-id="512"]'), document.querySelector('[data-jscall-id="514"]')]
+    const val = __lookup_interpolated('6512101515035149028')[idx-1]
+    grids.forEach(x=> x.style["align-items"] = val)
+}∞layouting.md:484®msg_type°1»Ùkí«,jìŸ$06f43b3d-3b3f-4c12-91e9-2a5041eb8a47Ä£subÇßpayload»¨fìÅ≥4274194680828976336÷h£467⁄S(function onload(element) {
+    function onchange(e) {
+        if (element === e.srcElement) {
+            (__lookup_interpolated('4274194680828976336')).notify(element.selectedIndex + 1);
+        }
+    }
+    element.addEventListener("change", onchange);
+    element.selectedIndex = 0
+}
+)(document.querySelector('[data-jscall-id="519"]'));Ÿ8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:213®msg_type°2»Úkí«,jìŸ$06f43b3d-3b3f-4c12-91e9-2a5041eb8a47Ä£subÇßpayload»™fìÅ≤857772433683543105÷h£461⁄R(function onload(element) {
+    function onchange(e) {
+        if (element === e.srcElement) {
+            (__lookup_interpolated('857772433683543105')).notify(element.selectedIndex + 1);
+        }
+    }
+    element.addEventListener("change", onchange);
+    element.selectedIndex = 0
+}
+)(document.querySelector('[data-jscall-id="525"]'));Ÿ8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:213®msg_type°2»ˆkí«,jìŸ$06f43b3d-3b3f-4c12-91e9-2a5041eb8a47Ä£subÇßpayload»ÆfìÅ¥12938906772846969096÷h£470⁄T(function onload(element) {
+    function onchange(e) {
+        if (element === e.srcElement) {
+            (__lookup_interpolated('12938906772846969096')).notify(element.selectedIndex + 1);
+        }
+    }
+    element.addEventListener("change", onchange);
+    element.selectedIndex = 0
+}
+)(document.querySelector('[data-jscall-id="531"]'));Ÿ8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:213®msg_type°2»Ùkí«,jìŸ$06f43b3d-3b3f-4c12-91e9-2a5041eb8a47Ä£subÇßpayload»¨fìÅ≥8452738259935000068÷h£464⁄S(function onload(element) {
+    function onchange(e) {
+        if (element === e.srcElement) {
+            (__lookup_interpolated('8452738259935000068')).notify(element.selectedIndex + 1);
+        }
+    }
+    element.addEventListener("change", onchange);
+    element.selectedIndex = 0
+}
+)(document.querySelector('[data-jscall-id="536"]'));Ÿ8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:213®msg_type°2®msg_type°9

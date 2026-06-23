@@ -1,0 +1,148 @@
+’Ç,j“Ù$6aa948f8-0ca5-4eda-92e3-eded58c4ca55€£sub“ÇFk’Ç-j“Ù$4936583c-41ea-4c53-94fa-3572fc95dcac€¤root‚§payload¨msg_type¡9Èÿk’Ç,j“Ù$6aa948f8-0ca5-4eda-92e3-eded58c4ca55€£sub‚§payload”È—k’ÇXj“Ù$6aa948f8-0ca5-4eda-92e3-eded58c4ca55ƒ£187Çe’£187•£188Çe’£188£189Çe’£189£subƒ£obsÖh£188§payloadÈf“‚³5542028001863608031Öh£187³4460999382959376013Öh£189Ù§return (index) => {
+    const values = __lookup_interpolated('5542028001863608031').value
+    __lookup_interpolated('4460999382959376013').notify(values[index - 1])
+}
+Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:279¨msg_type¡1È*k’Ç:j“Ù$6aa948f8-0ca5-4eda-92e3-eded58c4ca55£192Çe’£192¡5£subƒ£obsÖh£192§payloadÇËf“€Ùtreturn value => {
+    Bonito.update_node_attribute(document.querySelector('[data-jscall-id="62"]'), 'max', value);
+}ÙQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92¨msg_type¡1È,k’Ç:j“Ù$6aa948f8-0ca5-4eda-92e3-eded58c4ca55£193Çe’£193¡1£subƒ£obsÖh£193§payloadÇÍf“€Ùvreturn value => {
+    Bonito.update_node_attribute(document.querySelector('[data-jscall-id="62"]'), 'value', value);
+}ÙQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92¨msg_type¡1È½k’Ç,j“Ù$6aa948f8-0ca5-4eda-92e3-eded58c4ca55€£sub‚§payloadÈuf“´11553272453483009670Öh£188Ú(() => {
+    document.querySelector('[data-jscall-id="62"]')['oninput'] = (event)=> {
+    const idx = event.srcElement.valueAsNumber;
+    if (idx !== __lookup_interpolated('11553272453483009670').value) {
+        __lookup_interpolated('11553272453483009670').notify(idx)
+    }
+}
+})()Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:294¨msg_type¡2¨msg_type¡9Èhk’Ç,j“Ù$6aa948f8-0ca5-4eda-92e3-eded58c4ca55€£sub‚§payloadÈ f“´16572827918964056374£189…¡4‘È²k’Ç,j“Ù$4cfa99db-144b-49de-8072-c1fa5eb4a610€£sub†ªsession_idÙ$4cfa99db-144b-49de-8072-c1fa5eb4a610¨messages§replaceÂ¨msg_type¢12¤htmlÈi“£div’Èi“£div‘Èïi“¥style‘ÚÐ.style_23 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_24 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 300px;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+®data-jscall-id£105®data-jscall-id£104ÈŽi“£div‘Èpi“£div”ÇLi“£div‘Çi“£div®data-jscall-id¢97ƒ¥class© style_23¥style ®data-jscall-id¢96ÇLi“£div‘Çi“£div®data-jscall-id¢99ƒ¥class© style_23¥style ®data-jscall-id¢98ÇNi“£div‘Çi“£div®data-jscall-id£101ƒ¥class© style_23¥style ®data-jscall-id£100ÇNi“£div‘Çi“£div®data-jscall-id£103ƒ¥class© style_23¥style ®data-jscall-id£102ƒ¥class© style_24¥style ®data-jscall-id¢95®data-jscall-id£106ƒ¥class¯bonito-fragment¢idÙ$4cfa99db-144b-49de-8072-c1fa5eb4a610®data-jscall-idºsubsession-application-dom±dom_node_selector¢66¡1‘È¼k’Ç,j“Ù$87fb5613-d705-48a6-96f6-2e573636263a€£sub†ªsession_idÙ$87fb5613-d705-48a6-96f6-2e573636263a¨messages§replaceÂ¨msg_type¢12¤htmlÈi“£div’Èi“£div‘Èîi“¥style‘ÚÐ.style_17 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_18 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 300px;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+®data-jscall-id¢75®data-jscall-id¢74Ç›i“£div‘Çi“£div‘ÇLi“£div‘Çi“£div®data-jscall-id¢73ƒ¥class© style_17¥style ®data-jscall-id¢72ƒ¥class© style_18¥style ®data-jscall-id¢71®data-jscall-id¢76ƒ¥class¯bonito-fragment¢idÙ$87fb5613-d705-48a6-96f6-2e573636263a®data-jscall-idºsubsession-application-dom±dom_node_selector¢66¡5‘Èk’Ç,j“Ù$5a0db85c-ab32-4a81-a617-b24a18bfdd88€£sub†ªsession_idÙ$5a0db85c-ab32-4a81-a617-b24a18bfdd88¨messages§replaceÂ¨msg_type¢12¤htmlÈii“£div’Èi“£div‘Èïi“¥style‘ÚÐ.style_25 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_26 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 300px;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+®data-jscall-id£119®data-jscall-id£118Èäi“£div‘ÈÆi“£div•ÇNi“£div‘Çi“£div®data-jscall-id£109ƒ¥class© style_25¥style ®data-jscall-id£108ÇNi“£div‘Çi“£div®data-jscall-id£111ƒ¥class© style_25¥style ®data-jscall-id£110ÇNi“£div‘Çi“£div®data-jscall-id£113ƒ¥class© style_25¥style ®data-jscall-id£112ÇNi“£div‘Çi“£div®data-jscall-id£115ƒ¥class© style_25¥style ®data-jscall-id£114ÇNi“£div‘Çi“£div®data-jscall-id£117ƒ¥class© style_25¥style ®data-jscall-id£116ƒ¥class© style_26¥style ®data-jscall-id£107®data-jscall-id£120ƒ¥class¯bonito-fragment¢idÙ$5a0db85c-ab32-4a81-a617-b24a18bfdd88®data-jscall-idºsubsession-application-dom±dom_node_selector¢66¡2‘Èk’Ç,j“Ù$6fe29af9-bf7c-4312-9626-01b752dcf830€£sub†ªsession_idÙ$6fe29af9-bf7c-4312-9626-01b752dcf830¨messages§replaceÂ¨msg_type¢12¤htmlÈli“£div’Èi“£div‘Èîi“¥style‘ÚÐ.style_19 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_20 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 300px;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+®data-jscall-id¢83®data-jscall-id¢82Çêi“£div‘ÇÎi“£div’ÇLi“£div‘Çi“£div®data-jscall-id¢79ƒ¥class© style_19¥style ®data-jscall-id¢78ÇLi“£div‘Çi“£div®data-jscall-id¢81ƒ¥class© style_19¥style ®data-jscall-id¢80ƒ¥class© style_20¥style ®data-jscall-id¢77®data-jscall-id¢84ƒ¥class¯bonito-fragment¢idÙ$6fe29af9-bf7c-4312-9626-01b752dcf830®data-jscall-idºsubsession-application-dom±dom_node_selector¢66¡3‘È\k’Ç,j“Ù$e3f240b5-8dff-4bec-abcd-8a41a631d8dc€£sub†ªsession_idÙ$e3f240b5-8dff-4bec-abcd-8a41a631d8dc¨messages§replaceÂ¨msg_type¢12¤htmlÈ½i“£div’Èi“£div‘Èîi“¥style‘ÚÐ.style_21 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_22 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 300px;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+®data-jscall-id¢93®data-jscall-id¢92È:i“£div‘Èi“£div“ÇLi“£div‘Çi“£div®data-jscall-id¢87ƒ¥class© style_21¥style ®data-jscall-id¢86ÇLi“£div‘Çi“£div®data-jscall-id¢89ƒ¥class© style_21¥style ®data-jscall-id¢88ÇLi“£div‘Çi“£div®data-jscall-id¢91ƒ¥class© style_21¥style ®data-jscall-id¢90ƒ¥class© style_22¥style ®data-jscall-id¢85®data-jscall-id¢94ƒ¥class¯bonito-fragment¢idÙ$e3f240b5-8dff-4bec-abcd-8a41a631d8dc®data-jscall-idºsubsession-application-dom±dom_node_selector¢66ÚÇBonito.fetch_binary('bonito/bin/8efceaf0a674e9b5325c757097126b7dc80228d6-17680236742331760495.bin').then(binary => {
+    const widget_statemaps = __lookup_interpolated('16572827918964056374')
+    console.log('Widget statemaps:', widget_statemaps)
+    const observables = Bonito.decode_binary(binary, false);
+    // Set up individual listeners for each observable
+    observables.forEach((obs, idx) => {
+        obs.on(value => {
+            const obs_states = widget_statemaps[obs.id]
+            const key = Bonito.generate_state_key(value);
+            const messages = obs_states[key];
+            if (messages){
+                messages.forEach(Bonito.process_message)
+            }
+        });
+    });
+
+})
+Ù7/home/runner/work/Bonito.jl/Bonito.jl/src/export.jl:222¨msg_type¡2

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>App · Bonito</title><meta name="title" content="App · Bonito"/><meta property="og:title" content="App · Bonito"/><meta property="twitter:title" content="App · Bonito"/><meta name="description" content="Documentation for Bonito."/><meta property="og:description" content="Documentation for Bonito."/><meta property="twitter:description" content="Documentation for Bonito."/><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="index.html">Bonito</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li class="is-active"><a class="tocitem" href="app.html">App</a><ul class="internal"><li><a class="tocitem" href="#Basic-Usage"><span>Basic Usage</span></a></li><li><a class="tocitem" href="#App-Options"><span>App Options</span></a></li><li><a class="tocitem" href="#Connection-Indicator"><span>Connection Indicator</span></a></li><li><a class="tocitem" href="#Creating-a-Custom-Indicator"><span>Creating a Custom Indicator</span></a></li></ul></li><li><span class="tocitem">Components</span><ul><li><a class="tocitem" href="styling.html">Styling</a></li><li><a class="tocitem" href="components.html">Components</a></li><li><a class="tocitem" href="layouting.html">Layouting</a></li><li><a class="tocitem" href="widgets.html">Widgets</a></li><li><a class="tocitem" href="interactions.html">Interactions</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="plotting.html">Plotting</a></li><li><a class="tocitem" href="javascript-libraries.html">Wrapping JS libraries</a></li><li><a class="tocitem" href="assets.html">Assets</a></li><li><a class="tocitem" href="extending.html">Extending</a></li></ul></li><li><a class="tocitem" href="handlers.html">Handlers</a></li><li><a class="tocitem" href="deployment.html">Deployment</a></li><li><a class="tocitem" href="static.html">Static Sites</a></li><li><a class="tocitem" href="api.html">Api</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href="app.html">App</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="app.html">App</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/master/docs/src/app.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="App"><a class="docs-heading-anchor" href="#App">App</a><a id="App-1"></a><a class="docs-heading-anchor-permalink" href="#App" title="Permalink"></a></h1><p>The <code>App</code> type is the main entry point for creating Bonito applications. It wraps your content and handles the connection between Julia and the browser.</p><h2 id="Basic-Usage"><a class="docs-heading-anchor" href="#Basic-Usage">Basic Usage</a><a id="Basic-Usage-1"></a><a class="docs-heading-anchor-permalink" href="#Basic-Usage" title="Permalink"></a></h2><pre><code class="language-julia hljs">using Bonito
+
+# Simple app with static content
+app = App(DOM.div(&quot;Hello World&quot;))
+
+# App with session access
+app = App() do session::Session
+    button = Button(&quot;Click me&quot;)
+    on(button.value) do _
+        println(&quot;Button clicked!&quot;)
+    end
+    return button
+end
+
+# App with request access (useful for routing)
+app = App() do session::Session, request::HTTP.Request
+    path = request.target
+    return DOM.div(&quot;You requested: $path&quot;)
+end</code></pre><h2 id="App-Options"><a class="docs-heading-anchor" href="#App-Options">App Options</a><a id="App-Options-1"></a><a class="docs-heading-anchor-permalink" href="#App-Options" title="Permalink"></a></h2><p>The <code>App</code> constructor accepts the following keyword arguments:</p><pre><code class="language-julia hljs">App(handler;
+    title=&quot;Bonito App&quot;,  # Browser tab title
+    indicator=nothing    # Connection status indicator (nothing by default)
+)</code></pre><h2 id="Connection-Indicator"><a class="docs-heading-anchor" href="#Connection-Indicator">Connection Indicator</a><a id="Connection-Indicator-1"></a><a class="docs-heading-anchor-permalink" href="#Connection-Indicator" title="Permalink"></a></h2><p>Bonito provides an optional LED-like indicator that can be displayed in the top-right corner to show the connection status to the Julia server:</p><ul><li><strong>Green</strong>: Connected to the server</li><li><strong>Yellow</strong>: Connecting or reconnecting</li><li><strong>Red</strong>: Disconnected from the server</li><li><strong>Gray</strong>: No connection mode (static export)</li></ul><h3 id="Enabling-the-Indicator"><a class="docs-heading-anchor" href="#Enabling-the-Indicator">Enabling the Indicator</a><a id="Enabling-the-Indicator-1"></a><a class="docs-heading-anchor-permalink" href="#Enabling-the-Indicator" title="Permalink"></a></h3><p>To show the connection indicator, pass a <code>ConnectionIndicator()</code> to your App:</p><pre><code class="language-julia hljs">App(; indicator=ConnectionIndicator()) do
+    DOM.h1(&quot;App with connection indicator&quot;)
+end</code></pre><h3 id="Customizing-Colors-and-Size"><a class="docs-heading-anchor" href="#Customizing-Colors-and-Size">Customizing Colors and Size</a><a id="Customizing-Colors-and-Size-1"></a><a class="docs-heading-anchor-permalink" href="#Customizing-Colors-and-Size" title="Permalink"></a></h3><pre><code class="language-julia hljs">App(; indicator=ConnectionIndicator(
+    connected_color=&quot;lime&quot;,
+    connecting_color=&quot;orange&quot;,
+    disconnected_color=&quot;red&quot;,
+    no_connection_color=&quot;gray&quot;,
+    size=15  # pixels
+)) do
+    DOM.h1(&quot;Custom indicator colors&quot;)
+end</code></pre><div class="admonition is-info" id="Browser-Display-96a8472feec0b70f"><header class="admonition-header">Browser Display<a class="admonition-anchor" href="#Browser-Display-96a8472feec0b70f" title="Permalink"></a></header><div class="admonition-body"><p>When using browser display (e.g., displaying apps in VS Code or via <code>Server</code>), the indicator is rendered on the root session which persists across app updates. Changes to the <code>indicator</code> argument will not take effect until you refresh the browser page to create a new root session.</p></div></div><h3 id="Customizing-Position"><a class="docs-heading-anchor" href="#Customizing-Position">Customizing Position</a><a id="Customizing-Position-1"></a><a class="docs-heading-anchor-permalink" href="#Customizing-Position" title="Permalink"></a></h3><p>By default, the indicator is positioned in the top-right corner. You can change this:</p><pre><code class="language-julia hljs"># Bottom-left corner
+App(; indicator=ConnectionIndicator(
+    top=&quot;auto&quot;,
+    right=&quot;auto&quot;,
+    style=Styles(
+        &quot;bottom&quot; =&gt; &quot;10px&quot;,
+        &quot;left&quot; =&gt; &quot;10px&quot;
+    )
+)) do
+    DOM.h1(&quot;Indicator in bottom-left&quot;)
+end
+
+# Center-top with custom styling
+App(; indicator=ConnectionIndicator(
+    right=&quot;auto&quot;,
+    style=Styles(
+        &quot;left&quot; =&gt; &quot;50%&quot;,
+        &quot;transform&quot; =&gt; &quot;translateX(-50%)&quot;,
+        &quot;border&quot; =&gt; &quot;2px solid white&quot;
+    )
+)) do
+    DOM.h1(&quot;Centered indicator&quot;)
+end</code></pre><h3 id="ConnectionIndicator-Arguments"><a class="docs-heading-anchor" href="#ConnectionIndicator-Arguments">ConnectionIndicator Arguments</a><a id="ConnectionIndicator-Arguments-1"></a><a class="docs-heading-anchor-permalink" href="#ConnectionIndicator-Arguments" title="Permalink"></a></h3><table><tr><th style="text-align: right">Argument</th><th style="text-align: right">Default</th><th style="text-align: right">Description</th></tr><tr><td style="text-align: right"><code>connected_color</code></td><td style="text-align: right"><code>&quot;#22c55e&quot;</code></td><td style="text-align: right">Color when connected (green)</td></tr><tr><td style="text-align: right"><code>connecting_color</code></td><td style="text-align: right"><code>&quot;#eab308&quot;</code></td><td style="text-align: right">Color when connecting (yellow)</td></tr><tr><td style="text-align: right"><code>disconnected_color</code></td><td style="text-align: right"><code>&quot;#ef4444&quot;</code></td><td style="text-align: right">Color when disconnected (red)</td></tr><tr><td style="text-align: right"><code>no_connection_color</code></td><td style="text-align: right"><code>&quot;#6b7280&quot;</code></td><td style="text-align: right">Color for NoConnection mode (gray)</td></tr><tr><td style="text-align: right"><code>size</code></td><td style="text-align: right"><code>10</code></td><td style="text-align: right">Diameter in pixels</td></tr><tr><td style="text-align: right"><code>position</code></td><td style="text-align: right"><code>&quot;fixed&quot;</code></td><td style="text-align: right">CSS position property</td></tr><tr><td style="text-align: right"><code>top</code></td><td style="text-align: right"><code>&quot;10px&quot;</code></td><td style="text-align: right">Distance from top</td></tr><tr><td style="text-align: right"><code>right</code></td><td style="text-align: right"><code>&quot;10px&quot;</code></td><td style="text-align: right">Distance from right</td></tr><tr><td style="text-align: right"><code>style</code></td><td style="text-align: right"><code>Styles()</code></td><td style="text-align: right">Additional CSS styles</td></tr></table><h2 id="Creating-a-Custom-Indicator"><a class="docs-heading-anchor" href="#Creating-a-Custom-Indicator">Creating a Custom Indicator</a><a id="Creating-a-Custom-Indicator-1"></a><a class="docs-heading-anchor-permalink" href="#Creating-a-Custom-Indicator" title="Permalink"></a></h2><p>For complete control over the indicator&#39;s appearance and behavior, you can create your own by subtyping <code>AbstractConnectionIndicator</code>:</p><pre><code class="language-julia hljs">using Bonito
+
+struct TextIndicator &lt;: AbstractConnectionIndicator
+    font_size::Int
+end
+
+TextIndicator(; font_size=12) = TextIndicator(font_size)
+
+function Bonito.jsrender(session::Session, indicator::TextIndicator)
+    # Create the DOM element
+    status_text = DOM.span(&quot;Connecting...&quot;;
+        style=Styles(
+            &quot;position&quot; =&gt; &quot;fixed&quot;,
+            &quot;top&quot; =&gt; &quot;10px&quot;,
+            &quot;right&quot; =&gt; &quot;10px&quot;,
+            &quot;font-size&quot; =&gt; &quot;$(indicator.font_size)px&quot;,
+            &quot;font-family&quot; =&gt; &quot;monospace&quot;,
+            &quot;padding&quot; =&gt; &quot;4px 8px&quot;,
+            &quot;background&quot; =&gt; &quot;rgba(0,0,0,0.7)&quot;,
+            &quot;color&quot; =&gt; &quot;white&quot;,
+            &quot;border-radius&quot; =&gt; &quot;4px&quot;,
+            &quot;z-index&quot; =&gt; &quot;9999&quot;
+        )
+    )
+
+    # JavaScript to handle status changes
+    init_script = js&quot;&quot;&quot;
+    function initTextIndicator(element) {
+        const messages = {
+            connected: &quot;✓ Connected&quot;,
+            connecting: &quot;◐ Connecting...&quot;,
+            disconnected: &quot;✗ Disconnected&quot;,
+            no_connection: &quot;○ Static Mode&quot;
+        };
+
+        const colors = {
+            connected: &quot;#22c55e&quot;,
+            connecting: &quot;#eab308&quot;,
+            disconnected: &quot;#ef4444&quot;,
+            no_connection: &quot;#6b7280&quot;
+        };
+
+        const indicator = {
+            onStatusChange: function(status) {
+                element.textContent = messages[status] || messages.disconnected;
+                element.style.color = colors[status] || colors.disconnected;
+            }
+        };
+
+        Bonito.register_connection_indicator(indicator);
+    }
+    &quot;&quot;&quot;
+
+    Bonito.onload(session, status_text, init_script)
+    return Bonito.jsrender(session, status_text)
+end
+
+# Use it
+App(; indicator=TextIndicator(font_size=14)) do
+    DOM.h1(&quot;App with text-based indicator&quot;)
+end</code></pre><h3 id="JavaScript-API-for-Custom-Indicators"><a class="docs-heading-anchor" href="#JavaScript-API-for-Custom-Indicators">JavaScript API for Custom Indicators</a><a id="JavaScript-API-for-Custom-Indicators-1"></a><a class="docs-heading-anchor-permalink" href="#JavaScript-API-for-Custom-Indicators" title="Permalink"></a></h3><p>When creating a custom indicator, register it with Bonito using these JavaScript functions:</p><pre><code class="language-javascript hljs">// Register your indicator object
+Bonito.register_connection_indicator({
+    // Called when connection status changes
+    onStatusChange: function(status) {
+        // status: &quot;connected&quot; | &quot;connecting&quot; | &quot;disconnected&quot; | &quot;no_connection&quot;
+    }
+});
+
+// Unregister the current indicator
+Bonito.unregister_connection_indicator();
+
+// Status constants (for comparison)
+Bonito.ConnectionStatus.CONNECTED      // &quot;connected&quot;
+Bonito.ConnectionStatus.CONNECTING     // &quot;connecting&quot;
+Bonito.ConnectionStatus.DISCONNECTED   // &quot;disconnected&quot;
+Bonito.ConnectionStatus.NO_CONNECTION  // &quot;no_connection&quot;</code></pre><p>The indicator automatically shows the appropriate status based on the connection state, including &quot;no_connection&quot; for static exports.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="index.html">« Home</a><a class="docs-footer-nextpage" href="styling.html">Styling »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Thursday 18 December 2025 15:20">Thursday 18 December 2025</span>. Using Julia version 1.12.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

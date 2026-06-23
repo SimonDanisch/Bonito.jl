@@ -1,0 +1,5 @@
+ÈÇk”Ù$415a3e29-1d5e-4c57-b49a-a7d9afee1d57£subÇ1Ç.j“Ù$415a3e29-1d5e-4c57-b49a-a7d9afee1d57£subÔÈd‘È_k”Ù$415a3e29-1d5e-4c57-b49a-a7d9afee1d57£subÇ1Ç.j“Ù$415a3e29-1d5e-4c57-b49a-a7d9afee1d57£subÔÇý‚§payloadÇæf“€ÙÖimport('https://esm.sh/v133/leaflet@1.9.4/es2022/leaflet.mjs').then(L=> {
+    const map = L.map('map').setView([51.505, -0.09], 13);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+})
+«index.md:68¨msg_type¡2

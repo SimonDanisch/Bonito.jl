@@ -1,0 +1,48 @@
+’Ç,j“Ù$da3dcad1-5fe5-431b-8e46-7cb7ef574cfb€£sub‚§payload•ÈÔk’È¥j“Ù$da3dcad1-5fe5-431b-8e46-7cb7ef574cfb‚¤1454Èae’¤1454ÚX(() => {
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext('2d');
+    const width = 500
+    const height = 400
+    canvas.width = width;
+    canvas.height = height;
+    const gradient = context.createRadialGradient(200, 200, 0, 200, 200, 200);
+    gradient.addColorStop("0", "magenta");
+    gradient.addColorStop(".25", "blue");
+    gradient.addColorStop(".50", "green");
+    gradient.addColorStop(".75", "yellow");
+    gradient.addColorStop("1.0", "red");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, height);
+    return canvas;
+})();
+¤1456Çe’¤1456Â£subƒ£obsÇh¤1456§payloadÈf“³5549320403295801164Çh¤1454ÚÖreturn function (click){
+    const js_src = __lookup_interpolated('5549320403295801164').value;
+    const result = new Function("return " + (js_src))()
+    let dom;
+    if (typeof result === 'object' && result.nodeName) {
+        dom = result
+    } else {
+        const span = document.createElement("span")
+        span.innerText = result;
+        dom = span
+    }
+    Bonito.update_or_replace(document.querySelector('[data-jscall-id="51"]'), dom, false);
+    return
+}
+®widgets.md:126¨msg_type¡1Çëk’Ç?j“Ù$da3dcad1-5fe5-431b-8e46-7cb7ef574cfb¤1455Çe’¤1455¤eval£subƒ£obsÇh¤1455§payloadÇ…f“€ÙHreturn x=> document.querySelector('[data-jscall-id="53"]').innerText = xÙ7/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:69¨msg_type¡1ÈÃk’Ç,j“Ù$da3dcad1-5fe5-431b-8e46-7cb7ef574cfb€£sub‚§payloadÈ{f“‚³5549320403295801164Çh¤1454²415926532742338132‰µwrapBehavioursEnabledÃ¯showLineNumbersÂ«useSoftTabsÃ¤wrapP±enableMultiselectÃ¯mergeUndoDeltas¦always¨fontSize¶copyWithEmptySelectionÃ¸autoScrollEditorIntoViewÃÚk(    function (element){
+        const editor = ace.edit(element, {
+            mode: 'ace/mode/javascript'
+        });
+        editor.setTheme('ace/theme/chrome');
+        editor.resize();
+        // use setOptions method to set several options at once
+        editor.setOptions(__lookup_interpolated('415926532742338132'));
+
+        editor.session.on('change', function(delta) {
+            __lookup_interpolated('5549320403295801164').notify(editor.getValue());
+        });
+        editor.session.setValue(__lookup_interpolated('5549320403295801164').value);
+    }
+)(document.querySelector('[data-jscall-id="55"]'));Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:479¨msg_type¡2È:k’Ç,j“Ù$da3dcad1-5fe5-431b-8e46-7cb7ef574cfb€£sub‚§payloadÇóf“³2708200882166000954Çh¤1456Ùš((node) => {
+    node['onclick'] = event=> __lookup_interpolated('2708200882166000954').notify(true);
+})(document.querySelector('[data-jscall-id="53"]'));Ù7/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:65¨msg_type¡2ÇNk’Ç-j“Ù$bef1c023-2d0c-4707-bb53-2a1b02e2fef5€¤rootƒ§payloadÂ¢id¤1456¨msg_type¡0¨msg_type¡9

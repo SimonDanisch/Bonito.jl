@@ -1,0 +1,57 @@
+í«,jìŸ$ea183a70-edd9-45b5-8e2c-1efb152cdc8dê£subÉßpayloadì«ükí«-jìŸ$2a75f19e-f434-421d-b3e4-6b8d0d7fa831ê§rootÉßpayloadë«Nkí«-jìŸ$2a75f19e-f434-421d-b3e4-6b8d0d7fa831ê§rootÉßpayloadê®msg_type°9¶cachesê®msg_type°9¶cachesê»—kí«,jìŸ$ea183a70-edd9-45b5-8e2c-1efb152cdc8dê£subÉßpayloadï«Nkí«-jìŸ$2a75f19e-f434-421d-b3e4-6b8d0d7fa831ê§rootÉßpayloadê®msg_type°9¶cachesê»Lkí«RjìŸ$ea183a70-edd9-45b5-8e2c-1efb152cdc8dìí¢34«eí¢34í¢33◊eí¢33ìí¢35«eí¢35£subÉ£obs«h¢34ßpayload«’fìÇ¢33«h¢33¢35«h¢35ŸÖreturn (index) => {
+    const values = __lookup_interpolated('33').value
+    __lookup_interpolated('35').notify(values[index - 1])
+}
+Ÿ8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:272®msg_type°1»(kí«9jìŸ$ea183a70-edd9-45b5-8e2c-1efb152cdc8dëí¢38«eí¢38°3£subÉ£obs«h¢38ßpayload« fìÄŸsreturn value => {
+    Bonito.update_node_attribute(document.querySelector('[data-jscall-id="5"]'), 'max', value);
+}ŸQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92®msg_type°1»*kí«9jìŸ$ea183a70-edd9-45b5-8e2c-1efb152cdc8dëí¢39«eí¢39°1£subÉ£obs«h¢39ßpayload«ÃfìÄŸureturn value => {
+    Bonito.update_node_attribute(document.querySelector('[data-jscall-id="5"]'), 'value', value);
+}ŸQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92®msg_type°1»Ökí«,jìŸ$ea183a70-edd9-45b5-8e2c-1efb152cdc8dê£subÇßpayload»=fìÅ¢34«h¢34Ÿˆ(() => {
+    document.querySelector('[data-jscall-id="5"]')['oninput'] = (event)=> {
+    const idx = event.srcElement.valueAsNumber;
+    if (idx !== __lookup_interpolated('34').value) {
+        __lookup_interpolated('34').notify(idx)
+    }
+}
+})()Ÿ8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:287®msg_type°2®msg_type°9¶cachesê»≈kí«,jìŸ$ea183a70-edd9-45b5-8e2c-1efb152cdc8dê£subÇßpayload»}fìÅ≥7739019750620156770Å¢35É°1ë»kí«,jìŸ$4b2a3acb-1d83-4885-a6e9-12962b7bfc7fê£subÜ™session_idŸ$4b2a3acb-1d83-4885-a6e9-12962b7bfc7f®messagesÉßpayloadê®msg_type°9¶cachesêßreplace¬®msg_type¢12§html»Xiì£diví»iì£diví»≈iì¶scriptë⁄ö    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/abeea82db581051f2d930a264917d0f756313584-9002751955987120232.bin').then(binary=> {
+            const observables = Bonito.Protocol.unpack_binary(binary, false)
+            observables.forEach(([id, objects, status]) => {
+                Bonito.Sessions.update_session_cache(id, objects, status);
+            });
+        });
+    })
+ÇÆdata-jscall-id¢15§type¶module«iì•styleë†ÅÆdata-jscall-id¢16ÅÆdata-jscall-id¢14«‡iì£diví«îiì¶scriptëŸjBonito.lock_loading(() => Bonito.init_session('4b2a3acb-1d83-4885-a6e9-12962b7bfc7f', null, 'sub', false))ÇÆdata-jscall-id¢18§type¶module«-iì¢h1ë¥hello from slider: 1ÅÆdata-jscall-id¢13ÅÆdata-jscall-id¢17É•classØbonito-fragment¢idŸ$4b2a3acb-1d83-4885-a6e9-12962b7bfc7fÆdata-jscall-id∫subsession-application-dom±dom_node_selector°7°2ë»8kí«,jìŸ$9e2fe29d-d1d2-45f8-bfe4-5c38cfc35e57ê£subÜ™session_idŸ$9e2fe29d-d1d2-45f8-bfe4-5c38cfc35e57®messagesÉßpayloadê®msg_type°9¶cachesêßreplace¬®msg_type¢12§html»~iì£diví»iì£diví»∆iì¶scriptë⁄õ    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/90d51fff213e73d9b140e89010dfa932693f2088-11002551198147973412.bin').then(binary=> {
+            const observables = Bonito.Protocol.unpack_binary(binary, false)
+            observables.forEach(([id, objects, status]) => {
+                Bonito.Sessions.update_session_cache(id, objects, status);
+            });
+        });
+    })
+ÇÆdata-jscall-id¢21§type¶module«iì•styleë†ÅÆdata-jscall-id¢22ÅÆdata-jscall-id¢20»iì£diví«îiì¶scriptëŸjBonito.lock_loading(() => Bonito.init_session('9e2fe29d-d1d2-45f8-bfe4-5c38cfc35e57', null, 'sub', false))ÇÆdata-jscall-id¢24§type¶module«Qiì£imgêÉÆdata-jscall-id¢19£srcŸ&https://docs.makie.org/stable/logo.svg•width•200pxÅÆdata-jscall-id¢23É•classØbonito-fragment¢idŸ$9e2fe29d-d1d2-45f8-bfe4-5c38cfc35e57Ædata-jscall-id∫subsession-application-dom±dom_node_selector°7°3ë»kí«,jìŸ$c14ee652-a0ee-4b35-90a7-d9c68fb35782ê£subÜ™session_idŸ$c14ee652-a0ee-4b35-90a7-d9c68fb35782®messagesÉßpayloadê®msg_type°9¶cachesêßreplace¬®msg_type¢12§html»Giì£diví»iì£diví»≈iì¶scriptë⁄ö    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/9e05b420703bda72450887c43acaff74a580251e-8282591515893679810.bin').then(binary=> {
+            const observables = Bonito.Protocol.unpack_binary(binary, false)
+            observables.forEach(([id, objects, status]) => {
+                Bonito.Sessions.update_session_cache(id, objects, status);
+            });
+        });
+    })
+ÇÆdata-jscall-id¢27§type¶module«iì•styleë†ÅÆdata-jscall-id¢28ÅÆdata-jscall-id¢26«œiì£diví«îiì¶scriptëŸjBonito.lock_loading(() => Bonito.init_session('c14ee652-a0ee-4b35-90a7-d9c68fb35782', null, 'sub', false))ÇÆdata-jscall-id¢30§type¶module«iì§spanë°9ÅÆdata-jscall-id¢25ÅÆdata-jscall-id¢29É•classØbonito-fragment¢idŸ$c14ee652-a0ee-4b35-90a7-d9c68fb35782Ædata-jscall-id∫subsession-application-dom±dom_node_selector°7⁄∆Bonito.fetch_binary('bonito/bin/a9795023c066f0654223ad3ed0e93fc55d49825d-12760494319191362394.bin').then(binary => {
+    const widget_statemaps = __lookup_interpolated('7739019750620156770')
+    console.log('Widget statemaps:', widget_statemaps)
+    const observables = Bonito.decode_binary(binary, false);
+    // Set up individual listeners for each observable
+    observables.forEach((obs, idx) => {
+        obs.on(value => {
+            const obs_states = widget_statemaps[obs.id]
+            const key = Bonito.generate_state_key(value);
+            const messages = obs_states[key];
+            if (messages){
+                messages.forEach(Bonito.process_message)
+            }
+        });
+    });
+
+})
+Ÿ7/home/runner/work/Bonito.jl/Bonito.jl/src/export.jl:222®msg_type°2®msg_type°9¶cachesê
