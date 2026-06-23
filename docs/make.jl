@@ -12,7 +12,7 @@ home = (
     text = "Interactive web UIs in pure Julia",
     tagline = "Render HTML from Julia, talk to the browser, and build dashboards, " *
               "apps and docs by freely combining HTML, CSS and JavaScript — no framework lock-in.",
-    image = "bonito.svg",
+    image = "assets/bonito-dark.svg",
     actions = [
         (text = "Get Started", link = "app.html", theme = "brand"),
         (text = "View on GitHub", link = "https://github.com/SimonDanisch/Bonito.jl", theme = "alt"),
@@ -42,7 +42,7 @@ makedocs(
         devbranch = "master",
         devurl = "dev",
         version = "dev",
-        logo = "bonito.svg",
+        logo = "assets/bonito-dark.svg",
         home = home,
         blog = "blog",
     ),

@@ -1,14 +1,11 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/src/assets/bonito-dark.svg">
-    <img src="docs/src/assets/bonito-light.svg" alt="Bonito.jl" width="160">
-  </picture>
+  <img src="docs/src/assets/bonito-dark.svg" alt="Bonito.jl" width="160">
 </p>
 
 # Bonito.jl
 
 ![CI](https://github.com/SimonDanisch/Bonito.jl/workflows/CI/badge.svg) [![Codecov](https://codecov.io/gh/SimonDanisch/Bonito.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/SimonDanisch/Bonito.jl)
-[![Docs - stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://simondanisch.github.io/Bonito.jl/stable/)
+[![Docs](https://img.shields.io/badge/docs-bonito.sh-blue.svg)](https://bonito.sh)
 
 **Build interactive web applications, dashboards, and visualizations entirely in Julia.**
 
@@ -69,7 +66,7 @@ https://github.com/user-attachments/assets/ad8bd118-1a82-4799-b1ba-6220072557c7
 
 https://github.com/user-attachments/assets/55e110c8-c144-41ab-8537-65cbc17a63e0
 
-## [NetworkDynamicsInspector](https://github.com/JuliaDynamics/NetworkDynamics.jl/tree/main/NetworkDynamicsInspector)
+### [NetworkDynamicsInspector](https://github.com/JuliaDynamics/NetworkDynamics.jl/tree/main/NetworkDynamicsInspector)
 
 NetworkDynamicsInspector.jl is an extension package to NetworkDynamics.jl which provides a WebApp based on Bonito.jl and WGLMakie.jl for interactive visualization of solutions to systems based on network dynamics.
 
