@@ -259,15 +259,28 @@ end
 """
     rebundle!(asset::Asset)
 
-Force the next request for `asset` to re-bundle from source. Drops both
-the on-disk bundle (`asset.bundle_file`) and the in-memory cached bytes
-(`asset.bundle_data`). Useful while iterating on the JavaScript source
-of an `ES6Module(...)` — without this Bonito keeps serving the stale
-bundle even after you edit the underlying `.js`.
+Programmatically drop `asset`'s cached bundle so the next request re-bundles
+from source. **You rarely need to call this:** bundling is automatic.
+
+For an `ES6Module(...)`, Bonito writes a `<name>.bundled.js` next to the source
+and serves it. On every request it re-bundles when the bundle is **missing** or
+**older than the source** (see [`needs_bundling`](@ref)). So the normal dev loop
+is just:
+
+- **Edit the `.js` source** → the bundle's mtime is now stale → it re-bundles on
+  the next page load. Nothing else to do.
+- **Delete the `<name>.bundled.js` file** (e.g. in `js_dependencies/`) → it is
+  regenerated from source on the next load. This is the simplest way to force a
+  fresh bundle, e.g. after pulling changes or when a bundle looks corrupt.
+
+`rebundle!` does the same thing in code — it removes the on-disk bundle
+(`asset.bundle_file`) and the in-memory cached bytes (`asset.bundle_data`) under
+the asset's bundle lock — for the case where you can't (or don't want to) touch
+the filesystem, e.g. invalidating a bundle from a running session:
 
 ```julia
 const ChartLib = Bonito.ES6Module("chart.js")
-# … edit chart.js …
+# … programmatically regenerate without editing/deleting files …
 Bonito.rebundle!(ChartLib)   # next page reload picks up the new source
 ```
 

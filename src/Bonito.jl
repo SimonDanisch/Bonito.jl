@@ -79,8 +79,11 @@ include("terminal_output.jl")
 include("documenter.jl")
 
 # Core functionality
-export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset, CSS, LoadingPage, rebundle!
+export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset, CSS, LoadingPage
 export KeyedList
+# Public but unexported: the bundle is regenerated automatically (see `rebundle!`),
+# so this is only needed for programmatic cache invalidation.
+public rebundle!
 export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor
 export browser_display, configure_server!, Server, show_html, html, route!, online_url, use_electron_display
 export Observable, on, onany, bind_global

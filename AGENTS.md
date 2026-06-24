@@ -238,9 +238,21 @@ Guidelines:
   by not double-bundling shared helpers, not by a global.)
 - External libs load inside the module (`import("https://cdn...")` at
   module scope, memoized). Deno bundles the module with its imports
-  automatically; while iterating on an imported file, `Bonito.rebundle!`
-  (or delete the `.bundled.js`) — edits to *imported* files don't bump
-  the main file's mtime.
+  automatically.
+- **Bundling is automatic — don't go searching for how to rebundle.** Bonito
+  writes a `<name>.bundled.js` next to each `ES6Module` source and re-bundles
+  whenever the bundle is missing or older than the source (mtime check in
+  `src/asset-serving/asset.jl`). So:
+  - Edit the module's `.js` → it re-bundles on the next load. Nothing to do.
+  - To force a fresh bundle, **delete the `.bundled.js`** (in `js_dependencies/`)
+    — it's regenerated on the next load. This is the simplest answer almost
+    always.
+  - `Bonito.rebundle!(asset)` does the same in code (it's `public` but
+    unexported); reach for it only when you can't touch the filesystem.
+
+  The one gotcha that *needs* a forced rebundle: editing an **imported** file
+  doesn't bump the *main* module file's mtime, so the auto-check won't notice —
+  delete the `.bundled.js` (or call `rebundle!`) in that case.
 - Building HTML by string concatenation in JS (`innerHTML = `<div
   class=...>${escape(x)}...``) is a last resort for hot virtual-scroll
   paths. The default is: structure comes from Julia DOM, behavior from a
