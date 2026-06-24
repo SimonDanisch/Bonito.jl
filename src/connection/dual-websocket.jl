@@ -58,25 +58,26 @@ function (connection::DualWebsocket)(context, websocket::WebSocket)
     try
         run_connection_loop(session, handler, websocket)
     finally
-        # A stale loop (this socket was already replaced by a reconnect) must
-        # not tear anything down — the new socket owns the handler now.
+        # Close our own handler only if this socket is still current; a stale
+        # loop must not tear down the live socket a reconnect installed.
         if is_current_socket(handler, websocket)
-            # Close our own handler so the other finally block can see it's dead.
             close(handler)
-            # Only close/soft-close the session when both sockets are dead.
-            # Otherwise the first socket to disconnect kills the session
-            # while the other is still processing messages (e.g. JSDoneLoading).
-            if !isopen(connection.low_latency) && !isopen(connection.large_data)
-                if allow_soft_close(CLEANUP_POLICY[])
-                    @debug("Soft closing: $(session.id)")
-                    soft_close(session)
-                else
-                    @debug("Closing: $(session.id)")
-                    close(session)
-                end
-            end
         else
-            @debug("Stale ws loop for $(session.id) exiting; not tearing down")
+            @debug("Stale ws loop for $(session.id) exiting; not closing handler")
+        end
+        # Fire the session transition once BOTH legs are dead, regardless of which
+        # leg (stale or not) observes it last. Gating this on `is_current_socket`
+        # let a stale last leg exit without firing it, leaking the session as OPEN.
+        # Idempotent via the CLOSED guard. Require both legs dead so the first leg
+        # to drop doesn't kill a session the other is still serving (e.g. JSDoneLoading).
+        if !isopen(connection.low_latency) && !isopen(connection.large_data)
+            if allow_soft_close(CLEANUP_POLICY[])
+                @debug("Soft closing: $(session.id)")
+                soft_close(session)
+            else
+                @debug("Closing: $(session.id)")
+                close(session)
+            end
         end
     end
 end
