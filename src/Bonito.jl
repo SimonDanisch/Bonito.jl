@@ -120,10 +120,25 @@ On Julia 1.11+, this is called automatically via atexit (which runs before seria
 On Julia 1.10, this must be called manually after precompilation workloads.
 """
 function cleanup_globals()
-    for (_, (_, close_ref)) in SERVER_CLEANUP_TASKS
+    # Signal each per-server cleanup loop to stop, then JOIN it before clearing.
+    # Each loop parks in `sleep(1)` (a Timer); flipping `close_ref` alone leaves
+    # that Timer pending, which precompile serialization flags as a leaked uv
+    # handle ("waiting for IO to finish: timer"). Waiting for the tasks ensures
+    # no Timer survives into the pkgimage. ≤1s, teardown-only. (Julia 1.12 made
+    # the lingering-handle check strict, surfacing this previously-silent race.)
+    cleanup_tasks = Task[]
+    for (_, (task, close_ref)) in SERVER_CLEANUP_TASKS
         close_ref[] = false
+        push!(cleanup_tasks, task)
     end
     empty!(SERVER_CLEANUP_TASKS)
+    for task in cleanup_tasks
+        try
+            wait(task)
+        catch e
+            @debug "cleanup_globals: cleanup task ended with error" exception = e
+        end
+    end
     CURRENT_SESSION[] = nothing
     if !isnothing(GLOBAL_SERVER[])
         close(GLOBAL_SERVER[])
