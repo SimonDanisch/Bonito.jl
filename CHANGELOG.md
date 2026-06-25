@@ -35,5 +35,6 @@ The biggest release since the package was renamed from JSServe. Most of the work
 
 - Numerous connect/close and reconnect races, reconnect deadlocks and stale-error reconnects, and thread-safety issues across the session lifecycle.
 - `port = 0` (ephemeral port) now works; `proxy_url` fixes.
+- msgpack packing scratch buffers (`SessionIO`) are now pooled per session *tree* on the `RootSession` instead of allocated per `Session`. One buffer is checked out per in-flight message and returned afterwards, so idle memory is bounded by concurrency (≈1 buffer) rather than by sub-session count, and the re-entrant pack path no longer allocates a throwaway buffer. A buffer that a one-off large message (e.g. a WGLMakie scene) grew past 1 MiB is dropped back to a small buffer on return, so a long-lived session no longer pins tens of MB of idle packing scratch.
 
 [5.0.0]: https://github.com/SimonDanisch/Bonito.jl/releases/tag/v5.0.0
