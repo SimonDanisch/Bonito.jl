@@ -130,11 +130,48 @@ end
 @inline real_unsafe_write(s::SessionIO, data::Array) = real_unsafe_write(current_buffer(s), data)
 
 @inline function reset_for_reuse!(io::IOBuffer)
-    # No public IOBuffer API resets size+ptr without dropping the backing
-    # Memory's capacity (`take!` empties it, `truncate(io,0)` resizes it to 0).
-    # We need to keep the capacity so subsequent messages don't re-grow.
+    # Reset position without dropping the backing buffer, so the next message
+    # reuses the capacity instead of re-growing. (No need to go through
+    # take!/truncate — those keep the capacity too but do extra work.)
     io.size = 0
     io.ptr  = 1
+    return nothing
+end
+
+# Scratch buffers up to this size are kept for reuse; bigger ones (a one-off
+# WGLMakie scene etc.) are dropped on return so they don't pin MBs on a pooled IO.
+const MAX_SCRATCH_REUSE = 2^20  # 1 MiB
+
+function trim_scratches!(s::SessionIO; maxsize=MAX_SCRATCH_REUSE)
+    # An IOBuffer's backing is a fixed-size Memory (no in-place resize), so swap
+    # any buffer a big message grew past the cap for a fresh small one. Buffers
+    # under the cap are left untouched and keep getting reused.
+    map!(s.scratches, s.scratches) do scratch
+        length(scratch.data) > maxsize ? IOBuffer(UInt8[]; sizehint=512, append=true) : scratch
+    end
+    return nothing
+end
+
+# One IO per in-flight message; a re-entrant/concurrent pack finds the pool empty
+# and makes a fresh one.
+function acquire_pack_io!(pool::PackIOPool)
+    return lock(pool.lock) do
+        isempty(pool.free) ? SessionIO() : pop!(pool.free)
+    end
+end
+
+# Reset + trim, then return to the pool. Always called (even on a pack error) so
+# the next acquire gets a clean IO.
+function release_pack_io!(pool::PackIOPool, s::SessionIO)
+    s.output = nothing
+    s.depth = 0
+    trim_scratches!(s)                # swap out any oversized buffers
+    for scratch in s.scratches        # reset the rest for reuse
+        reset_for_reuse!(scratch)
+    end
+    lock(pool.lock) do
+        push!(pool.free, s)
+    end
     return nothing
 end
 
@@ -145,8 +182,8 @@ Open a nested-extension scope: pushes a fresh scratch IOBuffer onto `s`'s stack,
 runs `f()` (which writes the payload via `pack(s, ...)` / `write(s, ...)`), then
 emits `[ext_header(tag, payload_size), payload_bytes]` to the layer below.
 
-No try/finally — if `f` errors the next top-level pack call will reset the
-SessionIO from a clean state (see `pack_type(::IOBuffer, ::SerializedMessage)`).
+No try/finally — on error, `release_pack_io!` resets the SessionIO before it
+returns to the pool.
 """
 function pack_extension!(f, s::SessionIO, tag::Int8)
     s.depth += 1
@@ -224,42 +261,26 @@ function write_serialized_message_payload!(io::SessionIO, x::SerializedMessage)
     return nothing
 end
 
-# Top-level entry: `io` is whatever MsgPack.pack(sm) handed us (always an
-# IOBuffer in Bonito's hot path). Bootstrap the session's reusable SessionIO,
-# lock for the duration, then defer to the shared body.
+# Top-level entry: `io` is the IOBuffer MsgPack.pack(sm) handed us. Check a
+# SessionIO out of the tree's pool for this message; a re-entrant pack (e.g. a
+# nested SerializedMessage via `to_msgpack(::JSCode)`) gets a different one, so
+# it can't corrupt our stream — no per-IO lock or in_use guard needed.
 function MsgPack.pack_type(io::IOBuffer, ::MsgPack.ExtensionType, x::SerializedMessage)
-    s = x.pack_io
-    # If `pack_io` is already packing further up the stack (a nested
-    # SerializedMessage reached via a fresh `pack(...)`, e.g. inside
-    # `to_msgpack(::JSCode)`), reusing it would reset its depth/scratches
-    # mid-stream and corrupt the in-progress buffer (segfault). Use a throwaway
-    # SessionIO for the re-entrant case instead.
-    if s.in_use
-        s = SessionIO()
-    end
-    lock(s.lock) do
-        s.in_use = true
-        s.output = io
-        s.depth = 0
-        for scratch in s.scratches
-            reset_for_reuse!(scratch)
+    s = acquire_pack_io!(x.pack_pool)
+    s.output = io
+    s.depth = 0
+    try
+        pack_extension!(s, SERIALIZED_MESSAGE_TAG) do
+            write_serialized_message_payload!(s, x)
         end
-        try
-            pack_extension!(s, SERIALIZED_MESSAGE_TAG) do
-                write_serialized_message_payload!(s, x)
-            end
-        finally
-            s.in_use = false
-            s.output = nothing
-        end
+    finally
+        release_pack_io!(x.pack_pool, s)
     end
     return nothing
 end
 
 # Nested entry: `io` is a SessionIO already mid-stream (e.g. a Vector of
-# SerializedMessages was packed by a containing pack_type). Reuse that
-# SessionIO directly — its lock is already held by the top-level caller, and
-# x.pack_io may be a different session's scratch which we don't want to touch.
+# SerializedMessages). Reuse it directly; don't touch `x.pack_pool`.
 function MsgPack.pack_type(io::SessionIO, ::MsgPack.ExtensionType, x::SerializedMessage)
     pack_extension!(io, SERIALIZED_MESSAGE_TAG) do
         write_serialized_message_payload!(io, x)

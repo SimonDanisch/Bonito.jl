@@ -42,9 +42,9 @@ make_io_session() = Session(NoConnection(); asset_server=NoServer())
     end
 
     @testset "no cross-session contamination" begin
-        # Each Session owns its own pack_io. Two sessions packing the SAME
-        # message in lockstep should both produce their own-session shape and
-        # never accidentally share state.
+        # Each session tree has its own pack pool. Two independent (root)
+        # sessions packing the SAME message in lockstep should both produce
+        # their own-session shape and never accidentally share state.
         s1, s2 = make_io_session(), make_io_session()
         m = _SESSION_IO_DEMO_MSG
         # Interleave: pack on s1, s2, s1, s2, s2, s1 — order shouldn't matter.
@@ -65,7 +65,7 @@ make_io_session() = Session(NoConnection(); asset_server=NoServer())
         # gets packed (e.g. relaying via export.jl / fused_messages), pack_type
         # for SerializedMessage gets called with `io::SessionIO`, not
         # `io::IOBuffer`. The nested path must use the active SessionIO
-        # context, not try to bootstrap a new one onto its captured pack_io.
+        # context, not check a new one out of its captured pool.
         s = make_io_session()
         sm1 = SerializedMessage(s, Dict{String,Any}(
             "msg_type" => Bonito.UpdateObservable, "id" => "a", "payload" => 1))
@@ -80,18 +80,18 @@ make_io_session() = Session(NoConnection(); asset_server=NoServer())
               decoded[2].type == Bonito.SERIALIZED_MESSAGE_TAG
     end
 
-    @testset "lock + state recovery after a mid-pack error" begin
+    @testset "state recovery after a mid-pack error" begin
         # An unpackable value inside the message makes msgpack throw partway
-        # through the outer extension scope. The lock MUST be released (so the
-        # next send doesn't deadlock) and the SessionIO state must reset on
-        # next entry — depth back to 0, scratches reset — otherwise the next
-        # message would inherit dirty bytes.
+        # through the outer extension scope. The SessionIO MUST be returned to
+        # the pool with its state reset — depth back to 0, scratches reset —
+        # otherwise the next message would inherit dirty bytes. The pool lock
+        # must also not be left held.
         s = make_io_session()
         bad = Dict{String,Any}(
             "msg_type" => Bonito.UpdateObservable, "id" => "bad", "payload" => _Unpackable())
         sm_bad = SerializedMessage(s, bad)
         @test_throws Exception serialize_binary(sm_bad)
-        @test !islocked(s.pack_io.lock)            # lock didn't leak
+        @test !islocked(s.pack_pool.lock)          # pool lock didn't leak
         # Subsequent good packs work and produce the expected wire shape.
         good = _SESSION_IO_DEMO_MSG
         bytes = serialize_binary(SerializedMessage(s, good))
@@ -101,15 +101,16 @@ make_io_session() = Session(NoConnection(); asset_server=NoServer())
               outer.type == Bonito.SERIALIZED_MESSAGE_TAG
         # And one more — alternating bad/good shouldn't leave scratches dirty.
         @test_throws Exception serialize_binary(SerializedMessage(s, bad))
-        @test !islocked(s.pack_io.lock)
+        @test !islocked(s.pack_pool.lock)
         bytes2 = serialize_binary(SerializedMessage(s, good))
         @test bytes2 == bytes
     end
 
-    @testset "concurrent tasks: lock serializes access, no corruption" begin
-        # Multiple tasks sending on the same Session race for pack_io.lock.
-        # A correct implementation produces one valid output per send and
-        # never leaves the SessionIO in a half-written state.
+    @testset "concurrent tasks: pool isolates packs, no corruption" begin
+        # Multiple tasks sending on the same Session pack concurrently. Each
+        # checks its own SessionIO out of the tree's pool, so they don't share
+        # scratch state; a correct implementation produces one valid output per
+        # send and never leaves a SessionIO in a half-written state.
         s = make_io_session()
         m = _SESSION_IO_DEMO_MSG
         expected = serialize_binary(SerializedMessage(s, m))
@@ -126,7 +127,7 @@ make_io_session() = Session(NoConnection(); asset_server=NoServer())
         # Every produced message must be byte-identical to the reference —
         # any race would corrupt the shared scratch and produce different bytes.
         @test all(b -> b == expected, all_bytes)
-        @test !islocked(s.pack_io.lock)
+        @test !islocked(s.pack_pool.lock)
     end
 
     @testset "scratch grows then shrinking message doesn't leak stale bytes" begin

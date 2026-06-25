@@ -150,34 +150,35 @@ abstract type AbstractAssetServer end
 """
     SessionIO <: IO
 
-Reusable IO scratch space for streaming nested msgpack Extension payloads. Held
-on the owning `Session` so the IOBuffers that back nested-extension packing
-(SerializedMessage → cache/data extensions → inner objects extension) are
-allocated once per session and reused for every outbound message.
+Reusable scratch IO for streaming nested msgpack Extension payloads. Checked out
+of a [`PackIOPool`](@ref) for one top-level message, so only one task writes to
+it at a time (no per-IO lock / `in_use` guard needed).
 
-Internally:
-* `output` — the destination IOBuffer (set per top-level pack call).
-* `scratches` — a per-depth stack of reusable scratch IOBuffers; lazily grown,
-  reset (capacity preserved) on each reuse via `reset_for_reuse!`.
-* `depth` — current nesting depth; `0` writes go to `output`, `>=1` go to
-  `scratches[depth]`.
-* `lock` — single-task happy path on a `ReentrantLock`. Bonito.send is normally
-  serialized through one Task but yield points within a packing call could let
-  another Task try to use the same `SessionIO`, so we guard it.
+* `output` — destination IOBuffer (set per top-level pack).
+* `scratches` — per-depth reusable IOBuffers; reset (capacity preserved) via `reset_for_reuse!`.
+* `depth` — nesting depth; `0` → `output`, `>=1` → `scratches[depth]`.
 """
 mutable struct SessionIO <: IO
     output::Union{Nothing, IOBuffer}
     scratches::Vector{IOBuffer}
     depth::Int
-    lock::Base.ReentrantLock
-    # True while this SessionIO is actively packing a message. Guards against
-    # re-entrant reuse of a session's shared `pack_io` (e.g. a nested
-    # SerializedMessage reached via a fresh `pack(...)` inside `to_msgpack`),
-    # which would otherwise reset depth/scratches mid-stream and corrupt output.
-    in_use::Bool
 end
 
-SessionIO() = SessionIO(nothing, IOBuffer[], 0, Base.ReentrantLock(), false)
+SessionIO() = SessionIO(nothing, IOBuffer[], 0)
+
+"""
+    PackIOPool
+
+Per-tree pool of [`SessionIO`](@ref) buffers (on `RootSession`). Usually holds
+one IO reused for every message; re-entrant/concurrent packs check out their own.
+Bounds idle scratch memory by concurrency (≈1), not by sub-session count.
+"""
+struct PackIOPool
+    free::Vector{SessionIO}
+    lock::Base.ReentrantLock
+end
+
+PackIOPool() = PackIOPool(SessionIO[], Base.ReentrantLock())
 
 struct SessionCache
     session_id::String
@@ -191,9 +192,9 @@ struct SerializedMessage
     cache::SessionCache
     data::Any
     compression::Bool
-    # Captured from the originating Session so pack_type can stream through the
-    # session's reusable scratch buffers without allocating per-message.
-    pack_io::SessionIO
+    # The originating tree's scratch-buffer pool; `pack_type` checks a `SessionIO`
+    # out of it to pack this message and returns it afterwards.
+    pack_pool::PackIOPool
 end
 
 struct BinaryMessage
@@ -363,6 +364,8 @@ mutable struct RootSession{Connection <: FrontendConnection}
     # so `close` can drain them before flipping the session to CLOSED.
     closing::Bool
     dispatch_count::Threads.Atomic{Int}
+    # Shared msgpack scratch-buffer pool for the whole tree (see `PackIOPool`).
+    pack_pool::PackIOPool
 end
 
 """
@@ -423,13 +426,7 @@ mutable struct Session{Connection <: FrontendConnection}
     current_app::RefValue{Any}
     io_context::RefValue{Union{Nothing, IOContext}}
     stylesheets::OrderedDict{HTMLElement, OrderedSet{CSS}}
-    # Reusable scratch IO for streaming nested msgpack Extension payloads.
-    # Per-session because pack hot-paths take this lock — root-shared would
-    # serialize concurrent renders across sub-sessions unnecessarily.
-    pack_io::SessionIO
 end
-
-# ───── Lineage / accessors ─────────────────────────────────────────────────
 
 """
     isroot(s::Session) -> Bool
@@ -492,7 +489,7 @@ metadata_dict(s::Session)       = root_data(s).metadata
 const ROOT_ONLY_FIELDS = (
     :connection, :inbox, :js_comm, :dom_uuid_counter,
     :compression_enabled, :deletion_lock, :threadid, :metadata,
-    :closing, :dispatch_count,
+    :closing, :dispatch_count, :pack_pool,
 )
 
 function Base.getproperty(s::Session, f::Symbol)
@@ -525,7 +522,6 @@ function Base.propertynames(s::Session, private::Bool=false)
         :on_connection_ready, :init_error, :on_close, :on_open, :deregister_callbacks,
         :session_objects, :ignore_message, :style_counter, :imports,
         :global_stylesheets, :title, :current_app, :io_context, :stylesheets,
-        :pack_io,
     )
     return (direct..., ROOT_ONLY_FIELDS...)
 end
@@ -601,6 +597,7 @@ function Session(connection::Connection=default_connection();
         Dict{Symbol, Any}(),
         false,                                          # closing
         Threads.Atomic{Int}(0),                         # dispatch_count
+        PackIOPool(),                                   # pack_pool
     )
     session = Session{Connection}(
         root_state,                                     # parent_or_root
@@ -626,7 +623,6 @@ function Session(connection::Connection=default_connection();
         RefValue{Any}(nothing),                         # current_app
         RefValue{Union{Nothing, IOContext}}(nothing),   # io_context
         OrderedDict{HTMLElement, OrderedSet{CSS}}(),    # stylesheets
-        SessionIO(),                                    # pack_io
     )
     # Inbox reader task. Captures `session` by reference so `process_message`
     # can find it. The Channel keeps the task alive (via `bind`); the task
@@ -696,7 +692,6 @@ function Session(parent_session::Session{Connection};
             RefValue{Any}(nothing),                          # current_app
             RefValue{Union{Nothing, IOContext}}(nothing),    # io_context
             OrderedDict{HTMLElement, OrderedSet{CSS}}(),     # stylesheets
-            SessionIO(),                                     # pack_io
         )
         parent_session.children[sub.id] = sub
         return sub

@@ -299,7 +299,7 @@ Logging.with_logger(Logging.NullLogger()) do
     @testset "render-error → close → no leaked lock or background work" begin
         # After a render error stamps init_error and we explicitly close the
         # session (the documented unrecoverable-decision path), nothing should
-        # be left holding `pack_io.lock` or any other session resources.
+        # be left holding the pack pool lock or any other session resources.
         s = Session(Bonito.NoConnection(); asset_server=Bonito.NoServer())
         Bonito.handle_render_error(s) do
             throw(_ErrHandlingDemoErr("for-close"))
@@ -310,7 +310,7 @@ Logging.with_logger(Logging.NullLogger()) do
         close(s)
         @test (time() - t0) < 1.0
         @test Bonito.HTTP.WebSockets.isclosed(s)
-        @test !islocked(s.pack_io.lock)
+        @test !islocked(s.pack_pool.lock)
     end
 
     @testset "reconnect after stale error: no deadlock, error stays sticky" begin
@@ -435,7 +435,7 @@ Logging.with_logger(Logging.NullLogger()) do
         @test elapsed < 5.0
         # Lock isn't stuck.
         @test !islocked(sess.deletion_lock)
-        @test !islocked(sess.pack_io.lock)
+        @test !islocked(sess.pack_pool.lock)
     end
 
     @testset "handle_render_error helper directly" begin

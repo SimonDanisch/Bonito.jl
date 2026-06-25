@@ -11,7 +11,7 @@ function SerializedMessage(session::Session, data)
             SessionCache(session, ctx.message_cache),
             message_data,
             session.compression_enabled,
-            session.pack_io,
+            root_data(session).pack_pool,
         )
     end
 end
