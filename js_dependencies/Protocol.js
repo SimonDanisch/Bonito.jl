@@ -218,6 +218,22 @@ register_ext(RAW_HTML_TAG, (uint_8_array, context) => {
     const html = unpack(uint_8_array, context);
     const div = document.createElement("div");
     div.innerHTML = html;
+    // `innerHTML` parses <script> elements but the HTML parser flags them
+    // "already started", so they never execute. Re-create each as a FRESH
+    // (non-parser-inserted) script: a fresh script runs when it becomes
+    // connected to the document — i.e. when Bonito mounts this div — which is
+    // exactly when a serialized fragment (e.g. `show_html` output) needs its
+    // inline `init_session(...)` to fire, AFTER its nodes are in the DOM.
+    // Covers classic and `type="module"` scripts. Lets `HTML(str)` carry a
+    // self-initializing Bonito subsession, not just inert markup.
+    for (const old_script of div.querySelectorAll("script")) {
+        const fresh = document.createElement("script");
+        for (const attr of old_script.attributes) {
+            fresh.setAttribute(attr.name, attr.value);
+        }
+        fresh.textContent = old_script.textContent;
+        old_script.replaceWith(fresh);
+    }
     return div;
 });
 

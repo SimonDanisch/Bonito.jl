@@ -63,16 +63,23 @@ Base.similar(s::ProxyAssetServer) = ProxyAssetServer(s.registry)
 setup_asset_server(::ProxyAssetServer) = nothing
 
 # Read a (0-based inclusive) byte range of a retained asset — the worker's answer
-# to a host lazy fetch. `stop < 0` means "to the end".
+# to a host lazy fetch. `stop < 0` means "to the end". A file-backed `Asset`
+# seeks so a large media file (video being scrubbed) never materialises whole per
+# range request; in-memory / bundled assets just slice their bytes.
 function read_proxy_asset(reg::ProxyAssetRegistry, key::AbstractString, start::Integer=0, stop::Integer=-1)
     asset = lock(reg.lock) do
         e = get(reg.entries, key, nothing)
         e === nothing ? nothing : e[2]
     end
     asset === nothing && return UInt8[]
-    bytes = proxy_asset_bytes(asset)
-    stop < 0 && (stop = length(bytes) - 1)
-    return bytes[(start+1):(stop+1)]
+    stop < 0 && (stop = proxy_asset_size(asset) - 1)
+    # Same range read as the normal HTTP path (`read_byte_range`): a file-backed
+    # Asset seeks (so a scrubbed video isn't materialised whole), everything else
+    # slices its in-memory bytes.
+    if asset isa Asset && isempty(asset.bundle_data)
+        return read_byte_range(nothing, local_path(asset), start, stop)
+    end
+    return read_byte_range(proxy_asset_bytes(asset), nothing, start, stop)
 end
 
 function url(server::ProxyAssetServer, asset::AbstractAsset)

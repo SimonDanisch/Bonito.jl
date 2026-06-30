@@ -243,6 +243,15 @@ function http_date(t::Real)
     return Dates.format(Dates.unix2datetime(t), Dates.RFC1123Format) * " GMT"
 end
 
+# Read a 0-based inclusive byte range from a (data | file) resource — exactly one
+# of `data`/`file` is non-nothing. File-backed reads seek so a large media file
+# (e.g. a video being scrubbed) is never slurped whole. Shared by the HTTP range
+# path here and the proxy worker's lazy `read_proxy_asset`.
+read_byte_range(data, file, start::Integer, stop::Integer) =
+    data === nothing ?
+        open(io -> (seek(io, start); read(io, stop - start + 1)), file) :
+        data[start+1:stop+1]
+
 # `file` is typed `AbstractString` (not `String`) so a relocatable
 # `RelocatableFolders.Path` (e.g. an `Asset(@path ...)` icon shipped in an app
 # bundle) dispatches here too: `filesize`/`mtime`/`read`/`open` all accept
@@ -279,9 +288,7 @@ function serve_asset(request, data::Union{Vector{UInt8},Nothing},
     end
     start, stop = rng
     len = stop - start + 1
-    body = data === nothing ?
-        open(io -> (seek(io, start); read(io, len)), file) :
-        data[start+1:stop+1]
+    body = read_byte_range(data, file, start, stop)
     push!(headers, "Content-Range" => "bytes $start-$stop/$total")
     push!(headers, "Content-Length" => string(len))
     return HTTP.Response(206, headers; body=body)
