@@ -312,14 +312,19 @@ function (server::HTTPAssetServer)(context)
     elseif asset isa BinaryAsset
         return serve_asset(context.request, asset.data, nothing,
                            asset.mime, cache_control_for(asset))
-    elseif !isempty(asset.bundle_data)
+    end
+    # `local_path` triggers `bundle!` for ES6 modules first, so the snapshot below
+    # reflects the freshly (re)bundled bytes rather than a stale copy taken before
+    # the rebundle ran.
+    path = local_path(asset)
+    if !isempty(asset.bundle_data)
         # Serve a snapshot taken under the per-asset bundle lock, so a
         # concurrent `bundle!`/`rebundle!` can't tear the vector mid-response.
         return serve_asset(context.request, bundle_data_snapshot(asset), nothing,
-                           file_mimetype(local_path(asset)), cache_control_for(asset))
-    elseif isfile(local_path(asset))
-        return serve_asset(context.request, nothing, local_path(asset),
-                           file_mimetype(local_path(asset)), cache_control_for(asset))
+                           file_mimetype(path), cache_control_for(asset))
+    elseif isfile(path)
+        return serve_asset(context.request, nothing, path,
+                           file_mimetype(path), cache_control_for(asset))
     end
     return HTTP.Response(404)
 end

@@ -23,6 +23,7 @@ using LinearAlgebra
 using CodecZlib
 using RelocatableFolders: @path, Path, getroot
 using URIs
+using Scratch: @get_scratch!
 
 using Base: RefValue
 

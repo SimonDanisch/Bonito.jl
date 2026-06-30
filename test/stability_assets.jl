@@ -286,3 +286,64 @@ end
     @test ok == false
     @test !isempty(msg)
 end
+
+# A read-only output location must surface as (false, msg) from deno_bundle, not
+# an uncaught throw — otherwise the read-only fallback in bundle_inner! crashes.
+@testset "B46 deno_bundle write to read-only dir fails gracefully" begin
+    if Bonito.Deno() !== nothing && Bonito.Esbuild() !== nothing &&
+       Sys.isunix() && ccall(:getuid, Cint, ()) != 0
+        mktempdir() do dir
+            src = joinpath(dir, "m.js"); write(src, "window.X = 1;\n")
+            sub = joinpath(dir, "ro"); mkpath(sub)
+            bf = joinpath(sub, "m.bundled.js")
+            chmod(sub, 0o555)
+            ok, msg = Bonito.deno_bundle(src, bf)
+            chmod(sub, 0o755)   # restore so mktempdir can clean up
+            @test ok == false
+            @test occursin("Failed to write bundle", msg)
+        end
+    else
+        @test_skip "needs Deno+esbuild on a non-root unix host"
+    end
+end
+
+# Invariant: a removed bundle re-bundles from a writable source; when a fresh
+# bundle can't be produced we serve the cached bytes (never crash), and only error
+# when there is nothing at all to serve.
+@testset "B47 bundle_inner! re-bundles, else serves cache, else errors" begin
+    if Bonito.Deno() !== nothing && Bonito.Esbuild() !== nothing
+        mk() = begin
+            dir = mktempdir()
+            write(joinpath(dir, "dep.js"), "export const v = () => 1;\n")
+            src = joinpath(dir, "mod.js")
+            write(src, "import {v} from './dep.js';\nwindow.V = v();\n")
+            a = Bonito.ES6Module(src)
+            (a, src, String(Bonito.bundle_path(a)))
+        end
+
+        # Removed bundle + present writable source -> regenerated, no error.
+        a, src, bf = mk(); rm(bf; force=true)
+        Bonito.bundle!(a)
+        @test isfile(bf)
+        @test !isempty(a.bundle_data)
+
+        # Bundling fails (e.g. broken source) but cache present -> serve cache, no
+        # crash. (`deno bundle` failing on valid source really only happens via a
+        # Deno version mismatch; an invalid source just stands in for "deno errored".)
+        a, src, bf = mk(); rm(bf; force=true)
+        write(src, "%%% not valid @@@ import {\n")
+        @test !isempty(a.bundle_data)
+        @test Bonito.bundle_inner!(a) === nothing   # no throw, served from cache
+
+        # Source missing + cached bundle_data present -> serve cache, no crash.
+        a, src, bf = mk(); rm(bf; force=true); rm(src; force=true)
+        @test !isempty(a.bundle_data)
+        @test Bonito.bundle_inner!(a) === nothing
+
+        # Nothing on disk AND nothing cached -> error (forgotten/broken bundle).
+        a, src, bf = mk(); rm(bf; force=true); rm(src; force=true); empty!(a.bundle_data)
+        @test_throws ErrorException Bonito.bundle_inner!(a)
+    else
+        @test_skip "needs Deno+esbuild to (re)bundle from source"
+    end
+end

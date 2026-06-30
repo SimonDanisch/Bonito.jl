@@ -253,6 +253,35 @@ Guidelines:
   The one gotcha that *needs* a forced rebundle: editing an **imported** file
   doesn't bump the *main* module file's mtime, so the auto-check won't notice —
   delete the `.bundled.js` (or call `rebundle!`) in that case.
+
+### How bundling works (and its one invariant)
+
+Bundling shells out to `deno bundle` (`src/deno.jl`, `deno_bundle`). Two JLLs back
+it, both `using`-ed in their own `try`/`catch` because they're dev-only and don't
+build on every platform:
+
+- **`Deno_jll`** (pinned `~2.8`, minor-locked) provides the `deno bundle
+  --platform=browser --allow-import` command. The bundler is experimental, so the
+  pin is deliberately tight — a Deno bump shouldn't silently change bundle output.
+- **`esbuild_jll`** (pinned `=0.25.5`) provides esbuild, which `deno bundle` runs
+  under the hood. Deno would otherwise download esbuild from npm (via node) at
+  runtime; we avoid that by copying the JLL binary into Deno's cache
+  (`$DENO_DIR/dl/esbuild-<ver>/…`, a Bonito-owned scratch) *before* invoking it.
+  The cache path's `<ver>` is read straight off the loaded JLL
+  (`pkgversion(esbuild_jll)`); the `[compat]` pins keep that equal to the esbuild
+  release Deno expects, so bumping Deno means bumping both pins together.
+
+The **invariant** (`bundle_inner!`): with Deno + esbuild loaded and a writable
+source, a removed `*.bundled.js` is reliably regenerated from source. When a fresh
+bundle *can't* be produced — read-only filesystem, missing/unreachable source,
+Deno/esbuild not loaded, or a `deno bundle` error — Bonito serves the cached
+`asset.bundle_data` (the snapshot taken at `Asset` construction, or the last
+successful bundle) **rather than crash the app: a stale bundle beats a dead page.**
+It raises only when there is genuinely *nothing* to serve — no bundle on disk
+*and* an empty `bundle_data` — which makes CI fail on a package that forgot to ship
+a bundle. (`needs_bundling` uses a real write-probe, not the `filemode` bits which
+lie on read-only mounts, so a trusted shipped bundle is served as-is instead of
+looping on a re-bundle it can't write.)
 - Building HTML by string concatenation in JS (`innerHTML = `<div
   class=...>${escape(x)}...``) is a last resort for hot virtual-scroll
   paths. The default is: structure comes from Julia DOM, behavior from a
