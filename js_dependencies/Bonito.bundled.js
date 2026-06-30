@@ -3809,6 +3809,14 @@ register_ext(108, (uint_8_array, context)=>{
     const html = unpack(uint_8_array, context);
     const div = document.createElement("div");
     div.innerHTML = html;
+    for (const old_script of div.querySelectorAll("script")){
+        const fresh = document.createElement("script");
+        for (const attr of old_script.attributes){
+            fresh.setAttribute(attr.name, attr.value);
+        }
+        fresh.textContent = old_script.textContent;
+        old_script.replaceWith(fresh);
+    }
     return div;
 });
 register_ext(106, (uint_8_array, context)=>{
