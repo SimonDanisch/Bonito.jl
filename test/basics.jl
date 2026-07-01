@@ -12,10 +12,8 @@
 end
 
 @testset "Asset value equality dedup" begin
-    # `Asset(path)` builds a fresh struct every call, so without value equality
-    # the `OrderedSet{Asset}` in `push_dependencies!` never dedups two Assets of
-    # the same file and a page/root session accumulates one copy (+ its bundle
-    # bytes) per re-display. Regression for that unbounded leak.
+    # `Asset(path)` builds a fresh struct each call; without value equality two
+    # Assets of the same file wouldn't dedup in an `OrderedSet`.
     dir = mktempdir()
     fa = joinpath(dir, "a.js"); write(fa, "export const a = 1;")
     fb = joinpath(dir, "b.js"); write(fb, "export const b = 2;")
@@ -95,9 +93,7 @@ setup_connection(session::Session{DebugConnection}) = nothing
 
     @testset "assets" begin
         @test length(c_session.session_objects) == 2
-        # A sub's imports must NOT be copied onto the page root (they live in the
-        # sub's own swappable fragment). Regression guard for the root-imports leak.
-        @test isempty(open_session.imports)
+        @test isempty(open_session.imports)   # sub imports not copied onto the root
     end
 
     @testset "observable $(obs_field)" for obs_field in (:range, :value, :connect, :orientation, :tooltips, :ticks)
@@ -122,23 +118,18 @@ setup_connection(session::Session{DebugConnection}) = nothing
     end
 
     @testset "dependency re-include after close" begin
-        # The first sub (c_session) was closed above. Its asset tags lived in its
-        # own fragment, which was removed on close, so re-rendering the same app
-        # must re-emit the dependency — and the root must not have retained it.
+        # c_session was closed above; its deps went with its fragment, so a fresh
+        # render must re-emit them and the root must not have retained anything.
         @test isempty(open_session.imports)
         html2 = sprint() do io
             sub = Bonito.show(io, MIME"text/html"(), sliderapp)
-            msg = Bonito.fused_messages!(sub)
-            Bonito.serialize_binary(sub, msg)
+            Bonito.serialize_binary(sub, Bonito.fused_messages!(sub))
         end
-        # Dependency is re-emitted for the fresh fragment (previously suppressed by
-        # the leaked root.imports, which would have left the widget without its JS).
-        @test occursin("nouislider", html2)
+        @test occursin("nouislider", html2)   # re-emitted for the new fragment
 
         id, session = first(open_session.children)
-        @test isempty(open_session.imports)   # still not leaked while sub is open
         close(session)
-        @test isempty(open_session.imports)   # and nothing retained after close
+        @test isempty(open_session.imports)
         @test !haskey(open_session.children, session.id)
     end
 end

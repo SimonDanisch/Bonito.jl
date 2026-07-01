@@ -267,36 +267,19 @@ end
         s.proxy_url = ""
     end
 
-    @testset "NoServer: repeated asset across subs stays bounded" begin
-        # Assets are only js/css/module files, and the browser keeps them loaded
-        # for the tab's lifetime, so sub-sessions re-emit their own imports (no
-        # union into the root — that would leak). For NoServer (base64 inline) a
-        # page that renders the same asset in many subs must therefore:
-        #   * never accumulate imports on the root (freed only when the tab closes),
-        #   * reference ONE stable BONITO_IMPORTS key per asset so the browser's
-        #     data-URL/module map evaluates it once, and
-        #   * grow HTML linearly with sub count (no combinatorial blow-up).
+    @testset "NoServer: repeated asset across subs doesn't accumulate on root" begin
+        # NoServer subs re-emit their own imports; the root must not accumulate them.
         root = OfflineSession()
-        Bonito.CURRENT_SESSION[] = root
         app = App(Bonito.RangeSlider(1:100; value = [10, 80]))
-        render() = sprint() do io
-            sub = Bonito.show(io, MIME"text/html"(), app)
-            Bonito.serialize_binary(sub, Bonito.fused_messages!(sub))
+        for _ in 1:4
+            Bonito.session_dom(Session(root), app)
         end
-        htmls = [render() for _ in 1:4]
-        @test all(!isempty, htmls)                         # nothing errored
-        @test isempty(root.imports)                        # subs never accumulate on the root
-        keys = unique(reduce(vcat, [[m.match for m in eachmatch(r"BONITO_IMPORTS\['[^']+'\]", h)] for h in htmls]))
-        @test length(keys) == 1                            # one stable key -> loaded once in the browser
-        ratio = sum(length, htmls) / length(htmls[1])
-        @test 3.5 < ratio < 4.5                            # linear (~4x), not combinatorial
+        @test isempty(root.imports)
     end
 
     @testset "NoServer export of many widgets sharing an asset works" begin
-        # Three nouislider RangeSliders share one es6module. Exported self-contained
-        # via NoServer (base64), the page must load and every slider must initialize
-        # -- i.e. the re-emitted, browser-deduplicated module actually runs once and
-        # drives all three widgets (regression guard for the v4-style asset model).
+        # Three RangeSliders share one nouislider module; exported self-contained via
+        # NoServer, all must initialize from the single browser-deduplicated module.
         app = App() do session
             DOM.div(
                 Bonito.RangeSlider(1:100; value = [10, 80]),

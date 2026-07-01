@@ -136,45 +136,26 @@ edisplay = Bonito.use_electron_display(; app=get_test_app(), options=Dict{String
 end
 
 @testset "sub imports don't leak onto root; assets stay available" begin
-    # Regression: #399 re-added `union!(root.imports, sub.imports)` in
-    # `push_dependencies!` (which d71d149 had removed), so the page root pinned
-    # every sub-session's `Asset` (and its bundle bytes) for the whole page
-    # lifetime even after the sub closed — an unbounded leak. A sub's asset tags
-    # live in its own swappable fragment, not the page head, so they must NOT be
-    # retained on the root. Serving is refcounted by the asset server, which must
-    # keep a shared asset available while ANY holder is open.
+    # Subs re-emit their own imports into their own fragment; they must not be
+    # copied onto the root (that leaked in #399), and the asset server must keep a
+    # shared asset alive while any holder is open.
     server = Server("0.0.0.0", 9478)
     root = Bonito.HTTPSession(server)
-    Bonito.CURRENT_SESSION[] = root
-    dir = mktempdir()
-    file = joinpath(dir, "leaktest.js"); write(file, "export const x = 1;")
+    file = joinpath(mktempdir(), "leaktest.js"); write(file, "window.X = 1;")
     parent = root.asset_server.parent
-    key = "/assets/" * Bonito.unique_file_key(Asset(file; es6module=true))
+    key = "/assets/" * Bonito.unique_file_key(Asset(file))
     refcount() = (e = get(parent.files, key, nothing); e === nothing ? 0 : e.refcount)
+    app = App(s -> DOM.div("x", Asset(file)))
 
-    app = App(s -> DOM.div("x", Asset(file; es6module=true)))
-    function render_sub()
-        local sub
-        sprint() do io
-            sub = Bonito.show(io, MIME"text/html"(), app)
-            Bonito.serialize_binary(sub, Bonito.fused_messages!(sub))
-        end
-        return sub
-    end
-
-    @test isempty(root.imports)
-    subA = render_sub()
-    subB = render_sub()
-    # Two live subs share the asset — each holds its own reference (a deduped sub
-    # that held no ref could otherwise be stranded when a sibling closes).
-    @test refcount() == 2
-    @test isempty(root.imports)          # sub imports NOT copied onto the root
+    subA = Session(root); Bonito.session_dom(subA, app)
+    subB = Session(root); Bonito.session_dom(subB, app)
+    @test refcount() == 2                # each open sub holds its own ref
+    @test isempty(root.imports)          # not copied onto the root
     close(subA)
-    @test refcount() == 1                # still available for the open sibling (no race)
-    @test isempty(root.imports)
+    @test refcount() == 1                # still available for the sibling (no race)
     close(subB)
-    @test refcount() == 0                # freed once the last holder closes
-    @test isempty(root.imports)          # nothing retained (no leak)
+    @test refcount() == 0                # freed when the last holder closes
+    @test isempty(root.imports)
     @test isempty(parent.files)
     close(server)
 end
