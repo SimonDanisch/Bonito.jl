@@ -758,25 +758,23 @@ function push_dependencies!(childs, session::Session)
         window.__define = undefined;
         window.__require = undefined;
     """)
-    # Dedupe asset emission at the page (root) level for the page's lifetime.
-    # Once a `<script type=module>` / `<link>` for an asset lands in the
-    # document, the browser keeps the module loaded for as long as the page
-    # is alive — even after the sub-session that emitted it closes (the tag
-    # is in the page's head, not in the sub's swappable DOM, and module
-    # registry entries are per-page). So we propagate every sub's `imports`
-    # into `root.imports` here and never decrement on sub-close (mirror in
-    # `free()` deliberately omitted). `root.imports` is cleared along with
-    # the rest of root state when the root session itself closes. Bounded
-    # by the application's distinct asset surface, not by user input.
-    # test/basics.jl "dependency second include" locks this in.
+    # A sub-session's asset tags are emitted into ITS OWN swappable fragment
+    # (see `session_dom`: for a subsession `head` is the `display:contents`
+    # fragment div, not the page `<head>`), so they are removed from the DOM
+    # when the sub closes/swaps out and must be re-emitted if it is shown
+    # again. We therefore must NOT copy a sub's imports into `root.imports`:
+    # doing so pinned every sub's `Asset` (and its bundle bytes) for the whole
+    # page lifetime (a leak) and wrongly suppressed re-emission. Asset *serving*
+    # is refcounted independently by the asset server (register!/decref!), which
+    # frees the bytes once the last holder closes. We still `setdiff` against the
+    # root's own imports so a sub doesn't re-emit what the page shell already put
+    # in the real `<head>`.
     if isroot(session)
         assets = session.imports
     else
         root = root_session(session)
         assets = lock(root.deletion_lock) do
-            new = setdiff(session.imports, root.imports)
-            union!(root.imports, new)
-            return new
+            return setdiff(session.imports, root.imports)
         end
     end
 
