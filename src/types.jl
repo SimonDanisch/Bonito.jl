@@ -122,6 +122,18 @@ struct Asset <: AbstractAsset
     bundle_lock::ReentrantLock
 end
 
+# Identify an Asset by the file it points at + how it's loaded, not by object
+# identity (`Asset(path)` builds a fresh struct each call). Stable fields only:
+# bundle_data/content_hash are mutated by `bundle!`, so keep them out.
+function Base.:(==)(a::Asset, b::Asset)
+    return a.name == b.name && a.es6module == b.es6module && a.media_type == b.media_type &&
+        a.online_path == b.online_path && a.local_path == b.local_path
+end
+function Base.hash(a::Asset, h::UInt)
+    return hash(a.local_path, hash(a.online_path, hash(a.es6module,
+        hash(a.media_type, hash(a.name, hash(:Asset, h))))))
+end
+
 
 struct Link <: AbstractAsset
     target::String
