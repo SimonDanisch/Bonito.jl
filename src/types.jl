@@ -122,14 +122,9 @@ struct Asset <: AbstractAsset
     bundle_lock::ReentrantLock
 end
 
-# An Asset is identified by the file it points at and how it is loaded, NOT by
-# object identity: `Asset(path)` builds a fresh struct (with its own bundle_data
-# Vector, content_hash Ref and lock) every call. Without value equality, the
-# `OrderedSet{Asset}` dedup in `push_dependencies!` fails for two Assets of the
-# same file, so a root/page session accumulates one retained copy (plus its
-# bundle bytes) per re-display — an unbounded leak for apps that build assets
-# dynamically. Hash/compare on the stable fields only; bundle_data/content_hash
-# are mutated by `bundle!` and must stay out of the identity.
+# Identify an Asset by the file it points at + how it's loaded, not by object
+# identity (`Asset(path)` builds a fresh struct each call). Stable fields only:
+# bundle_data/content_hash are mutated by `bundle!`, so keep them out.
 function Base.:(==)(a::Asset, b::Asset)
     return a.name == b.name && a.es6module == b.es6module && a.media_type == b.media_type &&
         a.online_path == b.online_path && a.local_path == b.local_path

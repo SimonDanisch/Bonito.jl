@@ -758,17 +758,9 @@ function push_dependencies!(childs, session::Session)
         window.__define = undefined;
         window.__require = undefined;
     """)
-    # A sub-session's asset tags are emitted into ITS OWN swappable fragment
-    # (see `session_dom`: for a subsession `head` is the `display:contents`
-    # fragment div, not the page `<head>`), so they are removed from the DOM
-    # when the sub closes/swaps out and must be re-emitted if it is shown
-    # again. We therefore must NOT copy a sub's imports into `root.imports`:
-    # doing so pinned every sub's `Asset` (and its bundle bytes) for the whole
-    # page lifetime (a leak) and wrongly suppressed re-emission. Asset *serving*
-    # is refcounted independently by the asset server (register!/decref!), which
-    # frees the bytes once the last holder closes. We still `setdiff` against the
-    # root's own imports so a sub doesn't re-emit what the page shell already put
-    # in the real `<head>`.
+    # A sub emits its imports into its own swappable fragment, so don't copy them
+    # onto the root (that leaks + suppresses re-emission on reopen; serving is
+    # refcounted by the asset server). Still setdiff against the root's own imports.
     if isroot(session)
         assets = session.imports
     else
