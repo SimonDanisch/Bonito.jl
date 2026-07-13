@@ -129,7 +129,7 @@ function HTTPServer.apply_handler(app::App, context)
     session = HTTPSession(server)
     session.title = app.title
     html_str = sprint() do io
-        page_html(io, session, app)
+        page_html(io, session, app; request=context.request)
     end
     mark_displayed!(session)
     return html(html_str)

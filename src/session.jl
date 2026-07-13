@@ -721,8 +721,8 @@ function evaljs_value(with_session, js; error_on_closed=true, timeout=100.0)
     evaljs_value(session(with_session), js; error_on_closed=error_on_closed, timeout=timeout)
 end
 
-function session_dom(session::Session, app::App; init=true, html_document=false)
-    dom = rendered_dom(session, app)
+function session_dom(session::Session, app::App; init=true, html_document=false, request=HTTP.Request())
+    dom = rendered_dom(session, app, request)
     # Ensure we have a valid DOM node (handles App(nothing; indicator=nothing))
     if isnothing(dom)
         dom = DOM.div()
