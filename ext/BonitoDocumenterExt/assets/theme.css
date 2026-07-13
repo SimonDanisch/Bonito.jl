@@ -328,13 +328,28 @@ img, video { max-width: 100%; height: auto; }
 }
 .VPSidebar.open { transform: translateX(0); opacity: 1; box-shadow: var(--vp-shadow-3); }
 
-.VPSidebar .group { margin-bottom: 4px; }
+.VPSidebar .group { margin: 20px 0 4px; }
 .VPSidebar .group-title {
   margin: 18px 0 6px;
   font-size: 14px;
   font-weight: 700;
   color: var(--vp-c-text-1);
 }
+/* Standalone top-level pages: top-level prominence, no indent rule, so they
+   read as their own entries instead of being absorbed into a section. */
+.VPSidebar .link.top-link {
+  padding-left: 0;
+  border-left: none;
+  font-weight: 700;
+  color: var(--vp-c-text-1);
+}
+.VPSidebar .link.top-link:hover { color: var(--vp-c-brand-1); }
+.VPSidebar .link.top-link.active {
+  color: var(--vp-c-brand-1);
+  border-left-color: transparent;
+}
+/* Separate a top-level page block from a preceding section. */
+.VPSidebar .group + .link.top-link { margin-top: 20px; }
 .VPSidebar .link {
   display: block;
   padding: 5px 0;

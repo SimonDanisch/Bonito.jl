@@ -61,4 +61,28 @@ end
     end
     close(server)
 end
+@testset "request target forwarded to handler" begin
+    # Regression test: `route!(server, r".*" => app)` must forward the HTTP
+    # request into the app handler so `r.target` reflects the requested path
+    # (broke in #389 when apply_handler stopped threading context.request).
+    # target is rendered verbatim as a text node; use distinctive slash paths
+    # (letters/slashes aren't HTML entity-escaped, unlike `=`, `[`, `<`).
+    app = App() do session, request
+        return DOM.div(request.target)
+    end
+    server = Server("0.0.0.0", 0)
+    port = server.port
+    try
+        route!(server, r".*" => app)
+        @test occursin("/hello/world",
+            String(HTTP.get("http://localhost:$(port)/hello/world").body))
+        # a second request renders its own target, not the previous one's
+        body2 = String(HTTP.get("http://localhost:$(port)/second/path").body)
+        @test occursin("/second/path", body2)
+        @test !occursin("/hello/world", body2)
+    finally
+        close(server)
+    end
+end
+
 Bonito.set_cleanup_time!(30/60/60)
