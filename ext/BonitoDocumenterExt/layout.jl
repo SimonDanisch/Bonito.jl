@@ -165,13 +165,22 @@ end
 function sidebar(doc, groups, current_src)
     children = Any[]
     for (title, links) in groups
-        linkdoms = map(links) do l
-            cls = "link" * (samefile(l.file, current_src) ? " active" : "")
-            DOM.a(l.title; class = cls, href = html_name(l.file))
-        end
         if title === nothing
-            append!(children, linkdoms)
+            # Ungrouped top-level pages (`"Title" => "file.md"` at the top of
+            # `pages=`). Render each as a prominent top-level entry with the
+            # `top-link` modifier — NOT the indented style used for a section's
+            # child links. Without this they share the child links' vertical
+            # border-rule and blend into the preceding section, so trailing
+            # pages (Handlers, Deployment, Api, …) look nested under it.
+            for l in links
+                cls = "link top-link" * (samefile(l.file, current_src) ? " active" : "")
+                push!(children, DOM.a(l.title; class = cls, href = html_name(l.file)))
+            end
         else
+            linkdoms = map(links) do l
+                cls = "link" * (samefile(l.file, current_src) ? " active" : "")
+                DOM.a(l.title; class = cls, href = html_name(l.file))
+            end
             push!(children, DOM.div(DOM.div(title; class = "group-title"), linkdoms...; class = "group"))
         end
     end
