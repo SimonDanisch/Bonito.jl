@@ -109,6 +109,23 @@ function dropdown_handler(session, request)
     return DOM.div(dropdown1, dropdown2)
 end
 
+function hierarchical_menu_handler(session, request)
+    global test_observable
+    test_observable = Observable(Dict{String, Any}())
+    menu = Bonito.HierarchicalMenu([
+        Bonito.HierarchicalMenuItem("Home", "home"; icon="🏠"),
+        Bonito.HierarchicalSubMenu("File", [
+            Bonito.HierarchicalMenuItem("New", "file_new"),
+            Bonito.HierarchicalMenuItem("Open", "file_open"),
+        ]),
+        Bonito.HierarchicalMenuItem("Disabled", "disabled_val"; enabled=false),
+    ])
+    on(menu.selected_value) do value
+        test_observable[] = Dict{String, Any}("selected" => value)
+    end
+    return DOM.div(menu)
+end
+
 function table_handler(session, request)
     test_table_data = [
         (attribute="price", apartment_A=1200.0, apartment_B=950.0, apartment_C=1350.0),

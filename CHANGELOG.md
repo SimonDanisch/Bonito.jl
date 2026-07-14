@@ -2,6 +2,12 @@
 
 All notable changes to Bonito.jl are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `HierarchicalMenu` widget with `HierarchicalMenuItem` and `HierarchicalSubMenu` for nested, collapsible menus. The clicked leaf's value is pushed to `menu.selected_value`. Themed via the `--bonito-widget-*` CSS variables (dark-mode aware) and styleable through the `style` keyword.
+
 ## [5.0.0]
 
 The biggest release since the package was renamed from JSServe. Most of the work went into networking, session handling, asset serving and serialization, making communication with the browser substantially faster and more stable. See the [release blog post](https://bonito.sh/dev/v5-release.html) for the full write-up and benchmarks.

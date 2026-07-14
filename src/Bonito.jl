@@ -85,6 +85,7 @@ export KeyedList
 # so this is only needed for programmatic cache invalidation.
 public rebundle!
 export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor
+export HierarchicalMenu, HierarchicalMenuItem, HierarchicalSubMenu
 export browser_display, configure_server!, Server, show_html, html, route!, online_url, use_electron_display
 export Observable, on, onany, bind_global
 export linkjs, evaljs, evaljs_value, onjs
