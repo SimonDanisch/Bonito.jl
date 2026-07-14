@@ -1,20 +1,7 @@
-function handler(session, request)
-    global test_observable
-    test_observable = Observable(Dict{String, Any}())
-    checkbox1 = Bonito.Checkbox(true)
-    checkbox2 = Bonito.Checkbox(false)
+# checkbox_handler, dropdown_handler, table_handler, empty_table_handler,
+# missing_values_table_handler defined in test_helpers.jl
 
-    on(checkbox1) do value
-        test_observable[] = Dict{String, Any}("checkbox1" => value)
-    end
-    on(checkbox2) do value
-        test_observable[] = Dict{String, Any}("checkbox2" => value)
-    end
-
-    return DOM.div(checkbox1, checkbox2)
-end
-
-testsession(handler, port=8558) do app
+testsession(checkbox_handler, port=8558) do app
     checkbox1_jl = children(app.dom)[1]
     checkbox2_jl = children(app.dom)[2]
     @test evaljs(app, js"document.querySelectorAll('input[type=\"checkbox\"]').length") == 2
@@ -35,22 +22,6 @@ testsession(handler, port=8558) do app
     @test evaljs(app, js"$(checkbox2).checked") == false
 end
 
-
-function dropdown_handler(session, request)
-    global test_observable
-    test_observable = Observable(Dict{String, Any}())
-    global dropdown1 = Bonito.Dropdown(["a", "b", "c"])
-    dropdown2 = Bonito.Dropdown(["a2", "b2", "c2"]; index=2)
-
-    on(dropdown1.value) do value
-        test_observable[] = Dict{String,Any}("dropdown1" => value)
-    end
-    on(dropdown2.value) do value
-        test_observable[] = Dict{String,Any}("dropdown2" => value)
-    end
-
-    return DOM.div(dropdown1, dropdown2)
-end
 
 testsession(dropdown_handler, port=8558) do app
     dropdown1_jl = children(app.dom)[1]
@@ -76,4 +47,126 @@ testsession(dropdown_handler, port=8558) do app
     })()")
     @test dropdown1_jl.value[] == "b"
     @test dropdown2_jl.value[] == "c2"
+end
+
+# Hierarchical menu widget tests
+testsession(hierarchical_menu_handler, port=8562) do app
+    # The shared component stylesheet is registered once, so exactly one menu root.
+    @test evaljs(app, js"document.querySelectorAll('.hierarchical-menu').length") == 1
+    # Home, New, Open, Disabled are all `.menu-item`s (submenu leaves included);
+    # the "File" submenu has its own `.submenu-header`.
+    @test evaljs(app, js"document.querySelectorAll('.hierarchical-menu .menu-item').length") == 4
+    @test evaljs(app, js"document.querySelectorAll('.hierarchical-menu .submenu-header').length") == 1
+    # Top-level leaves are direct children (Home + Disabled); submenu leaves are nested.
+    @test evaljs(app, js"document.querySelectorAll('.hierarchical-menu > .menu-item').length") == 2
+    @test evaljs(app, js"document.querySelectorAll('.hierarchical-menu > .menu-item.disabled').length") == 1
+
+    # Clicking a leaf pushes its value onto `menu.selected_value`.
+    home_item = js"document.querySelectorAll('.hierarchical-menu > .menu-item')[0]"
+    val = test_value(app, js"$(home_item).click()")
+    @test val["selected"] == "home"
+
+    # Submenus start collapsed and expand on clicking their header. The toggle is
+    # a client-side CSS class flip on the `.submenu` wrapper (no Julia round-trip,
+    # so it also works in static exports).
+    submenu = js"document.querySelector('.hierarchical-menu .submenu')"
+    content = js"document.querySelector('.hierarchical-menu .submenu-content')"
+    @test evaljs(app, js"$(submenu).classList.contains('expanded')") == false
+    @test evaljs(app, js"getComputedStyle($(content)).display") == "none"
+    header = js"document.querySelector('.hierarchical-menu .submenu-header')"
+    evaljs(app, js"$(header).click()")
+    @test evaljs(app, js"$(submenu).classList.contains('expanded')") == true
+    @test evaljs(app, js"getComputedStyle($(content)).display") == "block"
+
+    # A nested leaf notifies with its own value once revealed.
+    new_item = js"document.querySelectorAll('.hierarchical-menu .submenu-content .menu-item')[0]"
+    val = test_value(app, js"$(new_item).click()")
+    @test val["selected"] == "file_new"
+end
+
+# Table widget tests
+testsession(table_handler, port=8559) do app
+    # Test that tables are rendered
+    @test evaljs(app, js"document.querySelectorAll('table').length") == 4
+    @test evaljs(app, js"document.querySelectorAll('.comparison-table').length") == 4
+
+    # Test basic table structure
+    basic_table = js"document.querySelector('#basic_table table')"
+    @test evaljs(app, js"$(basic_table).querySelectorAll('th').length") == 4  # 4 columns
+    @test evaljs(app, js"$(basic_table).querySelectorAll('tbody tr').length") == 3  # 3 rows
+
+    # Test header content
+    @test evaljs(app, js"$(basic_table).querySelectorAll('th')[0].textContent.trim()") == "attribute"
+    @test evaljs(app, js"$(basic_table).querySelectorAll('th')[1].textContent.trim()") == "apartment_A"
+    @test evaljs(app, js"$(basic_table).querySelectorAll('th')[2].textContent.trim()") == "apartment_B"
+    @test evaljs(app, js"$(basic_table).querySelectorAll('th')[3].textContent.trim()") == "apartment_C"
+
+    # Test data content
+    first_row = js"$(basic_table).querySelectorAll('tbody tr')[0]"
+    @test evaljs(app, js"$(first_row).querySelectorAll('td')[0].textContent.trim()") == "price"
+    @test evaljs(app, js"$(first_row).querySelectorAll('td')[1].textContent.trim()") == "1200.0"
+    @test evaljs(app, js"$(first_row).querySelectorAll('td')[2].textContent.trim()") == "950.0"
+    @test evaljs(app, js"$(first_row).querySelectorAll('td')[3].textContent.trim()") == "1350.0"
+
+    # Test custom table with class callbacks
+    custom_table = js"document.querySelector('#custom_table table')"
+
+    # Test that cells have correct classes applied
+    first_cell = js"$(custom_table).querySelectorAll('tbody tr')[0].querySelectorAll('td')[0]"
+    @test evaljs(app, js"$(first_cell).className.includes('cell-default')") == true
+
+    high_value_cell = js"$(custom_table).querySelectorAll('tbody tr')[0].querySelectorAll('td')[1]"  # 1200.0
+    @test evaljs(app, js"$(high_value_cell).className.includes('cell-good')") == true
+
+    low_value_cell = js"$(custom_table).querySelectorAll('tbody tr')[1].querySelectorAll('td')[2]"  # 65.2
+    @test evaljs(app, js"$(low_value_cell).className.includes('cell-bad')") == true
+
+    # Test that style callback is applied
+    styled_cell = js"$(custom_table).querySelectorAll('tbody tr')[0].querySelectorAll('td')[0]"
+    @test evaljs(app, js"$(styled_cell).style.fontWeight") == "bold"
+
+    high_value_styled = js"$(custom_table).querySelectorAll('tbody tr')[0].querySelectorAll('td')[1]"
+    @test evaljs(app, js"$(high_value_styled).style.backgroundColor") == "lightgreen"
+
+    # Test custom CSS class
+    styled_table = js"document.querySelector('#styled_table table')"
+    @test evaljs(app, js"$(styled_table).className.includes('my-custom-table')") == true
+
+    # Test sorting functionality (on tables that have sorting enabled)
+    basic_header = js"$(basic_table).querySelectorAll('th')[0]"
+    @test evaljs(app, js"getComputedStyle($(basic_header)).cursor") == "pointer"
+
+    # Test data attributes for sorting
+    data_cell = js"$(basic_table).querySelectorAll('tbody tr')[0].querySelectorAll('td')[1]"
+    @test evaljs(app, js"$(data_cell).getAttribute('data-value')") == "1200.0"
+end
+
+
+# Test table with empty data
+testsession(empty_table_handler, port=8560) do app
+    # Test that empty table is rendered with headers but no data rows
+    empty_table = js"document.querySelector('#empty_table table')"
+    @test evaljs(app, js"$(empty_table).querySelectorAll('th').length") == 2  # Headers still present
+    @test evaljs(app, js"$(empty_table).querySelectorAll('tbody tr').length") == 0  # No data rows
+
+    # Test header content
+    @test evaljs(app, js"$(empty_table).querySelectorAll('th')[0].textContent.trim()") == "col1"
+    @test evaljs(app, js"$(empty_table).querySelectorAll('th')[1].textContent.trim()") == "col2"
+end
+
+# Test table with missing values
+testsession(missing_values_table_handler, port=8561) do app
+    # Test that missing values are handled properly
+    missing_table = js"document.querySelector('#missing_table table')"
+
+    # Test that missing values are rendered as "n/a" by default row_renderer
+    missing_age_cell = js"$(missing_table).querySelectorAll('tbody tr')[1].querySelectorAll('td')[1]"
+    @test evaljs(app, js"$(missing_age_cell).textContent.trim()") == "n/a"
+
+    missing_salary_cell = js"$(missing_table).querySelectorAll('tbody tr')[2].querySelectorAll('td')[2]"
+    @test evaljs(app, js"$(missing_salary_cell).textContent.trim()") == "n/a"
+
+    # Test that non-missing values are rendered correctly
+    valid_age_cell = js"$(missing_table).querySelectorAll('tbody tr')[0].querySelectorAll('td')[1]"
+    @test evaljs(app, js"$(valid_age_cell).textContent.trim()") == "25"
 end

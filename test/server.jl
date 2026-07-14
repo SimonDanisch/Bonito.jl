@@ -14,7 +14,7 @@ Bonito.set_cleanup_time!(0.0)
     window = TestWindow()
     url = URI(online_url(server, "/"))
     @testset for i in 1:10
-        load(window.window, url)
+        ElectronCall.load(window.window, url)
         @test test_dom(window) # re-use from threading.jl
     end
     if app.session[].connection isa Bonito.DualWebsocket
@@ -46,7 +46,12 @@ end
         server.proxy_url = "."
         @test online_url(server, "") == "http://localhost:$(port)"
         @test local_url(server, "") == "http://localhost:$(port)"
-        @test relative_url(server, "") == "./"
+        # `proxy_url == "."` returns server-absolute paths so sub-routes like
+        # `/p/<id>` resolve assets correctly (changed in 57d9b73). Empty url
+        # → just "/", non-empty preserves its leading slash.
+        @test relative_url(server, "") == "/"
+        @test relative_url(server, "assets/x") == "/assets/x"
+        @test relative_url(server, "/already/abs") == "/already/abs"
     end
     @testset "absolute urls" begin
         server.proxy_url = "https://bonito.makie.org"
@@ -56,4 +61,28 @@ end
     end
     close(server)
 end
+@testset "request target forwarded to handler" begin
+    # Regression test: `route!(server, r".*" => app)` must forward the HTTP
+    # request into the app handler so `r.target` reflects the requested path
+    # (broke in #389 when apply_handler stopped threading context.request).
+    # target is rendered verbatim as a text node; use distinctive slash paths
+    # (letters/slashes aren't HTML entity-escaped, unlike `=`, `[`, `<`).
+    app = App() do session, request
+        return DOM.div(request.target)
+    end
+    server = Server("0.0.0.0", 0)
+    port = server.port
+    try
+        route!(server, r".*" => app)
+        @test occursin("/hello/world",
+            String(HTTP.get("http://localhost:$(port)/hello/world").body))
+        # a second request renders its own target, not the previous one's
+        body2 = String(HTTP.get("http://localhost:$(port)/second/path").body)
+        @test occursin("/second/path", body2)
+        @test !occursin("/hello/world", body2)
+    finally
+        close(server)
+    end
+end
+
 Bonito.set_cleanup_time!(30/60/60)

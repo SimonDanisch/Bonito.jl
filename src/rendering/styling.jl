@@ -3,7 +3,7 @@ function attribute_render(session::Session, parent, attribute::String, css::CSS)
     if attribute != "style"
         error("`CSS(...)` can only be used for the style attribute! Found: $(attribute) with css:\n $(css)")
     end
-    node_styles = get!(session.stylesheets, parent, Set{CSS}())
+    node_styles = get!(session.stylesheets, parent, OrderedSet{CSS}())
     push!(node_styles, css)
     return ""
 end
@@ -12,17 +12,22 @@ function attribute_render(session::Session, parent, attribute::String, styles::S
     if attribute != "style"
         error("`Styles(...)` can only be used for the style attribute! Found: $(attribute) with css:\n $(css)")
     end
-    node_styles = get!(session.stylesheets, parent, Set{CSS}())
+    node_styles = get!(session.stylesheets, parent, OrderedSet{CSS}())
     union!(node_styles, values(styles.styles))
     return ""
 end
 
 function jsrender(session::Session, style::Styles)
+    push!(session.global_stylesheets, style)
+    return nothing
+end
+
+function to_string(session::Session, style::Styles)
     io = IOBuffer()
     for (_, css) in style.styles
         render_style(io, session, "", css)
     end
-    return DOM.style(String(take!(io)))
+    return String(take!(io))
 end
 
 convert_css_attribute(asset::Asset) = asset
@@ -72,8 +77,8 @@ function Base.show(io::IO, ::MIME"text/plain", styles::Styles)
     end
 end
 
-function render_stylesheets!(root_session, session, stylesheets::Dict{HTMLElement, Set{CSS}})
-    combined = Dict{CSS,Set{HTMLElement}}()
+function render_stylesheets!(root_session, session, stylesheets::OrderedDict{HTMLElement, OrderedSet{CSS}})
+    combined = OrderedDict{CSS,Set{HTMLElement}}()
     for (node, styles) in stylesheets
         for css in styles
             if haskey(combined, css)
@@ -108,11 +113,23 @@ end
 CSS(args::Pair...) = CSS("", args...)
 
 
-Styles() = Styles(Dict{String,CSS}())
-Styles(css::CSS) = Styles(Dict(css.selector => css))
+Styles() = Styles(OrderedDict{String,CSS}())
+function Styles(css::CSS)
+    d = OrderedDict{String,CSS}()
+    d[css.selector] = css
+    return Styles(d)
+end
+
 function Styles(csss::CSS...)
     result = Styles()
-    merge!(result, Set(csss))
+    for css in csss
+        selector = css.selector
+        if haskey(result.styles, selector)
+            result.styles[selector] = merge(result.styles[selector], css)
+        else
+            result.styles[selector] = css
+        end
+    end
     return result
 end
 
@@ -120,29 +137,27 @@ function Styles(css::CSS, pairs::Pair...)
     error("Style $(css) with $(pairs) unaccaptable!")
 end
 Styles(pairs::Pair...) = Styles(CSS(pairs...))
-function Styles(priority::Styles, defaults...)
-    default = Styles(defaults...)
-    merge!(default, priority)
-    return default
+function Styles(first::Styles, rest...)
+    # Build styles in order: first comes first, then rest are merged in order
+    # The LAST argument takes precedence for value conflicts
+    result = Styles(copy(first.styles))
+    for style in rest
+        if style isa Styles
+            merge!(result, style)
+        else
+            # Handle other constructible types
+            merge!(result, Styles(style))
+        end
+    end
+    return result
 end
 
-Styles(priority::Styles, defaults::Styles) = merge(defaults, priority)
+Styles(first::Styles, second::Styles) = merge(first, second)
 
 function Base.merge(defaults::Styles, priority::Styles) # second argument takes priority
     result = Styles(copy(defaults.styles))
     merge!(result, priority)
     return result
-end
-
-function Base.merge!(target::Styles, styles::Set{CSS})
-    for css in styles
-        selector = css.selector
-        if haskey(target.styles, selector)
-            target.styles[selector] = merge(target.styles[selector], css)
-        else
-            target.styles[selector] = css
-        end
-    end
 end
 
 function Base.merge!(defaults::Styles, priority::Styles)

@@ -2,11 +2,24 @@
 import * as MsgPack from "https://cdn.jsdelivr.net/npm/@msgpack/msgpack/mod.ts";
 import * as Pako from "https://cdn.esm.sh/v66/pako@2.0.4/es2021/pako.js";
 import { Observable } from "./Observables.js";
-import { update_session_cache, lookup_global_object } from "./Sessions.js";
+import {
+    register_in_session_cache,
+    track_in_session,
+    lookup_global_object,
+    ensure_session_exists,
+    GLOBAL_OBJECT_CACHE,
+} from "./Sessions.js";
 
-export class Retain {
-    constructor(value) {
-        this.value = value;
+/**
+ * Context passed through msgpack decoding to track session state.
+ * This allows extension decoders to register objects (like Observables)
+ * to the session cache immediately during unpacking, so that CacheKey
+ * references can resolve them.
+ */
+class UnpackContext {
+    constructor(session_id, session_status) {
+        this.session_id = session_id;
+        this.session_status = session_status;
     }
 }
 
@@ -16,9 +29,10 @@ window.EXTENSION_CODEC = EXTENSION_CODEC;
 
 /**
  * @param {Uint8Array} uint8array
+ * @param {UnpackContext} [context]
  */
-function unpack(uint8array) {
-    return MsgPack.decode(uint8array, { extensionCodec: EXTENSION_CODEC });
+function unpack(uint8array, context) {
+    return MsgPack.decode(uint8array, { extensionCodec: EXTENSION_CODEC, context });
 }
 
 /**
@@ -75,7 +89,7 @@ register_ext_array(0x18, Float64Array);
 function register_ext(type_tag, decode, encode) {
     EXTENSION_CODEC.register({
         type: type_tag,
-        decode,
+        decode: (data, extType, context) => decode(data, context),
         encode,
     });
 }
@@ -89,8 +103,8 @@ class JLArray {
 
 register_ext(
     99,
-    (uint_8_array) => {
-        const [size, array] = unpack(uint_8_array);
+    (uint_8_array, context) => {
+        const [size, array] = unpack(uint_8_array, context);
         return new JLArray(size, array);
     },
     (object) => {
@@ -104,20 +118,34 @@ register_ext(
 
 const OBSERVABLE_TAG = 101;
 const JSCODE_TAG = 102;
-const RETAIN_TAG = 103;
+// 103 was RETAIN_TAG — removed in the cache-refcount refactor.
 const CACHE_KEY_TAG = 104;
 const DOM_NODE_TAG = 105;
 const SESSION_CACHE_TAG = 106;
 const SERIALIZED_MESSAGE_TAG = 107;
 const RAW_HTML_TAG = 108;
+const TRACKING_ONLY_TAG = 109;
 
-register_ext(OBSERVABLE_TAG, (uint_8_array) => {
-    const [id, value] = unpack(uint_8_array);
-    return new Observable(id, value);
+register_ext(OBSERVABLE_TAG, (uint_8_array, context) => {
+    const [id, value] = unpack(uint_8_array, context);
+    // J11: an Observable id may be re-serialized (e.g. a shared observable that
+    // a new session references with a full value rather than a CacheKey). If an
+    // instance already exists in the global cache we MUST reuse it. Creating a
+    // fresh Observable would leave two instances sharing one id: process_message
+    // routes UpdateObservable to the cached one via lookup_global_object, so the
+    // new instance's callbacks (registered during this unpack) would never fire,
+    // and the new session's view would silently stop updating.
+    const existing = GLOBAL_OBJECT_CACHE[id];
+    const obs = existing instanceof Observable ? existing : new Observable(id, value);
+    // Register immediately so CacheKey references can find it during the same unpack.
+    // (When reusing, register_in_session_cache just tracks the id in this session
+    //  and keeps the existing cache entry.)
+    register_in_session_cache(context.session_id, id, obs, context.session_status);
+    return obs;
 });
 
-register_ext(JSCODE_TAG, (uint_8_array) => {
-    const [interpolated_objects, source, julia_file] = unpack(uint_8_array);
+register_ext(JSCODE_TAG, (uint_8_array, context) => {
+    const [interpolated_objects, source, julia_file] = unpack(uint_8_array, context);
     const lookup_interpolated = (id) => interpolated_objects[id];
     // create a new func, that has __lookup_cached as argument
     try {
@@ -145,13 +173,17 @@ register_ext(JSCODE_TAG, (uint_8_array) => {
     }
 });
 
-register_ext(RETAIN_TAG, (uint_8_array) => {
-    const real_value = unpack(uint_8_array);
-    return new Retain(real_value);
+register_ext(CACHE_KEY_TAG, (uint_8_array, context) => {
+    const key = unpack(uint_8_array, context);
+    return lookup_global_object(key);
 });
 
-register_ext(CACHE_KEY_TAG, (uint_8_array) => {
-    const key = unpack(uint_8_array);
+register_ext(TRACKING_ONLY_TAG, (uint_8_array, context) => {
+    const key = unpack(uint_8_array, context);
+    // Self-register the key to the session's tracked objects.
+    // The object already exists in GLOBAL_OBJECT_CACHE from a parent session.
+    track_in_session(context.session_id, key, context.session_status);
+    // Return the existing object from the cache
     return lookup_global_object(key);
 });
 
@@ -165,8 +197,8 @@ function create_tag(tag, attributes) {
     }
 }
 
-register_ext(DOM_NODE_TAG, (uint_8_array) => {
-    const [tag, children, attributes] = unpack(uint_8_array);
+register_ext(DOM_NODE_TAG, (uint_8_array, context) => {
+    const [tag, children, attributes] = unpack(uint_8_array, context);
     const node = create_tag(tag, attributes);
     Object.keys(attributes).forEach((key) => {
         if (key == "juliasvgnode") {
@@ -182,22 +214,51 @@ register_ext(DOM_NODE_TAG, (uint_8_array) => {
     return node;
 });
 
-register_ext(RAW_HTML_TAG, (uint_8_array) => {
-    const html = unpack(uint_8_array);
+register_ext(RAW_HTML_TAG, (uint_8_array, context) => {
+    const html = unpack(uint_8_array, context);
     const div = document.createElement("div");
     div.innerHTML = html;
+    // `innerHTML` parses <script> elements but the HTML parser flags them
+    // "already started", so they never execute. Re-create each as a FRESH
+    // (non-parser-inserted) script: a fresh script runs when it becomes
+    // connected to the document — i.e. when Bonito mounts this div — which is
+    // exactly when a serialized fragment (e.g. `show_html` output) needs its
+    // inline `init_session(...)` to fire, AFTER its nodes are in the DOM.
+    // Covers classic and `type="module"` scripts. Lets `HTML(str)` carry a
+    // self-initializing Bonito subsession, not just inert markup.
+    for (const old_script of div.querySelectorAll("script")) {
+        const fresh = document.createElement("script");
+        for (const attr of old_script.attributes) {
+            fresh.setAttribute(attr.name, attr.value);
+        }
+        fresh.textContent = old_script.textContent;
+        old_script.replaceWith(fresh);
+    }
     return div;
 });
 
-register_ext(SESSION_CACHE_TAG, (uint_8_array) => {
-    const [session_id, objects, session_status] = unpack(uint_8_array);
-    update_session_cache(session_id, objects, session_status);
+register_ext(SESSION_CACHE_TAG, (uint_8_array, context) => {
+    // Structure: [session_id, session_status, packed_objects_ext]
+    // packed_objects_ext is Extension(18) containing the packed bytes
+    const [session_id, session_status, packed_objects_ext] = MsgPack.decode(uint_8_array);
+    // Ensure session exists even if there are no objects (apps without observables)
+    ensure_session_exists(session_id, session_status);
+    const ctx = new UnpackContext(session_id, session_status);
+    // Extract .data from Extension(18) to get raw bytes, then decode with our codec
+    unpack(packed_objects_ext.data, ctx);
     return session_id;
 });
 
-register_ext(SERIALIZED_MESSAGE_TAG, (uint_8_array) => {
-    const [session_id, message] = unpack(uint_8_array);
-    return message;
+register_ext(SERIALIZED_MESSAGE_TAG, (uint_8_array, context) => {
+    // Structure: [session_id, session_status, packed_cache_ext, packed_data_ext]
+    // Both packed_*_ext are Extension(18) containing packed bytes
+    const [session_id, session_status, packed_cache_ext, packed_data_ext] = MsgPack.decode(uint_8_array);
+    const ctx = new UnpackContext(session_id, session_status);
+    ensure_session_exists(session_id, session_status);
+    // Extract .data from Extension(18) and decode with our codec
+    // Cache must be decoded first so observables are registered before data references them
+    unpack(packed_cache_ext.data, ctx);
+    return unpack(packed_data_ext.data, ctx);
 });
 
 /**
@@ -205,7 +266,7 @@ register_ext(SERIALIZED_MESSAGE_TAG, (uint_8_array) => {
  */
 export function base64encode(data_as_uint8array) {
     // Use a FileReader to generate a base64 data URI
-    const base64_promise = new Promise((resolve) => {
+    const base64_promise = new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
             /*
@@ -218,7 +279,19 @@ export function base64encode(data_as_uint8array) {
             // now that we're done, resolve our promise!
             resolve(base64url.slice(len, base64url.length));
         };
-        reader.readAsDataURL(new Blob([data_as_uint8array]));
+        // J13: without onerror/onabort the promise could never reject and a
+        // failed read would hang every awaiter forever.
+        reader.onerror = () => {
+            reject(reader.error || new Error("FileReader failed during base64encode"));
+        };
+        reader.onabort = () => {
+            reject(new Error("FileReader aborted during base64encode"));
+        };
+        try {
+            reader.readAsDataURL(new Blob([data_as_uint8array]));
+        } catch (error) {
+            reject(error);
+        }
     });
     return base64_promise;
 }
@@ -227,37 +300,33 @@ export function base64encode(data_as_uint8array) {
  * @param {string} base64_str
  */
 export function base64decode(base64_str) {
-    return new Promise((resolve) => {
-        fetch("data:application/octet-stream;base64," + base64_str).then(
-            (response) => {
-                response.arrayBuffer().then((array) => {
-                    resolve(new Uint8Array(array));
-                });
-            }
-        );
+    return new Promise((resolve, reject) => {
+        // J13: chain rejection so malformed base64 (fetch on a bad data URI, or
+        // arrayBuffer failure) rejects the promise instead of hanging forever.
+        fetch("data:application/octet-stream;base64," + base64_str)
+            .then((response) => response.arrayBuffer())
+            .then((array) => resolve(new Uint8Array(array)))
+            .catch(reject);
     });
 }
 
 /**
- *
  * @param {string} base64_string
  * @param {boolean} compression_enabled
  */
 export function decode_base64_message(base64_string, compression_enabled) {
-    return base64decode(base64_string).then((x) =>
-        decode_binary(x, compression_enabled)
-    );
-}
-
-export function decode_binary(binary, compression_enabled) {
-    // This should ALWAYS be a `SerializedMessage` from the Julia side
-    const serialized_message = unpack_binary(binary, compression_enabled);
-    const [session_id, message_data] = serialized_message;
-    return message_data;
+    return base64decode(base64_string).then((x) => decode_binary(x, compression_enabled));
 }
 
 /**
- *
+ * @param {Uint8Array} binary
+ * @param {boolean} compression_enabled
+ */
+export function decode_binary(binary, compression_enabled) {
+    return unpack_binary(binary, compression_enabled);
+}
+
+/**
  * @param {Uint8Array} binary
  * @param {boolean} compression_enabled
  */

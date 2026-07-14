@@ -1,39 +1,85 @@
-# Bonito
+<p align="center">
+  <img src="docs/src/assets/bonito-dark.svg" alt="Bonito.jl" width="160">
+</p>
+
+# Bonito.jl
 
 ![CI](https://github.com/SimonDanisch/Bonito.jl/workflows/CI/badge.svg) [![Codecov](https://codecov.io/gh/SimonDanisch/Bonito.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/SimonDanisch/Bonito.jl)
-[![Docs - stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://simondanisch.github.io/Bonito.jl/stable/)
+[![Docs](https://img.shields.io/badge/docs-bonito.sh-blue.svg)](https://bonito.sh)
 
-Easy way of building interactive applications from Julia.
-Uses Hyperscript to create HTML descriptions, and allows to execute Javascript & building of widgets. It also supports an offline mode, that exports your interactive app to a folder, and optionally records a statemap for all UI elements, so that a running Julia process isn't necessary anymore.
+**Build interactive web applications, dashboards, and visualizations entirely in Julia.**
 
-Have a look at the [examples](https://github.com/SimonDanisch/Bonito.jl/tree/master/examples), or check out the most outstanding ones:
-## Markdown support
-https://github.com/SimonDanisch/Bonito.jl/blob/master/examples/markdown.jl
-![markdown_vol](https://user-images.githubusercontent.com/1010467/88916397-48513480-d266-11ea-8741-c5246f7f2395.gif)
+Bonito.jl enables you to create rich, reactive web applications using Julia's [Observables](https://juliagizmos.github.io/Observables.jl/stable/) for state management and a simple HTML/DOM API. 
+Observables can communicate with the Frontend via a performance optimized WebSocket connection, allowing you to build anything from data exploration dashboards to interactive documentation—all without being locked into a specific frontend framework.
 
+## Key Features
 
-## Renchon et al., Argonne National Laboratory, unpublished
-https://simondanisch.github.io/WGLDemos/soil/
-![soil](https://user-images.githubusercontent.com/1010467/88913137-aa0ea000-d260-11ea-81b6-3e71ff18ff03.gif)
+- **Reactive & Interactive**: Built on Observables.jl for automatic UI updates when data changes, only sending the minimal amount of data possible via a fast binary serialization protocol
+- **Rich Component Library**: Buttons, sliders, tables, code editors, and easy to build custom widgets
+- **Seamless Plotting**: Deeply integrated with WGLMakie, plus support for Plotly, Gadfly, and more
+- **Deploy Anywhere**: Works in VSCode, Jupyter, Pluto, web servers, or export to static HTML
+- **Javascript When You Need It**: Easy ES6 module integration and Javascript execution
+- **Pure Julia Development**: Write your entire application in Julia, with optional Javascript for client side rendering
+- **Extensible Handlers**: Wrap and compose handlers for authentication, logging, static files, and custom middleware
+- **Use Any Existing JS/CSS/HTML**: Bonito provides no opinionated styling by default. Combined with straightforward external dependency integration, this gives you complete access to the entire JS/CSS/HTML ecosystem from within Julia.
 
+## Quick Example
 
-## [Oceananigans](https://github.com/CliMA/Oceananigans.jl)
-https://simondanisch.github.io/WGLDemos/oceananigans/
-![ocean](https://user-images.githubusercontent.com/1010467/88912988-6d42a900-d260-11ea-8d87-1f3eea552d1b.gif)
+```julia
+using Bonito
+# Create a reactive counter app
+app = App() do session
+    count = Observable(0)
+    button = Button("Click me!")
+    on(click-> (count[] += 1), button)
+    return DOM.div(button, DOM.h1("Count: ", count))
+end
+display(app) # display it in browser or plotpane
+export_static("app.html", app) # generated self contained HTML file from App
+export_static("folder", Routes("/" => app)) # Export static site (without Julia connection)
+# Or serve it on a server
+server = Server(app, "127.0.0.1", 8888)
+# add it as different route
+# regex, and even custom matchers are possible for routes, read more in the docs!
+route!(server, "/my-route" => app)
+```
 
-## Smarthome dashboard:
+## Examples Built with Bonito
 
-https://github.com/SimonDanisch/SmartHomy/blob/master/web_app.jl
-![image](https://user-images.githubusercontent.com/1010467/88916549-8d756680-d266-11ea-8d38-cd57640e1495.png)
+### [makie.org](https://makie.org/)
 
+The Makie website is using Bonito's static site generator
 
-## Interactive Notebook:
+### [WGLMakie](https://docs.makie.org/dev/explanations/backends/wglmakie#WGLMakie)
 
-https://nextjournal.com/Lobatto/FitzHugh-Nagumo
-![simulation](https://user-images.githubusercontent.com/1010467/88912834-2f458500-d260-11ea-9a49-5e17f769ff53.gif)
+Interactive WebGL-accelerated plotting library
+
+https://github.com/user-attachments/assets/0d13b88b-5a34-4785-91a2-c1d8a1304074
+
+[taken from ClimaAtmos.jl](https://github.com/CliMA/ClimaAtmos.jl)
+
+### [BonitoBook](https://bonitobook.org/)
+
+A customizable, Jupyter-like notebook environment
+
+https://github.com/user-attachments/assets/ad8bd118-1a82-4799-b1ba-6220072557c7
+
+https://github.com/user-attachments/assets/55e110c8-c144-41ab-8537-65cbc17a63e0
+
+### [NetworkDynamicsInspector](https://github.com/JuliaDynamics/NetworkDynamics.jl/tree/main/NetworkDynamicsInspector)
+
+NetworkDynamicsInspector.jl is an extension package to NetworkDynamics.jl which provides a WebApp based on Bonito.jl and WGLMakie.jl for interactive visualization of solutions to systems based on network dynamics.
+
+https://github.com/user-attachments/assets/064a6138-610f-48d7-8e2e-d174fa710ddb
+
+### [Example folder](https://github.com/SimonDanisch/Bonito.jl/tree/master/examples)
+
+Have a look at some of the usage examples for Bonito, like the [interactive markdown rendering support](https://github.com/SimonDanisch/Bonito.jl/blob/master/examples/markdown.jl):
+
+https://github.com/user-attachments/assets/e8120b9c-ddfb-4f6f-bea8-97ee56ee646d
 
 
 ## Sponsors
 
-<img src="https://github.com/JuliaPlots/Makie.jl/blob/master/assets/BMBF_gefoerdert_2017_en.jpg?raw=true" width="300"/>
+<img src="https://github.com/user-attachments/assets/7fa49123-eb57-47eb-b8f9-caa887df725c" width="300"/>
 Förderkennzeichen: 01IS10S27, 2020

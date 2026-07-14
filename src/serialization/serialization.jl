@@ -7,12 +7,17 @@ function SerializedMessage(session::Session, data)
     return lock(root_session(session).deletion_lock) do
         ctx = SerializationContext(session)
         message_data = serialize_cached(ctx, data)
-        return SerializedMessage(SessionCache(session, ctx.message_cache), message_data, session.compression_enabled)
+        return SerializedMessage(
+            SessionCache(session, ctx.message_cache),
+            message_data,
+            session.compression_enabled,
+            root_data(session).pack_pool,
+        )
     end
 end
 
 function serialize_binary(sm::SerializedMessage)
-    bytes = MsgPack.pack([sm.cache, sm.data])
+    bytes = MsgPack.pack(sm)
     if sm.compression
         bytes = transcode(GzipCompressor, bytes)
     end
@@ -21,7 +26,7 @@ end
 
 function BinaryMessage(session::Session, data)
     sm = SerializedMessage(session, data)
-    bytes = MsgPack.pack([sm.cache, sm.data])
+    bytes = MsgPack.pack(sm)
     return BinaryMessage(bytes)
 end
 

@@ -15,3 +15,7 @@ bundles(x) = (joinpath(path, x), joinpath(path, replace(x, ".js" => ".bundled.js
 @test !needs_bundling(bundles("Bonito.js")...)
 @test !needs_bundling(bundles("Websocket.js")...)
 @test !needs_bundling(bundles("nouislider.min.js")...)
+
+# NOTE: the read-only-bundle test (Bonito.file_writeable / Bonito.needs_bundling)
+# lives in stability_assets.jl — it needs Bonito loaded, and this file runs
+# *before* `using Bonito` so the mtime checks above aren't perturbed by load.

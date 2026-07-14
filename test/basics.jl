@@ -1,3 +1,31 @@
+@testset "Slider value snapping" begin
+    # A `value=` that isn't bit-exact on the grid must snap to the nearest tick
+    # (or clamp), not crash with `invalid index: nothing`. Regression for
+    # `Slider(range(0, 2π, 100); value=π)` & friends.
+    @test Bonito.Slider(1:10).index[]            == 1     # default = first
+    @test Bonito.Slider(1:10; value=5).index[]   == 5     # exact match
+    @test Bonito.Slider(1:10; value=0).index[]   == 1     # below range → clamp low
+    @test Bonito.Slider(1:10; value=99).index[]  == 10    # above range → clamp high
+    @test Bonito.Slider(0:0.1:1; value=0.7000001).value[] ≈ 0.7  # float not bit-exact → nearest
+    @test Bonito.Slider(range(0, 2π, length=100); value=π).index[] == 50
+    @test Bonito.Slider([:a, :b, :c]; value=:b).index[] == 2      # non-numeric exact
+end
+
+@testset "Asset value equality dedup" begin
+    # `Asset(path)` builds a fresh struct each call; without value equality two
+    # Assets of the same file wouldn't dedup in an `OrderedSet`.
+    dir = mktempdir()
+    fa = joinpath(dir, "a.js"); write(fa, "export const a = 1;")
+    fb = joinpath(dir, "b.js"); write(fb, "export const b = 2;")
+    @test Bonito.Asset(fa) == Bonito.Asset(fa)
+    @test hash(Bonito.Asset(fa)) == hash(Bonito.Asset(fa))
+    @test Bonito.Asset(fa) !== Bonito.Asset(fa)          # still distinct objects
+    @test Bonito.Asset(fa) != Bonito.Asset(fb)           # different file → distinct
+    s = Bonito.OrderedSet{Bonito.Asset}()
+    push!(s, Bonito.Asset(fa)); push!(s, Bonito.Asset(fa)); push!(s, Bonito.Asset(fb))
+    @test length(s) == 2
+end
+
 @testset "basic session rendering" begin
     # Use no connection, since otherwise the session will be added to
     # The global running HTTP server
@@ -65,6 +93,7 @@ setup_connection(session::Session{DebugConnection}) = nothing
 
     @testset "assets" begin
         @test length(c_session.session_objects) == 2
+        @test isempty(open_session.imports)   # sub imports not copied onto the root
     end
 
     @testset "observable $(obs_field)" for obs_field in (:range, :value, :connect, :orientation, :tooltips, :ticks)
@@ -88,18 +117,19 @@ setup_connection(session::Session{DebugConnection}) = nothing
         @test !haskey(open_session.children, c_session.id)
     end
 
-    @testset "dependency second include" begin
+    @testset "dependency re-include after close" begin
+        # c_session was closed above; its deps went with its fragment, so a fresh
+        # render must re-emit them and the root must not have retained anything.
+        @test isempty(open_session.imports)
         html2 = sprint() do io
             sub = Bonito.show(io, MIME"text/html"(), sliderapp)
-            msg = Bonito.fused_messages!(sub)
-            Bonito.serialize_binary(sub, msg)
+            Bonito.serialize_binary(sub, Bonito.fused_messages!(sub))
         end
-        # Test that dependencies only get loaded one time!
-        @test !occursin("-nouislider.min.js", html2)
-        @test !occursin("nouislider.min.css", html2)
+        @test occursin("nouislider", html2)   # re-emitted for the new fragment
 
         id, session = first(open_session.children)
         close(session)
+        @test isempty(open_session.imports)
         @test !haskey(open_session.children, session.id)
     end
 end

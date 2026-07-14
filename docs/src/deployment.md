@@ -222,15 +222,31 @@ display(example_app)
 
 ## Documenter
 
-Bonito works in Documenter without additional setup.
-But, one always needs to include a block like this before any other code block displaying Bonito Apps:
+The recommended way to document a Bonito based package is the Bonito Documenter
+writer, which renders a VitePress-styled, fully Bonito-based site (and inlines
+your `@example` Apps interactively). Pass it as the `format` to `makedocs`:
+
+```julia
+using Documenter, Bonito
+makedocs(
+    sitename = "MyPackage",
+    format = Bonito.DocumenterBonito(; repo = "github.com/me/MyPackage.jl"),
+    pages = [...],
+)
+```
+
+With this writer you do **not** need a `Page()` call in your markdown — each
+`@example` App is rendered as a self-contained fragment, so there is no shared
+per-page state to reset. (See the Bonito documentation source for a full example.)
+
+When using the classic `Documenter.HTML` writer instead, Bonito still works, but
+you need to include a block like this before any other code block displaying
+Bonito Apps, so dependencies/state are scoped per documentation page:
 
 ```julia
 using Bonito
 Page()
 ```
-This is needed, since Bonito structures the dependencies and state per Page, which needs to be unique per documentation page.
-One can use the Bonito documentation source to see an example.
 
 ## Static export
 
@@ -244,6 +260,9 @@ routes = Routes(
 )
 Bonito.export_static("html/folder", routes)
 ```
+
+!!! tip "Connection Indicator"
+    If you enable the [connection indicator](@ref "Connection Indicator"), it will display a gray color in static exports to indicate that no Julia server connection is available.
 
 Please visit [Static Sites](@ref) for more details.
 

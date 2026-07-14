@@ -56,8 +56,7 @@ function Card(
     div_attributes...,
 )
     color = convert_css_attribute(shadow_color)
-    css = Styles(
-        style,
+    default_style = Styles(
         "width" => width,
         "height" => height,
         "padding" => padding,
@@ -66,6 +65,7 @@ function Card(
         "border-radius" => border_radius,
         "box-shadow" => "$(shadow_size) $(color)",
     )
+    css = Styles(default_style, style)
     return DOM.div(content; style=css, div_attributes...)
 end
 
@@ -105,8 +105,7 @@ function Grid(
     style::Styles=Styles(),
     div_attributes...,
 )
-    css = Styles(
-        style,
+    default_style = Styles(
         "display" => "grid",
         "grid-template-columns" => columns,
         "grid-template-rows" => rows,
@@ -119,6 +118,7 @@ function Grid(
         "width" => width,
         "height" => height,
     )
+    css = Styles(default_style, style)
     return DOM.div(elems...; style=css, div_attributes...)
 end
 
@@ -237,9 +237,9 @@ function StylableSlider(
     track_height=slider_height / 2,
     track_active_height=track_height + 2,
     backgroundcolor="transparent",
-    track_color="#eee",
-    track_active_color="#ddd",
-    thumb_color="#fff",
+    track_color="var(--bonito-widget-muted-bg, #eee)",
+    track_active_color="var(--bonito-widget-border, #ddd)",
+    thumb_color="var(--bonito-widget-bg, #fff)",
     style::Styles=Styles(),
     track_style::Styles=Styles(),
     thumb_style::Styles=Styles(),
@@ -247,8 +247,7 @@ function StylableSlider(
 ) where {T}
     half_thumb_width = thumb_width / 2
 
-    style = Styles(
-        style,
+    default_style = Styles(
         "display" => "grid",
         "grid-template-columns" => "1fr",
         "grid-template-rows" => "$(slider_height)px",
@@ -259,45 +258,48 @@ function StylableSlider(
         "padding-left" => "$(2 + half_thumb_width)px",
         "background-color" => backgroundcolor,
     )
+    style = Styles(default_style, style)
 
-    track_style = Styles(
-        track_style,
+    default_track_style = Styles(
         "position" => "absolute",
         "width" => "100%",
         "height" => "$(track_height)px",
         "background-color" => track_color,
         "border-radius" => "3px",
-        "border" => "1px solid #ccc",
+        "border" => "1px solid var(--bonito-widget-border, #ccc)",
     )
+    track_style = Styles(default_track_style, track_style)
 
-    track_active_style = Styles(
-        track_active_style,
+    default_track_active_style = Styles(
         "position" => "absolute",
         "width" => "0px",
         "height" => "$(track_active_height)px",
         "background-color" => track_active_color,
         "border-radius" => "3px",
-        "border" => "1px solid #ccc",
+        "border" => "1px solid var(--bonito-widget-border, #ccc)",
     )
+    track_active_style = Styles(default_track_active_style, track_active_style)
 
-    thumb_style = Styles(
-        thumb_style,
+    default_thumb_style = Styles(
         "width" => "$(thumb_width)px",
         "height" => "$(thumb_height)px",
         "background-color" => "white",
         "border-radius" => "50%",
         "cursor" => "pointer",
         "position" => "absolute",
-        "border" => "1px solid #ccc",
+        "border" => "1px solid var(--bonito-widget-border, #ccc)",
         "left" => "$(-half_thumb_width)px",
         "background-color" => thumb_color,
     )
+    thumb_style = Styles(default_thumb_style, thumb_style)
     if !isnothing(value) && !isnothing(index)
         error("Values for value=$(value) and index=$(index) given, please only set one.")
     end
     if !isnothing(value) && isnothing(index)
-        index = findfirst(isequal(value), range)
-        index === nothing && error("value=$(value) not in range=$(range)")
+        # Snap to the nearest tick (same tolerant behaviour `Slider` got
+        # via `slider_value_index`) instead of throwing on a non-exact float
+        # default, e.g. `StylableSlider(range(0, 2π, 100); value=π/2)`.
+        index = slider_value_index(collect(range), value)
     end
     if isnothing(value) && isnothing(index)
         index = 1
@@ -341,7 +343,7 @@ function jsrender(session::Session, slider::StylableSlider)
         const track_active = $(track_active);
         const track = $(track);
         let isDragging = false;
-        const nsteps_obs = $(map(length, slider.values))
+        const nsteps_obs = $(map(length, session, slider.values))
         let last_index = -1;
         function set_thumb_index(index) {
             if (index === last_index) {
@@ -367,16 +369,20 @@ function jsrender(session::Session, slider::StylableSlider)
             new_left = Math.round(new_left / step_width) * step_width;
             thumb.style.left = (new_left - thumb_width) + 'px';  // Update the left position of the thumb
             track_active.style.width = new_left + 'px';  // Update the active track
+            // `index` is 0-based here; `slider.index` is 1-based. The previous
+            // comparison `index !== value` mixed the two bases, so the
+            // echo-dedup guard never matched and every drag re-notified.
             const index = Math.round((new_left / width) * (nsteps - 1));
-            last_index = index;
-            if (index !== $(slider.index).value) {
-                $(slider.index).notify(index + 1);
+            const index_1based = index + 1;
+            last_index = index_1based;
+            if (index_1based !== $(slider.index).value) {
+                $(slider.index).notify(index_1based);
             }
         }
         const set_thumb_throttled = Bonito.throttle_function(set_thumb, 100);
         const controller = new AbortController();
         document.addEventListener('mousedown', function (e) {
-            if(e.target === thumb || e.target === track_active || e.target === track || e.targar === container){
+            if(e.target === thumb || e.target === track_active || e.target === track || e.target === container){
                 isDragging = true;
                 set_thumb(e);
                 e.preventDefault();  // Prevent default behavior
@@ -408,8 +414,9 @@ end
 A Label is a simple text element, with a bold font and a font size of 1rem.
 """
 function Label(value; style=Styles(), attributes...)
-    styled = Styles(style, "font-size" => "1rem", "font-weight" => 600)
-    return DOM.span(value; style=styled)
+    default_style = Styles("font-size" => "1rem", "font-weight" => 600)
+    styled = Styles(default_style, style)
+    return DOM.span(value; style=styled, attributes...)
 end
 
 
@@ -604,8 +611,8 @@ end
 
 @deprecate MathJax(source::String, config=Dict()) KaTeX(source)
 
-const KaTeXCSS = Asset("https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css")
-const KaTeXJS = ES6Module("https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.mjs")
+const KaTeXCSS = Asset(@path(dependency_path("katex.min.css")))  # @path: embed bytes so it survives bundle relocation
+const KaTeXJS = ES6Module(dependency_path("katex.mjs"))
 
 function jsrender(session::Session, katex::KaTeX)
     elem = DOM.span()
@@ -622,5 +629,71 @@ function jsrender(session::Session, katex::KaTeX)
     });
     """
     dom = DOM.span(KaTeXCSS, elem, render_script; class="katex-container")
+    return jsrender(session, dom)
+end
+
+
+
+
+"""
+    LoadingPage(; text="Loading Bonito App", spinner=RippleSpinner(), style=Styles())
+
+A customizable loading page component that displays a centered spinner and text.
+This is used as the default `loading_content` for `App` to show while the app is initializing.
+
+# Arguments
+- `text::String`: The text to display below the spinner (default: "Loading Bonito App")
+- `spinner`: The spinner component to display (default: RippleSpinner())
+- `style::Styles`: Custom styles for the container (default: Styles())
+
+# Example
+```julia
+app = App() do
+    return DOM.div("Hello World")
+end
+
+# With custom loading page
+app = App(; loading_page=LoadingPage(text="Please wait...", spinner=RippleSpinner(width=80))) do session
+    return DOM.div("Hello World")
+end
+```
+"""
+struct LoadingPage
+    text::String
+    spinner::Any
+    style::Styles
+end
+
+LoadingPage(; text="Loading Bonito App", spinner=RippleSpinner(), style=Styles()) = LoadingPage(text, spinner, style)
+
+function jsrender(session::Session, loading::LoadingPage)
+    default_styles = Styles(
+        CSS(
+            ".bonito-loading-container",
+            "position" => "fixed",
+            "top" => "50%",
+            "left" => "50%",
+            "transform" => "translate(-50%, -50%)",
+            "z-index" => "1000",
+            "display" => "flex",
+            "flex-direction" => "column",
+            "align-items" => "center",
+            "gap" => "1rem",
+        ),
+        CSS(
+            ".bonito-loading-text",
+            "font-family" => "system-ui, -apple-system, sans-serif",
+            "font-size" => "1.125rem",
+            "color" => "#4B5563",
+        ),
+    )
+
+    combined_styles = Styles(default_styles, loading.style)
+    dom = DOM.div(
+        combined_styles,
+        jsrender(session, loading.spinner),
+        DOM.div(loading.text; class="bonito-loading-text");
+        class="bonito-loading-container"
+    )
     return jsrender(session, dom)
 end

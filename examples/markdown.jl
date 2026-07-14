@@ -4,14 +4,8 @@ using WGLMakie
 
 app = App() do
     cmap_button = Button("change colormap")
-    algorithm_button = Button("change algorithm")
     algorithms = ["mip", "iso", "absorption"]
-    algorithm = Observable(first(algorithms))
-    dropdown_onchange = js"""(e)=> {
-        const element = e.srcElement;
-        ($algorithm).notify(element.options[element.selectedIndex].text);
-    }"""
-    algorithm_drop = DOM.select(DOM.option.(algorithms); class="bandpass-dropdown", onclick=dropdown_onchange)
+    algorithm_drop = Dropdown(algorithms)
 
     data_slider = Slider(LinRange(1f0, 10f0, 100))
     iso_value = Slider(LinRange(0f0, 1f0, 100))
@@ -30,9 +24,9 @@ app = App() do
         view(x, :, idx, :)
     end
 
-    fig = Figure()
+    fig = Figure(; size=(900, 400))
 
-    vol = volume(fig[1,1], signal; algorithm=map(Symbol, algorithm), ambient=Vec3f(0.8), isovalue=iso_value)
+    vol = volume(fig[1,1], signal; algorithm=map(Symbol, algorithm_drop.value), isovalue=iso_value.value, axis=(;show_axis=false))
 
     colormaps = collect(Makie.all_gradient_names)
     cmap = map(cmap_button) do click
@@ -41,71 +35,110 @@ app = App() do
 
     heat = heatmap(fig[1, 2], slice, colormap=cmap)
 
+    # Conditionally show ISO value slider only when algorithm is "iso"
+    iso_control = map(algorithm_drop.value) do alg
+        if alg == "iso"
+            return DOM.div("ISO value: ", iso_value)
+        else
+            return DOM.div()
+        end
+    end
+
     dom = md"""
-    # More MD
+    # Interactive 3D Volume Visualization
 
-    [Github-flavored Markdown info page](http://github.github.com/github-flavored-markdown/)
+    This example demonstrates **Bonito.jl**'s ability to combine markdown content with interactive widgets and 3D visualizations using WGLMakie.
 
-    [![Build Status](https://travis-ci.com/SimonDanisch/Bonito.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/Bonito.jl)
+    ## About This Demo
 
-    Thoughtful example
-    ======
+    Below you'll find interactive controls that manipulate a 3D volume rendering in real-time. This showcases:
 
-    Alt-H2
-    ------
+    * Reactive programming with `Observable`s
+    * Integration between markdown and Julia widgets
+    * Real-time 3D visualization with WGLMakie
+    * Clean, styled presentation using Bonito's layout system
 
-    *italic* or **bold**
+    ## Visualization Controls
 
-    Combined emphasis with **asterisks and _underscores_**.
+    Use the controls below to explore the 3D volume data:
 
-    1. First ordered list item
-    2. Another item
-        * Unordered sub-list.
-    1. Actual numbers don't matter, just that it's a number
-        1. Ordered sub-list
+    **Data Parameter**: Adjust the mathematical function generating the volume data
 
-    * Unordered list can use asterisks
+    $(DOM.div("Data parameter: ", data_slider))
 
-    Inline `code` has `back-ticks around` it.
-    ```julia
-    test("haha")
-    ```
+    **Algorithm**: Choose the volume rendering algorithm
 
-    ---
-    # Bonito
+    $(DOM.div("Algorithm: ", algorithm_drop))
 
-    [![Build Status](https://travis-ci.com/SimonDanisch/Bonito.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/Bonito.jl)
-    [![Build Status](https://ci.appveyor.com/api/projects/status/github/SimonDanisch/Bonito.jl?svg=true)](https://ci.appveyor.com/project/SimonDanisch/Bonito-jl)
-    [![Codecov](https://codecov.io/gh/SimonDanisch/Bonito.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/SimonDanisch/Bonito.jl)
-    [![Build Status](https://travis-ci.com/SimonDanisch/Bonito.jl.svg?branch=master)](https://travis-ci.com/SimonDanisch/Bonito.jl)
+    $(iso_control)
 
+    **Y-Slice**: Select which slice to display in the heatmap
 
-    | Tables        | Are           | Cool  |
-    | ------------- |:-------------:| -----:|
-    | col 3 is      | right-aligned | $1600 |
-    | col 2 is      | centered      |   $12 |
-    | zebra stripes | are neat      |    $1 |
+    $(DOM.div("Y slice: ", slice_idx))
 
-    > Blockquotes are very handy in email to emulate reply text.
-    > This line is part of the same quote.
-
-    # Plots:
-
-    $(DOM.div("data param", data_slider))
-
-    $(DOM.div("iso value", iso_value))
-
-    $(DOM.div("y slice", slice_idx))
-
-    $(algorithm_drop)
+    **Colormap**: Randomize the heatmap colors
 
     $(cmap_button)
 
     ---
 
-    $(fig.scene)
+    ## The Visualization
+
+    $(fig)
 
     ---
+
+    ## Markdown Features
+
+    Bonito supports GitHub-flavored Markdown including:
+
+    1. **Formatted text**: *italic*, **bold**, and `inline code`
+    2. **LaTeX equations** via KaTeX
+    3. **Tables** for structured data
+    4. **Embedded widgets** as shown above
+
+    ### LaTeX Support
+
+    Bonito renders beautiful mathematical expressions:
+
+    ```latex
+    \int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+
+    \mathbf{A} = \begin{pmatrix}
+    a_{11} & a_{12} \\
+    a_{21} & a_{22}
+    \end{pmatrix}
+    ```
+
+    ### Tables
+
+    | Feature        | Status        | Priority |
+    | -------------- |:-------------:| --------:|
+    | 3D Rendering   | ✓ Implemented | High     |
+    | Interactivity  | ✓ Implemented | High     |
+    | Styling        | ✓ Implemented | Medium   |
+
+    > **Note**: This entire page is generated from a single Julia file, combining markdown prose with interactive computational content!
     """
-    return Bonito.DOM.div(Bonito.MarkdownCSS, Bonito.Styling, dom)
+    # Create a styled container with max-width and centered content
+    container_style = Styles(
+        "max-width" => "900px",
+        "margin" => "0 auto",
+        "padding" => "2rem",
+        "background-color" => "#ffffff",
+        "box-shadow" => "0 1px 3px rgba(0, 0, 0, 0.1)",
+        "border-radius" => "8px",
+        "line-height" => "1.6"
+    )
+
+    content = DOM.div(Bonito.MarkdownCSS, Bonito.Styling, dom; style=container_style)
+
+    # Wrap in outer container for centering
+    outer_style = Styles(
+        "background-color" => "#f5f5f5",
+        "min-height" => "100vh",
+        "padding" => "2rem 1rem"
+    )
+
+    return DOM.div(content; style=outer_style)
 end

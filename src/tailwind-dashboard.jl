@@ -3,7 +3,13 @@ module TailwindDashboard
 import ..Bonito
 import ..Bonito: DOM, Session, Observable, @js_str, Asset
 using Hyperscript
-const TailwindMini = Asset(Bonito.dependency_path("tailwind.min.css"))
+const TailwindMini = Asset(Bonito.@path(Bonito.dependency_path("tailwind.min.css")))  # @path: embed bytes so it survives bundle relocation
+
+# Layout-only utility classes for the legacy input widgets. Colors are
+# deliberately omitted so the underlying core widgets' `--bonito-widget-*` theme
+# (light + prefers-dark) shows through — hardcoding `bg-white text-gray-800` here
+# used to override it and leave these widgets white in dark mode.
+const WIDGET_CLASS = "focus:outline-none focus:shadow-outline focus:border-blue-300 font-semibold m-1 py-1 px-3 border rounded shadow"
 
 FlexGrid(elems...; class="", kwargs...) = DOM.div(elems...; class=join(["flex flex-wrap", class], " "), kwargs...)
 Grid(elems...; class="", kwargs...) = DOM.div(elems...; class=join(["grid ", class], " "), kwargs...)
@@ -67,7 +73,7 @@ struct Dropdown
 end
 
 function Dropdown(name, values::AbstractArray; class="", container_class="", attributes...)
-    class = "$class focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow"
+    class = "$class $WIDGET_CLASS"
     dd = Bonito.Dropdown(values; class=class, attributes...)
     return Dropdown(dd, WidgetContainer(Title(name), dd; class=container_class))
 end
@@ -96,17 +102,17 @@ Bonito.update_value!(checkbox::Checkbox, idx) = Bonito.update_value!(checkbox.wi
 Bonito.to_watch(checkbox::Checkbox) = Bonito.to_watch(checkbox.widget)
 
 function Button(name; class="", attributes...)
-    class = "$class focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow"
+    class = "$class $WIDGET_CLASS"
     return Bonito.Button(name; class=class, style=Bonito.Styles("min-width" => "8rem"), attributes...)
 end
 
 function TextField(content::String; class="", attributes...)
-    class = "$class focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow"
+    class = "$class $WIDGET_CLASS"
     return Bonito.TextField(string(content); class=class, attributes...)
 end
 
 function NumberInput(number::Number; class="", attributes...)
-    class = "$class focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow"
+    class = "$class $WIDGET_CLASS"
     return Bonito.NumberInput(number; class=class, attributes...)
 end
 

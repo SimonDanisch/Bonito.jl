@@ -105,15 +105,22 @@ end
 
 
 function print_js_code(io::IO, asset::Union{Asset, BinaryAsset}, context::JSSourceContext)
+    session = context.session
     if asset isa BinaryAsset || asset.es6module
         bundle!(asset) # no-op if not needed
-        session = context.session
         if !isnothing(session)
             import_in_js(io, session, session.asset_server, asset)
         else
             # This should be mainly for `print(jscode)`
             print(io, "import('$(get_path(asset))')")
         end
+    elseif asset isa Asset && mediatype(asset) == :js
+        # Non-module JS assets use load_script which returns a promise
+        # asset.name is set automatically in the Asset constructor for JS assets
+        # We use the lookup_interpolated, for base64 urls, which get cached this way
+        resolved_url = url(session, asset)
+        id = get!(() -> string(hash(asset)), context.objects, resolved_url)
+        print(io, "Bonito.load_script(__lookup_interpolated('$(id)'), '$(asset.name)')")
     else
         id = get!(() -> string(hash(asset)), context.objects, asset)
         print(io, "__lookup_interpolated('$(id)')")
@@ -128,6 +135,23 @@ end
 function import_in_js(io::IO, session::Session, asset_server, asset::Asset)
     ref = import_js_url(asset_server, asset)
     if asset.es6module
+        # Register the module as a session import too, which makes Bonito
+        # emit `<script type="module" src=...>` in the document head. The
+        # browser then starts downloading + parsing as soon as it sees the
+        # head, in parallel with the rest of the page setup; by the time
+        # this `import(url)` runs from the session-bootstrap, the module
+        # is already in the registry and the dynamic-import resolves
+        # essentially instantly.
+        #
+        # Without this, every `$(es6module).then(...)` waited for the
+        # session-bootstrap bin to download → parse → execute → dispatch
+        # the dynamic import — adding ~2 s to first paint with anything
+        # MapLibre-sized in the chain.
+        #
+        # `imports` is a Set so duplicate interpolations just register
+        # once. Re-evaluating the same module via `import(url)` returns
+        # the same instance, so eager + dynamic import is consistent.
+        push!(session.imports, asset)
         print(io, "import($(ref))")
     else
         print(io, "Bonito.fetch_binary($(ref))")

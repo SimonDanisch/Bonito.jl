@@ -3,12 +3,14 @@ module Bonito
 import Sockets
 using Sockets: send
 
+using OrderedCollections
 using Dates
 using UUIDs
 using Hyperscript
 using Hyperscript: Node, children, tag
 using Observables
 using Markdown
+using CommonMark
 using HTTP
 using Base64
 using MsgPack
@@ -21,7 +23,6 @@ using LinearAlgebra
 using CodecZlib
 using RelocatableFolders: @path, Path, getroot
 using URIs
-using ThreadPools
 
 using Base: RefValue
 
@@ -34,6 +35,8 @@ function wait_for_ready end
 include("deno.jl")
 include("types.jl")
 include("HTTPServer/HTTPServer.jl")
+include("HTTPServer/folderserver.jl")
+include("HTTPServer/protectedroute.jl")
 include("app.jl")
 
 function HTTPServer.route!(server::HTTPServer.Server, routes::Routes)
@@ -52,8 +55,13 @@ include("session.jl")
 include("rendering/rendering.jl")
 
 include("asset-serving/asset-serving.jl")
+# KeyedList depends on `ES6Module` (defined in asset-serving), `Observable`,
+# `Session`, `dom_in_js`, and `jsrender` — all of which are loaded by now.
+include("rendering/keyed_list.jl")
 include("connection/connection.jl")
 include("registry.jl")
+
+using JSON
 include("server-defaults.jl")
 
 include("serialization/serialization.jl")
@@ -63,13 +71,21 @@ include("widgets.jl")
 include("display.jl")
 include("export.jl")
 include("components.jl")
+include("connection_indicator.jl")
 include("tailwind-dashboard.jl")
 
 include("interactive.jl")
+include("terminal_output.jl")
+include("documenter.jl")
 
 # Core functionality
-export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset, CSS
-export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor, HierarchicalMenu, HierarchicalMenuItem, HierarchicalSubMenu
+export Page, Session, App, DOM, SVG, @js_str, ES6Module, Asset, CSS, LoadingPage
+export KeyedList
+# Public but unexported: the bundle is regenerated automatically (see `rebundle!`),
+# so this is only needed for programmatic cache invalidation.
+public rebundle!
+export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor
+export HierarchicalMenu, HierarchicalMenuItem, HierarchicalSubMenu
 export browser_display, configure_server!, Server, show_html, html, route!, online_url, use_electron_display
 export Observable, on, onany, bind_global
 export linkjs, evaljs, evaljs_value, onjs
@@ -79,6 +95,14 @@ export export_static, Routes, interactive_server
 export Card, Grid, FileInput, Dropdown, Styles, Col, Row
 export Labeled, StylableSlider, Centered
 export interactive_server
+export ChoicesBox, ChoicesJSParams
+export ProtectedRoute, User, SingleUser, AbstractPasswordStore, FolderServer
+export ConnectionIndicator, AbstractConnectionIndicator
+export get_metadata, set_metadata!
+export cleanup_globals
+export RichText, TerminalOutput, ANSI_CSS, ansi_to_html, has_ansi_codes, append_html!
+export bonito_parser, commonmark_to_dom
+export DocumenterBonito
 
 function has_html_display()
     for display in Base.Multimedia.displays
@@ -89,21 +113,49 @@ function has_html_display()
     return false
 end
 
+"""
+    cleanup_globals()
+
+Cleans up global state (servers, sessions, tasks) for precompilation compatibility.
+On Julia 1.11+, this is called automatically via atexit (which runs before serialization).
+On Julia 1.10, this must be called manually after precompilation workloads.
+"""
+function cleanup_globals()
+    for (_, (_, close_ref)) in SERVER_CLEANUP_TASKS
+        close_ref[] = false
+    end
+    empty!(SERVER_CLEANUP_TASKS)
+    CURRENT_SESSION[] = nothing
+    if !isnothing(GLOBAL_SERVER[])
+        close(GLOBAL_SERVER[])
+    end
+    GLOBAL_SERVER[] = nothing
+    if Base.generating_output() && isdefined(HTTP, :IOPoll)
+        # On HTTP.jl 2.x, starting a server spins up Reseau's IO poller, a
+        # detached native thread that keeps the precompile worker from exiting.
+        # HTTP.jl's own workload shuts it down the same way (see
+        # HTTP/src/precompile.jl). Only do this while precompiling: at runtime
+        # the poller is shared process-global state and other servers/clients
+        # may still use it.
+        try
+            HTTP.IOPoll.shutdown!()
+        catch e
+            @debug "IOPoll.shutdown! failed during precompile cleanup" exception = e
+        end
+    end
+    return
+end
+
 function __init__()
     # Use browser display if no HTML display is available
     if !has_html_display()
         browser_display()
     end
-    atexit() do
-        for (task, (task, close_ref)) in Bonito.SERVER_CLEANUP_TASKS
-            close_ref[] = false
-        end
-        Bonito.CURRENT_SESSION[] = nothing
-        if !isnothing(Bonito.GLOBAL_SERVER[])
-            close(Bonito.GLOBAL_SERVER[])
-        end
-        Bonito.GLOBAL_SERVER[] = nothing
-    end
+    # Register atexit for runtime cleanup (when Julia exits normally)
+    # Note: This doesn't affect precompilation since __init__ doesn't run during precompile
+    atexit(cleanup_globals)
 end
+
+include("precompiles.jl")
 
 end # module

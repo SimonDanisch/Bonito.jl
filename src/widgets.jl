@@ -1,10 +1,73 @@
 # Render the widgets from WidgetsBase.jl
 
+# Public theming hooks for Bonito's built-in widgets. Widget default styles read
+# these CSS variables (with light-mode fallbacks), so a host page can re-theme
+# every widget by redefining them. `BONITO_WIDGET_THEME` is registered once into
+# every root session's global stylesheets (see `session_dom`), giving standalone
+# apps an automatic dark variant via `prefers-color-scheme`; hosts with their own
+# theme toggle (e.g. the Bonito docs) override the variables at higher specificity.
+const BONITO_WIDGET_THEME = Styles(
+    CSS(
+        "@media (prefers-color-scheme: light)",
+        CSS(
+            ":root",
+            "color-scheme" => "light",
+            "accent-color" => "#3182bb",
+            "--bonito-widget-bg" => "#ffffff",
+            "--bonito-widget-fg" => "#1a1a1a",
+            "--bonito-widget-border" => "#9ca3af",
+            "--bonito-widget-hover-bg" => "#f3f4f6",
+            "--bonito-widget-muted-bg" => "#f3f4f6",
+            "--bonito-widget-accent" => "#3182bb",
+        ),
+    ),
+    CSS(
+        "@media (prefers-color-scheme: dark)",
+        CSS(
+            ":root",
+            "color-scheme" => "dark",
+            "accent-color" => "#6ea8e0",
+            "--bonito-widget-bg" => "#2a2a2e",
+            "--bonito-widget-fg" => "#e8e8ea",
+            "--bonito-widget-border" => "#52525b",
+            "--bonito-widget-hover-bg" => "#3a3a40",
+            "--bonito-widget-muted-bg" => "#36363c",
+            "--bonito-widget-accent" => "#6ea8e0",
+        ),
+    ),
+    # `RangeSlider` renders via the vendored noUiSlider stylesheet, which hardcodes
+    # light colours. Re-skin its parts through the same theme variables. Selectors
+    # are prefixed with `html ` so they outrank noUiSlider's single-class rules no
+    # matter which stylesheet the host loads last.
+    CSS("html .noUi-target",
+        "background" => "var(--bonito-widget-muted-bg, #fafafa)",
+        "border-color" => "var(--bonito-widget-border, #d3d3d3)",
+        "box-shadow" => "none"),
+    CSS("html .noUi-connects", "background" => "var(--bonito-widget-muted-bg, #fafafa)"),
+    CSS("html .noUi-connect", "background" => "var(--bonito-widget-accent, #3182bb)"),
+    CSS("html .noUi-handle",
+        "background" => "var(--bonito-widget-bg, #fff)",
+        "border-color" => "var(--bonito-widget-border, #d3d3d3)",
+        "box-shadow" => "none"),
+    CSS("html .noUi-handle::before", "background" => "var(--bonito-widget-border, #d3d3d3)"),
+    CSS("html .noUi-handle::after", "background" => "var(--bonito-widget-border, #d3d3d3)"),
+    CSS("html .noUi-tooltip",
+        "background" => "var(--bonito-widget-bg, #fff)",
+        "color" => "var(--bonito-widget-fg, #000)",
+        "border-color" => "var(--bonito-widget-border, #d3d3d3)"),
+    CSS("html .noUi-marker", "background" => "var(--bonito-widget-border, #ccc)"),
+    CSS("html .noUi-value", "color" => "var(--bonito-widget-fg, inherit)"),
+)
+
+# Widget colours go through CSS variables so a host page can theme them (e.g. for
+# dark mode). The fallbacks are the original light-mode values, so standalone apps
+# look identical unless the host defines `--bonito-widget-*` (the Bonito docs map
+# these onto their theme tokens, which switch with light/dark).
 const BUTTON_STYLE = Styles(
     CSS(
         "font-weight" => 600,
         "border-width" => "1px",
-        "border-color" => "#9CA3AF",
+        "border-color" => "var(--bonito-widget-border, #9CA3AF)",
         "border-radius" => "0.25rem",
         "padding-left" => "0.75rem",
         "padding-right" => "0.75rem",
@@ -14,12 +77,13 @@ const BUTTON_STYLE = Styles(
         "cursor" => "pointer",
         "min-width" => "8rem",
         "font-size" => "1rem",
-        "background-color" => "white",
+        "color" => "var(--bonito-widget-fg, inherit)",
+        "background-color" => "var(--bonito-widget-bg, white)",
         "box-shadow" => "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px";
     ),
     CSS(
         ":hover",
-        "background-color" => "#F9FAFB",
+        "background-color" => "var(--bonito-widget-hover-bg, #F9FAFB)",
         "box-shadow" => "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px",
     ),
     CSS(
@@ -48,7 +112,8 @@ end
 """
     Button(name; style=Styles(), dom_attributes...)
 
-A simple button, which can be styled a `style::Styles`.
+A simple button, which can be styled a `style::Styles`. Set kwarg `style=nothing` to turn
+off the default Bonito styling.
 
 ### Example
 
@@ -59,7 +124,8 @@ $(BUTTON_EXAMPLE)
 Button
 
 function jsrender(session::Session, button::Button)
-    css = Styles(get(button.attributes, :style, Styles()), BUTTON_STYLE)
+    style = get(button.attributes, :style, Styles())
+    css = isnothing(style) ? Styles() : Styles(BUTTON_STYLE, style)
     button_dom = DOM.button(
         button.content[];
         onclick=js"event=> $(button.value).notify(true);",
@@ -89,7 +155,8 @@ end
 """
     TextField(default_text; style=Styles(), dom_attributes...)
 
-A simple TextField, which can be styled via the `style::Styles` attribute.
+A simple TextField, which can be styled via the `style::Styles` attribute, `style=nothing`
+turns off the default Bonito styling.
 
 ### Example
 
@@ -100,7 +167,9 @@ $(TEXTFIELD_EXAMPLE)
 TextField
 
 function jsrender(session::Session, tf::TextField)
-    css = Styles(get(tf.attributes, :style, Styles()), BUTTON_STYLE)
+    style = get(tf.attributes, :style, Styles())
+    css = isnothing(style) ? Styles() : Styles(BUTTON_STYLE, style)
+    autocomplete = get(tf.attributes, :autocomplete, "off")
     return jsrender(
         session,
         DOM.input(;
@@ -108,7 +177,8 @@ function jsrender(session::Session, tf::TextField)
             value=tf.value,
             onchange=js"event => $(tf.value).notify(event.srcElement.value);",
             tf.attributes...,
-            style=css
+            style=css,
+            autocomplete=autocomplete,
         ),
     )
 end
@@ -131,7 +201,8 @@ end
 """
     NumberInput(default_value; style=Styles(), dom_attributes...)
 
-A simple NumberInput, which can be styled via the `style::Styles` attribute.
+A simple NumberInput, which can be styled via the `style::Styles` attribute, `style=nothing`
+turns off the default Bonito styling.
 
 ### Example
 
@@ -142,7 +213,9 @@ $(NUMBERINPUT_EXAMPLE)
 NumberInput
 
 function jsrender(session::Session, ni::NumberInput)
-    css = Styles(get(ni.attributes, :style, Styles()), BUTTON_STYLE)
+    style = get(ni.attributes, :style, Styles())
+    css = isnothing(style) ? Styles() : Styles(BUTTON_STYLE, style)
+    autocomplete = get(ni.attributes, :autocomplete, "off")
     return jsrender(
         session,
         DOM.input(;
@@ -156,6 +229,7 @@ function jsrender(session::Session, ni::NumberInput)
             }",
             ni.attributes...,
             style=css,
+            autocomplete=autocomplete,
         ),
     )
 end
@@ -178,7 +252,8 @@ end
 """
     Dropdown(options; index=1, option_to_string=string, style=Styles(), dom_attributes...)
 
-A simple Dropdown, which can be styled via the `style::Styles` attribute.
+A simple Dropdown, which can be styled via the `style::Styles` attribute, `style=nothing`
+turns off the default Bonito styling.
 
 ### Example
 
@@ -200,10 +275,16 @@ function Dropdown(options; index=1, option_to_string=string, style=Styles(), att
     options = convert(Observable{Vector{Any}}, options)
     option = Observable{Any}(options[][option_index[]])
     onany(option_index, options) do index, options
-        option[] = options[index]
+        # When `options` shrinks, a stale `option_index` would index out of
+        # bounds inside this notify chain (BoundsError). Clamp the index to the
+        # current option range; correct `option_index` itself if it drifted.
+        isempty(options) && return nothing
+        idx = clamp(index, firstindex(options), lastindex(options))
+        idx == option_index[] || (option_index.val = idx)
+        option[] = options[idx]
         return nothing
     end
-    css = Styles(style, BUTTON_STYLE)
+    css = isnothing(style) ? Styles() : Styles(BUTTON_STYLE, style)
     return Dropdown(
         options, option, option_to_string, option_index, Dict{Symbol,Any}(attributes), css
     )
@@ -232,6 +313,12 @@ function jsrender(session::Session, dropdown::Dropdown)
             // https://stackoverflow.com/questions/3364493/how-do-i-clear-all-options-in-a-dropdown-box
             element.options.length = 0;
             opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
+            // Resetting selectedIndex to 0 here silently desynced Julia,
+            // which still believed the old `option_index`. Notify it (1-based)
+            // so both sides agree on the new selection.
+            if ($(dropdown.option_index).value !== 1) {
+                ($(dropdown.option_index)).notify(1);
+            }
         }
         $(string_options).on(set_options);
     }
@@ -239,7 +326,8 @@ function jsrender(session::Session, dropdown::Dropdown)
     option2div(x) = DOM.option(x)
     dom = map(options -> map(option2div, options), session, string_options)[]
 
-    select = DOM.select(dom; style=dropdown.style, dropdown.attributes...)
+    autocomplete = get(dropdown.attributes, :autocomplete, "off")
+    select = DOM.select(dom; style=dropdown.style, dropdown.attributes..., autocomplete=autocomplete)
     Bonito.onload(session, select, onchange)
     return jsrender(session, select)
 end
@@ -254,11 +342,39 @@ struct Slider{T} <: AbstractSlider{T}
     attributes::Dict{Symbol,Any}
 end
 
+# Index of the grid point that best matches `value`. Exact match wins; for real
+# numbers we snap to the nearest point and clamp, because a float range rarely
+# contains a requested default bit-exactly — `Slider(range(0, 2π, 100); value=π)`
+# (or an out-of-range default) should pick the closest tick, not crash. Mirrors
+# the tolerant behaviour `setindex!(::Slider, value)` already has.
+function slider_value_index(values::AbstractVector, value)
+    isempty(values) && throw(ArgumentError("Slider: `values` must be non-empty"))
+    exact = findfirst((==)(value), values)
+    exact === nothing || return exact
+    if value isa Real && eltype(values) <: Real
+        return argmin(abs.(values .- value))
+    end
+    @warn "Slider: value $(value) not in values; defaulting to the first element"
+    return firstindex(values)
+end
+
 function Slider(values::AbstractArray{T}; value=first(values), kw...) where {T}
     values_obs = convert(Observable{Vector{T}}, values)
-    initial_idx = findfirst((==)(value), values_obs[])
+    initial_idx = slider_value_index(values_obs[], value)
     index = Observable(initial_idx)
     value_obs = Observable(values_obs[][initial_idx])
+    # Keep `value` in sync with `index` Julia-side, so `slider.index[] = 5`
+    # updates `slider.value` immediately — offline, before the page loads, and
+    # in static exports — instead of only via a browser round-trip (which also
+    # made echoes apply out of order). Clamp the index against the current
+    # values so a shrunk `values` can't index out of bounds.
+    onany(index, values_obs) do i, vals
+        isempty(vals) && return
+        idx = clamp(i, firstindex(vals), lastindex(vals))
+        new_value = vals[idx]
+        value_obs[] == new_value || (value_obs[] = new_value)
+        return
+    end
     return Slider(values_obs, value_obs, index, Dict{Symbol,Any}(kw))
 end
 
@@ -266,32 +382,41 @@ function jsrender(session::Session, slider::Slider)
     # Hacky, but don't want to Pr WidgetsBase yet
     values = slider.values
     index = slider.index
-    onjs(
-        session,
-        index,
-        js"""(index) => {
-            const values = $(values).value
-            $(slider.value).notify(values[index - 1])
-        }
-        """,
-    )
-
+    value = slider.value
+    # `value` is derived from `index` Julia-side in the constructor, so
+    # `slider.index[] = 5` updates `slider.value` immediately (offline / before
+    # the page loads). In a *live* session the browser notifies `index` and the
+    # Julia-side map keeps `value` in sync. But a static export has no Julia, so
+    # below we also derive `value` from `index` client-side when there is no
+    # connection (with `dont_notify_julia=true`, so live sessions are unaffected
+    # and don't double-update).
+    autocomplete = get(slider.attributes, :autocomplete, "off")
     return jsrender(
         session,
         DOM.input(;
             type="range",
             min=1,
-            max=map(length, values),
+            # Session-scope the derived observable so `free(session)`
+            # deregisters it — a bare `map(length, values)` leaks one permanent
+            # listener per render of a long-lived widget (the bt_show_app pattern).
+            max=map(length, session, values),
             value=index,
             step=1,
             oninput=js"""(event)=> {
                 const idx = event.srcElement.valueAsNumber;
                 if (idx !== $(index).value) {
                     $(index).notify(idx)
+                    if (Bonito.is_no_connection()) {
+                        const vals = $(values).value;
+                        $(value).notify(vals[idx - 1], true);
+                    }
                 }
             }""",
-            style=styles,
+            # Was `style=styles`, which is the `Hyperscript.styles`
+            # *function* leaking into the attribute (no local `styles` binding
+            # exists). Style, if any, is passed through `slider.attributes`.
             slider.attributes...,
+            autocomplete=autocomplete,
         ),
     )
 end
@@ -335,8 +460,11 @@ A simple Checkbox, which can be styled via the `style::Styles` attribute.
 Checkbox
 
 function jsrender(session::Session, tb::Checkbox)
-    style = Styles(Styles("min-width" => "auto", "transform" => "scale(1.5)"), BUTTON_STYLE)
-    css = Styles(get(tb.attributes, :style, Styles()), style)
+    default_style = Styles(
+        BUTTON_STYLE, Styles("min-width" => "auto", "transform" => "scale(1.5)")
+    )
+    css = Styles(default_style, get(tb.attributes, :style, Styles()))
+    autocomplete = get(tb.attributes, :autocomplete, "off")
     return jsrender(
         session,
         DOM.input(;
@@ -344,14 +472,15 @@ function jsrender(session::Session, tb::Checkbox)
             checked=tb.value,
             onchange=js"""event=> $(tb.value).notify(event.srcElement.checked);""",
             tb.attributes...,
-            style=css
+            style=css,
+            autocomplete=autocomplete,
         ),
     )
 end
 
 # TODO, clean this up
 const noUiSlider = ES6Module(dependency_path("nouislider.min.js"))
-const noUiSliderCSS = Asset(dependency_path("noUISlider.css"))
+const noUiSliderCSS = Asset(@path(dependency_path("noUISlider.css")))  # @path: embed bytes so it survives bundle relocation
 
 function jsrender(session::Session, slider::RangeSlider)
     args = (slider.range, slider.connect, slider.orientation, slider.tooltips, slider.ticks)
@@ -370,24 +499,22 @@ function jsrender(session::Session, slider::RangeSlider)
         )
     end
     rangediv = DOM.div()
+
     create_slider = js"""
     function create_slider(style){
         const range = $(rangediv);
         range.noUiSlider.updateOptions(style, true);
     }"""
-    onload(
-        session,
-        rangediv,
-        js"""function onload(range){
-    const style = $(style[]);
-    $(noUiSlider).then(NUS=> {
-        NUS.create(range, style);
-        range.noUiSlider.on('update', function (values, handle, unencoded, tap, positions){
-            $(slider.value).notify([parseFloat(values[0]), parseFloat(values[1])]);
-        });
-    })
-}""",
-    )
+    on_range = js"""function onload(range){
+        const style = $(style[]);
+        $(noUiSlider).then(NUS=> {
+            NUS.create(range, style);
+            range.noUiSlider.on('update', function (values, handle, unencoded, tap, positions){
+                $(slider.value).notify([parseFloat(values[0]), parseFloat(values[1])]);
+            });
+        })
+    }"""
+    onload(session, rangediv, on_range)
     onjs(session, style, create_slider)
     return DOM.div(jsrender(session, noUiSliderCSS), rangediv)
 end
@@ -399,31 +526,284 @@ which gets rendered nicely!
 struct Table
     table
     class::String
-    row_renderer::Function
+    row_renderer::Function  # For backwards compatibility - kept but deprecated
+    class_callback::Function
+    style_callback::Function
+    allow_row_sorting::Bool
+    allow_column_sorting::Bool
 end
 
 render_row_value(x) = x
 render_row_value(x::Missing) = "n/a"
-render_row_value(x::AbstractString) = string(x)
-render_row_value(x::String) = x
 
-function Table(table; class="", row_renderer=render_row_value)
-    return Table(table, class, row_renderer)
+# Default color callback - returns neutral for all cells
+default_class_callback(table, row, col, val) = "table-cell cell-neutral"
+
+function Table(table;
+               class="",
+               row_renderer=render_row_value,  # Kept for backwards compatibility
+               class_callback=(args...) -> "cell-default",
+               style_callback=(args...) -> "",
+               allow_row_sorting=true,
+               allow_column_sorting=true)
+    return Table(table, class, row_renderer, class_callback, style_callback, allow_row_sorting, allow_column_sorting)
 end
 
-function jsrender(session::Session, table::Table)
-    names = string.(Tables.schema(table.table).names)
-    header = DOM.thead(DOM.tr(DOM.th.(names)...))
-    rows = []
-    for row in Tables.rows(table.table)
-        push!(rows, DOM.tr(DOM.td.(table.row_renderer.(values(row)))...))
-    end
-    body = DOM.tbody(rows...)
+const TableStyles = Styles(
+    CSS(
+        ".comparison-table",
+        "border-collapse" => "collapse",
+        "width" => "100%",
+        "font-family" => "Arial, sans-serif",
+    ),
+    CSS(
+        ".table-header",
+        "background-color" => "var(--bonito-widget-muted-bg, #f5f5f5)",
+        "color" => "var(--bonito-widget-fg, inherit)",
+        "border" => "1px solid var(--bonito-widget-border, #ddd)",
+        "padding" => "8px",
+        "text-align" => "left",
+        "font-weight" => "bold",
+        "cursor" => "pointer",
+        "user-select" => "none",
+    ),
+    CSS(
+        ".table-header:hover",
+        "background-color" => "var(--bonito-widget-hover-bg, #e9e9e9)",
+    ),
+    CSS(
+        ".table-cell",
+        "border" => "1px solid var(--bonito-widget-border, #ddd)",
+        "padding" => "8px",
+        "text-align" => "left",
+    ),
+    CSS(
+        ".table-row:hover .table-cell",
+        "background-color" => "var(--bonito-widget-hover-bg, #f9f9f9)",
+    ),
+    CSS(
+        ".cell-good",
+        "background-color" => "#d4edda",
+        "color" => "#155724",
+    ),
+    CSS(
+        ".cell-bad",
+        "background-color" => "#f8d7da",
+        "color" => "#721c24",
+    ),
+    CSS(
+        ".cell-neutral",
+        "background-color" => "#fff3cd",
+        "color" => "#856404",
+    ),
+    CSS(
+        ".cell-default",
+        "background-color" => "var(--bonito-widget-bg, white)",
+        "color" => "var(--bonito-widget-fg, black)",
+    ),
+    CSS(
+        ".table-container",
+        "overflow-x" => "auto",
+    ),
+)
 
-    return DOM.div(
-        jsrender(session, Asset(dependency_path("table.css"))),
-        DOM.table(header, body; class=table.class),
+function jsrender(session::Session, table::Table)
+    # Get table structure
+    schema = Tables.schema(table.table)
+    rows_data = collect(Tables.rows(table.table))
+
+    # Get column names - handle case when schema is nothing
+    column_names = if schema !== nothing && schema.names !== nothing
+        schema.names
+    elseif !isempty(rows_data)
+        keys(first(rows_data))
+    else
+        ()  # Empty table
+    end
+
+    # Create header row with optional click handlers for column sorting
+    header_cells = []
+    for (col_idx, col_name) in enumerate(column_names)
+        push!(header_cells, DOM.th(col_name; class = "table-header", dataColumn = col_idx - 1))
+    end
+    header_row = DOM.tr(header_cells...)
+
+    # Create data rows
+    data_rows = []
+    for (row_idx, row) in enumerate(rows_data)
+        cells = []
+        for (col_idx, val) in enumerate(values(row))
+            # Apply formatter callback (preferred) or fall back to row_renderer for backwards compatibility
+            formatted_val = table.row_renderer(val)
+            # Determine cell class using color callback
+            cell_class = table.class_callback(table.table, row_idx, col_idx, val)
+            style = table.style_callback(table.table, row_idx, col_idx, val)
+            push!(cells, DOM.td(formatted_val; class = "table-cell $cell_class", dataValue = val, style=style))
+        end
+        push!(data_rows, DOM.tr(cells...; dataRow = row_idx-1, class="table-row"))
+    end
+
+    # Create the complete table
+    table_dom = DOM.table(
+        DOM.thead(header_row),
+        DOM.tbody(data_rows...),
+        class="comparison-table $(table.class)"
     )
+
+    table_container = DOM.div(
+        TableStyles,
+        table_dom,
+        class="table-container"
+    )
+
+    # JavaScript for interactive sorting
+    sort_script = if table.allow_row_sorting || table.allow_column_sorting
+        js"""
+        (function() {
+            const container = $(table_container);
+            let sort_directions = {};
+            const table = container.querySelector('.comparison-table');
+            const tbody = table.querySelector('tbody');
+            const thead = table.querySelector('thead');
+
+            function sort_table_by_column(column_index) {
+                if (!$(table.allow_column_sorting)) return;
+
+                const current_direction = sort_directions['col_' + column_index] || 'asc';
+                const new_direction = current_direction === 'asc' ? 'desc' : 'asc';
+                sort_directions['col_' + column_index] = new_direction;
+
+                const rows = Array.from(tbody.children);
+                rows.sort((a, b) => {
+                    const a_value = a.children[column_index].getAttribute('data-value');
+                    const b_value = b.children[column_index].getAttribute('data-value');
+
+                    if (!a_value || a_value === '') return 1;
+                    if (!b_value || b_value === '') return -1;
+
+                    const a_num = parseFloat(a_value);
+                    const b_num = parseFloat(b_value);
+
+                    let comparison = 0;
+                    if (!isNaN(a_num) && !isNaN(b_num)) {
+                        comparison = a_num - b_num;
+                    } else {
+                        comparison = a_value.localeCompare(b_value);
+                    }
+
+                    return new_direction === 'asc' ? comparison : -comparison;
+                });
+
+                tbody.innerHTML = '';
+                rows.forEach(row => tbody.appendChild(row));
+            }
+
+            function sort_row_by_values(row_index) {
+                if (!$(table.allow_row_sorting)) return;
+
+                const current_direction = sort_directions['row_' + row_index] || 'asc';
+                const new_direction = current_direction === 'asc' ? 'desc' : 'asc';
+                sort_directions['row_' + row_index] = new_direction;
+
+                const data_row = tbody.children[row_index];
+                const header_row = thead.querySelector('tr');
+
+                const cells = Array.from(data_row.children);
+                const attribute_cell = cells[0];
+                const data_cells = cells.slice(1);
+
+                const header_cells = Array.from(header_row.children);
+                const attribute_header = header_cells[0];
+                const data_headers = header_cells.slice(1);
+
+                const cell_header_pairs = data_cells.map((cell, idx) => ({
+                    cell: cell,
+                    header: data_headers[idx],
+                    value: cell.getAttribute('data-value')
+                }));
+
+                cell_header_pairs.sort((a, b) => {
+                    const a_value = a.value;
+                    const b_value = b.value;
+
+                    if (!a_value || a_value === '') return 1;
+                    if (!b_value || b_value === '') return -1;
+
+                    const a_num = parseFloat(a_value);
+                    const b_num = parseFloat(b_value);
+
+                    let comparison = 0;
+                    if (!isNaN(a_num) && !isNaN(b_num)) {
+                        comparison = a_num - b_num;
+                    } else {
+                        comparison = a_value.localeCompare(b_value);
+                    }
+
+                    return new_direction === 'asc' ? comparison : -comparison;
+                });
+
+                data_row.innerHTML = '';
+                header_row.innerHTML = '';
+
+                data_row.appendChild(attribute_cell);
+                header_row.appendChild(attribute_header);
+
+                cell_header_pairs.forEach(pair => {
+                    data_row.appendChild(pair.cell);
+                    header_row.appendChild(pair.header);
+                });
+
+                // Update all other rows to match the new column order
+                Array.from(tbody.children).forEach((row, idx) => {
+                    if (idx !== row_index) {
+                        const row_cells = Array.from(row.children);
+                        const row_attribute_cell = row_cells[0];
+                        const row_data_cells = row_cells.slice(1);
+
+                        const reordered_cells = cell_header_pairs.map(pair => {
+                            const original_index = data_cells.indexOf(pair.cell);
+                            return row_data_cells[original_index];
+                        });
+
+                        row.innerHTML = '';
+                        row.appendChild(row_attribute_cell);
+                        reordered_cells.forEach(cell => row.appendChild(cell));
+                    }
+                });
+            }
+
+            // Add column header click listeners
+            if ($(table.allow_column_sorting)) {
+                Array.from(thead.querySelectorAll('.table-header')).forEach((header, index) => {
+                    header.addEventListener('click', function() {
+                        sort_table_by_column(index);
+                    });
+                });
+            }
+
+            // Add row sorting listeners (first cell of each row)
+            if ($(table.allow_row_sorting)) {
+                Array.from(tbody.children).forEach((row, row_index) => {
+                    const first_cell = row.children[0];
+                    if (first_cell) {
+                        first_cell.style.cursor = 'pointer';
+                        first_cell.style.userSelect = 'none';
+                        first_cell.addEventListener('click', function() {
+                            sort_row_by_values(row_index);
+                        });
+                    }
+                });
+            }
+        })();
+        """
+    else
+        nothing
+    end
+
+    return jsrender(session, DOM.div(
+        table_container,
+        sort_script
+    ))
 end
 
 struct CodeEditor
@@ -481,57 +861,46 @@ function CodeEditor(
     user_opts = Dict{String,Any}(string(k) => v for (k, v) in editor_options)
     options = Dict{String,Any}(merge(defaults, user_opts))
     onchange = Observable(initial_source)
-    style = Styles(style,
-        "position" => "relative",
-        "height" => "$(height)px",
+    style = Styles(
+        Styles(
+            "position" => "relative",
+            "height" => "$(height)px",
+        ),
+        style,
     )
     element = DOM.div(""; style=style)
     return CodeEditor(theme, language, options, onchange, element)
 end
 
 function jsrender(session::Session, editor::CodeEditor)
-
     theme = "ace/theme/$(editor.theme)"
     language = "ace/mode/$(editor.language)"
-    ace_url = "https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"
-    ace = DOM.script()
-    onload(
-        session,
-        editor.element,
-        js"""
-            function (element){
-                // sadly I cant find a way to use ace as an ES6 module, which means
-                // we need to use more primitive methods, to make sure ace is loaded
-                const onload_callback = () =>{
-                    const editor = ace.edit(element, {
-                        mode: $(language)
-                    });
-                    editor.setTheme($theme);
-                    editor.getSession().setUseWrapMode(true)
-                    // use setOptions method to set several options at once
-                    editor.setOptions($(editor.options));
+    ace = Asset("https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js")
+    setup = js"""
+        $(ace).then((ace) => {
+            const element = $(editor.element);
+            const editor = ace.edit(element, {
+                mode: $(language)
+            });
+            editor.setTheme($theme);
+            editor.getSession().setUseWrapMode(true)
+            // use setOptions method to set several options at once
+            editor.setOptions($(editor.options));
 
-                    editor.session.on('change', function(delta) {
-                        $(editor.onchange).notify(editor.getValue());
-                    });
-                    editor.session.setValue($(editor.onchange).value);
-                    function resizeEditor() {
-                        const height = editor.getSession().getScreenLength() *
-                            (editor.renderer.lineHeight + editor.renderer.scrollBar.getWidth());
-                        editor.container.style.height = `${height}px`;
-                    }
-                    // Resize the editor initially
-                    resizeEditor();
-                }
-                const ace_script = $(ace)
-                // we need to first set the onload callback and set the src afterwards!
-                // I wish we could just make ACE an ES6 module, but haven't found a way yet
-                ace_script.onload = onload_callback;
-                ace_script.src = $(ace_url);
+            editor.session.on('change', function(delta) {
+                $(editor.onchange).notify(editor.getValue());
+            });
+            editor.session.setValue($(editor.onchange).value);
+            function resizeEditor() {
+                const height = editor.getSession().getScreenLength() *
+                    (editor.renderer.lineHeight + editor.renderer.scrollBar.getWidth());
+                editor.container.style.height = `${height}px`;
             }
-        """,
-    )
-    return jsrender(session, DOM.div(ace, editor.element))
+            // Resize the editor initially
+            resizeEditor();
+        });
+    """
+    return jsrender(session, DOM.div(editor.element, setup))
 end
 
 
@@ -551,6 +920,9 @@ struct HierarchicalSubMenu <: AbstractHierarchicalMenuItem
     label::String
     items::Vector{AbstractHierarchicalMenuItem}
     icon::Union{String, Nothing}
+    # Initial expand/collapse state. Toggling afterwards is presentational per-tab
+    # state handled entirely in the browser (a CSS class flip), so the menu expands
+    # in static exports too, with no Julia round-trip — see AGENTS.md §1.
     expanded::Bool
 end
 
@@ -596,10 +968,12 @@ end
     HierarchicalMenu(items; style=Styles(), attributes...)
 
 A hierarchical menu widget that supports nested menu items and submenus.
+The currently clicked leaf's value is pushed to `menu.selected_value`, so
+`on(menu.selected_value) do value ... end` reacts to menu selections.
 
 ### Menu Items
-- `MenuItem(label, value; icon=nothing, enabled=true)`: A clickable menu item
-- `SubMenu(label, items; icon=nothing, expanded=false)`: A submenu containing other items
+- `HierarchicalMenuItem(label, value=label; icon=nothing, enabled=true)`: A clickable menu item
+- `HierarchicalSubMenu(label, items; icon=nothing, expanded=false)`: A submenu containing other items
 
 ### Example
 
@@ -607,93 +981,104 @@ A hierarchical menu widget that supports nested menu items and submenus.
 $(HIERARCHICAL_MENU_EXAMPLE)
 ```
 """
-
 function HierarchicalMenu(items; style=Styles(), attributes...)
     items_obs = convert(Observable{Vector{AbstractHierarchicalMenuItem}}, items)
     selected_value = Observable{Any}(nothing)
-    css = Styles(style, MENU_STYLES)
-    return HierarchicalMenu(items_obs, selected_value, css, Dict{Symbol,Any}(attributes))
+    # The shared component stylesheet (`MENU_STYLE`) is registered once globally in
+    # `jsrender`; only the caller's overrides are stored per-instance and scoped to
+    # the root element, mirroring how `Button`/`TextField` handle `style`.
+    return HierarchicalMenu(items_obs, selected_value, style, Dict{Symbol,Any}(attributes))
 end
 
+# Colors read the `--bonito-widget-*` variables (see `BONITO_WIDGET_THEME`) so the
+# menu follows the host/OS theme like every other built-in widget, with a
+# light-mode fallback for hosts that don't define them.
 const MENU_STYLE = Styles(
     CSS(
         ".hierarchical-menu",
         "font-family" => "system-ui, -apple-system, sans-serif",
-        "border" => "1px solid #e1e5e9",
+        "border" => "1px solid var(--bonito-widget-border, #e1e5e9)",
         "border-radius" => "6px",
-        "background-color" => "#ffffff",
+        "background-color" => "var(--bonito-widget-bg, #ffffff)",
+        "color" => "var(--bonito-widget-fg, #1a1a1a)",
         "box-shadow" => "0 2px 8px rgba(0,0,0,0.1)",
         "overflow" => "hidden",
         "min-width" => "200px"
     ),
     CSS(
-        ".menu-item",
+        ".hierarchical-menu .menu-item",
         "display" => "flex",
         "align-items" => "center",
         "padding" => "8px 12px",
         "cursor" => "pointer",
-        "border-bottom" => "1px solid #f6f8fa",
+        "border-bottom" => "1px solid var(--bonito-widget-border, #f6f8fa)",
         "transition" => "background-color 0.2s",
         "user-select" => "none"
     ),
     CSS(
-        ".menu-item:hover",
-        "background-color" => "#f6f8fa"
+        ".hierarchical-menu .menu-item:hover",
+        "background-color" => "var(--bonito-widget-hover-bg, #f6f8fa)"
     ),
     CSS(
-        ".menu-item:last-child",
+        ".hierarchical-menu .menu-item:last-child",
         "border-bottom" => "none"
     ),
     CSS(
-        ".menu-item.disabled",
+        ".hierarchical-menu .menu-item.disabled",
         "opacity" => "0.5",
         "cursor" => "not-allowed"
     ),
     CSS(
-        ".menu-item.disabled:hover",
+        ".hierarchical-menu .menu-item.disabled:hover",
         "background-color" => "transparent"
     ),
     CSS(
-        ".submenu-header",
+        ".hierarchical-menu .submenu-header",
         "display" => "flex",
         "align-items" => "center",
         "padding" => "8px 12px",
         "cursor" => "pointer",
-        "border-bottom" => "1px solid #f6f8fa",
-        "background-color" => "#f6f8fa",
+        "border-bottom" => "1px solid var(--bonito-widget-border, #f6f8fa)",
+        "background-color" => "var(--bonito-widget-muted-bg, #f6f8fa)",
         "font-weight" => "500",
         "transition" => "background-color 0.2s",
         "user-select" => "none"
     ),
     CSS(
-        ".submenu-header:hover",
-        "background-color" => "#eaeef2"
+        ".hierarchical-menu .submenu-header:hover",
+        "background-color" => "var(--bonito-widget-hover-bg, #eaeef2)"
     ),
     CSS(
-        ".submenu-content",
-        "border-left" => "3px solid #e1e5e9",
-        "background-color" => "#fafbfc"
+        ".hierarchical-menu .submenu-content",
+        "border-left" => "3px solid var(--bonito-widget-border, #e1e5e9)",
+        "background-color" => "var(--bonito-widget-muted-bg, #fafbfc)"
+    ),
+    # A `.submenu` wrapper is `.expanded` or not; visibility is pure CSS. The `>`
+    # combinators keep a nested submenu's own state from leaking to/from its parent.
+    CSS(
+        ".hierarchical-menu .submenu:not(.expanded) > .submenu-content",
+        "display" => "none"
     ),
     CSS(
-        ".submenu-content .menu-item",
+        ".hierarchical-menu .submenu-content .menu-item",
         "padding-left" => "20px"
     ),
     CSS(
-        ".menu-icon",
+        ".hierarchical-menu .menu-icon",
         "margin-right" => "8px",
         "font-size" => "14px",
         "width" => "16px",
         "text-align" => "center"
     ),
     CSS(
-        ".submenu-arrow",
+        ".hierarchical-menu .submenu-arrow",
         "margin-left" => "auto",
         "font-size" => "12px",
         "transition" => "transform 0.2s",
-        "color" => "#656d76"
+        "color" => "var(--bonito-widget-fg, #656d76)"
     ),
     CSS(
-        ".submenu-arrow.expanded",
+        ".hierarchical-menu .submenu.expanded > .submenu-header .submenu-arrow",
         "transform" => "rotate(90deg)"
     )
 )
@@ -716,58 +1101,46 @@ end
 
 function render_menu_item(session::Session, submenu::HierarchicalSubMenu, menu::HierarchicalMenu, depth::Int=0)
     icon_span = submenu.icon !== nothing ? DOM.span(submenu.icon; class="menu-icon") : DOM.span(""; class="menu-icon")
-    arrow_span = DOM.span("▶"; class=submenu.expanded ? "submenu-arrow expanded" : "submenu-arrow")
 
     header_div = DOM.div(
         icon_span,
         DOM.span(submenu.label),
-        arrow_span;
-        class="submenu-header"
+        DOM.span("▶"; class="submenu-arrow");
+        class="submenu-header",
+        # Flip the wrapper's `.expanded` class in the browser. `classList.toggle`
+        # is a stateless flip (not a read-decide on DOM state), CSS does the rest,
+        # and it needs no server — so it works in a static export. See AGENTS.md §1.
+        onclick=js"""event => {
+            event.stopPropagation();
+            event.currentTarget.parentElement.classList.toggle("expanded");
+        }"""
     )
 
     content_items = [render_menu_item(session, child_item, menu, depth + 1) for child_item in submenu.items]
-    content_div = DOM.div(
-        content_items...;
-        class="submenu-content",
-        style=submenu.expanded ? "display: block;" : "display: none;"
-    )
+    content_div = DOM.div(content_items...; class="submenu-content")
 
-    submenu_div = DOM.div(header_div, content_div)
-
-    # Add click handler to toggle submenu
-    onload(session, header_div, js"""
-    function(header) {
-        header.addEventListener('click', function(event) {
-            event.stopPropagation();
-            const arrow = header.querySelector('.submenu-arrow');
-            const content = header.nextElementSibling;
-
-            if (content.style.display === 'none' || content.style.display === '') {
-                content.style.display = 'block';
-                arrow.classList.add('expanded');
-            } else {
-                content.style.display = 'none';
-                arrow.classList.remove('expanded');
-            }
-        });
-    }
-    """)
-
-    return submenu_div
+    return DOM.div(header_div, content_div; class=submenu.expanded ? "submenu expanded" : "submenu")
 end
 
 
 function jsrender(session::Session, menu::HierarchicalMenu)
-    # Render all menu items
-    rendered_items = [render_menu_item(session, item, menu) for item in menu.items[]]
-    menu_div = DOM.div(
-        menu.style,
-        rendered_items...;
-        class="hierarchical-menu",
-        style=menu.style,
-        menu.attributes...
-    )
-    return jsrender(session, menu_div)
+    # The menu re-renders reactively when `items` changes. The list is bounded and
+    # holds no heavy sub-widgets, so a full re-render is cheap (see AGENTS.md §5);
+    # per-submenu `expanded` state lives on the item structs, so it survives across
+    # re-renders as long as the same items are re-emitted.
+    menu_dom = map(session, menu.items) do items
+        DOM.div(
+            (render_menu_item(session, item, menu) for item in items)...;
+            class="hierarchical-menu",
+            style=menu.style,
+            menu.attributes...
+        )
+    end
+    # `MENU_STYLE` is a shared const, so registering it as a global stylesheet
+    # injects it exactly once regardless of how many menus are on the page
+    # (`global_stylesheets` dedups by object identity). The caller's `style` stays
+    # scoped to the root element via the `style=` attribute above.
+    return jsrender(session, DOM.div(MENU_STYLE, menu_dom))
 end
 
 # Ok, this is bad piracy, but I donno how else to make the display nice for now!
@@ -781,7 +1154,10 @@ struct FileInput <: Bonito.WidgetsBase.AbstractWidget{String}
     multiple::Bool
 end
 
-FileInput(value::Observable{Vector{String}}; multiple = true) = FileInput(Observable([""]), multiple)
+# Previously this discarded the caller's observable and substituted a
+# fresh `Observable([""])`, so a user passing their own value observable never
+# saw file selections. Keep the supplied observable.
+FileInput(value::Observable{Vector{String}}; multiple = true) = FileInput(value, multiple)
 FileInput(; kws...) = FileInput(Observable([""]); kws...)
 
 function Bonito.jsrender(session::Session, fi::FileInput)
@@ -795,4 +1171,206 @@ function Bonito.jsrender(session::Session, fi::FileInput)
         }
     }"""
     return DOM.input(; type="file", onchange=onchange, multiple=fi.multiple)
+end
+
+# ChoicesBox
+
+const CHOICESBOX_EXAMPLE = """
+App() do
+    # Create a combo box with some sample options
+    fruits = ["Apple", "Banana", "Cherry", "Date", "Elderberry", "Fig", "Grape"]
+
+    # Configure Choices.js parameters
+    params = ChoicesJSParams(
+        searchPlaceholderValue="Type to search fruits...",
+        searchEnabled=true,
+        shouldSort=true,
+        searchResultLimit=5
+    )
+    combobox = ChoicesBox(fruits;
+        initial_value="Apple",
+        choicejsparams=params
+    )
+
+    # Display selected value
+    selected_display = map(combobox.value) do value
+        isnothing(value) ? "No selection" : "Selected: \$value"
+    end
+
+    # Handle value changes
+    on(combobox.value) do value
+        @info "ComboBox value changed to: \$value"
+    end
+
+    return DOM.div(
+        DOM.h2("Choices.js ComboBox Example"),
+        DOM.p("This combo box allows you to select from predefined options or type your own:"),
+        combobox,
+        DOM.p(selected_display, style="margin-top: 20px; font-weight: bold;")
+    )
+end
+
+"""
+
+# External JavaScript library assets
+# https://github.com/Choices-js/Choices/blob/main/README.md
+const ChoicesJS = ES6Module(dependency_path("choices.min.js"))
+const ChoicesCSS = Asset(@path(dependency_path("choices.min.css")))  # @path: embed bytes so it survives bundle relocation
+
+"""
+    ChoicesJSParams(; kwargs...)
+
+Wrapper struct for parameters to the ChoicesJS `Choices` constructor.
+
+Parameters include search functionality, rendering options, and behavior settings
+for the Choices.js library. See the official documentation for complete parameter
+reference: https://github.com/Choices-js/Choices/blob/main/README.md
+
+# Fields
+- `addItems::Bool`: Allow adding of items (default: true)
+- `itemSelectText::String`: Text shown when hovering over selectable items
+- `placeholder::Bool`: Show placeholder text (default: true)
+- `placeholderValue::String`: Placeholder text to display
+- `removeItemButton::Bool`: Show remove button on items (default: false)
+- `renderChoiceLimit::Int`: Limit choices rendered (-1 for no limit)
+- `searchEnabled::Bool`: Enable search functionality (default: true)
+- `searchPlaceholderValue::String`: Search input placeholder text
+- `searchResultLimit::Int`: Limit search results (default: 4)
+- `shouldSort::Bool`: Sort choices alphabetically (default: true)
+"""
+Base.@kwdef struct ChoicesJSParams
+    addItems::Bool = true
+    itemSelectText::String = "Press to select"
+    placeholder::Bool = true
+    placeholderValue::String = ""
+    removeItemButton::Bool = false
+    renderChoiceLimit::Int = -1
+    searchEnabled::Bool = true
+    searchPlaceholderValue::String = ""
+    searchResultLimit::Int = 4
+    shouldSort::Bool = true
+end
+
+function (c::ChoicesJSParams)()
+    return js"""
+    {
+        addItems: $(c.addItems),
+        itemSelectText: $(c.itemSelectText),
+        placeholder: $(c.placeholder),
+        placeholderValue: $(c.placeholderValue),
+        removeItemButton: $(c.removeItemButton),
+        renderChoiceLimit: $(c.renderChoiceLimit),
+        searchEnabled: $(c.searchEnabled),
+        searchPlaceholderValue: $(c.searchPlaceholderValue),
+        searchResultLimit: $(c.searchResultLimit),
+        shouldSort: $(c.shouldSort),
+        // fixed params
+        items: [],
+        choices: []
+
+    }
+    """
+end
+
+"""
+    ChoicesBox(options; initial_value="", choicejsparams=ChoicesJSParams(...), attributes...)
+
+A combo box widget using the Choices.js library that allows both text input and selection from predefined options.
+Users can either select from the dropdown list or type their own custom values.
+
+# Fields
+- `options::Observable{Vector{String}}`: Available dropdown options
+- `value::Observable{String}`: Current selected or typed value
+- `choicejsparams::ChoicesJSParams`: Choices.js configuration parameters
+- `attributes::Dict{Symbol, Any}`: DOM attributes applied to the element
+
+    ChoicesBox(options; initial_value="", choicejsparams=ChoicesJSParams(...), attributes...)
+
+Constructor for creating a ChoicesBox widget.
+
+# Arguments
+- `options`: Vector or Observable of string options for the dropdown
+- `initial_value=""`: Initial selected value
+- `choicejsparams=ChoicesJSParams(searchPlaceholderValue="Type here...")`: Choices.js configuration
+- `attributes...`: Additional DOM attributes
+
+# Returns
+- `ChoicesBox`: A configured combo box widget instance
+
+# Example
+
+```julia
+$(CHOICESBOX_EXAMPLE)
+```
+"""
+struct ChoicesBox
+    options::Observable{Vector{String}}
+    value::Observable{Union{Nothing,String}}
+    choicejsparams::ChoicesJSParams
+    attributes::Dict{Symbol, Any}
+end
+
+
+function ChoicesBox(options; choicejsparams = ChoicesJSParams(), attributes...)
+    options = convert(Observable{Vector{String}}, options)
+    value = Observable{Union{Nothing,String}}(nothing)
+
+    return ChoicesBox(
+        convert(Observable{Vector{String}}, options),
+        value,
+        choicejsparams,
+        attributes
+    )
+end
+
+function jsrender(session::Session, choicesbox::ChoicesBox)
+    # Map options to option elements
+    option_elements = map(choicesbox.options) do options
+        return map(o->DOM.option(o, value = o), options)
+    end
+    selectDOM = map(opts->DOM.select(opts..., class = "choicesbox"), option_elements)[]
+
+    # Choices.js initialization and event handling
+    choices_script = js"""
+        function initChoices(selectElement) {
+            // Wait for Choices.js to load
+            if (typeof Choices === 'undefined') {
+                // console.log("Wait for Choices.js to load")
+                setTimeout(() => initChoices(selectElement), 100);
+                return;
+            }
+            const choices = new Choices(selectElement, $(choicesbox.choicejsparams()));
+
+            // Handle value changes
+            selectElement.addEventListener('change', function(event) {
+                // console.log("Handle value changes", event.detail.value || event.target.value)
+                $(choicesbox.value).notify(event.detail.value || event.target.value);
+            });
+
+            // Update choices when options change
+            $(choicesbox.options).on(function(newOptions) {
+                // console.log("Update choices when options change", newOptions)
+                choices.clearStore();
+                newOptions.forEach(option => {
+                    choices.setChoices([{value: option, label: option}], 'value', 'label', false);
+                });
+                $(choicesbox.value).notify(null);
+            });
+
+            // Update value when observable changes
+            $(choicesbox.value).on(function(newValue) {
+                // console.log("Update value when observable changes", newValue)
+                if (choices.getValue(true) !== newValue) {
+                    choices.setChoiceByValue(newValue);
+                }
+            });
+
+        }
+
+        initChoices($(selectDOM));
+    """
+    return Bonito.jsrender(
+        session,
+        DOM.div(ChoicesJS, ChoicesCSS, selectDOM, choices_script; choicesbox.attributes...),
+    )
 end

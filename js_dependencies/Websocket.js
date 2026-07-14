@@ -102,6 +102,13 @@ class Websocket {
                 console.log(`Waiting ${delay / 1000}s before retry...`);
                 self.#retry_timeout_id = setTimeout(attempt_connection, delay);
                 delay = Math.min(delay * 2, max_delay);
+            } else if (!self.isopen()) {
+                // J7: we ran out of time between the deadline check above and
+                // here (or the socket is mid-CONNECTING with no time left).
+                // Without this branch we'd return leaving #is_retrying stuck
+                // true, so every future reconnect attempt would early-out as
+                // "Already retrying connection". Give up cleanly to reset state.
+                give_up();
             }
         }
 
@@ -110,6 +117,11 @@ class Websocket {
     }
 
     tryconnect() {
+        // Notify indicator that we're attempting to connect
+        if (typeof Bonito !== 'undefined' && Bonito.on_connection_connecting) {
+            Bonito.on_connection_connecting();
+        }
+
         const ws = new WebSocket(this.url);
         ws.binaryType = "arraybuffer";
         this.#websocket = ws;
@@ -120,21 +132,45 @@ class Websocket {
             this_ws.#onopen_callbacks.forEach((f) => f());
 
             ws.onmessage = function (evt) {
-                new Promise((resolve) => {
-                    const binary = new Uint8Array(evt.data);
-                    if (binary.length === 1 && binary[0] === 0) {
-                        // test write
-                        return resolve(null);
-                    }
-                    Bonito.lock_loading(() => {
-                        Bonito.process_message(
-                            Bonito.decode_binary(
-                                binary,
-                                this_ws.compression_enabled
-                            )
-                        );
-                    });
-                    return resolve(null);
+                const binary = new Uint8Array(evt.data);
+                if (binary.length === 1 && binary[0] === 0) {
+                    // test write
+                    return;
+                }
+                // Notify indicator of data transfer for large messages (> 10KB)
+                const isLargeTransfer = binary.length > 10240;
+                if (isLargeTransfer && typeof Bonito !== 'undefined' && Bonito.notify_data_transfer) {
+                    Bonito.notify_data_transfer(true);
+                }
+                // J6: decode_binary (msgpack) and the JSCODE_TAG eval that runs
+                // during decode can throw; process_message has its own
+                // try/catch but decode runs before it. lock_loading enqueues a
+                // PQueue task and discards its promise, so a throw here became
+                // an unhandled rejection and the message was silently dropped.
+                // Run decode+process inside the locked task and attach a .catch
+                // that surfaces the failure via send_error.
+                Bonito.lock_loading(() => {
+                    return Promise.resolve()
+                        .then(() => {
+                            Bonito.process_message(
+                                Bonito.decode_binary(
+                                    binary,
+                                    this_ws.compression_enabled
+                                )
+                            );
+                        })
+                        .catch((error) => {
+                            Bonito.send_error(
+                                "Error while decoding/processing incoming websocket message",
+                                error
+                            );
+                        })
+                        .finally(() => {
+                            // Signal end of transfer
+                            if (isLargeTransfer && typeof Bonito !== 'undefined' && Bonito.notify_data_transfer) {
+                                Bonito.notify_data_transfer(false);
+                            }
+                        });
                 });
             };
         };
@@ -142,6 +178,14 @@ class Websocket {
         ws.onclose = function (evt) {
             console.log("closed websocket connection, code:", evt.code);
             console.log(evt);
+            // J2: flip the connection status off "open" the instant the socket
+            // dies. Otherwise send_to_julia still believes status === "open",
+            // calls send() on the dead socket, ensure_connection() returns
+            // "connecting" and the message is dropped. Marking us
+            // "connecting" makes send_to_julia queue messages for replay.
+            if (typeof Bonito !== 'undefined' && Bonito.on_connection_connecting) {
+                Bonito.on_connection_connecting();
+            }
             // Only retry if not already retrying
             if (!this_ws.#is_retrying) {
                 this_ws.retry_connection();
@@ -247,16 +291,51 @@ export function setup_connection({
     query,
     main_connection,
 }) {
+    // TODO why does this make the tests hang?
+    // Detect tab duplication using BroadcastChannel.
+    // When a tab is duplicated, both tabs have the same session_id embedded in HTML.
+    // We use BroadcastChannel to detect if another tab is already using this session.
+    // if (BroadcastChannel) {
+    //     const channel = new BroadcastChannel(`bonito_session_${session_id}`);
+    //     // Handle messages from other tabs
+    //     channel.onmessage = (event) => {
+    //         console.log("BroadcastChannel message received:", event.data);
+    //         if (event.data === "session_in_use") {
+    //             // Another tab already owns this session - we're a duplicate
+    //             console.log(
+    //                 "Detected duplicated tab (another tab owns this session), reloading..."
+    //             );
+    //             channel.close();
+    //             window.location.reload();
+    //         } else if (event.data === "who_owns_session") {
+    //             // Another tab is asking - we own this session, tell them
+    //             channel.postMessage("session_in_use");
+    //         }
+    //     };
+    //     // Ask if any other tab is using this session
+    //     channel.postMessage("who_owns_session");
+    // }
+
     const url = websocket_url(session_id, proxy_url);
     console.log(`connecting : ${url + query}`);
     const ws = new Websocket(url + query, compression_enabled);
     window.WEBSOCKET = ws;
     if (main_connection) {
+        let first_open = true;
         ws.on_open(() => {
             Bonito.on_connection_open(
                 (binary) => ws.send(binary),
                 compression_enabled
             );
+            if (first_open) {
+                first_open = false;
+            } else {
+                // websocket reconnected: re-announce the initialized sessions
+                // so the julia side re-opens them - flushing messages queued
+                // while disconnected and firing `session.on_open` for
+                // integrations that re-synchronize state (e.g. WGLMakie).
+                Bonito.Sessions.reannounce_initialized_sessions();
+            }
         });
     }
 }

@@ -62,9 +62,13 @@ get_io_context(io::IOContext) = io
 
 function show_html(io::IO, app::App; parent=CURRENT_SESSION[])
     ctx = get_io_context(io)
-    session =  nothing
+    session = nothing
+    sub = nothing
+    # Render-time errors are caught inside `rendered_dom` via `handle_render_error`
+    # and become inline error HTML in the returned Node — no outer try/catch needed.
+    # The error is also recorded on the session's `init_error[]` so any caller
+    # later asking `isready(sub)` (REPL helper, test, bench) surfaces the cause.
     if !isnothing(parent)
-        # We render in a subsession
         sub = Session(parent; title=app.title)
         sub.io_context[] = ctx
         dom = session_dom(sub, app)
@@ -72,13 +76,11 @@ function show_html(io::IO, app::App; parent=CURRENT_SESSION[])
         session = Session(title=app.title)
         if _use_parent_session(session)
             CURRENT_SESSION[] = session
-            empty_app = App(nothing)
+            empty_app = App(nothing; indicator=app.indicator, loading_page=nothing)
             sub = Session(session)
             sub.io_context[] = ctx
             init_dom = session_dom(session, empty_app)
             sub_dom = session_dom(sub, app)
-            # first time rendering in a subsession, we combine init of parent session
-            # with the dom we're rendering right now
             dom = DOM.div(init_dom, sub_dom)
             session.status = DISPLAYED
         else
@@ -87,7 +89,7 @@ function show_html(io::IO, app::App; parent=CURRENT_SESSION[])
             dom = session_dom(session, app)
         end
     end
-    show(io, Hyperscript.Pretty(dom))
+    show(io, dom)
     mark_displayed!(sub)
     isnothing(session) || mark_displayed!(session)
     return sub
@@ -100,7 +102,7 @@ end
 function print_as_page(io::IO, dom::Node)
     println(io, "<!doctype html>")
     # use Hyperscript directly to avoid the additional Bonito attributes
-    show(io, MIME"text/html"(), Hyperscript.Pretty(dom))
+    show(io, MIME"text/html"(), dom)
     return
 end
 
@@ -109,8 +111,8 @@ end
 
 Embeds the html_body in a standalone html document!
 """
-function page_html(io::IO, session::Session, app_node::Union{Node, App})
-    dom = session_dom(session, app_node; html_document=true)
+function page_html(io::IO, session::Session, app_node::Union{Node, App}; kw...)
+    dom = session_dom(session, app_node; html_document=true, kw...)
     print_as_page(io, dom)
     return
 end
@@ -129,11 +131,15 @@ function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
     if !allow_soft_close()
         show(io, MIME"text/html"(), app)
     else
+        # User-handler errors are absorbed by `handle_render_error` inside
+        # `rendered_dom` and become inline error HTML in the rendered DOM —
+        # so this path doesn't need its own try/catch. Infrastructure errors
+        # (Session ctor, IO failure on `show`) propagate as normal exceptions.
         session = Session(title=app.title)
         sub = Session(session)
         sub.current_app[] = app
         sub.io_context[] = get_io_context(io)
-        fetch_app = App() do s
+        fetch_app = App(loading_page=nothing) do s
             dom_node = DOM.div()
             request = js"""
                 Bonito.send_to_julia({
@@ -145,7 +151,7 @@ function Base.show(io::IO, ::MIME"juliavscode/html", app::App)
             return DOM.div(request, dom_node)
         end
         dom = session_dom(session, fetch_app)
-        show(io, Hyperscript.Pretty(dom))
+        show(io, dom)
         mark_displayed!(session)
         mark_displayed!(sub)
     end

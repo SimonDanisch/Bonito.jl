@@ -1,9 +1,4 @@
-function styleable_slider_app(s, r)
-    a = StylableSlider(1:4; value=1)
-    b = StylableSlider(1:4; index=2)
-    c = StylableSlider(["a", "b"]; value="b")
-    return DOM.div(a, b, c)
-end
+# styleable_slider_app defined in test_helpers.jl
 
 @testset "StylableSlider" begin
     testsession(styleable_slider_app; port=8555) do app

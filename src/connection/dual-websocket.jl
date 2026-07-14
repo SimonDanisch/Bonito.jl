@@ -14,7 +14,13 @@ function DualWebsocket(server::Server)
     return DualWebsocket(server, nothing, WebSocketHandler(), WebSocketHandler())
 end
 
-Base.isopen(ws::DualWebsocket) = isopen(ws.low_latency)
+# Both legs must be open: a DualWebsocket is only usable while BOTH the
+# low-latency and large-data sockets are alive. Checking only `low_latency`
+# meant that if the large-data leg died alone, the session stayed "ready",
+# `write_large` kept failing/queueing forever, and nothing triggered a
+# reconnect or flush. Requiring both flips the session not-ready so the
+# normal reconnect/queue-replay path runs.
+Base.isopen(ws::DualWebsocket) = isopen(ws.low_latency) && isopen(ws.large_data)
 
 function Base.write(ws::DualWebsocket, binary::AbstractVector{UInt8})
     write(ws.low_latency, binary)
@@ -52,14 +58,26 @@ function (connection::DualWebsocket)(context, websocket::WebSocket)
     try
         run_connection_loop(session, handler, websocket)
     finally
-        # This always needs to happen, which is why we need a try catch!
-        if allow_soft_close(CLEANUP_POLICY[])
-            @debug("Soft closing: $(session.id)")
-            soft_close(session)
+        # Close our own handler only if this socket is still current; a stale
+        # loop must not tear down the live socket a reconnect installed.
+        if is_current_socket(handler, websocket)
+            close(handler)
         else
-            @debug("Closing: $(session.id)")
-            # might as well close it immediately
-            close(session)
+            @debug("Stale ws loop for $(session.id) exiting; not closing handler")
+        end
+        # Fire the session transition once BOTH legs are dead, regardless of which
+        # leg (stale or not) observes it last. Gating this on `is_current_socket`
+        # let a stale last leg exit without firing it, leaking the session as OPEN.
+        # Idempotent via the CLOSED guard. Require both legs dead so the first leg
+        # to drop doesn't kill a session the other is still serving (e.g. JSDoneLoading).
+        if !isopen(connection.low_latency) && !isopen(connection.large_data)
+            if allow_soft_close(CLEANUP_POLICY[])
+                @debug("Soft closing: $(session.id)")
+                soft_close(session)
+            else
+                @debug("Closing: $(session.id)")
+                close(session)
+            end
         end
     end
 end

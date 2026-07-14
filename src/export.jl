@@ -52,11 +52,12 @@ struct IgnoreObsUpdates <: Function
 end
 
 function (ignore::IgnoreObsUpdates)(msg)
-    if msg[:msg_type] == UpdateObservable
+    # Observable update messages use String keys (see `JSUpdateObservable`).
+    if get(msg, "msg_type", nothing) == UpdateObservable
         # Ignore all messages that directly update the observable we watch
         # because otherwise, that will trigger itself recursively, once those messages are applied
         # via `$(wid).on(x=> ....)`
-        msg[:id] in ignore.widget_ids && return true
+        get(msg, "id", nothing) in ignore.widget_ids && return true
     end
     return false
 end
@@ -75,9 +76,12 @@ function record_values(f, session, widget_ids)
             append!(messages, s.message_queue)
         end
         return messages
-    catch e
-        Base.showerror(stderr, e)
     finally
+        # Previously this swallowed the error (showerror to stderr +
+        # implicit `return nothing`), so a failure here surfaced downstream as
+        # an unrelated MethodError on `nothing` that masked the real cause. Let
+        # the exception propagate to the caller (which logs it with full
+        # context and `continue`s) by only doing cleanup in `finally`.
         do_session(session) do s
             s.ignore_message[] = (msg)-> false
             empty!(s.message_queue) # remove all recorded messages
@@ -188,25 +192,35 @@ function record_states(session::Session, dom::Hyperscript.Node)
             widget_statemap = Dict{String, Vector{SerializedMessage}}()
             widget_id_set = Set([widget_id])
 
-            # Save current states of all widgets
+            # Snapshot the current value so we can restore it after
+            # sweeping through `value_range` — otherwise every widget
+            # observable is silently left holding `last(value_range(widget))`
+            # once export finishes.
+            saved_value = obs.val
 
             # Record each state for this widget
-            for state in value_range(widget)
-                # Set this widget to the state we want to record
-                obs.val = state
-                # Use generate_state_key for consistency with JavaScript
-                key = generate_state_key(state)
-                try
-                    widget_statemap[key] = record_values(session, widget_id_set) do
-                        notify(obs)
-                        for f in post_notify_callbacks
-                            f()
+            try
+                for state in value_range(widget)
+                    # Set this widget to the state we want to record
+                    obs.val = state
+                    # Use generate_state_key for consistency with JavaScript
+                    key = generate_state_key(state)
+                    try
+                        widget_statemap[key] = record_values(session, widget_id_set) do
+                            notify(obs)
+                            for f in post_notify_callbacks
+                                f()
+                            end
                         end
+                    catch e
+                        @warn "Error while recording state $key for widget $widget_id" exception=(e, Base.catch_backtrace())
+                        continue
                     end
-                catch e
-                    @warn "Error while recording state $key for widget $widget_id" exception=(e, Base.catch_backtrace())
-                    continue
                 end
+            finally
+                # Restore the widget to its pre-export value (notify so any
+                # Julia-side derived observables recompute).
+                obs[] = saved_value
             end
 
             widget_statemaps[widget_id] = widget_statemap
@@ -346,7 +360,14 @@ function export_static(folder::String, routes::Routes; connection=nothing, asset
 
             # Create session for this route
             route_session = Session(actual_connection; asset_server=actual_asset_server)
-            export_static(html_file, app; session=route_session)
+            # We pass `session=...`, so the inner `export_static` won't
+            # close it for us — close it here, otherwise every route leaks a
+            # Session (and its listeners) for the life of the process.
+            try
+                export_static(html_file, app; session=route_session)
+            finally
+                close(route_session)
+            end
         catch e
             @error "Failed to export route $route" exception=(e, Base.catch_backtrace())
             continue
