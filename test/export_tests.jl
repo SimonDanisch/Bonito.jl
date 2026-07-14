@@ -267,6 +267,42 @@ end
         s.proxy_url = ""
     end
 
+    @testset "NoServer: repeated asset across subs doesn't accumulate on root" begin
+        # NoServer subs re-emit their own imports; the root must not accumulate them.
+        root = OfflineSession()
+        app = App(Bonito.RangeSlider(1:100; value = [10, 80]))
+        for _ in 1:4
+            Bonito.session_dom(Session(root), app)
+        end
+        @test isempty(root.imports)
+    end
+
+    @testset "NoServer export of many widgets sharing an asset works" begin
+        # Three RangeSliders share one nouislider module; exported self-contained via
+        # NoServer, all must initialize from the single browser-deduplicated module.
+        app = App() do session
+            DOM.div(
+                Bonito.RangeSlider(1:100; value = [10, 80]),
+                Bonito.RangeSlider(1:100; value = [20, 70]),
+                Bonito.RangeSlider(1:100; value = [30, 60]);
+                dataTestId = "range-sliders",
+            )
+        end
+        path = joinpath(EXPORT_TEST_DIR, "noserver_widgets_$(randstring(4)).html")
+        export_static(path, app; session = Session(NoConnection(); asset_server = NoServer()))
+        window = TestWindow(URI("file://" * path))
+        try
+            # each nouislider adds a `.noUi-target`; all three must appear
+            result = Bonito.wait_for(; timeout = 15) do
+                run(window, "document.querySelectorAll('.noUi-target').length") == 3
+            end
+            @test result == :success
+            @test run(window, "document.querySelectorAll('.noUi-handle').length") == 6
+        finally
+            close(window)
+        end
+    end
+
     @testset "export_mode flag pattern" begin
         # BonitoBook sets window.BONITO_EXPORT_MODE = true in exports
         app = App() do session

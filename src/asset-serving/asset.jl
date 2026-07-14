@@ -265,7 +265,7 @@ from source. **You rarely need to call this:** bundling is automatic.
 
 For an `ES6Module(...)`, Bonito writes a `<name>.bundled.js` next to the source
 and serves it. On every request it re-bundles when the bundle is **missing** or
-**older than the source** (see [`needs_bundling`](@ref)). So the normal dev loop
+**older than the source** (see `needs_bundling`). So the normal dev loop
 is just:
 
 - **Edit the `.js` source** → the bundle's mtime is now stale → it re-bundles on

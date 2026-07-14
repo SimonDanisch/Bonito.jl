@@ -36,6 +36,13 @@ Dropdown
 include_string(@__MODULE__, Bonito.DROPDOWN_EXAMPLE) # hide
 ```
 
+```@docs; canonical=false
+HierarchicalMenu
+```
+```@example 1
+include_string(@__MODULE__, Bonito.HIERARCHICAL_MENU_EXAMPLE) # hide
+```
+
 ```@docs
 Card
 ```

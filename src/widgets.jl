@@ -903,6 +903,246 @@ function jsrender(session::Session, editor::CodeEditor)
     return jsrender(session, DOM.div(editor.element, setup))
 end
 
+
+# Hierarchical Menu Widget
+abstract type AbstractHierarchicalMenuItem end
+
+struct HierarchicalMenuItem <: AbstractHierarchicalMenuItem
+    label::String
+    value::Any
+    icon::Union{String, Nothing}
+    enabled::Bool
+end
+
+HierarchicalMenuItem(label::String, value=label; icon=nothing, enabled=true) = HierarchicalMenuItem(label, value, icon, enabled)
+
+struct HierarchicalSubMenu <: AbstractHierarchicalMenuItem
+    label::String
+    items::Vector{AbstractHierarchicalMenuItem}
+    icon::Union{String, Nothing}
+    # Initial expand/collapse state. Toggling afterwards is presentational per-tab
+    # state handled entirely in the browser (a CSS class flip), so the menu expands
+    # in static exports too, with no Julia round-trip — see AGENTS.md §1.
+    expanded::Bool
+end
+
+HierarchicalSubMenu(label::String, items::Vector{<:AbstractHierarchicalMenuItem}=AbstractHierarchicalMenuItem[]; icon=nothing, expanded=false) = HierarchicalSubMenu(label, items, icon, expanded)
+
+struct HierarchicalMenu
+    items::Observable{Vector{AbstractHierarchicalMenuItem}}
+    selected_value::Observable{Any}
+    style::Styles
+    attributes::Dict{Symbol,Any}
+end
+
+const HIERARCHICAL_MENU_EXAMPLE = """
+App() do
+    menu_items = [
+        HierarchicalMenuItem("Home", "home"; icon="🏠"),
+        HierarchicalSubMenu("File", [
+            HierarchicalMenuItem("New", "file_new"; icon="📄"),
+            HierarchicalMenuItem("Open", "file_open"; icon="📂"),
+            HierarchicalMenuItem("Save", "file_save"; icon="💾"),
+            HierarchicalSubMenu("Recent", [
+                HierarchicalMenuItem("Document 1", "recent_doc1"),
+                HierarchicalMenuItem("Document 2", "recent_doc2")
+            ])
+        ]; icon="📁"),
+        HierarchicalSubMenu("Edit", [
+            HierarchicalMenuItem("Cut", "edit_cut"; icon="✂️"),
+            HierarchicalMenuItem("Copy", "edit_copy"; icon="📋"),
+            HierarchicalMenuItem("Paste", "edit_paste"; icon="📌")
+        ]; icon="✏️"),
+        HierarchicalMenuItem("Settings", "settings"; icon="⚙️")
+    ]
+
+    menu = HierarchicalMenu(menu_items)
+    on(menu.selected_value) do value
+        @info "Selected: \$value"
+    end
+    return menu
+end
+"""
+
+"""
+    HierarchicalMenu(items; style=Styles(), attributes...)
+
+A hierarchical menu widget that supports nested menu items and submenus.
+The currently clicked leaf's value is pushed to `menu.selected_value`, so
+`on(menu.selected_value) do value ... end` reacts to menu selections.
+
+### Menu Items
+- `HierarchicalMenuItem(label, value=label; icon=nothing, enabled=true)`: A clickable menu item
+- `HierarchicalSubMenu(label, items; icon=nothing, expanded=false)`: A submenu containing other items
+
+### Example
+
+```julia
+$(HIERARCHICAL_MENU_EXAMPLE)
+```
+"""
+function HierarchicalMenu(items; style=Styles(), attributes...)
+    items_obs = convert(Observable{Vector{AbstractHierarchicalMenuItem}}, items)
+    selected_value = Observable{Any}(nothing)
+    # The shared component stylesheet (`MENU_STYLE`) is registered once globally in
+    # `jsrender`; only the caller's overrides are stored per-instance and scoped to
+    # the root element, mirroring how `Button`/`TextField` handle `style`.
+    return HierarchicalMenu(items_obs, selected_value, style, Dict{Symbol,Any}(attributes))
+end
+
+# Colors read the `--bonito-widget-*` variables (see `BONITO_WIDGET_THEME`) so the
+# menu follows the host/OS theme like every other built-in widget, with a
+# light-mode fallback for hosts that don't define them.
+const MENU_STYLE = Styles(
+    CSS(
+        ".hierarchical-menu",
+        "font-family" => "system-ui, -apple-system, sans-serif",
+        "border" => "1px solid var(--bonito-widget-border, #e1e5e9)",
+        "border-radius" => "6px",
+        "background-color" => "var(--bonito-widget-bg, #ffffff)",
+        "color" => "var(--bonito-widget-fg, #1a1a1a)",
+        "box-shadow" => "0 2px 8px rgba(0,0,0,0.1)",
+        "overflow" => "hidden",
+        "min-width" => "200px"
+    ),
+    CSS(
+        ".hierarchical-menu .menu-item",
+        "display" => "flex",
+        "align-items" => "center",
+        "padding" => "8px 12px",
+        "cursor" => "pointer",
+        "border-bottom" => "1px solid var(--bonito-widget-border, #f6f8fa)",
+        "transition" => "background-color 0.2s",
+        "user-select" => "none"
+    ),
+    CSS(
+        ".hierarchical-menu .menu-item:hover",
+        "background-color" => "var(--bonito-widget-hover-bg, #f6f8fa)"
+    ),
+    CSS(
+        ".hierarchical-menu .menu-item:last-child",
+        "border-bottom" => "none"
+    ),
+    CSS(
+        ".hierarchical-menu .menu-item.disabled",
+        "opacity" => "0.5",
+        "cursor" => "not-allowed"
+    ),
+    CSS(
+        ".hierarchical-menu .menu-item.disabled:hover",
+        "background-color" => "transparent"
+    ),
+    CSS(
+        ".hierarchical-menu .submenu-header",
+        "display" => "flex",
+        "align-items" => "center",
+        "padding" => "8px 12px",
+        "cursor" => "pointer",
+        "border-bottom" => "1px solid var(--bonito-widget-border, #f6f8fa)",
+        "background-color" => "var(--bonito-widget-muted-bg, #f6f8fa)",
+        "font-weight" => "500",
+        "transition" => "background-color 0.2s",
+        "user-select" => "none"
+    ),
+    CSS(
+        ".hierarchical-menu .submenu-header:hover",
+        "background-color" => "var(--bonito-widget-hover-bg, #eaeef2)"
+    ),
+    CSS(
+        ".hierarchical-menu .submenu-content",
+        "border-left" => "3px solid var(--bonito-widget-border, #e1e5e9)",
+        "background-color" => "var(--bonito-widget-muted-bg, #fafbfc)"
+    ),
+    # A `.submenu` wrapper is `.expanded` or not; visibility is pure CSS. The `>`
+    # combinators keep a nested submenu's own state from leaking to/from its parent.
+    CSS(
+        ".hierarchical-menu .submenu:not(.expanded) > .submenu-content",
+        "display" => "none"
+    ),
+    CSS(
+        ".hierarchical-menu .submenu-content .menu-item",
+        "padding-left" => "20px"
+    ),
+    CSS(
+        ".hierarchical-menu .menu-icon",
+        "margin-right" => "8px",
+        "font-size" => "14px",
+        "width" => "16px",
+        "text-align" => "center"
+    ),
+    CSS(
+        ".hierarchical-menu .submenu-arrow",
+        "margin-left" => "auto",
+        "font-size" => "12px",
+        "transition" => "transform 0.2s",
+        "color" => "var(--bonito-widget-fg, #656d76)"
+    ),
+    CSS(
+        ".hierarchical-menu .submenu.expanded > .submenu-header .submenu-arrow",
+        "transform" => "rotate(90deg)"
+    )
+)
+
+function render_menu_item(session::Session, item::HierarchicalMenuItem, menu::HierarchicalMenu, depth::Int=0)
+    icon_span = item.icon !== nothing ? DOM.span(item.icon; class="menu-icon") : DOM.span(""; class="menu-icon")
+
+    item_div = DOM.div(
+        icon_span,
+        DOM.span(item.label);
+        class=item.enabled ? "menu-item" : "menu-item disabled",
+        onclick=item.enabled ? js"event => {
+            event.stopPropagation();
+            $(menu.selected_value).notify($(item.value));
+        }" : js"event => event.stopPropagation()"
+    )
+
+    return item_div
+end
+
+function render_menu_item(session::Session, submenu::HierarchicalSubMenu, menu::HierarchicalMenu, depth::Int=0)
+    icon_span = submenu.icon !== nothing ? DOM.span(submenu.icon; class="menu-icon") : DOM.span(""; class="menu-icon")
+
+    header_div = DOM.div(
+        icon_span,
+        DOM.span(submenu.label),
+        DOM.span("▶"; class="submenu-arrow");
+        class="submenu-header",
+        # Flip the wrapper's `.expanded` class in the browser. `classList.toggle`
+        # is a stateless flip (not a read-decide on DOM state), CSS does the rest,
+        # and it needs no server — so it works in a static export. See AGENTS.md §1.
+        onclick=js"""event => {
+            event.stopPropagation();
+            event.currentTarget.parentElement.classList.toggle("expanded");
+        }"""
+    )
+
+    content_items = [render_menu_item(session, child_item, menu, depth + 1) for child_item in submenu.items]
+    content_div = DOM.div(content_items...; class="submenu-content")
+
+    return DOM.div(header_div, content_div; class=submenu.expanded ? "submenu expanded" : "submenu")
+end
+
+
+function jsrender(session::Session, menu::HierarchicalMenu)
+    # The menu re-renders reactively when `items` changes. The list is bounded and
+    # holds no heavy sub-widgets, so a full re-render is cheap (see AGENTS.md §5);
+    # per-submenu `expanded` state lives on the item structs, so it survives across
+    # re-renders as long as the same items are re-emitted.
+    menu_dom = map(session, menu.items) do items
+        DOM.div(
+            (render_menu_item(session, item, menu) for item in items)...;
+            class="hierarchical-menu",
+            style=menu.style,
+            menu.attributes...
+        )
+    end
+    # `MENU_STYLE` is a shared const, so registering it as a global stylesheet
+    # injects it exactly once regardless of how many menus are on the page
+    # (`global_stylesheets` dedups by object identity). The caller's `style` stays
+    # scoped to the root element via the `style=` attribute above.
+    return jsrender(session, DOM.div(MENU_STYLE, menu_dom))
+end
+
 # Ok, this is bad piracy, but I donno how else to make the display nice for now!
 function Base.show(io::IO, m::MIME"text/html", widget::WidgetsBase.AbstractWidget)
     return show(io, m, App(widget))

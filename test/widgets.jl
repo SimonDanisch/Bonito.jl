@@ -49,6 +49,41 @@ testsession(dropdown_handler, port=8558) do app
     @test dropdown2_jl.value[] == "c2"
 end
 
+# Hierarchical menu widget tests
+testsession(hierarchical_menu_handler, port=8562) do app
+    # The shared component stylesheet is registered once, so exactly one menu root.
+    @test evaljs(app, js"document.querySelectorAll('.hierarchical-menu').length") == 1
+    # Home, New, Open, Disabled are all `.menu-item`s (submenu leaves included);
+    # the "File" submenu has its own `.submenu-header`.
+    @test evaljs(app, js"document.querySelectorAll('.hierarchical-menu .menu-item').length") == 4
+    @test evaljs(app, js"document.querySelectorAll('.hierarchical-menu .submenu-header').length") == 1
+    # Top-level leaves are direct children (Home + Disabled); submenu leaves are nested.
+    @test evaljs(app, js"document.querySelectorAll('.hierarchical-menu > .menu-item').length") == 2
+    @test evaljs(app, js"document.querySelectorAll('.hierarchical-menu > .menu-item.disabled').length") == 1
+
+    # Clicking a leaf pushes its value onto `menu.selected_value`.
+    home_item = js"document.querySelectorAll('.hierarchical-menu > .menu-item')[0]"
+    val = test_value(app, js"$(home_item).click()")
+    @test val["selected"] == "home"
+
+    # Submenus start collapsed and expand on clicking their header. The toggle is
+    # a client-side CSS class flip on the `.submenu` wrapper (no Julia round-trip,
+    # so it also works in static exports).
+    submenu = js"document.querySelector('.hierarchical-menu .submenu')"
+    content = js"document.querySelector('.hierarchical-menu .submenu-content')"
+    @test evaljs(app, js"$(submenu).classList.contains('expanded')") == false
+    @test evaljs(app, js"getComputedStyle($(content)).display") == "none"
+    header = js"document.querySelector('.hierarchical-menu .submenu-header')"
+    evaljs(app, js"$(header).click()")
+    @test evaljs(app, js"$(submenu).classList.contains('expanded')") == true
+    @test evaljs(app, js"getComputedStyle($(content)).display") == "block"
+
+    # A nested leaf notifies with its own value once revealed.
+    new_item = js"document.querySelectorAll('.hierarchical-menu .submenu-content .menu-item')[0]"
+    val = test_value(app, js"$(new_item).click()")
+    @test val["selected"] == "file_new"
+end
+
 # Table widget tests
 testsession(table_handler, port=8559) do app
     # Test that tables are rendered

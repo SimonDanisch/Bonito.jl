@@ -41,6 +41,23 @@ end
     @test first(all_css) == css
 end
 
+@testset "Col stacks content from the top" begin
+    # Regression: a `Col` next to a taller sibling in a `Row` used to get
+    # stretched to the row height and, with the default `align-content` (`normal`
+    # → `stretch`), spread its children across the full height — pushing later
+    # elements far down the page. `Col` now defaults `align-content=start`.
+    align_content(node) =
+        get(first(values(Bonito.Hyperscript.attrs(node)["style"].styles)).attributes,
+            "align-content", nothing)
+
+    @test align_content(Col(DOM.div("a"), DOM.div("b"))) == "start"
+    # still overridable by the caller
+    @test align_content(Col(DOM.div("a"); align_content="stretch")) == "stretch"
+    # Grid/Row keep the CSS default so explicit fr-track layouts are unaffected
+    @test align_content(Grid(DOM.div("a"))) == "normal"
+    @test align_content(Row(DOM.div("a"), DOM.div("b"))) == "normal"
+end
+
 @testset "merge & hash" begin
     css1 = CSS(
         "border" => "1px solid black",

@@ -135,6 +135,31 @@ edisplay = Bonito.use_electron_display(; app=get_test_app(), options=Dict{String
     close(server)
 end
 
+@testset "sub imports don't leak onto root; assets stay available" begin
+    # Subs re-emit their own imports into their own fragment; they must not be
+    # copied onto the root (that leaked in #399), and the asset server must keep a
+    # shared asset alive while any holder is open.
+    server = Server("0.0.0.0", 9478)
+    root = Bonito.HTTPSession(server)
+    file = joinpath(mktempdir(), "leaktest.js"); write(file, "window.X = 1;")
+    parent = root.asset_server.parent
+    key = "/assets/" * Bonito.unique_file_key(Asset(file))
+    refcount() = (e = get(parent.files, key, nothing); e === nothing ? 0 : e.refcount)
+    app = App(s -> DOM.div("x", Asset(file)))
+
+    subA = Session(root); Bonito.session_dom(subA, app)
+    subB = Session(root); Bonito.session_dom(subB, app)
+    @test refcount() == 2                # each open sub holds its own ref
+    @test isempty(root.imports)          # not copied onto the root
+    close(subA)
+    @test refcount() == 1                # still available for the sibling (no race)
+    close(subB)
+    @test refcount() == 0                # freed when the last holder closes
+    @test isempty(root.imports)
+    @test isempty(parent.files)
+    close(server)
+end
+
 @testset "cleanup comm" begin
     app = App() do s
         return DOM.div()

@@ -137,9 +137,15 @@ end
     Col(elems...; grid_attributes...)
 
 Places objects in a column, based on `Grid`.
+
+Defaults to `align_content="start"` so the children stack from the top of the
+column. Without this, a `Col` placed next to a taller sibling in a `Row` gets
+stretched to the row's height and its default `align-content` (`normal`, which
+computes to `stretch`) spreads the rows across the full height — pushing later
+elements far down the page. Pass `align_content` explicitly to override.
 """
-function Col(args...; grid_attributes...)
-    return Grid(args...; columns="1fr", grid_attributes...)
+function Col(args...; align_content="start", grid_attributes...)
+    return Grid(args...; columns="1fr", align_content=align_content, grid_attributes...)
 end
 
 """

@@ -11,6 +11,21 @@
     @test Bonito.Slider([:a, :b, :c]; value=:b).index[] == 2      # non-numeric exact
 end
 
+@testset "Asset value equality dedup" begin
+    # `Asset(path)` builds a fresh struct each call; without value equality two
+    # Assets of the same file wouldn't dedup in an `OrderedSet`.
+    dir = mktempdir()
+    fa = joinpath(dir, "a.js"); write(fa, "export const a = 1;")
+    fb = joinpath(dir, "b.js"); write(fb, "export const b = 2;")
+    @test Bonito.Asset(fa) == Bonito.Asset(fa)
+    @test hash(Bonito.Asset(fa)) == hash(Bonito.Asset(fa))
+    @test Bonito.Asset(fa) !== Bonito.Asset(fa)          # still distinct objects
+    @test Bonito.Asset(fa) != Bonito.Asset(fb)           # different file → distinct
+    s = Bonito.OrderedSet{Bonito.Asset}()
+    push!(s, Bonito.Asset(fa)); push!(s, Bonito.Asset(fa)); push!(s, Bonito.Asset(fb))
+    @test length(s) == 2
+end
+
 @testset "basic session rendering" begin
     # Use no connection, since otherwise the session will be added to
     # The global running HTTP server
@@ -78,6 +93,7 @@ setup_connection(session::Session{DebugConnection}) = nothing
 
     @testset "assets" begin
         @test length(c_session.session_objects) == 2
+        @test isempty(open_session.imports)   # sub imports not copied onto the root
     end
 
     @testset "observable $(obs_field)" for obs_field in (:range, :value, :connect, :orientation, :tooltips, :ticks)
@@ -101,21 +117,19 @@ setup_connection(session::Session{DebugConnection}) = nothing
         @test !haskey(open_session.children, c_session.id)
     end
 
-    @testset "dependency second include" begin
+    @testset "dependency re-include after close" begin
+        # c_session was closed above; its deps went with its fragment, so a fresh
+        # render must re-emit them and the root must not have retained anything.
+        @test isempty(open_session.imports)
         html2 = sprint() do io
             sub = Bonito.show(io, MIME"text/html"(), sliderapp)
-            msg = Bonito.fused_messages!(sub)
-            Bonito.serialize_binary(sub, msg)
+            Bonito.serialize_binary(sub, Bonito.fused_messages!(sub))
         end
-        # Test that dependencies only get loaded one time!
-        @test !occursin("-nouislider.min.js", html2)
-        # (the CSS filename in the bundle is `noUISlider.css`, not
-        # `nouislider.min.css`, so this assert passes vacuously — kept
-        # in case the asset name ever changes.)
-        @test !occursin("nouislider.min.css", html2)
+        @test occursin("nouislider", html2)   # re-emitted for the new fragment
 
         id, session = first(open_session.children)
         close(session)
+        @test isempty(open_session.imports)
         @test !haskey(open_session.children, session.id)
     end
 end
