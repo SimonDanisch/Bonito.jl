@@ -130,9 +130,15 @@ function register!(parent::HTTPAssetServer, child::ChildAssetServer, asset::Abst
         return entry, path
     end
     entry = get(parent.files, path, nothing)
+    # Re-registration keeps the accumulated refcount but adopts the NEW asset:
+    # keys are content hashes, so the bytes are identical — but for proxied
+    # `RemoteAsset`s the SERVING PATH is not. Keeping the old entry pinned every
+    # later fetch to the FIRST registrant's bridge driver, which may belong to a
+    # dead worker (restart) — fetches then time out while a live bridge for the
+    # same key exists. Latest registrant wins: its driver is the live one.
     entry = entry === nothing ?
         AssetEntry(1, asset) :
-        AssetEntry(entry.refcount + 1, entry.asset)
+        AssetEntry(entry.refcount + 1, asset)
     parent.files[path] = entry
     push!(child.files, path)
     return entry, path
