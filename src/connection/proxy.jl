@@ -135,6 +135,12 @@ const REMOTE_ROUTES_KEY = :bonito_remote_routes
 # data)` — in-process: straight into the worker's `process_message`; remote: the
 # decoded frame re-packed onto the worker's websocket, where its own inbox path
 # (decompress + unpack + dispatch) runs identically to a direct-WS session.
+# Proxied roots serialize fragments that mount independently (possibly never,
+# possibly on a page that missed earlier frames) — cross-sub object dedup via
+# `TrackingOnly` would leave dangling references there. See `dedup_cached_objects`
+# in serialization/caching.jl.
+dedup_cached_objects(root::Session{<:ProxyConnection}) = false
+
 struct RemoteSession{D}
     id::String          # worker session id == observable-id prefix
     driver::D           # host-side driver; inbound browser frames route through

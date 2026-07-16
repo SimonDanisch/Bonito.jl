@@ -147,6 +147,13 @@ function serialize_cached(context::SerializationContext, dict::Dict{String,Any})
     return dict
 end
 
+# Whether sub-sessions of `root` may reference objects another sub already
+# shipped (`TrackingOnly`) instead of re-serializing them. True for normal
+# pages (all subs render into ONE page, so the page has every prior object);
+# overridden to false for proxied roots in `connection/proxy.jl`, where subs
+# mount independently on pages that may have missed the first owner's frame.
+dedup_cached_objects(root::Session) = true
+
 """
     add_cached!(create_cached_object::Function, session::Session, message_cache::AbstractDict{String, Any}, key::String)
 
@@ -183,12 +190,26 @@ function add_cached!(create_cached_object::Function, session::Session, send_to_j
             session.session_objects[key] = nothing
         end
         if haskey(root.session_objects, key)
-            # Root cache already holds this — just register `session.id`
-            # as a new owner and tell JS via TrackingOnly. The JS side
-            # already has the object in its global cache.
             entry = root.session_objects[key]::CachedEntry
             push!(entry.owners, session.id)
-            send_to_js[key] = TrackingOnly(key)
+            if dedup_cached_objects(root)
+                # Root cache already holds this — just register `session.id`
+                # as a new owner and tell JS via TrackingOnly. The JS side
+                # already has the object in its global cache.
+                send_to_js[key] = TrackingOnly(key)
+            else
+                # Proxied root (worker bridge): sub-sessions mount on pages
+                # INDEPENDENTLY — the page consuming THIS sub may never have
+                # received the frame in which another sub first shipped the
+                # full object (its fragment may never mount anywhere). A
+                # TrackingOnly reference would then dangle ("Key not found in
+                # GLOBAL_OBJECT_CACHE") and silently break the fragment's
+                # scripts. Ship the full object: every fragment must be
+                # self-contained. (`create_cached_object` short-circuits
+                # listener re-registration for existing entries, so this only
+                # costs the serialized bytes.)
+                send_to_js[key] = create_cached_object()
+            end
         else
             # First time anyone in this connection cached this object.
             # IMPORTANT: call `create_cached_object` BEFORE inserting into
