@@ -1,0 +1,27 @@
+’Ç,j“Ù$815fe6cf-c3ab-4195-b4ec-dfd25d579f8a€£sub’Èsk’Ç9j“Ù$815fe6cf-c3ab-4195-b4ec-dfd25d579f8a£230Çe’£230£subƒ£obsÖh£230§payloadÈf“´10865314609589633331–¬space-evenly¦center£end­space-between¬space-around¬space-evenlyÙ©return  (idx) => {
+    grid = document.querySelector('[data-jscall-id="376"]')
+    grid.style["justify-content"] = __lookup_interpolated('10865314609589633331')[idx-1]
+}°layouting.md:393¨msg_type¡1È­k’Çyj“Ù$815fe6cf-c3ab-4195-b4ec-dfd25d579f8a£233ÇFe’£233–¬space-evenly¦center£end­space-between¬space-around¬space-evenly£sub‚§payloadÈf“‚³1868813567603036173Öh£230³8959212096217789283Öh£233Ú¥(function onload(element) {
+    function onchange(e) {
+        if (element === e.srcElement) {
+            (__lookup_interpolated('1868813567603036173')).notify(element.selectedIndex + 1);
+        }
+    }
+    element.addEventListener("change", onchange);
+    element.selectedIndex = 0
+    function set_option_index(index) {
+        if (element.selectedIndex === index - 1) {
+            return
+        }
+        element.selectedIndex = index - 1;
+    }
+    __lookup_interpolated('1868813567603036173').on(set_option_index);
+    function set_options(opts) {
+        element.selectedIndex = 0;
+        // https://stackoverflow.com/questions/3364493/how-do-i-clear-all-options-in-a-dropdown-box
+        element.options.length = 0;
+        opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
+    }
+    __lookup_interpolated('8959212096217789283').on(set_options);
+}
+)(document.querySelector('[data-jscall-id="378"]'));Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:214¨msg_type¡2

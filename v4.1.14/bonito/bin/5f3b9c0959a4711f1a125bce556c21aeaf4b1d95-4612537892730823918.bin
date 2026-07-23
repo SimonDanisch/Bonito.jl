@@ -1,0 +1,150 @@
+È"˜k”Ù$5612d57a-13ac-4c9d-b52d-1645ea036a29£subÇ1Ç.j“Ù$5612d57a-13ac-4c9d-b52d-1645ea036a29£subÔÈ"5“Çyk”Ù$bbc51411-1c4a-4792-86e3-00a5bd5a3e00¤rootÇ2Ç/j“Ù$bbc51411-1c4a-4792-86e3-00a5bd5a3e00¤rootÔÇ‚§payload¨msg_type¡9Èåk”Ù$5612d57a-13ac-4c9d-b52d-1645ea036a29£subÇ1Ç.j“Ù$5612d57a-13ac-4c9d-b52d-1645ea036a29£subÔÈ‚‚§payload”È¿k”Ù$5612d57a-13ac-4c9d-b52d-1645ea036a29£subÇRÇOj“Ù$5612d57a-13ac-4c9d-b52d-1645ea036a29£subÇ!“Çe’£166•Çe’£168Çe’£167È;ƒ£obsÖh£167§payloadÈf“‚³4887841022062793560Öh£166³4612113013863508894Öh£168Ù§return (index) => {
+    const values = __lookup_interpolated('4887841022062793560').value
+    __lookup_interpolated('4612113013863508894').notify(values[index - 1])
+}
+Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:284¨msg_type¡1ÈXk”Ù$5612d57a-13ac-4c9d-b52d-1645ea036a29£subÇ<Ç9j“Ù$5612d57a-13ac-4c9d-b52d-1645ea036a29£subÇ‘Çe’£171¡5Çëƒ£obsÖh£171§payloadÇÊf“€Ùsreturn value => {
+    Bonito.update_node_attribute(document.querySelector('[data-jscall-id="2"]'), 'max', value);
+}ÙQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92¨msg_type¡1ÈZk”Ù$5612d57a-13ac-4c9d-b52d-1645ea036a29£subÇ<Ç9j“Ù$5612d57a-13ac-4c9d-b52d-1645ea036a29£subÇ‘Çe’£172¡1Çíƒ£obsÖh£172§payloadÇÌf“€Ùureturn value => {
+    Bonito.update_node_attribute(document.querySelector('[data-jscall-id="2"]'), 'value', value);
+}ÙQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92¨msg_type¡1Èìk”Ù$5612d57a-13ac-4c9d-b52d-1645ea036a29£subÇ1Ç.j“Ù$5612d57a-13ac-4c9d-b52d-1645ea036a29£subÔÈ‰‚§payloadÈqf“³8478093186781695308Öh£167Ú(() => {
+    document.querySelector('[data-jscall-id="2"]')['oninput'] = (event)=> {
+    const idx = event.srcElement.valueAsNumber;
+    if (idx !== __lookup_interpolated('8478093186781695308').value) {
+        __lookup_interpolated('8478093186781695308').notify(idx)
+    }
+}
+})()Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:300¨msg_type¡2¨msg_type¡9ÈËk”Ù$5612d57a-13ac-4c9d-b52d-1645ea036a29£subÇ1Ç.j“Ù$5612d57a-13ac-4c9d-b52d-1645ea036a29£subÔÈh‚§payloadÈPf“´14559548748966710865£168…¡4‘Èïk”Ù$567fa9ac-094c-4856-923b-0be6994ad297£subÇ1Ç.j“Ù$567fa9ac-094c-4856-923b-0be6994ad297£subÔÈŒ‡ªsession_idÙ$567fa9ac-094c-4856-923b-0be6994ad297¨messages§replaceÂ¨msg_type¢12®session_status£sub¤htmlÈi“£div’È
+i“£div‘Èíi“¥style‘ÚÏ.style_10 {
+  height: 50px;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_11 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+®data-jscall-id¢45®data-jscall-id¢44È‰i“£div‘Èli“£div”ÇLi“£div‘Çi“£div®data-jscall-id¢37ƒ¥class© style_10¥style ®data-jscall-id¢36ÇLi“£div‘Çi“£div®data-jscall-id¢39ƒ¥class© style_10¥style ®data-jscall-id¢38ÇLi“£div‘Çi“£div®data-jscall-id¢41ƒ¥class© style_10¥style ®data-jscall-id¢40ÇLi“£div‘Çi“£div®data-jscall-id¢43ƒ¥class© style_10¥style ®data-jscall-id¢42ƒ¥class© style_11¥style ®data-jscall-id¢35®data-jscall-id¢46ƒ¥class¯bonito-fragment¢idÙ$567fa9ac-094c-4856-923b-0be6994ad297®data-jscall-idºsubsession-application-dom±dom_node_selector¡6¡1‘Èük”Ù$86181caf-200f-430c-8a9a-a00691a917ec£subÇ1Ç.j“Ù$86181caf-200f-430c-8a9a-a00691a917ec£subÔÈ™‡ªsession_idÙ$86181caf-200f-430c-8a9a-a00691a917ec¨messages§replaceÂ¨msg_type¢12®session_status£sub¤htmlÈi“£div’Èi“£div‘Èëi“¥style‘ÚÍ.style_4 {
+  height: 50px;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_5 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+®data-jscall-id¢15®data-jscall-id¢14Ç™i“£div‘Ç}i“£div‘ÇKi“£div‘Çi“£div®data-jscall-id¢13ƒ¥class¨ style_4¥style ®data-jscall-id¢12ƒ¥class¨ style_5¥style ®data-jscall-id¢11®data-jscall-id¢16ƒ¥class¯bonito-fragment¢idÙ$86181caf-200f-430c-8a9a-a00691a917ec®data-jscall-idºsubsession-application-dom±dom_node_selector¡6¡5‘È>k”Ù$a33958c9-8137-4e58-a7f7-02f950bc2005£subÇ1Ç.j“Ù$a33958c9-8137-4e58-a7f7-02f950bc2005£subÔÈÛ‡ªsession_idÙ$a33958c9-8137-4e58-a7f7-02f950bc2005¨messages§replaceÂ¨msg_type¢12®session_status£sub¤htmlÈZi“£div’È
+i“£div‘Èíi“¥style‘ÚÏ.style_12 {
+  height: 50px;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_13 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+®data-jscall-id¢59®data-jscall-id¢58ÈØi“£div‘È»i“£div•ÇLi“£div‘Çi“£div®data-jscall-id¢49ƒ¥class© style_12¥style ®data-jscall-id¢48ÇLi“£div‘Çi“£div®data-jscall-id¢51ƒ¥class© style_12¥style ®data-jscall-id¢50ÇLi“£div‘Çi“£div®data-jscall-id¢53ƒ¥class© style_12¥style ®data-jscall-id¢52ÇLi“£div‘Çi“£div®data-jscall-id¢55ƒ¥class© style_12¥style ®data-jscall-id¢54ÇLi“£div‘Çi“£div®data-jscall-id¢57ƒ¥class© style_12¥style ®data-jscall-id¢56ƒ¥class© style_13¥style ®data-jscall-id¢47®data-jscall-id¢60ƒ¥class¯bonito-fragment¢idÙ$a33958c9-8137-4e58-a7f7-02f950bc2005®data-jscall-idºsubsession-application-dom±dom_node_selector¡6¡2‘ÈJk”Ù$b578f722-86d0-4001-b186-44cc7c8dcf12£subÇ1Ç.j“Ù$b578f722-86d0-4001-b186-44cc7c8dcf12£subÔÈç‡ªsession_idÙ$b578f722-86d0-4001-b186-44cc7c8dcf12¨messages§replaceÂ¨msg_type¢12®session_status£sub¤htmlÈfi“£div’Èi“£div‘Èëi“¥style‘ÚÍ.style_6 {
+  height: 50px;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_7 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+®data-jscall-id¢23®data-jscall-id¢22Ççi“£div‘ÇËi“£div’ÇKi“£div‘Çi“£div®data-jscall-id¢19ƒ¥class¨ style_6¥style ®data-jscall-id¢18ÇKi“£div‘Çi“£div®data-jscall-id¢21ƒ¥class¨ style_6¥style ®data-jscall-id¢20ƒ¥class¨ style_7¥style ®data-jscall-id¢17®data-jscall-id¢24ƒ¥class¯bonito-fragment¢idÙ$b578f722-86d0-4001-b186-44cc7c8dcf12®data-jscall-idºsubsession-application-dom±dom_node_selector¡6¡3‘Èšk”Ù$7fa10c39-bdeb-4ea6-8d6b-682f3dcb76f1£subÇ1Ç.j“Ù$7fa10c39-bdeb-4ea6-8d6b-682f3dcb76f1£subÔÈ7‡ªsession_idÙ$7fa10c39-bdeb-4ea6-8d6b-682f3dcb76f1¨messages§replaceÂ¨msg_type¢12®session_status£sub¤htmlÈ¶i“£div’Èi“£div‘Èëi“¥style‘ÚÍ.style_8 {
+  height: 50px;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+.style_9 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+®data-jscall-id¢33®data-jscall-id¢32È6i“£div‘Èi“£div“ÇKi“£div‘Çi“£div®data-jscall-id¢27ƒ¥class¨ style_8¥style ®data-jscall-id¢26ÇKi“£div‘Çi“£div®data-jscall-id¢29ƒ¥class¨ style_8¥style ®data-jscall-id¢28ÇKi“£div‘Çi“£div®data-jscall-id¢31ƒ¥class¨ style_8¥style ®data-jscall-id¢30ƒ¥class¨ style_9¥style ®data-jscall-id¢25®data-jscall-id¢34ƒ¥class¯bonito-fragment¢idÙ$7fa10c39-bdeb-4ea6-8d6b-682f3dcb76f1®data-jscall-idºsubsession-application-dom±dom_node_selector¡6ÚÇBonito.fetch_binary('bonito/bin/fb8c69bdce4faea78e5ebb49dae375251d4216a3-13542031067941659000.bin').then(binary => {
+    const widget_statemaps = __lookup_interpolated('14559548748966710865')
+    console.log('Widget statemaps:', widget_statemaps)
+    const observables = Bonito.decode_binary(binary, false);
+    // Set up individual listeners for each observable
+    observables.forEach((obs, idx) => {
+        obs.on(value => {
+            const obs_states = widget_statemaps[obs.id]
+            const key = Bonito.generate_state_key(value);
+            const messages = obs_states[key];
+            if (messages){
+                messages.forEach(Bonito.process_message)
+            }
+        });
+    });
+
+})
+Ù7/home/runner/work/Bonito.jl/Bonito.jl/src/export.jl:222¨msg_type¡2

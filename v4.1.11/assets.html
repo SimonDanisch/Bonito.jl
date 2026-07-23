@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Assets · Bonito</title><meta name="title" content="Assets · Bonito"/><meta property="og:title" content="Assets · Bonito"/><meta property="twitter:title" content="Assets · Bonito"/><meta name="description" content="Documentation for Bonito."/><meta property="og:description" content="Documentation for Bonito."/><meta property="twitter:description" content="Documentation for Bonito."/><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="index.html">Bonito</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li><span class="tocitem">Components</span><ul><li><a class="tocitem" href="styling.html">Styling</a></li><li><a class="tocitem" href="components.html">Components</a></li><li><a class="tocitem" href="layouting.html">Layouting</a></li><li><a class="tocitem" href="widgets.html">Widgets</a></li><li><a class="tocitem" href="interactions.html">Interactions</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="plotting.html">Plotting</a></li><li><a class="tocitem" href="javascript-libraries.html">Wrapping JS libraries</a></li><li class="is-active"><a class="tocitem" href="assets.html">Assets</a><ul class="internal"><li><a class="tocitem" href="#Basic-Usage"><span>Basic Usage</span></a></li><li><a class="tocitem" href="#JavaScript-Assets"><span>JavaScript Assets</span></a></li></ul></li><li><a class="tocitem" href="extending.html">Extending</a></li></ul></li><li><a class="tocitem" href="handlers.html">Handlers</a></li><li><a class="tocitem" href="deployment.html">Deployment</a></li><li><a class="tocitem" href="static.html">Static Sites</a></li><li><a class="tocitem" href="api.html">Api</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href="assets.html">Assets</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="assets.html">Assets</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/master/docs/src/assets.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Assets"><a class="docs-heading-anchor" href="#Assets">Assets</a><a id="Assets-1"></a><a class="docs-heading-anchor-permalink" href="#Assets" title="Permalink"></a></h1><p>Assets in Bonito represent external resources like JavaScript libraries, CSS files, images, and other files. They handle loading, bundling, and serving these resources efficiently across different deployment ways (Server/Plotpane/Notebooks/Static Site/Documenter).</p><h2 id="Basic-Usage"><a class="docs-heading-anchor" href="#Basic-Usage">Basic Usage</a><a id="Basic-Usage-1"></a><a class="docs-heading-anchor-permalink" href="#Basic-Usage" title="Permalink"></a></h2><p>Assets can reference local files or remote URLs and are automatically served with the appropriate URLs:</p><pre><code class="language-julia hljs">using Bonito
+
+# Load a local image
+dashi_logo = Asset(joinpath(@__DIR__, &quot;dashi.png&quot;))
+
+# Create an app that displays the image
+app = App() do
+    # Use CSS class selector to style child images of this specific container
+    img_styles = Styles(CSS(&quot;.asset-container &gt; img&quot;, &quot;width&quot; =&gt; &quot;400px&quot;))
+    DOM.div(
+        img_styles,
+        DOM.div(
+            DOM.h2(&quot;Asset Example&quot;),
+            DOM.p(&quot;Assets render automatically as the appropriate DOM element:&quot;),
+            dashi_logo,  # Automatically becomes DOM.img(src=url_to_asset)
+            DOM.p(&quot;Or use assets as src attributes for more control:&quot;),
+            DOM.img(src=dashi_logo; width=&quot;400px&quot;);  # Asset URL is inserted as src
+            class=&quot;asset-container&quot;
+        )
+    )
+end</code></pre><div><div class="bonito-fragment" id="c3b4c3dd-2288-47fd-a07a-18e8d19c0452" data-jscall-id="root"><div><script src="bonito/js/Bonito.bundled7457269554592506375.js" type="module"></script><style></style></div><div><script type="module">Bonito.init_session("c3b4c3dd-2288-47fd-a07a-18e8d19c0452", null, "root", false);
+</script><span></span></div></div><div class="bonito-fragment" id="82eb043b-2b29-4e57-9fad-dca17ba78df3" data-jscall-id="subsession-application-dom"><div><style></style><style>.asset-container > img {
+  width: 400px;
+}
+</style></div><div><script type="module">Bonito.init_session("82eb043b-2b29-4e57-9fad-dca17ba78df3", null, "sub", false);
+</script><div data-jscall-id="1"><div class="asset-container" data-jscall-id="2"><h2 data-jscall-id="3">Asset Example</h2><p data-jscall-id="4">Assets render automatically as the appropriate DOM element:</p><img data-jscall-id="5" src="dashi.png" /><p data-jscall-id="6">Or use assets as src attributes for more control:</p><img data-jscall-id="7" src="dashi.png" width="400px" /></div></div></div></div></div><h2 id="JavaScript-Assets"><a class="docs-heading-anchor" href="#JavaScript-Assets">JavaScript Assets</a><a id="JavaScript-Assets-1"></a><a class="docs-heading-anchor-permalink" href="#JavaScript-Assets" title="Permalink"></a></h2><p>JavaScript assets come in two flavors: ES6 modules and traditional scripts.</p><h3 id="ES6-Modules"><a class="docs-heading-anchor" href="#ES6-Modules">ES6 Modules</a><a id="ES6-Modules-1"></a><a class="docs-heading-anchor-permalink" href="#ES6-Modules" title="Permalink"></a></h3><p>ES6 modules are bundled with their dependencies and loaded as modules:</p><pre><code class="language-julia hljs"># ES6Module creates an Asset with es6module=true
+jsmodule = ES6Module(&quot;path/to/local/module.js&quot;)
+
+# Interpolating in JS code returns a Promise with the module exports
+js&quot;&quot;&quot;
+$(jsmodule).then(module =&gt; {
+    module.someFunction();
+})
+&quot;&quot;&quot;
+# Works with CDN sources too
+THREE = ES6Module(&quot;https://unpkg.com/three@0.136.0/build/three.js&quot;)
+# Convenient CDN helper (uses esm.sh):
+THREE = CDNSource(&quot;three&quot;; version=&quot;0.137.5&quot;)</code></pre><h3 id="Traditional-Scripts-(Non-module)"><a class="docs-heading-anchor" href="#Traditional-Scripts-(Non-module)">Traditional Scripts (Non-module)</a><a id="Traditional-Scripts-(Non-module)-1"></a><a class="docs-heading-anchor-permalink" href="#Traditional-Scripts-(Non-module)" title="Permalink"></a></h3><p>For traditional JavaScript libraries that expose global variables (like jQuery, ACE editor, etc.):</p><pre><code class="language-julia hljs"># The Asset automatically infers the global name from the filename
+ace = Asset(&quot;https://cdn.jsdelivr.net/ace-builds/src-min/ace.js&quot;)
+# name is automatically set to &quot;ace&quot;
+
+# Interpolating returns a Promise that resolves with the global object
+js&quot;&quot;&quot;
+$(ace).then(ace =&gt; {
+    const editor = ace.edit(element);
+})
+&quot;&quot;&quot;
+# Override the global name if needed
+custom = Asset(&quot;https://example.com/library.js&quot;; name=&quot;MyLib&quot;)</code></pre><h3 id="Binary-Assets"><a class="docs-heading-anchor" href="#Binary-Assets">Binary Assets</a><a id="Binary-Assets-1"></a><a class="docs-heading-anchor-permalink" href="#Binary-Assets" title="Permalink"></a></h3><p>Non-JavaScript assets are loaded as raw bytes when interpolated into javascript:</p><pre><code class="language-julia hljs">image = Asset(&quot;path/to/image.png&quot;)
+
+js&quot;&quot;&quot;
+$(image).then(bytes =&gt; {
+    // bytes is a Uint8Array
+})
+&quot;&quot;&quot;</code></pre><p>Full ES6Module example creating a THREEJS visualization:</p><pre><code class="language-julia hljs"># Javascript &amp; CSS dependencies can be declared locally and
+# freely interpolated in the DOM / js string, and will make sure it loads
+# Note, that they will be a `Promise` though, so to use them you need to call `module.then(module=&gt; ...)`.
+const THREE = ES6Module(&quot;https://cdn.esm.sh/v66/three@0.136/es2021/three.js&quot;)
+
+app = App() do session, request
+    width = 500; height = 500
+    dom = DOM.div(width = width, height = height)
+    Bonito.onload(session, dom, js&quot;&quot;&quot;
+        function (container){
+            $(THREE).then(THREE=&gt; {
+                var renderer = new THREE.WebGLRenderer({antialias: true});
+                renderer.setSize($width, $height);
+                renderer.setClearColor(&quot;#ffffff&quot;);
+                container.appendChild(renderer.domElement);
+                var scene = new THREE.Scene();
+                var camera = new THREE.PerspectiveCamera(75, $width / $height, 0.1, 1000);
+                camera.position.z = 4;
+                var ambientLight = new THREE.AmbientLight(0xcccccc, 0.4);
+                scene.add(ambientLight);
+                var pointLight = new THREE.PointLight(0xffffff, 0.8);
+                camera.add(pointLight);
+                scene.add(camera);
+                var geometry = new THREE.SphereGeometry(1.0, 32, 32);
+                var material = new THREE.MeshPhongMaterial({color: 0xffff00});
+                var sphere = new THREE.Mesh(geometry, material);
+                scene.add(sphere);
+                renderer.render(scene, camera);
+            })
+        }
+    &quot;&quot;&quot;)
+    return dom
+end</code></pre><div class="bonito-fragment" id="3ff0bc52-322d-475e-b61e-39667fa1f5a3" data-jscall-id="subsession-application-dom"><div><style></style></div><div><script type="module">Bonito.init_session("3ff0bc52-322d-475e-b61e-39667fa1f5a3", Bonito.fetch_binary('bonito/bin/d106731f3ef3d82aed94a9ba9547b860887bc8a8-17772530094303414441.bin'), "sub", false);
+</script><div height="500" data-jscall-id="8" width="500"></div></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="javascript-libraries.html">« Wrapping JS libraries</a><a class="docs-footer-nextpage" href="extending.html">Extending »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.15.0 on <span class="colophon-date" title="Monday 10 November 2025 12:47">Monday 10 November 2025</span>. Using Julia version 1.12.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

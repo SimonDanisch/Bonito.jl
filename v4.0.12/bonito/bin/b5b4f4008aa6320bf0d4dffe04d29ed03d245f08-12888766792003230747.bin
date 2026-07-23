@@ -1,0 +1,144 @@
+’Ç,j“Ù$2136c97f-2696-424f-bd7c-4fd68e15bc67€£sub‚§payload“ÇFk’Ç-j“Ù$fe0225f5-dafc-45d3-98f8-2bdcbf1c0479€¤root‚§payload¨msg_type¡9Èêk’Ç,j“Ù$2136c97f-2696-424f-bd7c-4fd68e15bc67€£sub‚§payload”È™k’ÇXj“Ù$2136c97f-2696-424f-bd7c-4fd68e15bc67ƒ£187Çe’£187£186Çe’£186£185Çe’£185•£subƒ£obsÖh£186§payloadÈf“‚´13080479638549825744Öh£187³7334128367339986965Öh£185Ù¨return (index) => {
+    const values = __lookup_interpolated('7334128367339986965').value
+    __lookup_interpolated('13080479638549825744').notify(values[index - 1])
+}
+Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:272¨msg_type¡1È k’Ç:j“Ù$2136c97f-2696-424f-bd7c-4fd68e15bc67£190Çe’£190¡5£subƒ£obsÖh£190§payloadÇÁf“€Ùjreturn value=> Bonito.update_node_attribute(document.querySelector('[data-jscall-id="62"]'), 'max', value)ÙQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92¨msg_type¡1È"k’Ç:j“Ù$2136c97f-2696-424f-bd7c-4fd68e15bc67£191Çe’£191¡1£subƒ£obsÖh£191§payloadÇÃf“€Ùlreturn value=> Bonito.update_node_attribute(document.querySelector('[data-jscall-id="62"]'), 'value', value)ÙQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92¨msg_type¡1Èºk’Ç,j“Ù$2136c97f-2696-424f-bd7c-4fd68e15bc67€£sub‚§payloadÈrf“³4938236337918991022Öh£186Ú(() => {
+    document.querySelector('[data-jscall-id="62"]')['oninput'] = (event)=> {
+    const idx = event.srcElement.valueAsNumber;
+    if (idx !== __lookup_interpolated('4938236337918991022').value) {
+        __lookup_interpolated('4938236337918991022').notify(idx)
+    }
+}
+})()Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:287¨msg_type¡2¨msg_type¡9ÈÊk’Ç,j“Ù$2136c97f-2696-424f-bd7c-4fd68e15bc67€£sub‚§payloadÈ‚f“³2636946340999953875£187…¡4‘ÈÆk’Ç,j“Ù$f23c3884-442c-489f-bcf6-106e9d84154c€£sub†ªsession_idÙ$f23c3884-442c-489f-bcf6-106e9d84154c¨messages‚§payload¨msg_type¡9§replaceÂ¨msg_type¢12¤htmlÈi“£div’Èi“£div‘Èïi“¥style‘ÚÐ.style_23 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 300px;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_24 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+®data-jscall-id£105®data-jscall-id£104ÈŽi“£div‘Èpi“£div”ÇLi“£div‘Çi“£div®data-jscall-id¢97ƒ¥class© style_24¥style ®data-jscall-id¢96ÇLi“£div‘Çi“£div®data-jscall-id¢99ƒ¥class© style_24¥style ®data-jscall-id¢98ÇNi“£div‘Çi“£div®data-jscall-id£101ƒ¥class© style_24¥style ®data-jscall-id£100ÇNi“£div‘Çi“£div®data-jscall-id£103ƒ¥class© style_24¥style ®data-jscall-id£102ƒ¥class© style_23¥style ®data-jscall-id¢95®data-jscall-id£106ƒ¥class¯bonito-fragment¢idÙ$f23c3884-442c-489f-bcf6-106e9d84154c®data-jscall-idºsubsession-application-dom±dom_node_selector¢66¡1‘ÈÐk’Ç,j“Ù$42e39358-46ea-4d84-bb82-0124efae7063€£sub†ªsession_idÙ$42e39358-46ea-4d84-bb82-0124efae7063¨messages‚§payload¨msg_type¡9§replaceÂ¨msg_type¢12¤htmlÈi“£div’Èi“£div‘Èîi“¥style‘ÚÐ.style_17 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 300px;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_18 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+®data-jscall-id¢75®data-jscall-id¢74Ç›i“£div‘Çi“£div‘ÇLi“£div‘Çi“£div®data-jscall-id¢73ƒ¥class© style_18¥style ®data-jscall-id¢72ƒ¥class© style_17¥style ®data-jscall-id¢71®data-jscall-id¢76ƒ¥class¯bonito-fragment¢idÙ$42e39358-46ea-4d84-bb82-0124efae7063®data-jscall-idºsubsession-application-dom±dom_node_selector¢66¡5‘Èk’Ç,j“Ù$4f623818-fb8e-4118-a087-245ee41c113d€£sub†ªsession_idÙ$4f623818-fb8e-4118-a087-245ee41c113d¨messages‚§payload¨msg_type¡9§replaceÂ¨msg_type¢12¤htmlÈii“£div’Èi“£div‘Èïi“¥style‘ÚÐ.style_25 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 300px;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_26 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+®data-jscall-id£119®data-jscall-id£118Èäi“£div‘ÈÆi“£div•ÇNi“£div‘Çi“£div®data-jscall-id£109ƒ¥class© style_26¥style ®data-jscall-id£108ÇNi“£div‘Çi“£div®data-jscall-id£111ƒ¥class© style_26¥style ®data-jscall-id£110ÇNi“£div‘Çi“£div®data-jscall-id£113ƒ¥class© style_26¥style ®data-jscall-id£112ÇNi“£div‘Çi“£div®data-jscall-id£115ƒ¥class© style_26¥style ®data-jscall-id£114ÇNi“£div‘Çi“£div®data-jscall-id£117ƒ¥class© style_26¥style ®data-jscall-id£116ƒ¥class© style_25¥style ®data-jscall-id£107®data-jscall-id£120ƒ¥class¯bonito-fragment¢idÙ$4f623818-fb8e-4118-a087-245ee41c113d®data-jscall-idºsubsession-application-dom±dom_node_selector¢66¡2‘Èk’Ç,j“Ù$040c315f-e5c8-4dda-9e5d-6cba35f82b8d€£sub†ªsession_idÙ$040c315f-e5c8-4dda-9e5d-6cba35f82b8d¨messages‚§payload¨msg_type¡9§replaceÂ¨msg_type¢12¤htmlÈli“£div’Èi“£div‘Èîi“¥style‘ÚÐ.style_19 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 300px;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_20 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+®data-jscall-id¢83®data-jscall-id¢82Çêi“£div‘ÇÎi“£div’ÇLi“£div‘Çi“£div®data-jscall-id¢79ƒ¥class© style_20¥style ®data-jscall-id¢78ÇLi“£div‘Çi“£div®data-jscall-id¢81ƒ¥class© style_20¥style ®data-jscall-id¢80ƒ¥class© style_19¥style ®data-jscall-id¢77®data-jscall-id¢84ƒ¥class¯bonito-fragment¢idÙ$040c315f-e5c8-4dda-9e5d-6cba35f82b8d®data-jscall-idºsubsession-application-dom±dom_node_selector¢66¡3‘Èpk’Ç,j“Ù$c7e4c245-18a7-4902-addd-ade08229d939€£sub†ªsession_idÙ$c7e4c245-18a7-4902-addd-ade08229d939¨messages‚§payload¨msg_type¡9§replaceÂ¨msg_type¢12¤htmlÈ½i“£div’Èi“£div‘Èîi“¥style‘ÚÐ.style_21 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 300px;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_22 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+®data-jscall-id¢93®data-jscall-id¢92È:i“£div‘Èi“£div“ÇLi“£div‘Çi“£div®data-jscall-id¢87ƒ¥class© style_22¥style ®data-jscall-id¢86ÇLi“£div‘Çi“£div®data-jscall-id¢89ƒ¥class© style_22¥style ®data-jscall-id¢88ÇLi“£div‘Çi“£div®data-jscall-id¢91ƒ¥class© style_22¥style ®data-jscall-id¢90ƒ¥class© style_21¥style ®data-jscall-id¢85®data-jscall-id¢94ƒ¥class¯bonito-fragment¢idÙ$c7e4c245-18a7-4902-addd-ade08229d939®data-jscall-idºsubsession-application-dom±dom_node_selector¢66ÚÆBonito.fetch_binary('bonito/bin/dac92c52f5bfafe53fffe301422673f19f43138e-18273612983854549640.bin').then(binary => {
+    const widget_statemaps = __lookup_interpolated('2636946340999953875')
+    console.log('Widget statemaps:', widget_statemaps)
+    const observables = Bonito.decode_binary(binary, false);
+    // Set up individual listeners for each observable
+    observables.forEach((obs, idx) => {
+        obs.on(value => {
+            const obs_states = widget_statemaps[obs.id]
+            const key = Bonito.generate_state_key(value);
+            const messages = obs_states[key];
+            if (messages){
+                messages.forEach(Bonito.process_message)
+            }
+        });
+    });
+
+})
+Ù7/home/runner/work/Bonito.jl/Bonito.jl/src/export.jl:222¨msg_type¡2¨msg_type¡9

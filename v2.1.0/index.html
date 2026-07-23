@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>JSServe Introduction · JSServe</title><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="index.html">JSServe</a></span></div><form class="docs-search" action="search.html"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li class="is-active"><a class="tocitem" href="index.html">JSServe Introduction</a></li><li><a class="tocitem" href="api.html">Api</a></li><li><a class="tocitem" href="assets.html">Assets</a></li><li><a class="tocitem" href="deploy.html">Deploying your app</a></li><li><a class="tocitem" href="extending.html">Extending JSServe</a></li><li><a class="tocitem" href="widgets.html">Widgets</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href="index.html">JSServe Introduction</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="index.html">JSServe Introduction</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/SimonDanisch/JSServe.jl/blob/master/docs/src/index.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="JSServe-Introduction"><a class="docs-heading-anchor" href="#JSServe-Introduction">JSServe Introduction</a><a id="JSServe-Introduction-1"></a><a class="docs-heading-anchor-permalink" href="#JSServe-Introduction" title="Permalink"></a></h1><pre><code class="language-julia hljs">using JSServe
+App() do
+    DOM.h1(&quot;hello world&quot;)
+end</code></pre><div data-jscall-id="25">
+  <div data-jscall-id="16">
+    <script data-jscall-id="17" src="javascript/JSServe.bundled.js" type="module"></script>
+    <script data-jscall-id="19" type="module">    function init_messages() {
+    
+}
+
+    JSServe.init_session('8116e50e-dabb-40ab-828f-2b3320b1416d', init_messages, 'root');
+</script>
+    <script data-jscall-id="18" type="module">    JSServe.on_connection_open((w)=> null)
+</script>
+    <div id="8116e50e-dabb-40ab-828f-2b3320b1416d" data-jscall-id="jsserver-application-dom">
+      <span data-jscall-id="14"></span>
+    </div>
+  </div>
+  <div data-jscall-id="22">
+    <script data-jscall-id="24" type="module">    function init_messages() {
+    
+}
+
+    JSServe.init_session('09bfb08f-1095-4f32-9aaf-015b0786ded3', init_messages, 'sub');
+</script>
+    <div id="09bfb08f-1095-4f32-9aaf-015b0786ded3" data-jscall-id="jsserver-application-dom">
+      <h1 data-jscall-id="20">hello world</h1>
+    </div>
+  </div>
+</div><pre><code class="language-julia hljs"># Javascript &amp; CSS dependencies can be declared locally and
+# freely interpolated in the DOM / js string, and will make sure it loads
+# Note, that they will be a `Promise` though, so to use them you need to call `module.then(module=&gt; ...)`.
+const THREE = ES6Module(&quot;https://cdn.esm.sh/v66/three@0.136/es2021/three.js&quot;)
+
+app = App() do session, request
+    width = 500; height = 500
+    dom = DOM.div(width = width, height = height)
+    JSServe.onload(session, dom, js&quot;&quot;&quot;
+        function (container){
+            $(THREE).then(THREE=&gt; {
+                var renderer = new THREE.WebGLRenderer({antialias: true});
+                renderer.setSize($width, $height);
+                renderer.setClearColor(&quot;#ffffff&quot;);
+                container.appendChild(renderer.domElement);
+                var scene = new THREE.Scene();
+                var camera = new THREE.PerspectiveCamera(75, $width / $height, 0.1, 1000);
+                camera.position.z = 4;
+                var ambientLight = new THREE.AmbientLight(0xcccccc, 0.4);
+                scene.add(ambientLight);
+                var pointLight = new THREE.PointLight(0xffffff, 0.8);
+                camera.add(pointLight);
+                scene.add(camera);
+                var geometry = new THREE.SphereGeometry(1.0, 32, 32);
+                var material = new THREE.MeshPhongMaterial({color: 0xffff00});
+                var sphere = new THREE.Mesh(geometry, material);
+                scene.add(sphere);
+                renderer.render(scene, camera);
+            })
+        }
+    &quot;&quot;&quot;)
+    return dom
+end</code></pre><div data-jscall-id="28">
+  <script data-jscall-id="30" type="module">    function init_messages() {
+        (()=> {
+        const session_messages = 'H4sIAAAAAAAAA31TUWrbQBD9yVfoFQqLW/AKrI3k2HHq4EIxJv1IwMSFfpRSRtqxtUZaqat1GscYQm/Q9AT9aqEHaa/QnqYrybEjW+6AxKB5+9682dH9Lzq9//P81AXw4MS3+fi4Zbf8TtP2AHzbcx2ADufo8vbd5+8JzMMY+Jd19vvg6fjr3d+DJ5SYGM+kr0UsCfVjqUFIVNbikKxCREmsNK2zIx0oRObNJA+Rs2lat5gOUNI3r68Gg95LsjmTxTUoolByVKhIj0j8RHIge4ve+cXVqkIXILWAUEDaJVrNcGmdlWgeKFiKeiRukbYdp0HM6z+4foig+nEYK1p7Ns6jtgVfO2WQJOZoPxAhp2sSHkeDECOUeutc5ir1UWLJ0ij7QiugPkSooIQdokoTNAO/xn5epZ12bogckdybw9wGcZ0dhwUXS+JUZLfFbg1ta1cSIk+Yvi/EJNAl4VePCtS58fPI5FpbQrk/BpzTx1wV7pJYVAkN15+NTDH+TOa02k+msyHa20qBrmhignGEWs3LF5IE5h7PVyXqMjPX42b2VDBEoFGZHSwxXGIaDINYTi5XVbrws43qksKT42xvar4aue4OEX1osrEW22u0oNi33UVCc3iD7AxlaeXp8tCiPPZn2QKzjzNU8xGGZufMD1F/x0GDPU19CENb8F6teVJ7X7ess5/CUN+wiHeb7R9ROvmg5wl+a27SF/8AwzGH4HYEAAA='
+        console.log("start loading messages for " + '81aaba6c-df34-4c72-baac-b10aa7dde1d5')
+        JSServe.with_message_lock(()=> {
+            return JSServe.decode_base64_message(session_messages).then(message => {
+                JSServe.process_message(message)
+                console.log("done loading messages for " + '81aaba6c-df34-4c72-baac-b10aa7dde1d5')
+            })
+        })
+    })()
+
+}
+
+    JSServe.init_session('81aaba6c-df34-4c72-baac-b10aa7dde1d5', init_messages, 'sub');
+</script>
+  <div id="81aaba6c-df34-4c72-baac-b10aa7dde1d5" data-jscall-id="jsserver-application-dom">
+    <div height="500" data-jscall-id="26" width="500"></div>
+  </div>
+</div></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="api.html">Api »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Thursday 26 January 2023 18:51">Thursday 26 January 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

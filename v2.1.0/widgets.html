@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Widgets · JSServe</title><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="index.html">JSServe</a></span></div><form class="docs-search" action="search.html"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="index.html">JSServe Introduction</a></li><li><a class="tocitem" href="api.html">Api</a></li><li><a class="tocitem" href="assets.html">Assets</a></li><li><a class="tocitem" href="deploy.html">Deploying your app</a></li><li><a class="tocitem" href="extending.html">Extending JSServe</a></li><li class="is-active"><a class="tocitem" href="widgets.html">Widgets</a><ul class="internal"><li><a class="tocitem" href="#Editor"><span>Editor</span></a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href="widgets.html">Widgets</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="widgets.html">Widgets</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/SimonDanisch/JSServe.jl/blob/master/docs/src/widgets.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Widgets"><a class="docs-heading-anchor" href="#Widgets">Widgets</a><a id="Widgets-1"></a><a class="docs-heading-anchor-permalink" href="#Widgets" title="Permalink"></a></h1><h2 id="Editor"><a class="docs-heading-anchor" href="#Editor">Editor</a><a id="Editor-1"></a><a class="docs-heading-anchor-permalink" href="#Editor" title="Permalink"></a></h2><p>This editor works in pure Javascript, so feel free to try out editing the Javascript and clicking <code>eval</code> to see how the output changes. In <code>JSServe/examples/editor.jl</code>, you will find a version that works with Julia code, but that requires a running Julia server of course.</p><pre><code class="language-julia hljs">using JSServe
+import JSServe.TailwindDashboard as D
+
+function range_slider(orientation)
+    range_slider = RangeSlider(1:100; value=[10, 80])
+    range_slider.tooltips[] = true
+    range_slider.ticks[] = Dict(
+        &quot;mode&quot; =&gt; &quot;range&quot;,
+        &quot;density&quot; =&gt; 3
+    )
+    range_slider.orientation[] = orientation
+    return range_slider
+end
+
+App() do
+
+    button = D.Button(&quot;click&quot;)
+    textfield = D.TextField(&quot;type in your text&quot;)
+    numberinput = D.NumberInput(0.0)
+    file_input = D.FileInput()
+    on(file_input.value) do file
+        @show file
+    end
+    slider = D.Slider(&quot;Test&quot;, 1:5)
+
+    checkbox = D.Checkbox(&quot;check this&quot;, true)
+    table = JSServe.Table([(a=22, b=33, c=44), (a=22, b=33, c=44)])
+
+    source = &quot;&quot;&quot;
+    function test(a, b)
+        return a + b
+    end
+    &quot;&quot;&quot;
+    editor = CodeEditor(&quot;julia&quot;; initial_source=source, width=250, height=200, scrollPastEnd=false)
+    dropdown = D.Dropdown(&quot;chose&quot;, [&quot;option 1&quot;, &quot;option 2&quot;, &quot;option 3&quot;])
+
+    vrange_slider = range_slider(JSServe.WidgetsBase.vertical)
+
+    hrange_slider = range_slider(JSServe.WidgetsBase.horizontal)
+
+
+    return DOM.div(
+        D.Card.([
+            D.FlexRow(
+                D.Card(D.FlexCol(
+                    button,
+                    textfield,
+                    numberinput,
+                    dropdown,
+                    file_input,
+                    slider,
+                    checkbox,
+                    class=&quot;items-start&quot;
+                )),
+                D.Card(table; class=&quot;w-64&quot;)),
+            D.FlexRow(
+                D.Card.([
+                    DOM.div(vrange_slider; style=&quot;height: 200px; padding: 1px 50px&quot;),
+                    DOM.div(hrange_slider; style=&quot;width: 200px; padding: 50px 1px&quot;),
+                    editor
+                ])
+            ),
+        ])...
+    )
+end</code></pre><div data-jscall-id="111">
+  <div data-jscall-id="33">
+    <script data-jscall-id="34" src="javascript/JSServe.bundled.js" type="module"></script>
+    <script data-jscall-id="36" type="module">    function init_messages() {
+    
+}
+
+    JSServe.init_session('8b80e1f5-ad1b-4c2b-b3b3-74436cd012d0', init_messages, 'root');
+</script>
+    <script data-jscall-id="35" type="module">    JSServe.on_connection_open((w)=> null)
+</script>
+    <div id="8b80e1f5-ad1b-4c2b-b3b3-74436cd012d0" data-jscall-id="jsserver-application-dom">
+      <span data-jscall-id="31"></span>
+    </div>
+  </div>
+  <div data-jscall-id="108">
+    <script data-jscall-id="110" type="module">    function init_messages() {
+        (()=> {
+        const session_messages = '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'
+        console.log("start loading messages for " + 'a98e7d3d-80fe-4417-b716-21c9b0431f3f')
+        JSServe.with_message_lock(()=> {
+            return JSServe.decode_base64_message(session_messages).then(message => {
+                JSServe.process_message(message)
+                console.log("done loading messages for " + 'a98e7d3d-80fe-4417-b716-21c9b0431f3f')
+            })
+        })
+    })()
+
+}
+
+    JSServe.init_session('a98e7d3d-80fe-4417-b716-21c9b0431f3f', init_messages, 'sub');
+</script>
+    <div id="a98e7d3d-80fe-4417-b716-21c9b0431f3f" data-jscall-id="jsserver-application-dom">
+      <div data-jscall-id="59">
+        <div class="rounded-md p-2 m-2 shadow " data-jscall-id="57">
+          <link href="css/tailwind.min.css" data-jscall-id="60" rel="stylesheet" type="text/css" />
+          <div class="m-2 flex flex-row " data-jscall-id="50">
+            <link href="css/tailwind.min.css" data-jscall-id="61" rel="stylesheet" type="text/css" />
+            <div class="rounded-md p-2 m-2 shadow " data-jscall-id="48">
+              <link href="css/tailwind.min.css" data-jscall-id="62" rel="stylesheet" type="text/css" />
+              <div class="m-2 flex flex-col items-start" data-jscall-id="47">
+                <link href="css/tailwind.min.css" data-jscall-id="63" rel="stylesheet" type="text/css" />
+                <button onclick="" class=" focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow" style="min-width: 8rem;" data-jscall-id="64">click</button>
+                <input class=" focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow" data-jscall-id="65" value="type in your text" onchange="" type="textfield" />
+                <input class=" focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow" data-jscall-id="66" value="0.0" onchange="" type="number" />
+                <div class="flex-row, mb-1 mt-1 " data-jscall-id="46">
+                  <h2 class="font-semibold " data-jscall-id="45">chose</h2>
+                  <select class=" focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow" data-jscall-id="70">
+                    <option data-jscall-id="67">option 1</option>
+                    <option data-jscall-id="68">option 2</option>
+                    <option data-jscall-id="69">option 3</option>
+                  </select>
+                </div>
+                <input multiple="true" data-jscall-id="71" onchange="event =&#62; {&#10;    if (event.target.files) {&#10;        const files = [];&#10;        for (const file of event.target.files) {&#10;            files.push(URL.createObjectURL(file))&#10;        }&#10;        __lookup_interpolated('18413921915480818771').notify(files);&#10;    }&#10;}" type="file" />
+                <div class="flex-row, mb-1 mt-1 " data-jscall-id="41">
+                  <h2 class="font-semibold " data-jscall-id="40">
+                    <div data-jscall-id="39">Test
+                      <div class="float-right" data-jscall-id="38">
+                        <span data-jscall-id="72"></span>
+                      </div>
+                    </div>
+                  </h2>
+                  <input step="1" max="5" min="1" style="width: 100%;" data-jscall-id="74" value="1" oninput="" type="range" />
+                </div>
+                <div class="flex-row, mb-1 mt-1 " data-jscall-id="43">
+                  <h2 class="font-semibold " data-jscall-id="42">check this</h2>
+                  <input checked="true" data-jscall-id="75" onchange="" type="checkbox" />
+                </div>
+              </div>
+            </div>
+            <div class="rounded-md p-2 m-2 shadow w-64" data-jscall-id="49">
+              <link href="css/tailwind.min.css" data-jscall-id="76" rel="stylesheet" type="text/css" />
+              <div data-jscall-id="93">
+                <link href="css/table.css" data-jscall-id="91" rel="stylesheet" type="text/css" />
+                <table class="" data-jscall-id="92">
+                  <thead data-jscall-id="81">
+                    <tr data-jscall-id="80">
+                      <th data-jscall-id="77">a</th>
+                      <th data-jscall-id="78">b</th>
+                      <th data-jscall-id="79">c</th>
+                    </tr>
+                  </thead>
+                  <tbody data-jscall-id="90">
+                    <tr data-jscall-id="85">
+                      <td data-jscall-id="82">22</td>
+                      <td data-jscall-id="83">33</td>
+                      <td data-jscall-id="84">44</td>
+                    </tr>
+                    <tr data-jscall-id="89">
+                      <td data-jscall-id="86">22</td>
+                      <td data-jscall-id="87">33</td>
+                      <td data-jscall-id="88">44</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="rounded-md p-2 m-2 shadow " data-jscall-id="58">
+          <link href="css/tailwind.min.css" data-jscall-id="94" rel="stylesheet" type="text/css" />
+          <div class="m-2 flex flex-row " data-jscall-id="56">
+            <link href="css/tailwind.min.css" data-jscall-id="95" rel="stylesheet" type="text/css" />
+            <div class="rounded-md p-2 m-2 shadow " data-jscall-id="53">
+              <link href="css/tailwind.min.css" data-jscall-id="96" rel="stylesheet" type="text/css" />
+              <div style="height: 200px; padding: 1px 50px" data-jscall-id="51">
+                <div data-jscall-id="99">
+                  <link href="css/noUISlider.css" data-jscall-id="98" rel="stylesheet" type="text/css" />
+                  <div data-jscall-id="97"></div>
+                </div>
+              </div>
+            </div>
+            <div class="rounded-md p-2 m-2 shadow " data-jscall-id="54">
+              <link href="css/tailwind.min.css" data-jscall-id="100" rel="stylesheet" type="text/css" />
+              <div style="width: 200px; padding: 50px 1px" data-jscall-id="52">
+                <div data-jscall-id="103">
+                  <link href="css/noUISlider.css" data-jscall-id="102" rel="stylesheet" type="text/css" />
+                  <div data-jscall-id="101"></div>
+                </div>
+              </div>
+            </div>
+            <div class="rounded-md p-2 m-2 shadow " data-jscall-id="55">
+              <link href="css/tailwind.min.css" data-jscall-id="104" rel="stylesheet" type="text/css" />
+              <div data-jscall-id="106">
+                <script data-jscall-id="105" src="https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"></script>
+                <div style="    position: &#34;absolute&#34;;&#10;    top: 0;&#10;    right: 0;&#10;    bottom: 0;&#10;    left: 0;&#10;    width: 250px;&#10;    height: 200px;&#10;" data-jscall-id="44"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><pre><code class="language-julia hljs">using JSServe, Observables
+src = &quot;&quot;&quot;
+(() =&gt; {
+    const canvas = document.createElement(&quot;canvas&quot;);
+    const context = canvas.getContext(&#39;2d&#39;);
+    const width = 500
+    const height = 400
+    canvas.width = width;
+    canvas.height = height;
+    const gradient = context.createRadialGradient(200, 200, 0, 200, 200, 200);
+    gradient.addColorStop(&quot;0&quot;, &quot;magenta&quot;);
+    gradient.addColorStop(&quot;.25&quot;, &quot;blue&quot;);
+    gradient.addColorStop(&quot;.50&quot;, &quot;green&quot;);
+    gradient.addColorStop(&quot;.75&quot;, &quot;yellow&quot;);
+    gradient.addColorStop(&quot;1.0&quot;, &quot;red&quot;);
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, height);
+    return canvas;
+})();
+&quot;&quot;&quot;
+App() do session::Session
+    editor = CodeEditor(&quot;javascript&quot;; initial_source=src, width=800, height=300)
+    eval_button = Button(&quot;eval&quot;)
+    output = DOM.div(DOM.span())
+    JSServe.onjs(session, eval_button.value, js&quot;&quot;&quot;function (click){
+        const js_src = $(editor.onchange).value;
+        const result = new Function(&quot;return &quot; + (js_src))()
+        let dom;
+        if (typeof result === &#39;object&#39; &amp;&amp; result.nodeName) {
+            dom = result
+        } else {
+            const span = document.createElement(&quot;span&quot;)
+            span.innerText = result;
+            dom = span
+        }
+        JSServe.update_or_replace($(output), dom, false);
+        return
+    }
+    &quot;&quot;&quot;)
+    notify(eval_button.value)
+    return DOM.div(editor, eval_button, output)
+end</code></pre><div data-jscall-id="120">
+  <script data-jscall-id="122" type="module">    function init_messages() {
+        (()=> {
+        const session_messages = 'H4sIAAAAAAAAA51WS48bRRBWFnHZEweIEKeRhZgZ4ce8H7taDoQFBUFAcQhBUWS1Z2rs8bannZn2OgatlMcBceGwET8gEEEkJCIIIM7Zg/cnsLnwV6ieh+1kncdmpB33dH9V1f3VV9W7P1MG+0dvOwaJTNOJGrZpug0LXKfhAVgN3bbdwHfBJiS4fvOXEZlSRsIfDl9t7ewfrv33oqY3/9R1XzMty/d9Q3NdS/dd3ztcuxrur1x5tHZJUVRp6z3pm3UJn4AlGZcCkuySTNqSQhaMh5DwZpAC4bBNQXwptQJQUzeXjVjC4RpHq2K12QN+pphTZCOUHwNP4pD3EWpr2tJsH+JeX3iwqunCU4XOfzeXV+YWxWA5RC8lYYy7FRsqtlGe4jzOE/pRuawYmlaX8lf1W73KHVeOmiQMzzDK0jZnI6Wm1epSbUh6uEJqz4Y2DVuAu3QMz0PaudteCpA8D+rmTqdAKZs8B6s3c7cphEs5yymJYkrbfEoBaaqMjyPOQ8CVgqE8B/WS79JZCnycJmVONtf3VAUXHrgoNcd1TNN2HN/wTcfTZ6fD/VXzD2/9xLrZ7PX+qsWqGA7X3oxu33jgm5rhe5bj6y4+nuEZxuyN/mp1n/q33Fo0TgIes0RSAhoHO+qy2gdZJ0sDPH+nQxnbGY86MZ48HTGKYgkVeUVAWW3uEszmst5SyMZUqC2BifRhGU+plRuoSe9KShFJRXpyOwocK2xYOIkjSeHTEbBo7mlrS5JZd4Dcy9I775TTzYSFcI4MQS1LVjzoBQMXgHxyTwKawRKi2GM2Iskzylos19S5jfhsxkkC6YWisIsAm0+EFbAiaP7+uN2GdBea41GIvjss7aQwoiQAZR726hjSaRsonoylinwZgaQxyAJCaSMOt2q6btWuyGpdBKhLEcGjPKa09b3131CH2GCy5jDc0DXv3jDrdQR9d/TDU6d39mdfvWjHvPHA0UzPNW1b011DRw35jjd7C3W6Yv4uYNrnWl0BqLQ6+za6ff3obJn8a9hfT3B4Txz+MeKvHXmtPhtCKx2L2daEpTutiugBXR6iwFoVNwO64S8xM79WDl/5Prp98ySV9Iel277h2KbhWoZperppfPfXJCWj96FPdmM2TrPthHQphAf3sz6bfBIncG487EKaPfx1nEGbRfwC6WYHd4XR579DDv4U1RRnORUH94eQ9uCLJGQfAOUk+5nQCZlm9yJsQ+34a3jt74CNpl/GvL89HPGSQKywg3/ImLN2kDJKt8MYOT2bcHYxhsnBozWqCNEsih8KpatP1gXkhkg0yrQpPipkfamExDPE4tuQZIS1xLA1INjxgjQecXmO21MXFVI4bmbAL/TRoZJbcjFsBf0UMyofB2OV4XmVpYVWS0IOJfTy2UgcJJOGwPsslDgTk/i3CymhEitXCZdYEsCKXZT2ylNa3fEsyyru47ijLEM3TexvctAnSQ/k+pxlJRT5U58g7kS9NWE8jqZKGQ2lfFE0W0VdomQlycWusgp/8n5eOt1bV0/SrAxRr+rm0cZL1qhhGosqNRZVempd3He27Vu272qe5nie52ie7z7lojy6oyykLq6JKglifFlGSYi7T76COkfBJBy70lMoWhFzkRae5kTtnYgjr+ToZfuYs8TQ7BI2+Py/aa/raaBHdoOEerdhBUa30TW7ZsO1LNMJQk03Qu36rYrQhz/G4SreFq61xdD/H9oHIXyxCwAA'
+        console.log("start loading messages for " + '62af336f-5337-4e76-8ee4-1557c97e5aac')
+        JSServe.with_message_lock(()=> {
+            return JSServe.decode_base64_message(session_messages).then(message => {
+                JSServe.process_message(message)
+                console.log("done loading messages for " + '62af336f-5337-4e76-8ee4-1557c97e5aac')
+            })
+        })
+    })()
+
+}
+
+    JSServe.init_session('62af336f-5337-4e76-8ee4-1557c97e5aac', init_messages, 'sub');
+</script>
+  <div id="62af336f-5337-4e76-8ee4-1557c97e5aac" data-jscall-id="jsserver-application-dom">
+    <div data-jscall-id="115">
+      <div data-jscall-id="117">
+        <script data-jscall-id="116" src="https://cdn.jsdelivr.net/gh/ajaxorg/ace-builds/src-min/ace.js"></script>
+        <div style="    position: &#34;absolute&#34;;&#10;    top: 0;&#10;    right: 0;&#10;    bottom: 0;&#10;    left: 0;&#10;    width: 800px;&#10;    height: 300px;&#10;" data-jscall-id="112"></div>
+      </div>
+      <button onclick="" data-jscall-id="118">eval</button>
+      <div data-jscall-id="114">
+        <span data-jscall-id="113"></span>
+      </div>
+    </div>
+  </div>
+</div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="extending.html">« Extending JSServe</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Thursday 26 January 2023 18:51">Thursday 26 January 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
