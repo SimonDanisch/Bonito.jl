@@ -22,14 +22,18 @@ rendered into the app). When empty, the first registered `Observable{Int}`
 gets an update instead, if any.
 """
 function serve_workload(app::App; updates = Pair{Observable, Any}[])
-    # the same DisplayHandler/sub-session path `display(...)` takes at
-    # runtime (this is what electron displays serve through), not a plain
-    # app route
-    browser_display = HTTPServer.BrowserDisplay(; open_browser = false)
-    Base.display(browser_display, app)
-    handler = browser_display.handler
-    server = handler.server
+    browser_display = nothing
     try
+        # the same DisplayHandler/sub-session path `display(...)` takes at
+        # runtime (this is what electron displays serve through), not a plain
+        # app route. Creating/serving needs the singleton loopback server, so
+        # this is inside the try too: a sandboxed/firewalled build can fail to
+        # even `bind` loopback (`bind: permission denied`), and that must only
+        # make us compile less, never fail the package build.
+        browser_display = HTTPServer.BrowserDisplay(; open_browser = false)
+        Base.display(browser_display, app)
+        handler = browser_display.handler
+        server = handler.server
         page = HTTP.get(HTTPServer.local_url(server, handler.route); retry = false)
         # one asset request compiles the asset-serving handler chain
         asset_url = match(r"http://[^\"]+/assets/[^\"]+", String(page.body))
@@ -95,9 +99,9 @@ function serve_workload(app::App; updates = Pair{Observable, Any}[])
         # never fail a package build over this: sandboxed build environments
         # may forbid (even loopback) networking - the workload then simply
         # covers less
-        @warn "precompile serve workload failed - skipping" exception = e
+        @warn "precompile serve workload failed - skipping" exception = (e, catch_backtrace())
     finally
-        close(browser_display)
+        isnothing(browser_display) || close(browser_display)
     end
     return
 end
@@ -120,37 +124,52 @@ end
             Bonito.Card(DOM.div(slider, button, textfield, checkbox, result)),
         )
     end
-    show(IOBuffer(), MIME"text/html"(), app)
+    # Everything below needs Bonito's singleton loopback server (`show`,
+    # `Session()` and `serve_workload` all resolve `default_connection()` ->
+    # `get_server()`, which binds a listener). A sandboxed or firewalled build
+    # environment can forbid even loopback binds — surfacing as
+    # `bind: permission denied` (errno EACCES, which is *not* EADDRINUSE, so
+    # `try_listen` rethrows it). That must only make us compile less, never
+    # fail the whole package's precompilation, so guard the networking workload
+    # and always run `cleanup_globals()` afterwards.
+    try
+        show(IOBuffer(), MIME"text/html"(), app)
 
-    # Serve the app over a real loopback request and websocket exchange (like
-    # HTTP.jl's own workload does): the listener/stream-handler/websocket-
-    # decoder task bodies only compile when a request actually arrives.
-    serve_workload(app)
+        # Serve the app over a real loopback request and websocket exchange (like
+        # HTTP.jl's own workload does): the listener/stream-handler/websocket-
+        # decoder task bodies only compile when a request actually arrives.
+        serve_workload(app)
 
-    # The binary websocket message path: this is what a live browser
-    # connection compiles on its first message exchange. (`sess`, not `session`:
-    # the latter shadows Bonito's `session` function, tripping a soft-scope
-    # warning inside the `@compile_workload` block.)
-    sess = Session()
-    payload = Dict{Symbol, Any}(
-        :f32 => rand(Float32, 8),
-        :f64 => rand(Float64, 8),
-        :i32 => Int32[1, 2, 3],
-        :u8 => UInt8[0x1, 0x2],
-        :str => "hello",
-        :bool => true,
-        :obs => Observable(rand(Float32, 4)),
-        :nested => Dict{Symbol, Any}(:a => 1, :b => [1.0, 2.0], :c => nothing),
-        :vec => Any[1, "two", 3.0],
-    )
-    Bonito.serialize_binary(sess, payload)
-    Bonito.serialize_binary(Bonito.SerializedMessage(sess, payload))
-    close(sess)
-
-    # Cleanup globals to avoid serializing stale state (servers, sessions,
-    # tasks). Also shuts down the Reseau IO poller on HTTP.jl 2.x, without
-    # which the precompile process never exits.
-    Bonito.cleanup_globals()
+        # The binary websocket message path: this is what a live browser
+        # connection compiles on its first message exchange. (`sess`, not `session`:
+        # the latter shadows Bonito's `session` function, tripping a soft-scope
+        # warning inside the `@compile_workload` block.)
+        sess = Session()
+        payload = Dict{Symbol, Any}(
+            :f32 => rand(Float32, 8),
+            :f64 => rand(Float64, 8),
+            :i32 => Int32[1, 2, 3],
+            :u8 => UInt8[0x1, 0x2],
+            :str => "hello",
+            :bool => true,
+            :obs => Observable(rand(Float32, 4)),
+            :nested => Dict{Symbol, Any}(:a => 1, :b => [1.0, 2.0], :c => nothing),
+            :vec => Any[1, "two", 3.0],
+        )
+        Bonito.serialize_binary(sess, payload)
+        Bonito.serialize_binary(Bonito.SerializedMessage(sess, payload))
+        close(sess)
+    catch e
+        @warn "Bonito precompile networking workload failed - skipping (the \
+               serve/websocket paths just won't be precompiled). Usually a \
+               sandboxed or firewalled build environment forbidding loopback \
+               binds; safe to ignore." exception = (e, catch_backtrace())
+    finally
+        # Cleanup globals to avoid serializing stale state (servers, sessions,
+        # tasks). Also shuts down the Reseau IO poller on HTTP.jl 2.x, without
+        # which the precompile process never exits.
+        Bonito.cleanup_globals()
+    end
     nothing
 end
 
