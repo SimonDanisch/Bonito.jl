@@ -136,437 +136,274 @@ var m = k((q, x)=>{
 var g = N(m(), 1);
 g.default;
 var export_EventEmitter = g.default;
-var u = class r extends Error {
-    name = "TimeoutError";
-    constructor(a, e){
-        super(a, e), Error.captureStackTrace?.(this, r);
+var u = class extends Error {
+    constructor(e){
+        super(e), this.name = "TimeoutError";
     }
-}, p = (r)=>r.reason ?? new DOMException("This operation was aborted.", "AbortError");
-function E1(r, a) {
-    let { milliseconds: e , fallback: m , message: n , customTimers: f = {
+}, d1 = class extends Error {
+    constructor(e){
+        super(), this.name = "AbortError", this.message = e;
+    }
+}, E1 = (n)=>globalThis.DOMException === void 0 ? new d1(n) : new DOMException(n), p = (n)=>{
+    let e = n.reason === void 0 ? E1("This operation was aborted.") : n.reason;
+    return e instanceof Error ? e : E1(e);
+};
+function T(n, e) {
+    let { milliseconds: o , fallback: f , message: a , customTimers: m = {
         setTimeout,
         clearTimeout
-    } , signal: t  } = a, s, i, c = new Promise((l, o)=>{
-        if (typeof e != "number" || Math.sign(e) !== 1) throw new TypeError(`Expected \`milliseconds\` to be a positive number, got \`${e}\``);
-        if (t?.aborted) {
-            o(p(t));
+    }  } = e, c, i, l = new Promise((s, r)=>{
+        if (typeof o != "number" || Math.sign(o) !== 1) throw new TypeError(`Expected \`milliseconds\` to be a positive number, got \`${o}\``);
+        if (e.signal) {
+            let { signal: t  } = e;
+            t.aborted && r(p(t)), i = ()=>{
+                r(p(t));
+            }, t.addEventListener("abort", i, {
+                once: !0
+            });
+        }
+        if (o === Number.POSITIVE_INFINITY) {
+            n.then(s, r);
             return;
         }
-        if (t && (i = ()=>{
-            o(p(t));
-        }, t.addEventListener("abort", i, {
-            once: !0
-        })), r.then(l, o), e === Number.POSITIVE_INFINITY) return;
-        let d = new u;
-        s = f.setTimeout.call(void 0, ()=>{
-            if (m) {
+        let b = new u;
+        c = m.setTimeout.call(void 0, ()=>{
+            if (f) {
                 try {
-                    l(m());
-                } catch (b) {
-                    o(b);
+                    s(f());
+                } catch (t) {
+                    r(t);
                 }
                 return;
             }
-            typeof r.cancel == "function" && r.cancel(), n === !1 ? l() : n instanceof Error ? o(n) : (d.message = n ?? `Promise timed out after ${e} milliseconds`, o(d));
-        }, e);
+            typeof n.cancel == "function" && n.cancel(), a === !1 ? s() : a instanceof Error ? r(a) : (b.message = a ?? `Promise timed out after ${o} milliseconds`, r(b));
+        }, o), (async ()=>{
+            try {
+                s(await n);
+            } catch (t) {
+                r(t);
+            }
+        })();
     }).finally(()=>{
-        c.clear(), i && t && t.removeEventListener("abort", i);
+        l.clear(), i && e.signal && e.signal.removeEventListener("abort", i);
     });
-    return c.clear = ()=>{
-        f.clearTimeout.call(void 0, s), s = void 0;
-    }, c;
+    return l.clear = ()=>{
+        m.clearTimeout.call(void 0, c), c = void 0;
+    }, l;
 }
-function d1(o, t, e) {
-    let i = 0, s = o.length;
+function a(u, t, e) {
+    let i = 0, s = u.length;
     for(; s > 0;){
-        let n = Math.trunc(s / 2), r = i + n;
-        e(o[r], t) <= 0 ? (i = ++r, s -= n + 1) : s = n;
+        let r = Math.trunc(s / 2), n = i + r;
+        e(u[n], t) <= 0 ? (i = ++n, s -= r + 1) : s = r;
     }
     return i;
 }
-var g1 = 100, u1 = class {
-    #e = [];
-    #t = 0;
+var h = class {
+    #t = [];
     enqueue(t, e) {
-        let { priority: i = 0 , id: s  } = e ?? {}, { size: n  } = this, r = {
-            priority: i,
-            id: s,
+        e = {
+            priority: 0,
+            ...e
+        };
+        let i = {
+            priority: e.priority,
+            id: e.id,
             run: t
         };
-        if (n === 0) {
-            this.#e.length = 0, this.#t = 0, this.#e.push(r);
+        if (this.size === 0 || this.#t[this.size - 1].priority >= e.priority) {
+            this.#t.push(i);
             return;
         }
-        if (this.#e.at(-1).priority >= i) {
-            this.#e.push(r);
-            return;
-        }
-        this.#n();
-        let l = d1(this.#e, r, (f, a)=>a.priority - f.priority);
-        this.#e.splice(l, 0, r);
+        let s = a(this.#t, i, (r, n)=>n.priority - r.priority);
+        this.#t.splice(s, 0, i);
     }
     setPriority(t, e) {
-        let i = this.#e.findIndex((n, r)=>r >= this.#t && n.id === t);
+        let i = this.#t.findIndex((r)=>r.id === t);
         if (i === -1) throw new ReferenceError(`No promise function with the id "${t}" exists in the queue.`);
-        let [s] = this.#e.splice(i, 1);
+        let [s] = this.#t.splice(i, 1);
         this.enqueue(s.run, {
             priority: e,
             id: t
         });
     }
-    remove(t) {
-        let e = this.#e.findIndex((i, s)=>s < this.#t ? !1 : typeof t == "string" ? i.id === t : i.run === t);
-        e !== -1 && this.#e.splice(e, 1);
-    }
     dequeue() {
-        if (this.#t === this.#e.length) return;
-        let t = this.#e[this.#t];
-        return this.#t++, this.#t === this.#e.length ? (this.#e.length = 0, this.#t = 0) : this.#t > g1 && this.#t > this.#e.length / 2 && this.#n(), t?.run;
+        return this.#t.shift()?.run;
     }
     filter(t) {
-        let e = [];
-        for(let i = this.#t; i < this.#e.length; i++){
-            let s = this.#e[i];
-            s.priority === t.priority && e.push(s.run);
-        }
-        return e;
+        return this.#t.filter((e)=>e.priority === t.priority).map((e)=>e.run);
     }
     get size() {
-        return this.#e.length - this.#t;
-    }
-    #n() {
-        this.#t !== 0 && (this.#e.splice(0, this.#t), this.#t = 0);
+        return this.#t.length;
     }
 };
-var m1 = class extends export_EventEmitter {
-    #e;
+var l = class extends export_EventEmitter {
     #t;
+    #h;
     #n = 0;
     #d;
-    #v = !1;
-    #w = !1;
     #u;
-    #S = 0;
-    #p = 0;
-    #o;
-    #l;
-    #a;
-    #h = [];
-    #r = 0;
+    #m = 0;
     #i;
-    #q;
-    #s = 0;
+    #a;
+    #e;
     #y;
-    #c;
-    #A = 1n;
-    #g = new Map;
-    #T = new Set;
+    #r = 0;
+    #l;
+    #s;
+    #v;
+    #g = 1n;
     timeout;
     constructor(t){
         if (super(), t = {
-            carryoverIntervalCount: !1,
+            carryoverConcurrencyCount: !1,
             intervalCap: Number.POSITIVE_INFINITY,
             interval: 0,
             concurrency: Number.POSITIVE_INFINITY,
             autoStart: !0,
-            queueClass: u1,
-            strict: !1,
+            queueClass: h,
             ...t
         }, !(typeof t.intervalCap == "number" && t.intervalCap >= 1)) throw new TypeError(`Expected \`intervalCap\` to be a number from 1 and up, got \`${t.intervalCap?.toString() ?? ""}\` (${typeof t.intervalCap})`);
         if (t.interval === void 0 || !(Number.isFinite(t.interval) && t.interval >= 0)) throw new TypeError(`Expected \`interval\` to be a finite number >= 0, got \`${t.interval?.toString() ?? ""}\` (${typeof t.interval})`);
-        if (t.strict && t.interval === 0) throw new TypeError("The `strict` option requires a non-zero `interval`");
-        if (t.strict && t.intervalCap === Number.POSITIVE_INFINITY) throw new TypeError("The `strict` option requires a finite `intervalCap`");
-        if (this.#e = t.carryoverIntervalCount ?? t.carryoverConcurrencyCount ?? !1, this.#t = t.intervalCap === Number.POSITIVE_INFINITY || t.interval === 0, this.#d = t.intervalCap, this.#u = t.interval, this.#a = t.strict, this.#i = new t.queueClass, this.#q = t.queueClass, this.concurrency = t.concurrency, t.timeout !== void 0 && !(Number.isFinite(t.timeout) && t.timeout > 0)) throw new TypeError(`Expected \`timeout\` to be a positive finite number, got \`${t.timeout}\` (${typeof t.timeout})`);
-        this.timeout = t.timeout, this.#c = t.autoStart === !1, this.#Q();
+        this.#t = t.carryoverConcurrencyCount, this.#h = t.intervalCap === Number.POSITIVE_INFINITY || t.interval === 0, this.#d = t.intervalCap, this.#u = t.interval, this.#e = new t.queueClass, this.#y = t.queueClass, this.concurrency = t.concurrency, this.timeout = t.timeout, this.#v = t.throwOnTimeout === !0, this.#s = t.autoStart === !1;
     }
-    #b(t) {
-        for(; this.#r < this.#h.length;){
-            let i = this.#h[this.#r];
-            if (i !== void 0 && t - i >= this.#u) this.#r++;
-            else break;
-        }
-        (this.#r > 100 && this.#r > this.#h.length / 2 || this.#r === this.#h.length) && (this.#h = this.#h.slice(this.#r), this.#r = 0);
+    get #p() {
+        return this.#h || this.#n < this.#d;
     }
-    #$(t) {
-        this.#a ? this.#h.push(t) : this.#n++;
+    get #T() {
+        return this.#r < this.#l;
     }
-    #R() {
-        this.#a ? this.#h.length > this.#r && this.#h.pop() : this.#n > 0 && this.#n--;
+    #C() {
+        this.#r--, this.#o(), this.emit("next");
     }
     #E() {
-        return this.#h.length - this.#r;
+        this.#w(), this.#I(), this.#a = void 0;
     }
-    get #F() {
-        return this.#t ? !0 : this.#a ? this.#E() < this.#d : this.#n < this.#d;
-    }
-    get #D() {
-        return this.#s < this.#y;
-    }
-    #_() {
-        this.#s--, this.#s === 0 && this.emit("pendingZero"), this.#I(), this.emit("next");
-    }
-    #M() {
-        this.#l = void 0, this.#P(), this.#k();
-    }
-    #B(t) {
-        if (this.#a) {
-            if (this.#b(t), this.#E() >= this.#d) {
-                let i = this.#h[this.#r], s = this.#u - (t - i);
-                return this.#C(s), !0;
-            }
-            return !1;
-        }
-        if (this.#o === void 0) {
-            let e = this.#S - t;
-            if (e < 0) {
-                if (this.#p > 0) {
-                    let i = t - this.#p;
-                    if (i < this.#u) return this.#C(this.#u - i), !0;
-                }
-                this.#n = this.#e ? this.#s : 0;
-            } else return this.#C(e), !0;
+    get #b() {
+        let t = Date.now();
+        if (this.#i === void 0) {
+            let e = this.#m - t;
+            if (e < 0) this.#n = this.#t ? this.#r : 0;
+            else return this.#a === void 0 && (this.#a = setTimeout(()=>{
+                this.#E();
+            }, e)), !0;
         }
         return !1;
     }
-    #C(t) {
-        this.#l === void 0 && (this.#l = setTimeout(()=>{
-            this.#M();
-        }, t));
-    }
-    #x() {
-        this.#o && (clearInterval(this.#o), this.#o = void 0);
-    }
-    #z() {
-        this.#l && (clearTimeout(this.#l), this.#l = void 0);
+    #o() {
+        if (this.#e.size === 0) return this.#i && clearInterval(this.#i), this.#i = void 0, this.emit("empty"), this.#r === 0 && this.emit("idle"), !1;
+        if (!this.#s) {
+            let t = !this.#b;
+            if (this.#p && this.#T) {
+                let e = this.#e.dequeue();
+                return e ? (this.emit("active"), e(), t && this.#I(), !0) : !1;
+            }
+        }
+        return !1;
     }
     #I() {
-        if (this.#i.size === 0) {
-            if (this.#x(), this.emit("empty"), this.#s === 0) {
-                if (this.#z(), this.#a && this.#r > 0) {
-                    let e = Date.now();
-                    this.#b(e);
-                }
-                this.emit("idle");
-            }
-            return !1;
-        }
-        let t = !1;
-        if (!this.#c) {
-            let e = Date.now(), i = !this.#B(e);
-            if (this.#F && this.#D) {
-                let s = this.#i.dequeue();
-                this.#t || (this.#$(e), this.#m()), this.emit("active"), s(), i && this.#k(), t = !0;
-            }
-        }
-        return t;
+        this.#h || this.#i !== void 0 || (this.#i = setInterval(()=>{
+            this.#w();
+        }, this.#u), this.#m = Date.now() + this.#u);
     }
-    #k() {
-        this.#t || this.#o !== void 0 || this.#a || (this.#o = setInterval(()=>{
-            this.#P();
-        }, this.#u), this.#S = Date.now() + this.#u);
+    #w() {
+        this.#n === 0 && this.#r === 0 && this.#i && (clearInterval(this.#i), this.#i = void 0), this.#n = this.#t ? this.#r : 0, this.#c();
     }
-    #P() {
-        this.#a || (this.#n === 0 && this.#s === 0 && this.#o && this.#x(), this.#n = this.#e ? this.#s : 0), this.#L(), this.#m();
-    }
-    #L() {
-        for(; this.#I(););
+    #c() {
+        for(; this.#o(););
     }
     get concurrency() {
-        return this.#y;
+        return this.#l;
     }
     set concurrency(t) {
         if (!(typeof t == "number" && t >= 1)) throw new TypeError(`Expected \`concurrency\` to be a number from 1 and up, got \`${t}\` (${typeof t})`);
-        this.#y = t, this.#L();
+        this.#l = t, this.#c();
+    }
+    async #x(t) {
+        return new Promise((e, i)=>{
+            t.addEventListener("abort", ()=>{
+                i(t.reason);
+            }, {
+                once: !0
+            });
+        });
     }
     setPriority(t, e) {
-        if (typeof e != "number" || !Number.isFinite(e)) throw new TypeError(`Expected \`priority\` to be a finite number, got \`${e}\` (${typeof e})`);
-        this.#i.setPriority(t, e);
+        this.#e.setPriority(t, e);
     }
     async add(t, e = {}) {
-        return e = {
+        return e.id ??= (this.#g++).toString(), e = {
             timeout: this.timeout,
-            ...e,
-            id: e.id ?? (this.#A++).toString()
+            throwOnTimeout: this.#v,
+            ...e
         }, new Promise((i, s)=>{
-            let n = Symbol(`task-${e.id}`), r = ()=>{}, l = async ()=>{
-                r(), this.#s++, this.#g.set(n, {
-                    id: e.id,
-                    priority: e.priority ?? 0,
-                    startTime: Date.now(),
-                    timeout: e.timeout
-                });
-                let a;
+            this.#e.enqueue(async ()=>{
+                this.#r++, this.#n++;
                 try {
-                    try {
-                        e.signal?.throwIfAborted();
-                    } catch (c) {
-                        throw this.#V(), this.#g.delete(n), c;
-                    }
-                    this.#p = Date.now();
-                    let h = t({
+                    e.signal?.throwIfAborted();
+                    let r = t({
                         signal: e.signal
                     });
-                    if (e.timeout && (h = E1(Promise.resolve(h), {
-                        milliseconds: e.timeout,
-                        message: `Task timed out after ${e.timeout}ms (queue has ${this.#s} running, ${this.#i.size} waiting)`
-                    })), e.signal) {
-                        let { signal: c  } = e;
-                        h = Promise.race([
-                            h,
-                            new Promise((p, y)=>{
-                                a = ()=>{
-                                    y(c.reason);
-                                }, c.addEventListener("abort", a, {
-                                    once: !0
-                                });
-                            })
-                        ]);
+                    e.timeout && (r = T(Promise.resolve(r), {
+                        milliseconds: e.timeout
+                    })), e.signal && (r = Promise.race([
+                        r,
+                        this.#x(e.signal)
+                    ]));
+                    let n = await r;
+                    i(n), this.emit("completed", n);
+                } catch (r) {
+                    if (r instanceof u && !e.throwOnTimeout) {
+                        i();
+                        return;
                     }
-                    let v = await h;
-                    i(v), this.emit("completed", v);
-                } catch (h) {
-                    s(h), this.emit("error", h);
+                    s(r), this.emit("error", r);
                 } finally{
-                    a && e.signal?.removeEventListener("abort", a), this.#g.delete(n), queueMicrotask(()=>{
-                        this.#_();
-                    });
+                    this.#C();
                 }
-            };
-            this.#i.enqueue(l, e);
-            let f = ()=>{
-                if (this.#i instanceof u1) {
-                    this.#i.remove(l);
-                    return;
-                }
-                this.#i.remove?.(e.id);
-            };
-            if (e.signal) {
-                let { signal: a  } = e, h = ()=>{
-                    r(), f(), s(a.reason), this.#I(), this.emit("next");
-                };
-                if (r = ()=>{
-                    a.removeEventListener("abort", h), this.#T.delete(r);
-                }, a.aborted) {
-                    h();
-                    return;
-                }
-                a.addEventListener("abort", h, {
-                    once: !0
-                }), this.#T.add(r);
-            }
-            this.emit("add"), this.#I();
+            }, e), this.emit("add"), this.#o();
         });
     }
     async addAll(t, e) {
         return Promise.all(t.map(async (i)=>this.add(i, e)));
     }
     start() {
-        return this.#c ? (this.#c = !1, this.#L(), this) : this;
+        return this.#s ? (this.#s = !1, this.#c(), this) : this;
     }
     pause() {
-        this.#c = !0;
+        this.#s = !0;
     }
     clear() {
-        for (let t of this.#T)t();
-        this.#i = new this.#q, this.#x(), this.#N(), this.emit("empty"), this.#s === 0 && (this.#z(), this.emit("idle")), this.emit("next");
+        this.#e = new this.#y;
     }
     async onEmpty() {
-        this.#i.size !== 0 && await this.#f("empty");
+        this.#e.size !== 0 && await this.#f("empty");
     }
     async onSizeLessThan(t) {
-        this.#i.size < t || await this.#f([
-            "next",
-            "active"
-        ], ()=>this.#i.size < t);
+        this.#e.size < t || await this.#f("next", ()=>this.#e.size < t);
     }
     async onIdle() {
-        this.#s === 0 && this.#i.size === 0 || await this.#f("idle");
-    }
-    async onPendingZero() {
-        this.#s !== 0 && await this.#f("pendingZero");
-    }
-    async onRateLimit() {
-        this.isRateLimited || await this.#f("rateLimit");
-    }
-    async onRateLimitCleared() {
-        this.isRateLimited && await this.#f("rateLimitCleared");
-    }
-    onError() {
-        return new Promise((t, e)=>{
-            let i = (s)=>{
-                this.off("error", i), e(s);
-            };
-            this.on("error", i);
-        });
+        this.#r === 0 && this.#e.size === 0 || await this.#f("idle");
     }
     async #f(t, e) {
-        let i = Array.isArray(t) ? t : [
-            t
-        ];
-        return new Promise((s)=>{
-            let n = ()=>{
-                if (!(e && !e())) {
-                    for (let r of i)this.off(r, n);
-                    s();
-                }
+        return new Promise((i)=>{
+            let s = ()=>{
+                e && !e() || (this.off(t, s), i());
             };
-            for (let r of i)this.on(r, n);
+            this.on(t, s);
         });
     }
     get size() {
-        return this.#i.size;
+        return this.#e.size;
     }
     sizeBy(t) {
-        return this.#i.filter(t).length;
+        return this.#e.filter(t).length;
     }
     get pending() {
-        return this.#s;
+        return this.#r;
     }
     get isPaused() {
-        return this.#c;
-    }
-    #Q() {
-        this.#t || (this.on("add", ()=>{
-            this.#i.size > 0 && this.#m();
-        }), this.on("next", ()=>{
-            this.#m();
-        }));
-    }
-    #m() {
-        this.#t || this.#w || (this.#w = !0, queueMicrotask(()=>{
-            this.#w = !1, this.#N();
-        }));
-    }
-    #V() {
-        this.#t || (this.#R(), this.#m());
-    }
-    #N() {
-        let t = this.#v;
-        if (this.#t || this.#i.size === 0) {
-            t && (this.#v = !1, this.emit("rateLimitCleared"));
-            return;
-        }
-        let e;
-        if (this.#a) {
-            let s = Date.now();
-            this.#b(s), e = this.#E();
-        } else e = this.#n;
-        let i = e >= this.#d;
-        i !== t && (this.#v = i, this.emit(i ? "rateLimit" : "rateLimitCleared"));
-    }
-    get isRateLimited() {
-        return this.#v;
-    }
-    get isSaturated() {
-        return this.#s === this.#y && this.#i.size > 0 || this.isRateLimited && this.#i.size > 0;
-    }
-    get runningTasks() {
-        return [
-            ...this.#g.values()
-        ].map((t)=>({
-                ...t,
-                timeoutRemaining: t.timeout ? Math.max(0, t.startTime + t.timeout - Date.now()) : void 0
-            }));
+        return this.#s;
     }
 };
 function utf8Count(str) {
@@ -696,8 +533,6 @@ function utf8Decode(bytes, inputOffset, byteLength) {
     }
 }
 class ExtData {
-    type;
-    data;
     constructor(type, data){
         this.type = type;
         this.data = data;
@@ -828,13 +663,11 @@ const timestampExtension = {
     decode: decodeTimestampExtension
 };
 class ExtensionCodec {
-    static defaultCodec = new ExtensionCodec();
-    __brand;
-    builtInEncoders = [];
-    builtInDecoders = [];
-    encoders = [];
-    decoders = [];
     constructor(){
+        this.builtInEncoders = [];
+        this.builtInDecoders = [];
+        this.encoders = [];
+        this.decoders = [];
         this.register(timestampExtension);
     }
     register({ type , encode , decode  }) {
@@ -882,6 +715,7 @@ class ExtensionCodec {
         }
     }
 }
+ExtensionCodec.defaultCodec = new ExtensionCodec();
 function isArrayBufferLike(buffer) {
     return buffer instanceof ArrayBuffer || typeof SharedArrayBuffer !== "undefined" && buffer instanceof SharedArrayBuffer;
 }
@@ -899,20 +733,8 @@ function ensureUint8Array(buffer) {
 const DEFAULT_MAX_DEPTH = 100;
 const DEFAULT_INITIAL_BUFFER_SIZE = 2048;
 class Encoder {
-    extensionCodec;
-    context;
-    useBigInt64;
-    maxDepth;
-    initialBufferSize;
-    sortKeys;
-    forceFloat32;
-    ignoreUndefined;
-    forceIntegerToFloat;
-    pos;
-    view;
-    bytes;
-    entered = false;
     constructor(options){
+        this.entered = false;
         this.extensionCodec = options?.extensionCodec ?? ExtensionCodec.defaultCodec;
         this.context = options?.context;
         this.useBigInt64 = options?.useBigInt64 ?? false;
@@ -1297,12 +1119,9 @@ function prettyByte(__byte) {
     return `${__byte < 0 ? "-" : ""}0x${Math.abs(__byte).toString(16).padStart(2, "0")}`;
 }
 class CachedKeyDecoder {
-    hit = 0;
-    miss = 0;
-    caches;
-    maxKeyLength;
-    maxLengthPerKey;
     constructor(maxKeyLength = 16, maxLengthPerKey = 16){
+        this.hit = 0;
+        this.miss = 0;
         this.maxKeyLength = maxKeyLength;
         this.maxLengthPerKey = maxLengthPerKey;
         this.caches = [];
@@ -1361,8 +1180,10 @@ const mapKeyConverter = (key)=>{
     throw new DecodeError("The type of key must be string or number but " + typeof key);
 };
 class StackPool {
-    stack = [];
-    stackHeadPosition = -1;
+    constructor(){
+        this.stack = [];
+        this.stackHeadPosition = -1;
+    }
     get length() {
         return this.stackHeadPosition + 1;
     }
@@ -1438,25 +1259,14 @@ try {
 const MORE_DATA = new RangeError("Insufficient data");
 const sharedCachedKeyDecoder = new CachedKeyDecoder();
 class Decoder {
-    extensionCodec;
-    context;
-    useBigInt64;
-    rawStrings;
-    maxStrLength;
-    maxBinLength;
-    maxArrayLength;
-    maxMapLength;
-    maxExtLength;
-    keyDecoder;
-    mapKeyConverter;
-    totalPos = 0;
-    pos = 0;
-    view = EMPTY_VIEW;
-    bytes = EMPTY_BYTES;
-    headByte = HEAD_BYTE_REQUIRED;
-    stack = new StackPool();
-    entered = false;
     constructor(options){
+        this.totalPos = 0;
+        this.pos = 0;
+        this.view = EMPTY_VIEW;
+        this.bytes = EMPTY_BYTES;
+        this.headByte = HEAD_BYTE_REQUIRED;
+        this.stack = new StackPool();
+        this.entered = false;
         this.extensionCodec = options?.extensionCodec ?? ExtensionCodec.defaultCodec;
         this.context = options?.context;
         this.useBigInt64 = options?.useBigInt64 ?? false;
@@ -2876,7 +2686,7 @@ var vn = ze, En = bt, yn = xn, Sn = kn, An = ne, Rn = {
         }
     }
     return A !== 0 && (a[b + A] = r - m << 24 | 64 << 16 | 0), f.bits = h, 0;
-}, we = On, Nn = 0, Ai = 1, Ri = 2, { Z_FINISH: Zt , Z_BLOCK: Ln , Z_TREES: Ne , Z_OK: ae , Z_STREAM_END: Un , Z_NEED_DICT: $n , Z_STREAM_ERROR: U , Z_DATA_ERROR: zi , Z_MEM_ERROR: Ti , Z_BUF_ERROR: Cn , Z_DEFLATED: It  } = ne, mi = 1, Ot = 2, Nt = 3, Lt = 4, Ut = 5, $t = 6, Ct = 7, Ft = 8, Mt = 9, Ht = 10, Ke = 11, H = 12, et = 13, Bt = 14, tt = 15, Kt = 16, Pt = 17, Xt = 18, Yt = 19, Le = 20, Ue = 21, Gt = 22, jt = 23, Wt = 24, Vt = 25, Jt = 26, it = 27, Qt = 28, qt = 29, T = 30, Di = 31, Fn = 32, Mn = 852, Hn = 592, Bn = 15, Kn = Bn, ei = (e)=>(e >>> 24 & 255) + (e >>> 8 & 65280) + ((e & 65280) << 8) + ((e & 255) << 24);
+}, we = On, Nn = 0, Ai = 1, Ri = 2, { Z_FINISH: Zt , Z_BLOCK: Ln , Z_TREES: Ne , Z_OK: ae , Z_STREAM_END: Un , Z_NEED_DICT: $n , Z_STREAM_ERROR: U , Z_DATA_ERROR: zi , Z_MEM_ERROR: Ti , Z_BUF_ERROR: Cn , Z_DEFLATED: It  } = ne, mi = 1, Ot = 2, Nt = 3, Lt = 4, Ut = 5, $t = 6, Ct = 7, Ft = 8, Mt = 9, Ht = 10, Ke = 11, H = 12, et = 13, Bt = 14, tt = 15, Kt = 16, Pt = 17, Xt = 18, Yt = 19, Le = 20, Ue = 21, Gt = 22, jt = 23, Wt = 24, Vt = 25, Jt = 26, it = 27, Qt = 28, qt = 29, T1 = 30, Di = 31, Fn = 32, Mn = 852, Hn = 592, Bn = 15, Kn = Bn, ei = (e)=>(e >>> 24 & 255) + (e >>> 8 & 65280) + ((e & 65280) << 8) + ((e & 255) << 24);
 function Pn() {
     this.mode = 0, this.last = !1, this.wrap = 0, this.havedict = !1, this.flags = 0, this.dmax = 0, this.check = 0, this.total = 0, this.head = null, this.wbits = 0, this.wsize = 0, this.whave = 0, this.wnext = 0, this.window = null, this.hold = 0, this.bits = 0, this.length = 0, this.offset = 0, this.extra = 0, this.lencode = null, this.distcode = null, this.lenbits = 0, this.distbits = 0, this.ncode = 0, this.nlen = 0, this.ndist = 0, this.have = 0, this.next = null, this.lens = new Uint16Array(320), this.work = new Uint16Array(288), this.lendyn = null, this.distdyn = null, this.sane = 0, this.back = 0, this.was = 0;
 }
@@ -2957,16 +2767,16 @@ var Zi = (e)=>{
                 break;
             }
             if (t.flags = 0, t.head && (t.head.done = !1), !(t.wrap & 1) || (((r & 255) << 8) + (r >> 8)) % 31) {
-                e.msg = "incorrect header check", t.mode = T;
+                e.msg = "incorrect header check", t.mode = T1;
                 break;
             }
             if ((r & 15) !== It) {
-                e.msg = "unknown compression method", t.mode = T;
+                e.msg = "unknown compression method", t.mode = T1;
                 break;
             }
             if (r >>>= 4, _ -= 4, b = (r & 15) + 8, t.wbits === 0) t.wbits = b;
             else if (b > t.wbits) {
-                e.msg = "invalid window size", t.mode = T;
+                e.msg = "invalid window size", t.mode = T1;
                 break;
             }
             t.dmax = 1 << t.wbits, e.adler = t.check = 1, t.mode = r & 512 ? Ht : H, r = 0, _ = 0;
@@ -2977,11 +2787,11 @@ var Zi = (e)=>{
                 f--, r += n[l++] << _, _ += 8;
             }
             if (t.flags = r, (t.flags & 255) !== It) {
-                e.msg = "unknown compression method", t.mode = T;
+                e.msg = "unknown compression method", t.mode = T1;
                 break;
             }
             if (t.flags & 57344) {
-                e.msg = "unknown header flags set", t.mode = T;
+                e.msg = "unknown header flags set", t.mode = T1;
                 break;
             }
             t.head && (t.head.text = r >> 8 & 1), t.flags & 512 && (R[0] = r & 255, R[1] = r >>> 8 & 255, t.check = I(t.check, R, 2, 0)), r = 0, _ = 0, t.mode = Nt;
@@ -3034,7 +2844,7 @@ var Zi = (e)=>{
                     f--, r += n[l++] << _, _ += 8;
                 }
                 if (r !== (t.check & 65535)) {
-                    e.msg = "header crc mismatch", t.mode = T;
+                    e.msg = "header crc mismatch", t.mode = T1;
                     break;
                 }
                 r = 0, _ = 0;
@@ -3075,7 +2885,7 @@ var Zi = (e)=>{
                     t.mode = Pt;
                     break;
                 case 3:
-                    e.msg = "invalid block type", t.mode = T;
+                    e.msg = "invalid block type", t.mode = T1;
             }
             r >>>= 2, _ -= 2;
             break;
@@ -3085,7 +2895,7 @@ var Zi = (e)=>{
                 f--, r += n[l++] << _, _ += 8;
             }
             if ((r & 65535) !== (r >>> 16 ^ 65535)) {
-                e.msg = "invalid stored block lengths", t.mode = T;
+                e.msg = "invalid stored block lengths", t.mode = T1;
                 break;
             }
             if (t.length = r & 65535, r = 0, _ = 0, t.mode = tt, i === Ne) break e;
@@ -3105,7 +2915,7 @@ var Zi = (e)=>{
                 f--, r += n[l++] << _, _ += 8;
             }
             if (t.nlen = (r & 31) + 257, r >>>= 5, _ -= 5, t.ndist = (r & 31) + 1, r >>>= 5, _ -= 5, t.ncode = (r & 15) + 4, r >>>= 4, _ -= 4, t.nlen > 286 || t.ndist > 30) {
-                e.msg = "too many length or distance symbols", t.mode = T;
+                e.msg = "too many length or distance symbols", t.mode = T1;
                 break;
             }
             t.have = 0, t.mode = Xt;
@@ -3121,7 +2931,7 @@ var Zi = (e)=>{
             if (t.lencode = t.lendyn, t.lenbits = 7, g = {
                 bits: t.lenbits
             }, z = we(Nn, t.lens, 0, 19, t.lencode, 0, t.work, g), t.lenbits = g.bits, z) {
-                e.msg = "invalid code lengths set", t.mode = T;
+                e.msg = "invalid code lengths set", t.mode = T1;
                 break;
             }
             t.have = 0, t.mode = Yt;
@@ -3139,7 +2949,7 @@ var Zi = (e)=>{
                             f--, r += n[l++] << _, _ += 8;
                         }
                         if (r >>>= w, _ -= w, t.have === 0) {
-                            e.msg = "invalid bit length repeat", t.mode = T;
+                            e.msg = "invalid bit length repeat", t.mode = T1;
                             break;
                         }
                         b = t.lens[t.have - 1], h = 3 + (r & 3), r >>>= 2, _ -= 2;
@@ -3157,27 +2967,27 @@ var Zi = (e)=>{
                         r >>>= w, _ -= w, b = 0, h = 11 + (r & 127), r >>>= 7, _ -= 7;
                     }
                     if (t.have + h > t.nlen + t.ndist) {
-                        e.msg = "invalid bit length repeat", t.mode = T;
+                        e.msg = "invalid bit length repeat", t.mode = T1;
                         break;
                     }
                     for(; h--;)t.lens[t.have++] = b;
                 }
             }
-            if (t.mode === T) break;
+            if (t.mode === T1) break;
             if (t.lens[256] === 0) {
-                e.msg = "invalid code -- missing end-of-block", t.mode = T;
+                e.msg = "invalid code -- missing end-of-block", t.mode = T1;
                 break;
             }
             if (t.lenbits = 9, g = {
                 bits: t.lenbits
             }, z = we(Ai, t.lens, 0, t.nlen, t.lencode, 0, t.work, g), t.lenbits = g.bits, z) {
-                e.msg = "invalid literal/lengths set", t.mode = T;
+                e.msg = "invalid literal/lengths set", t.mode = T1;
                 break;
             }
             if (t.distbits = 6, t.distcode = t.distdyn, g = {
                 bits: t.distbits
             }, z = we(Ri, t.lens, t.nlen, t.ndist, t.distcode, 0, t.work, g), t.distbits = g.bits, z) {
-                e.msg = "invalid distances set", t.mode = T;
+                e.msg = "invalid distances set", t.mode = T1;
                 break;
             }
             if (t.mode = Le, i === Ne) break e;
@@ -3208,7 +3018,7 @@ var Zi = (e)=>{
                 break;
             }
             if (A & 64) {
-                e.msg = "invalid literal/length code", t.mode = T;
+                e.msg = "invalid literal/length code", t.mode = T1;
                 break;
             }
             t.extra = A & 15, t.mode = Gt;
@@ -3234,7 +3044,7 @@ var Zi = (e)=>{
                 r >>>= d, _ -= d, t.back += d;
             }
             if (r >>>= w, _ -= w, t.back += w, A & 64) {
-                e.msg = "invalid distance code", t.mode = T;
+                e.msg = "invalid distance code", t.mode = T1;
                 break;
             }
             t.offset = x, t.extra = A & 15, t.mode = Wt;
@@ -3247,7 +3057,7 @@ var Zi = (e)=>{
                 t.offset += r & (1 << t.extra) - 1, r >>>= t.extra, _ -= t.extra, t.back += t.extra;
             }
             if (t.offset > t.dmax) {
-                e.msg = "invalid distance too far back", t.mode = T;
+                e.msg = "invalid distance too far back", t.mode = T1;
                 break;
             }
             t.mode = Vt;
@@ -3255,7 +3065,7 @@ var Zi = (e)=>{
             if (c === 0) break e;
             if (h = s - c, t.offset > h) {
                 if (h = t.offset - h, h > t.whave && t.sane) {
-                    e.msg = "invalid distance too far back", t.mode = T;
+                    e.msg = "invalid distance too far back", t.mode = T1;
                     break;
                 }
                 h > t.wnext ? (h -= t.wnext, u = t.wsize - h) : u = t.wnext - h, h > t.length && (h = t.length), m = t.window;
@@ -3276,7 +3086,7 @@ var Zi = (e)=>{
                     f--, r |= n[l++] << _, _ += 8;
                 }
                 if (s -= c, e.total_out += s, t.total += s, s && (e.adler = t.check = t.flags ? I(t.check, a, s, o - s) : ve(t.check, a, s, o - s)), s = c, (t.flags ? r : ei(r)) !== t.check) {
-                    e.msg = "incorrect data check", t.mode = T;
+                    e.msg = "incorrect data check", t.mode = T1;
                     break;
                 }
                 r = 0, _ = 0;
@@ -3289,7 +3099,7 @@ var Zi = (e)=>{
                     f--, r += n[l++] << _, _ += 8;
                 }
                 if (r !== (t.total & 4294967295)) {
-                    e.msg = "incorrect length check", t.mode = T;
+                    e.msg = "incorrect length check", t.mode = T1;
                     break;
                 }
                 r = 0, _ = 0;
@@ -3298,7 +3108,7 @@ var Zi = (e)=>{
         case qt:
             z = Un;
             break e;
-        case T:
+        case T1:
             z = zi;
             break e;
         case Di:
@@ -3307,7 +3117,7 @@ var Zi = (e)=>{
         default:
             return U;
     }
-    return e.next_out = o, e.avail_out = c, e.next_in = l, e.avail_in = f, t.hold = r, t.bits = _, (t.wsize || s !== e.avail_out && t.mode < T && (t.mode < it || i !== Zt)) && Li(e, e.output, e.next_out, s - e.avail_out), E -= e.avail_in, s -= e.avail_out, e.total_in += E, e.total_out += s, t.total += s, t.wrap && s && (e.adler = t.check = t.flags ? I(t.check, a, s, e.next_out - s) : ve(t.check, a, s, e.next_out - s)), e.data_type = t.bits + (t.last ? 64 : 0) + (t.mode === H ? 128 : 0) + (t.mode === Le || t.mode === tt ? 256 : 0), (E === 0 && s === 0 || i === Zt) && z === ae && (z = Cn), z;
+    return e.next_out = o, e.avail_out = c, e.next_in = l, e.avail_in = f, t.hold = r, t.bits = _, (t.wsize || s !== e.avail_out && t.mode < T1 && (t.mode < it || i !== Zt)) && Li(e, e.output, e.next_out, s - e.avail_out), E -= e.avail_in, s -= e.avail_out, e.total_in += E, e.total_out += s, t.total += s, t.wrap && s && (e.adler = t.check = t.flags ? I(t.check, a, s, e.next_out - s) : ve(t.check, a, s, e.next_out - s)), e.data_type = t.bits + (t.last ? 64 : 0) + (t.mode === H ? 128 : 0) + (t.mode === Le || t.mode === tt ? 256 : 0), (E === 0 && s === 0 || i === Zt) && z === ae && (z = Cn), z;
 }, jn = (e)=>{
     if (!e || !e.state) return U;
     let i = e.state;
@@ -3582,7 +3392,7 @@ function tombstone_session(session_id) {
     FREED_SESSION_TOMBSTONES.add(session_id);
     setTimeout(()=>FREED_SESSION_TOMBSTONES.delete(session_id), 30000);
 }
-const OBJECT_FREEING_LOCK = new m1({
+const OBJECT_FREEING_LOCK = new l({
     concurrency: 1
 });
 function lock_loading(f) {
