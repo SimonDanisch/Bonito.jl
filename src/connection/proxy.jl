@@ -135,11 +135,14 @@ const REMOTE_ROUTES_KEY = :bonito_remote_routes
 # data)` — in-process: straight into the worker's `process_message`; remote: the
 # decoded frame re-packed onto the worker's websocket, where its own inbox path
 # (decompress + unpack + dispatch) runs identically to a direct-WS session.
-# Proxied roots serialize fragments that mount independently (possibly never,
-# possibly on a page that missed earlier frames) — cross-sub object dedup via
-# `TrackingOnly` would leave dangling references there. See `dedup_cached_objects`
-# in serialization/caching.jl.
-dedup_cached_objects(root::Session{<:ProxyConnection}) = false
+#
+# NOTE: proxied roots keep the STOCK `dedup_cached_objects = true`. The override
+# to `false` was load-bearing only while a single worker "bridge parent" fanned
+# out across many browser pages (a `TrackingOnly` ref could dangle on a page that
+# missed the first owner's frame). With one proxied root PER browser page
+# (BonitoAgents' per-page roots), §0's invariant holds again — each page-root is
+# a real single-page root with its own object cache — so cross-sub dedup within a
+# page is sound and the override is gone.
 
 struct RemoteSession{D}
     id::String          # worker session id == observable-id prefix
