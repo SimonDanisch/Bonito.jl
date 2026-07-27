@@ -571,5 +571,36 @@ end
 #     reproduction setup is complex. The user-visible symptom is "server
 #     hangs" which would be caught in production telemetry. TODO.
 
+# ── F13 ────────────────────────────────────────────────────────────────────
+# A notify already in flight when the session closes must complete quietly,
+# not throw "Updating the session dom for a closed session": `free` offs the
+# listener under deletion_lock, but that can't cancel a listener already
+# parked on the lock. Surfaced in BonitoAgents on every dev-server close,
+# where it aborted the rest of the worker-disconnect teardown.
+#
+# Reproduced via lock reentrancy: hold the lock, park the listener on it, then
+# free (same task) before releasing. The Observable must not be a
+# Number/String/Symbol — that jsrender fast path never calls update_session_dom!.
+@testset "F13: in-flight Observable render listener survives session close" begin
+    obs = Observable{Any}(Bonito.DOM.div("a"))
+    session = audit_offline_session()
+    Bonito.jsrender(session, obs)
+    lk = Bonito.deletion_lock(session)
+    lock(lk)
+    t = @async try
+        obs[] = Bonito.DOM.div("b")   # invokes the render listener → parks on lk
+        :no_error
+    catch e
+        e
+    end
+    sleep(0.3)                        # listener is now parked on the lock
+    free(session)                     # reentrant on lk: offs listeners, sets CLOSED
+    unlock(lk)                        # listener resumes into the closed session
+    @test session.status === CLOSED
+    @test fetch(t) === :no_error
+    # And the listener is gone for future notifies (the off in free worked):
+    @test isempty(Bonito.Observables.listeners(obs))
+end
+
 end  # @testset "Bonito race-condition audit (failing today)"
 

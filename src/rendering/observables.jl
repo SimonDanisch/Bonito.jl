@@ -136,6 +136,11 @@ function jsrender(session::Session, obs::Observable)
         # on prev_sub, and bails. Without the lock a stale UpdateObservable
         # can land on JS after the UpdateSession that freed its target.
         lock(deletion_lock(root_session(session))) do
+            # close may have taken the lock while this notify was already in
+            # flight, and the `off` in `free` can't cancel an in-flight
+            # listener. The DOM is gone with the session, so bail quietly —
+            # update_session_dom! keeps its loud error for real misuse.
+            isclosed(session) && return
             new_sub = update_session_dom!(session, uuid(session, root_node), data; replace=false)
             if new_sub !== prev_sub
                 older_sub !== nothing && close(older_sub)
