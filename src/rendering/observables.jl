@@ -138,7 +138,7 @@ function jsrender(session::Session, obs::Observable)
         lock(deletion_lock(root_session(session))) do
             # close may have taken the lock while this notify was already in
             # flight, and the `off` in `free` can't cancel an in-flight
-            # listener. The DOM is gone with the session, so bail quietly —
+            # listener. The DOM is gone with the session, so bail quietly;
             # update_session_dom! keeps its loud error for real misuse.
             isclosed(session) && return
             new_sub = update_session_dom!(session, uuid(session, root_node), data; replace=false)

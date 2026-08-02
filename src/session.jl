@@ -723,12 +723,9 @@ end
 
 function session_dom(session::Session, app::App; init=true, html_document=false, request=HTTP.Request())
     dom = rendered_dom(session, app, request)
-    # Ensure we have a valid DOM node. `nothing` covers App(nothing;
-    # indicator=nothing); the general wrap covers handler results that jsrender
-    # leaves as non-Nodes — a bare `String` (`jsrender(::Session, ::String)`
-    # returns a String) or an `HTML{String}` from the text/html mime path.
-    # Those are valid DOM *children* but not a top-level page dom, so wrap them
-    # in a div to make `App(value)` render any showable value.
+    # A top-level page needs a Node. `nothing` comes from App(nothing;
+    # indicator=nothing); a `String` or `HTML{String}` is what jsrender returns
+    # for plain values: valid children, so wrap them to render `App(value)`.
     if isnothing(dom)
         dom = DOM.div()
     elseif !(dom isa Node)

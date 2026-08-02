@@ -185,14 +185,10 @@ function add_cached!(create_cached_object::Function, session::Session, send_to_j
         if haskey(root.session_objects, key)
             entry = root.session_objects[key]::CachedEntry
             push!(entry.owners, session.id)
-            # Root cache already holds this — register `session.id` as a new owner
-            # and tell JS via TrackingOnly (its global object cache already has the
-            # object). Sound because a session tree has exactly ONE page (§0): every
-            # sub renders into it, so anything a prior sub shipped is present. This
-            # holds for PROXIED roots too now that BonitoAgents runs one proxied
-            # root per browser page — a page-root's object cache matches its page's,
-            # so cross-sub dedup within a page can't dangle. (The old per-page fan-out
-            # bridge forced full re-ships here; that dead branch is gone.)
+            # Root cache already holds this: register `session.id` as a new owner
+            # and tell JS via TrackingOnly (its global cache has the object).
+            # Sound because a session tree has exactly one page (§0), proxied
+            # roots included: whatever a prior sub shipped is already there.
             send_to_js[key] = TrackingOnly(key)
         else
             # First time anyone in this connection cached this object.

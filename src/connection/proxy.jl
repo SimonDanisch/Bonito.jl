@@ -136,13 +136,8 @@ const REMOTE_ROUTES_KEY = :bonito_remote_routes
 # decoded frame re-packed onto the worker's websocket, where its own inbox path
 # (decompress + unpack + dispatch) runs identically to a direct-WS session.
 #
-# NOTE: proxied roots use the SAME object-cache dedup as any root (`add_cached!`
-# ships each object once, then TrackingOnly refs). This was briefly special-cased
-# — full re-ships — while a single worker "bridge parent" fanned out across many
-# browser pages (a TrackingOnly ref could dangle on a page that missed the first
-# owner's frame). With one proxied root PER browser page (BonitoAgents' per-page
-# roots), §0's invariant holds again — each page-root is a real single-page root
-# with its own object cache — so that special case was removed.
+# Proxied roots use the same object-cache dedup as any root: one proxied root
+# per browser page, so §0 holds and `add_cached!` can ship each object once.
 
 struct RemoteSession{D}
     id::String          # worker session id == observable-id prefix

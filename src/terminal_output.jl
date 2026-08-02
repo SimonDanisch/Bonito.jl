@@ -137,7 +137,7 @@ function jsrender(session::Session, rt::RichText)
     ))
 end
 
-# Exceptions render as what the REPL would print — `showerror` with color
+# Exceptions render as what the REPL would print: `showerror` with color
 # (message + backtrace), through the same ANSI→HTML terminal pipeline. This
 # makes a caught exception a first-class displayable value: `App(err)`, an
 # eval result that threw, or any DOM tree containing one just works.
