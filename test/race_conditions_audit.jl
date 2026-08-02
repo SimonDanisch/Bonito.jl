@@ -104,7 +104,7 @@ end
                 # Mirrors the patched handler in asset-serving/http.jl:
                 lock(asset_server.lock) do
                     entry = get(asset_server.files, k, nothing)
-                    entry === nothing ? nothing : entry.asset
+                    entry === nothing ? nothing : Bonito.served_asset(entry)
                 end
             end
         catch _
