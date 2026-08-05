@@ -85,4 +85,35 @@ end
     end
 end
 
+@testset "access_log callback" begin
+    # HTTP.jl 2.x removed the server-level `access_log=`/`logfmt""` hook; Bonito
+    # reinstates it as a per-request callback fired from `stream_handler` for
+    # *every* request, before routing — so even unmatched (404) paths are seen.
+    logged = Tuple{String, String}[]
+    lk = ReentrantLock()
+    server = Server("0.0.0.0", 0;
+        access_log = (request, peer) -> lock(() -> push!(logged, (request.target, peer)), lk))
+    port = server.port
+    try
+        # no route registered: these 404, but the hook must still fire
+        HTTP.get("http://localhost:$(port)/alpha"; status_exception=false)
+        HTTP.get("http://localhost:$(port)/beta/gamma"; status_exception=false)
+        targets = lock(() -> first.(logged), lk)
+        @test "/alpha" in targets
+        @test "/beta/gamma" in targets
+    finally
+        close(server)
+    end
+end
+
+@testset "access_log defaults off" begin
+    # Without the kwarg the field is `nothing` and stream_handler skips logging.
+    server = Server("0.0.0.0", 0)
+    try
+        @test server.access_log === nothing
+    finally
+        close(server)
+    end
+end
+
 Bonito.set_cleanup_time!(30/60/60)
