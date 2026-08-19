@@ -79,10 +79,15 @@ Bonito.Server(main, url, port, sslconfig=sslconfig)
 
 You want to see who accesses all of your hard work?  No problem!
 
-```
-using HTTP
-access_log = HTTP.logfmt"[$time_iso8601] $remote_addr $request_uri"
-Bonito.Server(main, url, port, access_log=access_log)
+Pass `access_log` a callback `(request, peer_ip) -> ...`; it is called once for
+every request (page loads, assets, WebSocket upgrades, and unmatched paths) with
+the `HTTP.Request` and the client's IP.  You control the format:
+
+```julia
+using Dates
+access_log = (request, peer_ip) ->
+    println("[$(Dates.format(now(), "yyyy-mm-ddTHH:MM:SS"))] $peer_ip $(request.target)")
+Bonito.Server(main, url, port; access_log=access_log)
 ```
 
 ### nginx
