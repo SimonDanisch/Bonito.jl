@@ -1,0 +1,8 @@
+»¢kîŸ$cd6eaff4-cda4-4c72-9163-abc04d22a563§root«2«/jìŸ$cd6eaff4-cda4-4c72-9163-abc04d22a563§root‘ê»=ì«§kîŸ$cd6eaff4-cda4-4c72-9163-abc04d22a563§root«2«/jìŸ$cd6eaff4-cda4-4c72-9163-abc04d22a563§root‘ê«@Çßpayload«)fìÄ∫console.log('hello world')´index.md:27®msg_type°2»akîŸ$cd6eaff4-cda4-4c72-9163-abc04d22a563§root«2«/jìŸ$cd6eaff4-cda4-4c72-9163-abc04d22a563§root‘ê«˝Çßpayload«ÊfìÄŸ÷import('https://esm.sh/v133/leaflet@1.9.4/es2022/leaflet.mjs').then(L=> {
+    const map = L.map('map').setView([51.505, -0.09], 13);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+})
+´index.md:68®msg_type°2»,kîŸ$cd6eaff4-cda4-4c72-9163-abc04d22a563§root«2«/jìŸ$cd6eaff4-cda4-4c72-9163-abc04d22a563§root‘ê«»Çßpayload«±fìÄŸcif (typeof Bonito !== 'undefined' && Bonito.set_no_connection) {
+    Bonito.set_no_connection();
+}
+ŸH/home/runner/work/Bonito.jl/Bonito.jl/src/connection/no-connection.jl:13®msg_type°2
