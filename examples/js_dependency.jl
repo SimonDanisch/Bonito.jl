@@ -2,7 +2,7 @@ using Bonito
 using Bonito: onload, @js_str, Session, App
 using Bonito.DOM
 
-using Deno_jll # If you create your own javascript module, you need to include deno!
+using Deno_jll, esbuild_jll # If you create your own javascript module, you need deno + esbuild to bundle it!
 
 # First argument: Name of the Javascript module
 # Second argument: Array of dependency. One needs to be the JavaScript file
