@@ -180,6 +180,9 @@ end
         @testset "export" begin
             _rf("export_tests.jl")
         end
+        @testset "notebook_display" begin
+            _rf("notebook_display.jl")
+        end
     end
     close(edisplay)
     global edisplay = Bonito.use_electron_display(; app=get_test_app(), options=Dict{String, Any}("show" => false, "focusOnWebView" => false), devtools=false)

@@ -17,5 +17,16 @@ function Base.close(ws::PlutoConnection)
 end
 
 function setup_connection(session::Session{PlutoConnection})
-    return setup_connection(session, session.connection.connection)
+    connect = setup_connection(session, session.connection.connection)
+    # Pluto's static HTML export replays the outputs verbatim, so this runs there
+    # too. An export must not connect (it would attach to the live notebook's
+    # session, or retry for 30 s against a gone process); it marks itself with
+    # `window.pluto_disable_ui`, so treat such a page as offline.
+    return js"""
+        if (window.pluto_disable_ui === true) {
+            Bonito.set_no_connection();
+        } else {
+            $(connect)
+        }
+    """
 end

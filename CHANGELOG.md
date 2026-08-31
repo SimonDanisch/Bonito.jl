@@ -8,6 +8,10 @@ All notable changes to Bonito.jl are documented here. The format is based on [Ke
 
 - `HierarchicalMenu` widget with `HierarchicalMenuItem` and `HierarchicalSubMenu` for nested, collapsible menus. The clicked leaf's value is pushed to `menu.selected_value`. Themed via the `--bonito-widget-*` CSS variables (dark-mode aware) and styleable through the `style` keyword.
 
+### Fixed
+
+- Notebook outputs (Pluto, IJulia) now stand on their own. In parent-session mode only the first displayed output carried the root bootstrap (Bonito library import, connection setup, root `init_session`); any later output rendered without it — on a page reload, in a static HTML export, or after the first cell was re-run and its output replaced — never initialized (`Bonito` undefined, no connection). Every output now repeats the bootstrap, and `Bonito.init_session` ignores the copies once the root is live on the page.
+
 ## [5.0.0]
 
 The biggest release since the package was renamed from JSServe. Most of the work went into networking, session handling, asset serving and serialization, making communication with the browser substantially faster and more stable. See the [release blog post](https://bonito.sh/dev/v5-release.html) for the full write-up and benchmarks.

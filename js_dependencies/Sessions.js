@@ -271,6 +271,13 @@ function init_session_from_msgs(session_id, messages) {
 }
 
 export function init_session(session_id, message_promise, session_status, compression) {
+    // Every notebook output repeats its root's bootstrap (`show_html`, display.jl).
+    // Once the root is live on this page the copies must be no-ops: re-running one
+    // would reset the root's tracked objects and open a second connection.
+    if (session_status === "root" && session_id in SESSIONS) {
+        console.debug(`Root session ${session_id} is already initialized, skipping bootstrap`);
+        return;
+    }
     SESSIONS[session_id] = [new Set(), session_status];
     track_deleted_sessions(); // no-op if already tracking
     lock_loading(() => {
