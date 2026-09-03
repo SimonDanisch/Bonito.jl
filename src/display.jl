@@ -60,6 +60,20 @@ end
 get_io_context(io::IO) = nothing
 get_io_context(io::IOContext) = io
 
+# Root-metadata key for the bootstrap fragment that later notebook outputs repeat.
+const ROOT_BOOTSTRAP_KEY = :bonito_root_bootstrap
+
+"""
+    root_bootstrap(init_dom::Node)
+
+What a root session's first notebook output carries besides the app — library
+import, styles, asset imports, connection setup, root `init_session` — minus
+the root's own container node (its `id` has to stay unique on the page).
+"""
+function root_bootstrap(init_dom::Node)
+    return DOM.div(children(init_dom)...; class="bonito-root-bootstrap", style="display:contents")
+end
+
 function show_html(io::IO, app::App; parent=CURRENT_SESSION[])
     ctx = get_io_context(io)
     session = nothing
@@ -72,6 +86,11 @@ function show_html(io::IO, app::App; parent=CURRENT_SESSION[])
         sub = Session(parent; title=app.title)
         sub.io_context[] = ctx
         dom = session_dom(sub, app)
+        # Notebook outputs are re-rendered on their own (page reload, static HTML
+        # export, first cell re-run), so each repeats the root bootstrap;
+        # `Bonito.init_session` skips it where the root is already live.
+        bootstrap = get_metadata(parent, ROOT_BOOTSTRAP_KEY)
+        isnothing(bootstrap) || (dom = DOM.div(bootstrap, dom))
     else
         session = Session(title=app.title)
         if _use_parent_session(session)
@@ -80,6 +99,7 @@ function show_html(io::IO, app::App; parent=CURRENT_SESSION[])
             sub = Session(session)
             sub.io_context[] = ctx
             init_dom = session_dom(session, empty_app)
+            set_metadata!(session, ROOT_BOOTSTRAP_KEY, root_bootstrap(init_dom))
             sub_dom = session_dom(sub, app)
             dom = DOM.div(init_dom, sub_dom)
             session.status = DISPLAYED
