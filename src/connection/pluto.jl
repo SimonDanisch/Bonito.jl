@@ -23,7 +23,7 @@ function setup_connection(session::Session{PlutoConnection})
     # session, or retry for 30 s against a gone process); it marks itself with
     # `window.pluto_disable_ui`, so treat such a page as offline.
     return js"""
-        if (window.pluto_disable_ui === true) {
+        if (typeof currentScript !== 'undefined' && currentScript.closest("pluto-editor.disable_ui") != null) {
             Bonito.set_no_connection();
         } else {
             $(connect)
