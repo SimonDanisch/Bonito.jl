@@ -8,6 +8,10 @@ project-level CONVENTIONS.md; this file is about *architecture*: how state,
 rendering, and Julia↔JS communication should be organized.
 
 Related developer docs:
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — how Bonito actually works, file by
+  file: session tree, wire protocol, send/queue path, object cache, locking,
+  connections, proxy/remote sessions, export. READ THIS before changing
+  session/protocol/serialization/proxy code.
 - [`skills/electron-test.md`](skills/electron-test.md) — drive a Bonito app in an
   Electron window (open, interact, assert on the DOM, capture logs/screenshots).
 - [`js_dependencies/STABILITY_FIXES.md`](js_dependencies/STABILITY_FIXES.md) — the

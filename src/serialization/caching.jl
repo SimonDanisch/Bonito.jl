@@ -183,11 +183,12 @@ function add_cached!(create_cached_object::Function, session::Session, send_to_j
             session.session_objects[key] = nothing
         end
         if haskey(root.session_objects, key)
-            # Root cache already holds this — just register `session.id`
-            # as a new owner and tell JS via TrackingOnly. The JS side
-            # already has the object in its global cache.
             entry = root.session_objects[key]::CachedEntry
             push!(entry.owners, session.id)
+            # Root cache already holds this: register `session.id` as a new owner
+            # and tell JS via TrackingOnly (its global cache has the object).
+            # Sound because a session tree has exactly one page (§0), proxied
+            # roots included: whatever a prior sub shipped is already there.
             send_to_js[key] = TrackingOnly(key)
         else
             # First time anyone in this connection cached this object.

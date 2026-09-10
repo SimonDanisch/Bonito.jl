@@ -218,9 +218,8 @@ function release_proxy_asset!(child::ChildAssetServer, key::AbstractString)
     parent = child.parent
     path = "/assets/" * key
     lock(parent.lock) do
-        path in child.files || return
-        delete!(child.files, path)
-        decref!(parent, path)
+        haskey(child.files, path) || return
+        decref!(parent, path, pop!(child.files, path))
     end
     return
 end

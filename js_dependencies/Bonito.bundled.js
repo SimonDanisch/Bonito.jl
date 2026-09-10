@@ -4036,8 +4036,14 @@ function update_node_attribute(node, attribute, value) {
     if (node) {
         if (attribute === "class") {
             node.className = value;
-        } else if (node[attribute] != value) {
-            node[attribute] = value;
+        } else if (attribute in node) {
+            if (node[attribute] != value) {
+                node[attribute] = value;
+            }
+        } else if (value === null || value === undefined || value === false) {
+            node.removeAttribute(attribute);
+        } else {
+            node.setAttribute(attribute, value);
         }
         return true;
     } else {

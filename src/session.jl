@@ -723,9 +723,13 @@ end
 
 function session_dom(session::Session, app::App; init=true, html_document=false, request=HTTP.Request())
     dom = rendered_dom(session, app, request)
-    # Ensure we have a valid DOM node (handles App(nothing; indicator=nothing))
+    # A top-level page needs a Node. `nothing` comes from App(nothing;
+    # indicator=nothing); a `String` or `HTML{String}` is what jsrender returns
+    # for plain values: valid children, so wrap them to render `App(value)`.
     if isnothing(dom)
         dom = DOM.div()
+    elseif !(dom isa Node)
+        dom = DOM.div(dom)
     end
     try
         return session_dom(session, dom; init=init, html_document=html_document)

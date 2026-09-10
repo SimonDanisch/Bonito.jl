@@ -144,7 +144,7 @@ end
     file = joinpath(mktempdir(), "leaktest.js"); write(file, "window.X = 1;")
     parent = root.asset_server.parent
     key = "/assets/" * Bonito.unique_file_key(Asset(file))
-    refcount() = (e = get(parent.files, key, nothing); e === nothing ? 0 : e.refcount)
+    refcount() = (e = get(parent.files, key, nothing); e === nothing ? 0 : Bonito.refcount(e))
     app = App(s -> DOM.div("x", Asset(file)))
 
     subA = Session(root); Bonito.session_dom(subA, app)
@@ -157,6 +157,48 @@ end
     @test refcount() == 0                # freed when the last holder closes
     @test isempty(root.imports)
     @test isempty(parent.files)
+    close(server)
+end
+
+@testset "a released registration never leaves the path on a dead holder" begin
+    # Same content key, several holders, DIFFERENT asset objects — identical
+    # bytes, but a proxied `RemoteAsset` also carries the registering worker's
+    # bridge driver, so which object is served decides which driver is fetched
+    # from. Serving the newest keeps a restarted worker in front; releasing it
+    # has to fall back to a survivor, or the path strands on a closed holder and
+    # every later fetch times out while a live holder exists.
+    server = Server("0.0.0.0", 0)
+    parent = Bonito.HTTPAssetServer(Dict{String,Bonito.AssetEntry}(), server,
+                                    ReentrantLock())
+    file = joinpath(mktempdir(), "adopt.js"); write(file, "window.Y = 1;")
+    key = "/assets/" * Bonito.unique_file_key(Asset(file))
+    served() = Bonito.served_asset(parent.files[key])
+    reg!(child, asset) = lock(parent.lock) do
+        Bonito.register!(parent, child, asset)
+    end
+
+    childA, childB = Bonito.ChildAssetServer(parent), Bonito.ChildAssetServer(parent)
+    assetA, assetB = Asset(file), Asset(file)
+    reg!(childA, assetA)
+    reg!(childB, assetB)
+    @test Bonito.refcount(parent.files[key]) == 2
+    @test served() === assetB             # newest holder serves
+
+    # The NEWEST holder leaves while an older one is still serving a page.
+    close(childB)
+    @test Bonito.refcount(parent.files[key]) == 1
+    @test served() === assetA             # falls back, never stays on childB
+
+    # And the mirror: re-register, then drop the OLDER one.
+    childC = Bonito.ChildAssetServer(parent)
+    assetC = Asset(file)
+    reg!(childC, assetC)
+    close(childA)
+    @test Bonito.refcount(parent.files[key]) == 1
+    @test served() === assetC
+
+    close(childC)
+    @test isempty(parent.files)           # last registration gone → entry dropped
     close(server)
 end
 

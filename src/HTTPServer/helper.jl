@@ -1,5 +1,13 @@
 function html(body)
-    return HTTP.Response(200, ["Content-Type" => "text/html", "charset" => "utf-8"], body=body)
+    return HTTP.Response(200, [
+        "Content-Type" => "text/html",
+        "charset" => "utf-8",
+        # The session id and its object tree are baked into the HTML, so a
+        # cached copy revives a fresh page against a dead session (blank DOM,
+        # "double freeing session from Julia!"). This also opts out of the
+        # bfcache, so back/forward and tab duplication get a fresh session.
+        "Cache-Control" => "no-store",
+    ], body=body)
 end
 
 function response_404(body="Not Found")
