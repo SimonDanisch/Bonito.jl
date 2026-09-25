@@ -41,12 +41,30 @@ const {
     move_dom_node,
 } = Sessions;
 
+// Update one attribute of a node from an Observable.
+//
+// Most attributes are reached through their reflecting IDL property, which is
+// what makes `value`, `checked` and friends behave: assigning the property is
+// the only way to move the LIVE state rather than just the initial-value
+// attribute. But an attribute with NO reflecting property — `data-*`, `aria-*`,
+// `for` (it is `htmlFor`), any hyphenated custom attribute — takes that
+// assignment on an expando instead, so the real attribute keeps its initial
+// value and never changes again. Silently: the expando is invisible to CSS
+// selectors, to `element.dataset`, and to `getAttribute`, and an Observable
+// CHILD of the same node keeps updating perfectly, so it reads as a styling bug
+// rather than a binding one. `attribute in node` is the discriminator.
 function update_node_attribute(node, attribute, value) {
     if (node) {
         if (attribute === "class") {
             node.className = value; // Use className for class attribute
-        } else if (node[attribute] != value) {
-            node[attribute] = value;
+        } else if (attribute in node) {
+            if (node[attribute] != value) {
+                node[attribute] = value;
+            }
+        } else if (value === null || value === undefined || value === false) {
+            node.removeAttribute(attribute);
+        } else {
+            node.setAttribute(attribute, value);
         }
         return true;
     } else {

@@ -61,6 +61,27 @@ end
     end
     close(server)
 end
+@testset "served pages are uncacheable (Cache-Control: no-store)" begin
+    # The session id is baked into the HTML, so a cached page would revive a
+    # fresh page against a dead session (broken DOM, "double freeing session").
+    app = App(() -> DOM.div("cache-header-check"))
+    server = Server("0.0.0.0", 0)
+    try
+        route!(server, "/" => app)
+        resp = HTTP.get("http://localhost:$(server.port)/")
+        cc = [v for (k, v) in resp.headers if lowercase(k) == "cache-control"]
+        @test cc == ["no-store"]
+        # Two plain fetches must mint DIFFERENT sessions (the id is baked into
+        # the page): if this ever fails the server itself started replaying
+        # session HTML, which no cache header can save.
+        body1 = String(resp.body)
+        body2 = String(HTTP.get("http://localhost:$(server.port)/").body)
+        @test body1 != body2
+    finally
+        close(server)
+    end
+end
+
 @testset "request target forwarded to handler" begin
     # Regression test: `route!(server, r".*" => app)` must forward the HTTP
     # request into the app handler so `r.target` reflects the requested path

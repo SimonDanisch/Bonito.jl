@@ -3620,14 +3620,14 @@ function close_session(session_id) {
 }
 function free_session(session_id) {
     lock_loading(()=>{
+        tombstone_session(session_id);
         const session = SESSIONS[session_id];
         if (!session) {
-            console.warn("double freeing session from Julia!");
+            console.debug(`freeing session ${session_id}, which was never initialized here`);
             return;
         }
         const [tracked_objects, status] = session;
         delete SESSIONS[session_id];
-        tombstone_session(session_id);
         INITIALIZED_SESSIONS.delete(session_id);
         tracked_objects.forEach(free_object);
         tracked_objects.clear();
@@ -3718,18 +3718,42 @@ function decode_binary(binary, compression_enabled) {
     return unpack_binary(binary, compression_enabled);
 }
 function init_session(session_id, message_promise, session_status, compression) {
+    const payload = Promise.resolve(message_promise).then((binary)=>({
+            binary
+        }), (error)=>({
+            error
+        }));
+    if (FREED_SESSION_TOMBSTONES.has(session_id)) {
+        payload.then(()=>send_done_loading(session_id, null));
+        return;
+    }
     SESSIONS[session_id] = [
         new Set(),
         session_status
     ];
     track_deleted_sessions();
+    const failed = (error)=>{
+        send_done_loading(session_id, error);
+        console.error(error.stack || error);
+    };
     lock_loading(()=>{
-        return Promise.resolve(message_promise).then((binary)=>{
-            const messages = binary ? decode_binary(binary, compression) : [];
+        return payload.then(({ binary , error  })=>{
+            if (!(session_id in SESSIONS)) {
+                send_done_loading(session_id, null);
+                return;
+            }
+            if (error) {
+                failed(error);
+                return;
+            }
+            let messages;
+            try {
+                messages = binary ? decode_binary(binary, compression) : [];
+            } catch (e) {
+                failed(e);
+                return;
+            }
             init_session_from_msgs(session_id, messages);
-        }).catch((error)=>{
-            send_done_loading(session_id, error);
-            console.error(error.stack || error);
         });
     });
 }
@@ -4036,8 +4060,14 @@ function update_node_attribute(node, attribute, value) {
     if (node) {
         if (attribute === "class") {
             node.className = value;
-        } else if (node[attribute] != value) {
-            node[attribute] = value;
+        } else if (attribute in node) {
+            if (node[attribute] != value) {
+                node[attribute] = value;
+            }
+        } else if (value === null || value === undefined || value === false) {
+            node.removeAttribute(attribute);
+        } else {
+            node.setAttribute(attribute, value);
         }
         return true;
     } else {

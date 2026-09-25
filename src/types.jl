@@ -344,6 +344,20 @@ function ConnectionIndicator(;
     )
 end
 
+# A subsession whose DOM went to the browser, which has not reported it loaded
+# (its `JSDoneLoading`, success or failure) yet. Until it does, it may still
+# fetch the sub's assets, first of all its init payload, which it only requests
+# once it gets to the sub. Closing the asset server in that window answers those
+# fetches with a 404 for a session that, from the browser's side, is still
+# loading: an Observable updated three times in quick succession closes its
+# first render that early. So the asset server is closed by whichever comes
+# last, the session's close (`closed`) or the browser's report.
+mutable struct BrowserLoad
+    const asset_server::AbstractAssetServer
+    const since::Float64
+    closed::Bool
+end
+
 """
 Root-only session state. One `RootSession` exists per real connection (per
 session tree). Holds the OS-level connection, the receive inbox, deletion
@@ -378,6 +392,8 @@ mutable struct RootSession{Connection <: FrontendConnection}
     dispatch_count::Threads.Atomic{Int}
     # Shared msgpack scratch-buffer pool for the whole tree (see `PackIOPool`).
     pack_pool::PackIOPool
+    # Sub id => its `BrowserLoad`, in display order. Under `deletion_lock`.
+    loading_in_browser::OrderedDict{String, BrowserLoad}
 end
 
 """
@@ -501,7 +517,7 @@ metadata_dict(s::Session)       = root_data(s).metadata
 const ROOT_ONLY_FIELDS = (
     :connection, :inbox, :js_comm, :dom_uuid_counter,
     :compression_enabled, :deletion_lock, :threadid, :metadata,
-    :closing, :dispatch_count, :pack_pool,
+    :closing, :dispatch_count, :pack_pool, :loading_in_browser,
 )
 
 function Base.getproperty(s::Session, f::Symbol)
@@ -610,6 +626,7 @@ function Session(connection::Connection=default_connection();
         false,                                          # closing
         Threads.Atomic{Int}(0),                         # dispatch_count
         PackIOPool(),                                   # pack_pool
+        OrderedDict{String, BrowserLoad}(),             # loading_in_browser
     )
     session = Session{Connection}(
         root_state,                                     # parent_or_root

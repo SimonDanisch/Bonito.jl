@@ -305,6 +305,10 @@ function close_root_session(session::Session)
         end
         free(session)   # sets session.status = CLOSED
         close(session.asset_server)
+        # No report comes after this. A sub still open here closes its asset
+        # server itself, since its entry is gone.
+        foreach(close, values(session.loading_in_browser))
+        empty!(session.loading_in_browser)
         session.current_app[] = nothing
         session.io_context[] = nothing
         close(inbox(session))
@@ -322,6 +326,26 @@ function close_root_session(session::Session)
             @warn "on_close listener threw" exception=(e, catch_backtrace())
         end
     end
+    return
+end
+
+# `session`'s DOM is about to go to the browser, see `BrowserLoad`. Caller holds
+# `deletion_lock`.
+function expect_browser_load!(root::Session, session::Session; grace=300.0)
+    loads = root.loading_in_browser
+    t = time()
+    # Oldest first. A sub whose DOM never reached the document never reports:
+    # its entry is dropped at the next display after `grace` seconds.
+    while !isempty(loads) && t - last(first(loads)).since > grace
+        close(last(popfirst!(loads)))
+    end
+    delete!(loads, session.id)   # a re-display moves it to the back
+    loads[session.id] = BrowserLoad(session.asset_server, t, false)
+    return
+end
+
+function Base.close(load::BrowserLoad)
+    load.closed && close(load.asset_server)
     return
 end
 
@@ -372,8 +396,14 @@ function close_subsession(session::Session)
         # JS-side free; skip if the connection isn't ready (still
         # initializing or already torn down).
         isready(root; throw=false) && evaljs(root, js"""Bonito.free_session($(session.id))""")
-        # ChildAssetServer.close is idempotent.
-        close(session.asset_server)
+        # While the browser is still loading this sub, its report closes the
+        # asset server (see `BrowserLoad`). ChildAssetServer.close is idempotent.
+        load = get(root.loading_in_browser, session.id, nothing)
+        if load === nothing
+            close(session.asset_server)
+        else
+            load.closed = true
+        end
         session.current_app[] = nothing
         session.io_context[] = nothing
         session.status = CLOSED
@@ -723,9 +753,13 @@ end
 
 function session_dom(session::Session, app::App; init=true, html_document=false, request=HTTP.Request())
     dom = rendered_dom(session, app, request)
-    # Ensure we have a valid DOM node (handles App(nothing; indicator=nothing))
+    # A top-level page needs a Node. `nothing` comes from App(nothing;
+    # indicator=nothing); a `String` or `HTML{String}` is what jsrender returns
+    # for plain values: valid children, so wrap them to render `App(value)`.
     if isnothing(dom)
         dom = DOM.div()
+    elseif !(dom isa Node)
+        dom = DOM.div(dom)
     end
     try
         return session_dom(session, dom; init=init, html_document=html_document)
@@ -784,8 +818,13 @@ end
 function mark_displayed!(session::Session)
     # Don't overwrite a CLOSED session with DISPLAYED — `isclosed` would
     # flip back to false on a freed session. Atomic with a concurrent close.
-    lock(deletion_lock(root_session(session))) do
+    root = root_session(session)
+    lock(deletion_lock(root)) do
         session.status === CLOSED && return
+        # Freshly rendered HTML, which the browser loads and reports.
+        if !isroot(session) && session.status === RENDERED
+            expect_browser_load!(root, session)
+        end
         session.status = DISPLAYED
         session.closing_time = time()
     end
@@ -986,9 +1025,10 @@ function update_session_dom!(parent::Session, node_uuid::String, app_or_dom; rep
         "dom_node_selector" => node_uuid
     )
     message = SerializedMessage(sub, session_update)
-    send(root_session(parent), message)
+    # Before the send, so the browser's report can't arrive first (`BrowserLoad`).
     mark_displayed!(parent)
     mark_displayed!(sub)
+    send(root_session(parent), message)
     return sub
 end
 
@@ -1002,9 +1042,9 @@ function dom_in_js(parent::Session,  new_html, js_func)
     message = Bonito.SerializedMessage(
         sub, Dict(:msg_type => Bonito.EvalJavascript, :payload => update_dom)
     )
-    Bonito.send(parent, message)
     mark_displayed!(parent)
-    mark_displayed!(sub)
+    mark_displayed!(sub)   # before the send, see `update_session_dom!`
+    Bonito.send(parent, message)
     return sub
 end
 
@@ -1032,7 +1072,7 @@ function update_subsession_dom!(sub::Session, selector, app::App)
         "dom_node_selector" => selector
     )
     message = SerializedMessage(sub, session_update)
+    mark_displayed!(sub)   # before the send, see `update_session_dom!`
     send(root_session(sub), message)
-    mark_displayed!(sub)
     return sub
 end
