@@ -136,45 +136,45 @@ var m = k((q, x)=>{
 var g = N(m(), 1);
 g.default;
 var export_EventEmitter = g.default;
-var u = class r extends Error {
+var u = class e extends Error {
     name = "TimeoutError";
-    constructor(a, e){
-        super(a, e), Error.captureStackTrace?.(this, r);
+    constructor(s, t){
+        super(s, t), Error.captureStackTrace?.(this, e);
     }
-}, p = (r)=>r.reason ?? new DOMException("This operation was aborted.", "AbortError");
-function E1(r, a) {
-    let { milliseconds: e , fallback: m , message: n , customTimers: f = {
+}, b = (e)=>e.reason ?? new DOMException("This operation was aborted.", "AbortError");
+function E1(e, s) {
+    let { milliseconds: t , fallback: f , message: o , customTimers: m = {
         setTimeout,
         clearTimeout
-    } , signal: t  } = a, s, i, c = new Promise((l, o)=>{
-        if (typeof e != "number" || Math.sign(e) !== 1) throw new TypeError(`Expected \`milliseconds\` to be a positive number, got \`${e}\``);
-        if (t?.aborted) {
-            o(p(t));
+    } , signal: r  } = s, c, i, l = new Promise((a, n)=>{
+        if (typeof t != "number" || Math.sign(t) !== 1) throw new TypeError(`Expected \`milliseconds\` to be a positive number, got \`${t}\``);
+        if (r?.aborted) {
+            n(b(r)), e.then(a, n);
             return;
         }
-        if (t && (i = ()=>{
-            o(p(t));
-        }, t.addEventListener("abort", i, {
+        if (r && (i = ()=>{
+            n(b(r));
+        }, r.addEventListener("abort", i, {
             once: !0
-        })), r.then(l, o), e === Number.POSITIVE_INFINITY) return;
+        })), e.then(a, n), t === Number.POSITIVE_INFINITY) return;
         let d = new u;
-        s = f.setTimeout.call(void 0, ()=>{
-            if (m) {
+        c = m.setTimeout.call(void 0, ()=>{
+            if (f) {
                 try {
-                    l(m());
-                } catch (b) {
-                    o(b);
+                    a(f());
+                } catch (p) {
+                    n(p);
                 }
                 return;
             }
-            typeof r.cancel == "function" && r.cancel(), n === !1 ? l() : n instanceof Error ? o(n) : (d.message = n ?? `Promise timed out after ${e} milliseconds`, o(d));
-        }, e);
+            typeof e.cancel == "function" && e.cancel(), o === !1 ? a() : o instanceof Error ? n(o) : (d.message = o ?? `Promise timed out after ${t} milliseconds`, n(d));
+        }, t);
     }).finally(()=>{
-        c.clear(), i && t && t.removeEventListener("abort", i);
+        l.clear(), i && r && r.removeEventListener("abort", i);
     });
-    return c.clear = ()=>{
-        f.clearTimeout.call(void 0, s), s = void 0;
-    }, c;
+    return l.clear = ()=>{
+        m.clearTimeout.call(void 0, c), c = void 0;
+    }, l;
 }
 function d1(o, t, e) {
     let i = 0, s = o.length;
@@ -3804,14 +3804,14 @@ function close_session(session_id) {
 }
 function free_session(session_id) {
     lock_loading(()=>{
+        tombstone_session(session_id);
         const session = SESSIONS[session_id];
         if (!session) {
-            console.warn("double freeing session from Julia!");
+            console.debug(`freeing session ${session_id}, which was never initialized here`);
             return;
         }
         const [tracked_objects, status] = session;
         delete SESSIONS[session_id];
-        tombstone_session(session_id);
         INITIALIZED_SESSIONS.delete(session_id);
         tracked_objects.forEach(free_object);
         tracked_objects.clear();
@@ -3902,18 +3902,42 @@ function decode_binary(binary, compression_enabled) {
     return unpack_binary(binary, compression_enabled);
 }
 function init_session(session_id, message_promise, session_status, compression) {
+    const payload = Promise.resolve(message_promise).then((binary)=>({
+            binary
+        }), (error)=>({
+            error
+        }));
+    if (FREED_SESSION_TOMBSTONES.has(session_id)) {
+        payload.then(()=>send_done_loading(session_id, null));
+        return;
+    }
     SESSIONS[session_id] = [
         new Set(),
         session_status
     ];
     track_deleted_sessions();
+    const failed = (error)=>{
+        send_done_loading(session_id, error);
+        console.error(error.stack || error);
+    };
     lock_loading(()=>{
-        return Promise.resolve(message_promise).then((binary)=>{
-            const messages = binary ? decode_binary(binary, compression) : [];
+        return payload.then(({ binary , error  })=>{
+            if (!(session_id in SESSIONS)) {
+                send_done_loading(session_id, null);
+                return;
+            }
+            if (error) {
+                failed(error);
+                return;
+            }
+            let messages;
+            try {
+                messages = binary ? decode_binary(binary, compression) : [];
+            } catch (e) {
+                failed(e);
+                return;
+            }
             init_session_from_msgs(session_id, messages);
-        }).catch((error)=>{
-            send_done_loading(session_id, error);
-            console.error(error.stack || error);
         });
     });
 }

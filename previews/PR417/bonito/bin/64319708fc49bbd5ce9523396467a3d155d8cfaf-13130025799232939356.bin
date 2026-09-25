@@ -1,4 +1,4 @@
-»¸kîŸ$195c4c7d-3f0e-4ca9-af47-34c0ae5fbd6f§root«2«/jìŸ$195c4c7d-3f0e-4ca9-af47-34c0ae5fbd6f§root‘ê»óí»bkîŸ$195c4c7d-3f0e-4ca9-af47-34c0ae5fbd6f§root«2«/jìŸ$195c4c7d-3f0e-4ca9-af47-34c0ae5fbd6f§root‘ê»˝Ç®msg_type°2ßpayload»ÂfìÅ¥11609252753145547086íÀ@I¿£◊
+»¸kîŸ$4875688c-a371-4d56-b10c-8e4ca1fcd9f1§root«2«/jìŸ$4875688c-a371-4d56-b10c-8e4ca1fcd9f1§root‘ê»óí»bkîŸ$4875688c-a371-4d56-b10c-8e4ca1fcd9f1§root«2«/jìŸ$4875688c-a371-4d56-b10c-8e4ca1fcd9f1§root‘ê»˝Ç®msg_type°2ßpayload»ÂfìÅ¥11609252753145547086íÀ@I¿£◊
 =qÀø∑
 =p£◊
 ⁄ù    import('https://esm.sh/v133/leaflet@1.9.4/es2022/leaflet.mjs').then(L=> {
@@ -10,7 +10,7 @@
         }).addTo(map);
     })
 
-∫javascript-libraries.md:26»,kîŸ$195c4c7d-3f0e-4ca9-af47-34c0ae5fbd6f§root«2«/jìŸ$195c4c7d-3f0e-4ca9-af47-34c0ae5fbd6f§root‘ê«»Ç®msg_type°2ßpayload«±fìÄŸcif (typeof Bonito !== 'undefined' && Bonito.set_no_connection) {
+∫javascript-libraries.md:26»,kîŸ$4875688c-a371-4d56-b10c-8e4ca1fcd9f1§root«2«/jìŸ$4875688c-a371-4d56-b10c-8e4ca1fcd9f1§root‘ê«»Ç®msg_type°2ßpayload«±fìÄŸcif (typeof Bonito !== 'undefined' && Bonito.set_no_connection) {
     Bonito.set_no_connection();
 }
 ŸH/home/runner/work/Bonito.jl/Bonito.jl/src/connection/no-connection.jl:13
