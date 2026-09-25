@@ -92,28 +92,37 @@ function process_message(session::Session, data::AbstractDict)
     elseif typ == JavascriptWarning
         @warn "Error in Javascript: $(data["message"])\n)"
     elseif typ == JSDoneLoading
+        root = root_session(session)
+        id = data["session"]
+        # `get_session` recurses through `session.children`, which is mutated
+        # under `deletion_lock` by close/free/Session(parent). Iterating it
+        # unlocked races those mutations. Snapshot the lookup under the lock,
+        # with the `BrowserLoad` this report ends; fire `on_connection_ready`
+        # outside it.
+        load, sub = lock(root.deletion_lock) do
+            pop!(root.loading_in_browser, id, nothing), get_session(session, id)
+        end
+        load === nothing || close(load)
         # Bail early if the receiving session is already torn down. The
         # message may have been dispatched from the inbox @async pool
         # *after* close() ran.
         if isclosed(session)
             @debug "JSDoneLoading on a closed session — ignoring"
         elseif data["exception"] != "nothing"
-            exception = JSException(session, data)
-            show(stderr, exception)
-            # Route through the shared helper so the connection indicator's
-            # error observable picks up the cause. The WS is already up
-            # (we're processing a message it delivered), so the resulting
-            # JSUpdateObservable actually reaches the browser.
-            record_session_error!(session, exception)
-        else
-            # `get_session` recurses through `session.children`, which is
-            # mutated under `deletion_lock` by close/free/Session(parent).
-            # Iterating it unlocked races those mutations. Snapshot the
-            # lookup under the lock; fire `on_connection_ready` outside it.
-            root = root_session(session)
-            sub = lock(root.deletion_lock) do
-                get_session(session, data["session"])
+            if isnothing(sub) || isclosed(sub)
+                # Failing to load a sub that is closed or unknown is no error of
+                # the live page, which must not be marked as failed for it.
+                @debug "JSDoneLoading error for a closed or unknown sub, ignoring" id
+            else
+                exception = JSException(session, data)
+                show(stderr, exception)
+                # Route through the shared helper so the connection indicator's
+                # error observable picks up the cause. The WS is already up
+                # (we're processing a message it delivered), so the resulting
+                # JSUpdateObservable actually reaches the browser.
+                record_session_error!(session, exception)
             end
+        else
             if !isnothing(sub) && !isclosed(sub)
                 # this may block the connection!
                 @async try
@@ -126,9 +135,9 @@ function process_message(session::Session, data::AbstractDict)
                 # This can happen for IJulia output after kernel restart,
                 # since the loaded html will try to init + connect back
                 # TODO, there should be a better way to prevent them from reconnecting
-                @debug("Sub session with id $(data["session"]) not found")
+                @debug("Sub session with id $(id) not found")
             else
-                @debug "JSDoneLoading for closed sub $(data["session"]) — ignoring"
+                @debug "JSDoneLoading for closed sub $(id) — ignoring"
             end
         end
     elseif typ == CloseSession

@@ -271,21 +271,49 @@ function init_session_from_msgs(session_id, messages) {
 }
 
 export function init_session(session_id, message_promise, session_status, compression) {
+    // Settled right here, not once the loading lock gets to this session: the
+    // payload's fetch can fail before that, and a rejection with no handler
+    // attached yet is reported as unhandled even though it is handled below.
+    const payload = Promise.resolve(message_promise).then(
+        (binary) => ({ binary }),
+        (error) => ({ error })
+    );
+    // J8: a session Julia already freed is not brought back. Reporting it done
+    // (once its payload settled) is still needed: that is what lets Julia drop
+    // the assets it kept for this session while the browser might fetch them.
+    if (FREED_SESSION_TOMBSTONES.has(session_id)) {
+        payload.then(() => send_done_loading(session_id, null));
+        return;
+    }
     SESSIONS[session_id] = [new Set(), session_status];
     track_deleted_sessions(); // no-op if already tracking
+    // Reported once here, since init_session_from_msgs never ran. Not rethrown
+    // (J10): lock_loading's own catch would re-surface it as a duplicate error.
+    const failed = (error) => {
+        send_done_loading(session_id, error);
+        console.error(error.stack || error);
+    };
     lock_loading(() => {
-        return Promise.resolve(message_promise).then((binary) => {
-            const messages = binary ? decode_binary(binary, compression) : [];
+        return payload.then(({ binary, error }) => {
+            if (!(session_id in SESSIONS)) {
+                // Freed while its payload was in flight: nothing to initialize.
+                send_done_loading(session_id, null);
+                return;
+            }
+            if (error) {
+                failed(error);
+                return;
+            }
+            let messages;
+            try {
+                messages = binary ? decode_binary(binary, compression) : [];
+            } catch (e) {
+                failed(e);
+                return;
+            }
             // init_session_from_msgs reports its own failures via done_loading
             // and does not throw (J10).
             init_session_from_msgs(session_id, messages);
-        }).catch((error) => {
-            // Only reached when message_promise rejects or decode_binary throws
-            // — i.e. init_session_from_msgs never ran, so done_loading was not
-            // yet sent. Report once here. Do NOT rethrow (J10): lock_loading's
-            // own catch would otherwise re-surface it as a duplicate error.
-            send_done_loading(session_id, error);
-            console.error(error.stack || error);
         });
     });
 }
@@ -322,15 +350,17 @@ export function close_session(session_id) {
 // called from julia!
 export function free_session(session_id) {
     lock_loading(() => {
+        // J8: remember this id so a late in-flight message can't resurrect it.
+        // That includes one we don't know yet: a sub Julia closed before the
+        // browser got to it, whose `init_session` is still on its way.
+        tombstone_session(session_id);
         const session = SESSIONS[session_id];
         if (!session) {
-            console.warn("double freeing session from Julia!");
+            console.debug(`freeing session ${session_id}, which was never initialized here`);
             return;
         }
         const [tracked_objects, status] = session;
         delete SESSIONS[session_id];
-        // J8: remember this id so a late in-flight message can't resurrect it.
-        tombstone_session(session_id);
         INITIALIZED_SESSIONS.delete(session_id);
         tracked_objects.forEach(free_object);
         tracked_objects.clear();

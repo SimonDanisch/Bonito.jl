@@ -250,3 +250,94 @@ end
     @test test_obs[] == 20
     @test run(edisplay.window, "window.obs_value") == 19
 end
+
+@testset "a sub replaced before the browser loaded it keeps its assets until it has" begin
+    # Rows that are sub-sessions of their own (a non-trivial Observable each),
+    # with init messages, so the browser fetches every row's init payload. Three
+    # renders back to back close the first generation on the server before the
+    # browser has even received it; its payloads were gone by the time the
+    # browser asked (404).
+    row(tag, i) = map(x -> DOM.div("$tag row $x",
+                                   js"window.__rows[$(tag)] = (window.__rows[$(tag)] || 0) + 1;"),
+                      Observable(i))
+    rows(tag) = DOM.div([row(tag, i) for i in 1:10]...)
+    content = Observable{Any}(DOM.div("start"))
+    app = App(s -> DOM.div(content))
+    display(edisplay, app)
+    sess = app.session[]
+    root = Bonito.root_session(sess)
+    # Payload fetches in flight, every one that fails, and every rejection
+    # nobody handled.
+    evaljs_value(sess, js"""(() => {
+        window.__rows = {};
+        window.__failed = [];
+        window.__in_flight = 0;
+        window.__fetch_binary = Bonito.fetch_binary;
+        Bonito.fetch_binary = (url) => {
+            window.__in_flight += 1;
+            return window.__fetch_binary(url)
+                .catch((e) => { window.__failed.push(String(e)); throw e; })
+                .finally(() => { window.__in_flight -= 1; });
+        };
+        window.addEventListener('unhandledrejection', (e) => window.__failed.push(String(e.reason)));
+        return true;
+    })()""")
+    # The root is shared with the tests before this one: only its own entries count.
+    before = lock(() -> Set(keys(root.loading_in_browser)), root.deletion_lock)
+    for k in 1:3
+        content[] = rows("gen$k")
+    end
+    # The browser is done once the last generation ran (the earlier ones were
+    # inserted, and so fetched, before it) and no payload fetch is in flight.
+    done = js"(window.__rows['gen3'] || 0) === 10 && window.__in_flight === 0"
+    @test Bonito.wait_for(() -> evaljs_value(sess, done)) == :success
+    @test evaljs_value(sess, js"window.__failed") == []
+    # Every sub displayed here was reported, so nothing waits on the browser.
+    @test Bonito.wait_for(() -> lock(() -> issubset(keys(root.loading_in_browser), before),
+                                     root.deletion_lock)) == :success
+    evaljs_value(sess, js"(() => { Bonito.fetch_binary = window.__fetch_binary; return true; })()")
+end
+
+@testset "a closed sub's assets wait for the browser's report" begin
+    server = Server("127.0.0.1", 0)
+    root = Bonito.HTTPSession(server)
+    # `root` has no browser, so the reports are sent by hand.
+    report(sub; exception = "nothing") = Bonito.process_message(root, Dict{String,Any}(
+        "msg_type" => Bonito.JSDoneLoading, "session" => sub.id,
+        "exception" => exception, "message" => "", "stacktrace" => "nothing"))
+    displayed() = let displayed_sub = first(Bonito.render_subsession(root, DOM.div(js"1"); init = true))
+        Bonito.mark_displayed!(displayed_sub)
+        displayed_sub
+    end
+
+    # Closed before the browser reported: its init payload stays servable...
+    sub = displayed()
+    @test !isempty(sub.asset_server.files)
+    close(sub)
+    @test !isempty(sub.asset_server.files)
+    # ...until the report, which failed: the payload was gone. That is no error
+    # of the page.
+    report(sub; exception = "Error: gone")
+    @test isempty(sub.asset_server.files)
+    @test isempty(root.loading_in_browser)
+    @test root.init_error[] === nothing
+
+    # Reported first, closed later: the close takes its assets.
+    sub = displayed()
+    report(sub)
+    @test !isempty(sub.asset_server.files)
+    close(sub)
+    @test isempty(sub.asset_server.files)
+
+    # A sub that is never reported goes once it is older than the grace period.
+    sub = displayed()
+    close(sub)
+    lock(() -> Bonito.expect_browser_load!(root, displayed(); grace = 0.0), root.deletion_lock)
+    @test isempty(sub.asset_server.files)
+
+    # A live sub's failure is still the page's error.
+    silence_logs(() -> report(displayed(); exception = "Error: real"))
+    @test root.init_error[] isa Bonito.JSException
+    close(root)
+    close(server)
+end
