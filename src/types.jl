@@ -402,6 +402,15 @@ mutable struct RootSession{Connection <: FrontendConnection}
     # Sub id => its `PendingAssetLoad`, in display order. Under `deletion_lock`.
     pending_asset_loads::OrderedDict{String, PendingAssetLoad}
     pending_asset_timer::Union{Nothing,Timer}
+    # evaljs_value reply routing. A reply to a blocking `evaljs_value` is itself
+    # an inbox message; when the caller runs on the (sequential) inbox reader
+    # task, the reader is blocked awaiting that reply and can never dequeue it —
+    # a "Timed out" deadlock. In-flight reply observables are registered here
+    # (keyed by wire id) and delivered directly from the receive task, bypassing
+    # the inbox. `n_eval_pending` gates the receive hot path so it pays nothing
+    # while no `evaljs_value` is awaiting a reply.
+    eval_replies::Dict{String, Observable}
+    n_eval_pending::Threads.Atomic{Int}
 end
 
 """
@@ -524,6 +533,7 @@ const ROOT_ONLY_FIELDS = (
     :connection, :inbox, :js_comm, :dom_uuid_counter,
     :compression_enabled, :deletion_lock, :threadid, :metadata,
     :closing, :dispatch_count, :pack_pool, :pending_asset_loads, :pending_asset_timer,
+    :eval_replies, :n_eval_pending,
 )
 
 function Base.getproperty(s::Session, f::Symbol)
@@ -634,6 +644,8 @@ function Session(connection::Connection=default_connection();
         PackIOPool(),                                   # pack_pool
         OrderedDict{String, PendingAssetLoad}(),         # pending_asset_loads
         nothing,                                        # pending_asset_timer
+        Dict{String, Observable}(),                     # eval_replies
+        Threads.Atomic{Int}(0),                         # n_eval_pending
     )
     session = Session{Connection}(
         root_state,                                     # parent_or_root
