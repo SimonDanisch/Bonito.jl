@@ -27,6 +27,56 @@ function process_message(session::Session, bytes::AbstractVector{UInt8})
     return process_message(session, data)
 end
 
+"""
+    route_incoming!(session, bytes)
+
+Dispatch a raw frame received from the frontend. Almost every frame is enqueued
+for the sequential inbox reader, but the reply to a blocking `evaljs_value` is
+delivered directly here instead. That reply is itself an inbox message, so if the
+`evaljs_value` call runs on the inbox reader task the reader is blocked awaiting
+it and could never dequeue it — a "Timed out" deadlock. Reply observables carry
+no user listeners, so delivering them from the receive task runs no application
+code and cannot reenter.
+"""
+function route_incoming!(session::Session, bytes::AbstractVector{UInt8})
+    root = root_session(session)
+    # Fast path: nothing awaits a reply, so there's no deadlock to break and we
+    # skip the extra decode entirely.
+    if root.n_eval_pending[] > 0 && deliver_eval_reply!(session, root, bytes)
+        return
+    end
+    isopen(root.inbox) || return
+    try
+        put!(root.inbox, bytes)
+    catch e
+        e isa InvalidStateException || rethrow()
+    end
+    return
+end
+
+# Deliver an `evaljs_value` reply directly (bypassing the inbox) if `bytes` is
+# one; returns whether it was handled.
+function deliver_eval_reply!(session::Session, root, bytes::AbstractVector{UInt8})
+    data = try
+        deserialize_binary(bytes, session.compression_enabled)
+    catch
+        return false
+    end
+    (data isa AbstractDict && get(data, "msg_type", nothing) == UpdateObservable) || return false
+    id = get(data, "id", nothing)
+    id isa AbstractString || return false
+    comm = lock(root.deletion_lock) do
+        get(root.eval_replies, id, nothing)
+    end
+    comm === nothing && return false
+    try
+        Base.invokelatest(update_nocycle!, comm, data["payload"], session)
+    catch e
+        @warn "error delivering evaljs_value reply" exception = (e, Base.catch_backtrace())
+    end
+    return true
+end
+
 # Decoded-frame entry point. Split out from the bytes path so a proxied worker
 # session can be handed an already-decoded frame (forwarded by the host's
 # `route_to_remote`) without a re-encode/decode round trip.
