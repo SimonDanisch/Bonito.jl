@@ -8,6 +8,10 @@ All notable changes to Bonito.jl are documented here. The format is based on [Ke
 
 - `HierarchicalMenu` widget with `HierarchicalMenuItem` and `HierarchicalSubMenu` for nested, collapsible menus. The clicked leaf's value is pushed to `menu.selected_value`. Themed via the `--bonito-widget-*` CSS variables (dark-mode aware) and styleable through the `style` keyword.
 
+### Fixed
+
+- `evaljs_value` no longer deadlocks ("Timed out") when invoked from within a message handler (e.g. an `Observable` listener fired by a frontend update). Its reply is now delivered out-of-band from the receive task instead of the sequential inbox reader that is blocked running the handler, so backends that perform a blocking round-trip while handling a browser message (e.g. WGLMakie's `insert_scene!`/`insert_plot!` when SpecApi creates new blocks) no longer hang.
+
 ## [5.0.0]
 
 The biggest release since the package was renamed from JSServe. Most of the work went into networking, session handling, asset serving and serialization, making communication with the browser substantially faster and more stable. See the [release blog post](https://bonito.sh/dev/v5-release.html) for the full write-up and benchmarks.

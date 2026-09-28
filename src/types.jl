@@ -378,6 +378,15 @@ mutable struct RootSession{Connection <: FrontendConnection}
     dispatch_count::Threads.Atomic{Int}
     # Shared msgpack scratch-buffer pool for the whole tree (see `PackIOPool`).
     pack_pool::PackIOPool
+    # evaljs_value reply routing. A reply to a blocking `evaljs_value` is itself
+    # an inbox message; when the caller runs on the (sequential) inbox reader
+    # task, the reader is blocked awaiting that reply and can never dequeue it —
+    # a "Timed out" deadlock. In-flight reply observables are registered here
+    # (keyed by wire id) and delivered directly from the receive task, bypassing
+    # the inbox. `n_eval_pending` gates the receive hot path so it pays nothing
+    # while no `evaljs_value` is awaiting a reply.
+    eval_replies::Dict{String, Observable}
+    n_eval_pending::Threads.Atomic{Int}
 end
 
 """
@@ -502,6 +511,7 @@ const ROOT_ONLY_FIELDS = (
     :connection, :inbox, :js_comm, :dom_uuid_counter,
     :compression_enabled, :deletion_lock, :threadid, :metadata,
     :closing, :dispatch_count, :pack_pool,
+    :eval_replies, :n_eval_pending,
 )
 
 function Base.getproperty(s::Session, f::Symbol)
@@ -610,6 +620,8 @@ function Session(connection::Connection=default_connection();
         false,                                          # closing
         Threads.Atomic{Int}(0),                         # dispatch_count
         PackIOPool(),                                   # pack_pool
+        Dict{String, Observable}(),                     # eval_replies
+        Threads.Atomic{Int}(0),                         # n_eval_pending
     )
     session = Session{Connection}(
         root_state,                                     # parent_or_root

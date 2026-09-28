@@ -636,6 +636,28 @@ function evaljs(has_session, jss::JSCode)
     evaljs(session(has_session), jss)
 end
 
+# Register/unregister an evaljs_value reply observable so `route_incoming!` can
+# deliver its reply from the receive task, avoiding a deadlock when the call runs
+# on the sequential inbox reader task.
+function register_eval_reply!(session::Session, comm::Observable)
+    root = root_session(session)
+    key = cache_key(session, comm)
+    lock(root.deletion_lock) do
+        root.eval_replies[key] = comm
+    end
+    Threads.atomic_add!(root.n_eval_pending, 1)
+    return key
+end
+
+function unregister_eval_reply!(session::Session, key::AbstractString)
+    root = root_session(session)
+    removed = lock(root.deletion_lock) do
+        haskey(root.eval_replies, key) ? (delete!(root.eval_replies, key); true) : false
+    end
+    removed && Threads.atomic_sub!(root.n_eval_pending, 1)
+    return
+end
+
 """
     evaljs_value(session::Session, js::JSCode)
 
@@ -656,6 +678,9 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
     # For each request we need a new observable to have this thread safe
     # And multiple request not waiting on the same observable
     comm = Observable{Any}(nothing)
+    # Route this reply out-of-band (see `route_incoming!`) so the call can't
+    # dead-lock when it runs on the sequential inbox reader task.
+    reply_key = register_eval_reply!(session, comm)
 
     js_with_result = js"""{
         const comm = $(comm);
@@ -678,16 +703,20 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
     }
     """
 
-    evaljs(session, js_with_result)
     # TODO, have an on error callback, that triggers when evaljs goes wrong
     # (e.g. because of syntax error that isn't caught by the above try catch!)
     # TODO do this with channels, but we still dont have a way to timeout for wait(channel)... so...
-    result = fetch(Threads.@spawn wait_for(timeout=timeout) do
-        lock(root.deletion_lock) do
-            Bonito.isclosed(session) && return :closed
-            return !isnothing(comm[])
-        end
-    end)
+    result = try
+        evaljs(session, js_with_result)
+        fetch(Threads.@spawn wait_for(timeout=timeout) do
+            lock(root.deletion_lock) do
+                Bonito.isclosed(session) && return :closed
+                return !isnothing(comm[])
+            end
+        end)
+    finally
+        unregister_eval_reply!(session, reply_key)
+    end
     value = comm[]
     # Manually free observable, since it exists outside session lifetimes.
     # `register_observable!` attaches a JSUpdateObservable listener keyed by the

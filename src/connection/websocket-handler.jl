@@ -127,7 +127,7 @@ function run_connection_loop(session::Session, handler::WebSocketHandler, websoc
         # exactly that closed-channel signal and break cleanly instead.
         isopen(session.inbox) || break
         try
-            put!(session.inbox, bytes)
+            route_incoming!(session, bytes)
         catch e
             e isa InvalidStateException && break
             rethrow()
