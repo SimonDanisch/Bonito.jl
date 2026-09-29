@@ -1,7 +1,7 @@
-ÈVk”Ù$fa06a9a8-afed-41b3-9d9c-c73764e30c18¤rootÇ2Ç/j“Ù$fa06a9a8-afed-41b3-9d9c-c73764e30c18¤rootÔÈñ’È,k”Ù$fa06a9a8-afed-41b3-9d9c-c73764e30c18¤rootÇ2Ç/j“Ù$fa06a9a8-afed-41b3-9d9c-c73764e30c18¤rootÔÇÈ‚¨msg_type¡2§payloadÇ±f“€Ùcif (typeof Bonito !== 'undefined' && Bonito.set_no_connection) {
+ÈVk”Ù$071b0942-2720-4fe1-bc8b-dd2530c93b1b¤rootÇ2Ç/j“Ù$071b0942-2720-4fe1-bc8b-dd2530c93b1b¤rootÔÈñ’È,k”Ù$071b0942-2720-4fe1-bc8b-dd2530c93b1b¤rootÇ2Ç/j“Ù$071b0942-2720-4fe1-bc8b-dd2530c93b1b¤rootÔÇÈ‚¨msg_type¡2§payloadÇ±f“€Ùcif (typeof Bonito !== 'undefined' && Bonito.set_no_connection) {
     Bonito.set_no_connection();
 }
-ÙH/home/runner/work/Bonito.jl/Bonito.jl/src/connection/no-connection.jl:13È¼k”Ù$fa06a9a8-afed-41b3-9d9c-c73764e30c18¤rootÇ2Ç/j“Ù$fa06a9a8-afed-41b3-9d9c-c73764e30c18¤rootÔÈW‚¨msg_type¡2§payloadÈ?f“€Ú-(    function (container){
+ÙH/home/runner/work/Bonito.jl/Bonito.jl/src/connection/no-connection.jl:13È¼k”Ù$071b0942-2720-4fe1-bc8b-dd2530c93b1b¤rootÇ2Ç/j“Ù$071b0942-2720-4fe1-bc8b-dd2530c93b1b¤rootÔÈW‚¨msg_type¡2§payloadÈ?f“€Ú-(    function (container){
         import('https://cdn.esm.sh/v66/three@0.136/es2021/three.js').then(THREE=> {
             var renderer = new THREE.WebGLRenderer({antialias: true});
             renderer.setSize(500, 500);
