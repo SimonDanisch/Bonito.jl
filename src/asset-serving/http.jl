@@ -1,13 +1,19 @@
 using .HTTPServer: has_route, get_route, route!
 
-# Per-asset registry on the parent server. `refcount` is the number of live
-# `ChildAssetServer`s that have registered this path; `asset` is the actual
-# data being served. When refcount drops to zero (last child closed) the
-# entry is removed and the bytes become collectible.
+# Every live registration of one served path, in registration order; the entry
+# is dropped when the last one goes. Mutated in place under `parent.lock`.
+#
+# Several holders can register the same path: the key is a content hash, so the
+# BYTES are identical, but a proxied `RemoteAsset` also carries the registering
+# worker's bridge driver. Serving the newest and falling back on release keeps
+# the path on a driver that is still alive.
 struct AssetEntry
-    refcount::Int
-    asset::AbstractAsset
+    assets::Vector{AbstractAsset}
 end
+AssetEntry(asset::AbstractAsset) = AssetEntry(AbstractAsset[asset])
+
+refcount(entry::AssetEntry) = length(entry.assets)
+served_asset(entry::AssetEntry) = last(entry.assets)
 
 mutable struct HTTPAssetServer <: AbstractAssetServer
     # Single source of truth: every served asset, keyed by its content URL.
@@ -18,9 +24,9 @@ mutable struct HTTPAssetServer <: AbstractAssetServer
     lock::ReentrantLock
 end
 
-# A handle owned by a single `Session`. Holds the set of paths IT registered,
-# so close is O(this child's files) — not O(all files in the parent) like the
-# old design that scanned every entry's objectid set.
+# A handle owned by a single `Session`. Holds the paths IT registered, so close
+# is O(this child's files), not O(all files in the parent) like the old design
+# that scanned every entry's objectid set.
 #
 # Finalizer (safety net): defers `close(self)` to a fresh task via `@async`.
 # The expected lifecycle is explicit close via `Session.close` /
@@ -40,9 +46,11 @@ end
 # close in try/catch so a failure logs (nobody waits on the task).
 mutable struct ChildAssetServer <: AbstractAssetServer
     parent::HTTPAssetServer
-    files::Set{String}
+    # path => the asset THIS child registered, so releasing drops that exact
+    # registration and leaves other children's alone.
+    files::Dict{String, AbstractAsset}
     function ChildAssetServer(parent::HTTPAssetServer)
-        child = new(parent, Set{String}())
+        child = new(parent, Dict{String, AbstractAsset}())
         finalizer(child) do c
             @async try
                 close(c)
@@ -92,49 +100,45 @@ function Base.close(server::HTTPAssetServer)
     end
 end
 
-# Caller must hold `parent.lock`. Drop one reference to `path`, removing the entry
-# entirely once the last holder leaves. Shared by every release path (child close,
-# proxied-asset release) so the refcount math lives in one place.
-function decref!(parent::HTTPAssetServer, path::AbstractString)
+# Caller must hold `parent.lock`. Drops the one registration `registered` made
+# for `path`; the entry goes when its last registration does. Shared by every
+# release path (child close, proxied-asset release).
+function decref!(parent::HTTPAssetServer, path::AbstractString, registered::AbstractAsset)
     entry = get(parent.files, path, nothing)
     entry === nothing && return
-    if entry.refcount <= 1
-        delete!(parent.files, path)
-    else
-        parent.files[path] = AssetEntry(entry.refcount - 1, entry.asset)
-    end
+    # `findlast`, since several children can register the same asset object and
+    # this releases exactly one of them.
+    i = findlast(a -> a === registered, entry.assets)
+    i === nothing || deleteat!(entry.assets, i)
+    isempty(entry.assets) && delete!(parent.files, path)
     return
 end
 
-# Release this child's claim on every path it registered. Each path's refcount
-# drops by 1; when a refcount hits 0 (last holder gone) the entry is dropped.
-# Idempotent: a second close is a no-op (the child's own `files` set is empty).
+# Release this child's claim on every path it registered. When the last
+# registration of a path goes, the entry is dropped. Idempotent: a second close
+# is a no-op (the child's own `files` is empty).
 function Base.close(server::ChildAssetServer)
     parent = server.parent
     lock(parent.lock) do
-        for path in server.files
-            decref!(parent, path)
+        for (path, registered) in server.files
+            decref!(parent, path, registered)
         end
         empty!(server.files)
     end
 end
 
 # Caller must hold `parent.lock`. Registers `asset` under its content key
-# (incrementing refcount if it already exists), records the path on `child`,
-# and returns the URL the browser should fetch.
+# (appending to the existing registrations if the path is already served),
+# records it on `child`, and returns the URL the browser should fetch.
 function register!(parent::HTTPAssetServer, child::ChildAssetServer, asset::AbstractAsset)
     path = "/assets/" * unique_file_key(asset)
-    if path in child.files
-        # This child already holds a ref — don't double-count.
-        entry = parent.files[path]
-        return entry, path
+    if haskey(child.files, path)
+        # This child already holds a registration; don't double-count.
+        return parent.files[path], path
     end
-    entry = get(parent.files, path, nothing)
-    entry = entry === nothing ?
-        AssetEntry(1, asset) :
-        AssetEntry(entry.refcount + 1, entry.asset)
-    parent.files[path] = entry
-    push!(child.files, path)
+    entry = get!(() -> AssetEntry(AbstractAsset[]), parent.files, path)
+    push!(entry.assets, asset)
+    child.files[path] = asset
     return entry, path
 end
 
@@ -146,7 +150,7 @@ function url(server::HTTPAssetServer, asset::AbstractAsset)
     lock(server.lock) do
         path = "/assets/" * unique_file_key(asset)
         if !haskey(server.files, path)
-            server.files[path] = AssetEntry(1, asset)
+            server.files[path] = AssetEntry(asset)
         end
         suffix = (asset isa Asset && asset.es6module) ?
             "?" * asset.content_hash[] : ""
@@ -177,7 +181,7 @@ function js_to_local_url(server::HTTPAssetServer, url::AbstractString)
         # path. Fall back to the original url when the entry is gone.
         entry = lock(() -> get(server.files, string(key), nothing), server.lock)
         entry === nothing && return url
-        return local_path(entry.asset) * ":" * m[2]
+        return local_path(served_asset(entry)) * ":" * m[2]
     end
 end
 
@@ -302,7 +306,7 @@ function (server::HTTPAssetServer)(context)
     # between our haskey and getindex).
     asset = lock(server.lock) do
         entry = get(server.files, path, nothing)
-        entry === nothing ? nothing : entry.asset
+        entry === nothing ? nothing : served_asset(entry)
     end
     asset === nothing && return HTTP.Response(404)
     if asset isa RemoteAsset

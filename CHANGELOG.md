@@ -8,6 +8,11 @@ All notable changes to Bonito.jl are documented here. The format is based on [Ke
 
 - `HierarchicalMenu` widget with `HierarchicalMenuItem` and `HierarchicalSubMenu` for nested, collapsible menus. The clicked leaf's value is pushed to `menu.selected_value`. Themed via the `--bonito-widget-*` CSS variables (dark-mode aware) and styleable through the `style` keyword.
 
+### Fixed
+
+- A sub-session replaced before the browser finished loading it (an Observable updated several times in quick succession) no longer loses its assets while the browser still fetches them: its init payload returned a 404, surfacing as an unhandled promise rejection. A closed sub's asset server now stays open until the browser reports that sub loaded.
+- A failed load of a sub-session that is already closed no longer marks the page as failed, so `isready` no longer throws for it.
+
 ## [5.0.0]
 
 The biggest release since the package was renamed from JSServe. Most of the work went into networking, session handling, asset serving and serialization, making communication with the browser substantially faster and more stable. See the [release blog post](https://bonito.sh/dev/v5-release.html) for the full write-up and benchmarks.

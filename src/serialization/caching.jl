@@ -183,12 +183,23 @@ function add_cached!(create_cached_object::Function, session::Session, send_to_j
             session.session_objects[key] = nothing
         end
         if haskey(root.session_objects, key)
-            # Root cache already holds this — just register `session.id`
-            # as a new owner and tell JS via TrackingOnly. The JS side
-            # already has the object in its global cache.
             entry = root.session_objects[key]::CachedEntry
+            # Root cache already holds this: register `session.id` as a new
+            # owner, and tell JS via TrackingOnly when its global cache has the
+            # object by the time it reads this session's messages. A session
+            # tree has exactly one page (§0), proxied roots included, which reads
+            # messages in the order they were sent, with one exception: a
+            # subsession rendered INSIDE this session's HTML (an Observable's
+            # DOM) has its init after this session's own. If only such
+            # sessions shipped the object, the page reads this session's
+            # reference first and gets null (a static `onclick` and a
+            # `map(...)` DOM sharing one Observable). Ship it again then; the
+            # page keeps the copy it already has. Everything is inside the
+            # root, so the root always ships it.
+            on_page_first = session !== root &&
+                any(id -> get_session(session, id) === nothing, entry.owners)
             push!(entry.owners, session.id)
-            send_to_js[key] = TrackingOnly(key)
+            send_to_js[key] = on_page_first ? TrackingOnly(key) : create_cached_object()
         else
             # First time anyone in this connection cached this object.
             # IMPORTANT: call `create_cached_object` BEFORE inserting into
