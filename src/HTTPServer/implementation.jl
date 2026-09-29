@@ -18,9 +18,42 @@ mutable struct Server
     routes::Routes
     websocket_routes::Routes
     protocol::String
+    # Sees every request before any route and every response after it (see
+    # `gate_request`); `nothing` lets everything through.
+    gate::Any
 end
 
 Routes(pairs::Pair...) = Routes(Pair{Any, Any}[pairs...], Base.ReentrantLock())
+
+"""
+    gate_request(gate, request) -> Union{Nothing, HTTP.Response}
+
+Asked for every request a `Server(...; gate)` receives, before any route, websocket
+upgrades included: `nothing` lets the request through to the routes (the gate may
+have changed it on the way, e.g. set a header), a response answers it instead and
+refuses the upgrade. A gate that throws refuses too. Define it for the type of your
+gate, together with `gate_response` if responses need a last change.
+"""
+gate_request(::Nothing, request) = nothing
+
+"""
+    gate_response(gate, request, response) -> HTTP.Response
+
+The response a route gave to a request `gate_request` let through, as it leaves
+the server. The gate's own answers do not pass here.
+"""
+gate_response(gate, request, response) = response
+
+# A gate that fails does not let the request through, and tells the client no
+# more than that.
+function ask_gate(gate, request)
+    try
+        return gate_request(gate, request)
+    catch e
+        @error "the server's gate failed; request refused" target = request.target exception = (e, catch_backtrace())
+        return Response(500, ["Content-Type" => "text/plain; charset=utf-8"], "internal error\n")
+    end
+end
 
 # Priorities, so that e.g. r".*" doesn't catch absolut matches by e.g a string
 pattern_priority(x::Pair) = pattern_priority(x[1])
@@ -275,7 +308,10 @@ end
 
 function stream_handler(application::Server, stream::Stream)
     peer = peer_ip(stream)
+    gate = application.gate
     if HTTP.WebSockets.isupgrade(stream.message)
+        refusal = ask_gate(gate, stream.message)
+        refusal === nothing || return respond!(stream, refusal)
         try
             # `check_origin = true` keeps the permissive 1.x behaviour: Bonito
             # connects from VSCode webviews, Electron, notebooks, … whose Origin
@@ -307,12 +343,19 @@ function stream_handler(application::Server, stream::Stream)
         end
     end
     http_handler = HTTP.streamhandler() do request
-        delegate(
-            application.routes, application, request; peer_ip = peer,
-        )
+        refusal = ask_gate(gate, request)
+        refusal === nothing || return refusal
+        response = delegate(application.routes, application, request; peer_ip = peer)
+        return gate_response(gate, request, response)
     end
+    serve_stream!(http_handler, stream)
+end
+
+respond!(stream::Stream, response::Response) = serve_stream!(HTTP.streamhandler(_ -> response), stream)
+
+function serve_stream!(handler, stream::Stream)
     try
-        http_handler(stream)
+        handler(stream)
     catch e
         # we expect the IOError to happen, if either the page gets closed
         # or we close the server!
@@ -320,15 +363,19 @@ function stream_handler(application::Server, stream::Stream)
             rethrow(e)
         end
     end
+    return
 end
 
 """
 Server(
         dom, url::String, port::Int;
-        verbose = -1
+        verbose = -1, gate = nothing
     )
 
 Creates an application that manages the global server state!
+
+`gate` sees every request before any route and every response after it: see
+`gate_request` and `gate_response`.
 """
 function Server(
         url::String, port::Int;
@@ -336,6 +383,7 @@ function Server(
         proxy_url = "",
         routes = Routes(),
         websocket_routes = Routes(),
+        gate = nothing,
         listener_kw...
     )
     server = Server(
@@ -343,7 +391,8 @@ function Server(
         nothing,
         routes,
         websocket_routes,
-        haskey(listener_kw, :sslconfig) ? "https://" : "http://"
+        haskey(listener_kw, :sslconfig) ? "https://" : "http://",
+        gate,
     )
 
     try

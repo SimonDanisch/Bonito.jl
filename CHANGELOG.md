@@ -7,6 +7,7 @@ All notable changes to Bonito.jl are documented here. The format is based on [Ke
 ### Added
 
 - `HierarchicalMenu` widget with `HierarchicalMenuItem` and `HierarchicalSubMenu` for nested, collapsible menus. The clicked leaf's value is pushed to `menu.selected_value`. Themed via the `--bonito-widget-*` CSS variables (dark-mode aware) and styleable through the `style` keyword.
+- `Server(...; gate)`: a gate every request passes before any route, websocket upgrades included (`HTTPServer.gate_request`), and every response after it (`HTTPServer.gate_response`). A login check there covers every route, including the asset and websocket routes Bonito registers itself.
 
 ### Fixed
 

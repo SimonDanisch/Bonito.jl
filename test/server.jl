@@ -106,4 +106,60 @@ end
     end
 end
 
+# A gate in front of every route: here, only requests with the right key pass,
+# and what it lets through carries who it let in.
+struct KeyGate
+    key::String
+end
+function Bonito.HTTPServer.gate_request(g::KeyGate, request)
+    HTTP.removeheader(request, "X-Who")                  # only the gate says who
+    HTTP.header(request, "X-Key", "") == "boom" && error("the gate broke")
+    HTTP.header(request, "X-Key", "") == g.key ||
+        return HTTP.Response(401, ["Cache-Control" => "no-store"], "no entry")
+    HTTP.setheader(request, "X-Who" => "admitted")
+    return nothing
+end
+Bonito.HTTPServer.gate_response(::KeyGate, request, response) =
+    (HTTP.setheader(response, "X-Gated" => "yes"); response)
+
+@testset "gate" begin
+    server = Server("127.0.0.1", 0; gate = KeyGate("sesame"))
+    url = "http://127.0.0.1:$(server.port)"
+    try
+        route!(server, "/who" => ctx -> HTTP.Response(200, HTTP.header(ctx.request, "X-Who", "nobody")))
+        Bonito.HTTPServer.websocket_route!(server, "/echo" => (ctx, ws) -> foreach(m -> HTTP.WebSockets.send(ws, m), ws))
+        get(key; who = "") = HTTP.get("$(url)/who", ["X-Key" => key, "X-Who" => who]; status_exception = false, retry = false)
+        # Refused before any route: the route never runs, the gate's answer is final.
+        r = get("wrong")
+        @test r.status == 401 && String(r.body) == "no entry" && HTTP.header(r, "X-Gated") == ""
+        # Let through, with what the gate set; a client's own X-Who never survives.
+        r = get("sesame"; who = "forged")
+        @test r.status == 200 && String(r.body) == "admitted" && HTTP.header(r, "X-Gated") == "yes"
+        # Unknown routes are the gate's business too.
+        @test HTTP.get("$(url)/nothing-here"; status_exception = false).status == 401
+        # A gate that throws refuses, and says nothing about why.
+        r = get("boom")
+        @test r.status == 500 && !occursin("broke", String(r.body))
+        # Websocket upgrades pass the gate first: refused without the key...
+        @test_throws Exception HTTP.WebSockets.open(ws -> nothing, "ws://127.0.0.1:$(server.port)/echo";
+                                                    headers = ["X-Key" => "wrong"])
+        # ...served with it.
+        echoed = HTTP.WebSockets.open("ws://127.0.0.1:$(server.port)/echo"; headers = ["X-Key" => "sesame"]) do ws
+            HTTP.WebSockets.send(ws, "hi")
+            HTTP.WebSockets.receive(ws)
+        end
+        @test echoed == "hi"
+    finally
+        close(server)
+    end
+    # Without a gate nothing changes.
+    open_server = Server("127.0.0.1", 0)
+    try
+        route!(open_server, "/who" => ctx -> HTTP.Response(200, "anyone"))
+        @test String(HTTP.get("http://127.0.0.1:$(open_server.port)/who").body) == "anyone"
+    finally
+        close(open_server)
+    end
+end
+
 Bonito.set_cleanup_time!(30/60/60)
