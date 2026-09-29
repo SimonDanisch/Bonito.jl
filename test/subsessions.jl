@@ -42,6 +42,35 @@
                   values(session.children))
     end
 end
+@testset "one Observable in a map(...) DOM and in a static handler" begin
+    # The map's DOM renders as a subsession inside the page and ships the
+    # Observable first. The static button's handler, in the page's own session,
+    # used to get only a reference to it; the page reads its own session's
+    # messages before the subsession's, so the reference resolved to null and
+    # every click threw "Cannot read properties of null (reading 'notify')".
+    action = Observable{Any}(nothing)
+    rerender = Observable(1)
+    app = App() do s
+        rows = map(rerender) do n
+            DOM.button("row"; id = "in-map-$(n)", onclick = js"e => $(action).notify('from the map')")
+        end
+        return DOM.div(rows, DOM.button("static"; id = "static", onclick = js"e => $(action).notify('from the page')"))
+    end
+    display(edisplay, app)
+    click(id) = Bonito.evaljs(app.session[], js"document.getElementById($(id)).click()")
+    click("static")
+    @test Bonito.wait_for(() -> action[] == "from the page") == :success
+    click("in-map-1")
+    @test Bonito.wait_for(() -> action[] == "from the map") == :success
+    # A new render of the map leaves both working.
+    rerender[] = 2
+    @test Bonito.wait_for(() -> Bonito.evaljs_value(app.session[], js"!!document.getElementById('in-map-2')")) == :success
+    click("static")
+    @test Bonito.wait_for(() -> action[] == "from the page") == :success
+    click("in-map-2")
+    @test Bonito.wait_for(() -> action[] == "from the map") == :success
+end
+
 Bonito.set_cleanup_time!(0.0)
 @testset "server cleanup" begin
     # Close the full display (window + handler/session). `close(::ElectronDisplay)`
