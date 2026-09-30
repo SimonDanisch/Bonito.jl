@@ -8,6 +8,8 @@ class Websocket {
     #onopen_callbacks = [];
     #is_retrying = false;
     #retry_timeout_id = null;
+    #expired = false; // the server closed with 4404/4409: only a reload helps
+    #last_rx = 0; // time of the last message, to spot a dead socket that reads OPEN
 
     url = "";
     compression_enabled = false;
@@ -33,6 +35,9 @@ class Websocket {
     }
 
     retry_connection(total_time_seconds = 30) {
+        if (this.#expired) {
+            return;
+        }
         if (this.#is_retrying) {
             console.log("Already retrying connection");
             return;
@@ -132,6 +137,7 @@ class Websocket {
             this_ws.#onopen_callbacks.forEach((f) => f());
 
             ws.onmessage = function (evt) {
+                this_ws.#last_rx = Date.now();
                 const binary = new Uint8Array(evt.data);
                 if (binary.length === 1 && binary[0] === 0) {
                     // test write
@@ -178,6 +184,17 @@ class Websocket {
         ws.onclose = function (evt) {
             console.log("closed websocket connection, code:", evt.code);
             console.log(evt);
+            if (evt.code === 4404 || evt.code === 4409) {
+                // 4404: the server has no such session, retrying can't succeed.
+                // 4409: a duplicated tab took the session over, don't take it back.
+                this_ws.#expired = true;
+                this_ws.#stop_retrying();
+                this_ws.#cleanup_websocket();
+                if (typeof Bonito !== 'undefined' && Bonito.on_connection_expired) {
+                    Bonito.on_connection_expired();
+                }
+                return;
+            }
             // J2: flip the connection status off "open" the instant the socket
             // dies. Otherwise send_to_julia still believes status === "open",
             // calls send() on the dead socket, ensure_connection() returns
@@ -220,6 +237,52 @@ class Websocket {
                 }
             }
         }
+    }
+
+    // The page is shown again after the browser may have frozen it.
+    on_visible() {
+        if (this.#expired) {
+            return;
+        }
+        if (this.isopen()) {
+            this.#check_alive();
+            return;
+        }
+        // a freeze may have used up the retry budget without trying: start over
+        this.#reconnect_now();
+    }
+
+    // After a freeze a socket can read OPEN with its connection long gone (the
+    // phone changed networks). Ask for a pong, reconnect if nothing arrives.
+    #check_alive(timeout_ms = 5000) {
+        const ws = this.#websocket;
+        const asked = Date.now();
+        if (typeof Bonito !== 'undefined' && Bonito.send_pingpong) {
+            Bonito.send_pingpong();
+        }
+        setTimeout(() => {
+            if (this.#websocket === ws && this.isopen() && this.#last_rx < asked) {
+                console.log("No answer after the page came back, reconnecting");
+                this.#reconnect_now();
+            }
+        }, timeout_ms);
+    }
+
+    #reconnect_now() {
+        this.#stop_retrying();
+        this.#cleanup_websocket();
+        if (typeof Bonito !== 'undefined' && Bonito.on_connection_connecting) {
+            Bonito.on_connection_connecting();
+        }
+        this.retry_connection();
+    }
+
+    #stop_retrying() {
+        if (this.#retry_timeout_id) {
+            clearTimeout(this.#retry_timeout_id);
+            this.#retry_timeout_id = null;
+        }
+        this.#is_retrying = false;
     }
 
     #cleanup_websocket() {
@@ -321,6 +384,17 @@ export function setup_connection({
     const ws = new Websocket(url + query, compression_enabled);
     window.WEBSOCKET = ws;
     if (main_connection) {
+        // mobile browsers fire these, not `focus`, when a frozen tab comes back
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible") {
+                ws.on_visible();
+            }
+        });
+        window.addEventListener("pageshow", (evt) => {
+            if (evt.persisted) {
+                ws.on_visible();
+            }
+        });
         let first_open = true;
         ws.on_open(() => {
             Bonito.on_connection_open(

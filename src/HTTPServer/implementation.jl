@@ -332,7 +332,12 @@ function stream_handler(application::Server, stream::Stream)
                 maxframesize = typemax(Int),
                 maxfragmentation = typemax(Int),
             ) do ws
-                delegate(application.websocket_routes, application, stream.message, ws; peer_ip = peer)
+                response = delegate(application.websocket_routes, application, stream.message, ws; peer_ip = peer)
+                # No such session (server restarted or cleaned it up): 4404 tells
+                # the page to stop retrying, a plain close would look like a blip.
+                if response isa Response && response.status == 404
+                    close(ws, HTTP.WebSockets.CloseFrameBody(4404, "no such session"))
+                end
             end
             return
         catch e

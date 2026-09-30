@@ -192,3 +192,134 @@ end
     end
 
 end
+
+# ── A phone behind a tunnel ──────────────────────────────────────────────────
+# The page runs through `TunnelProxy` (test_helpers.jl), which does to the socket
+# what a frozen phone tab and a tunnel do. A hidden test window never becomes
+# visible, so the tests call `on_visible()` directly.
+
+using Bonito: onjs
+
+# counts server→page updates, records every connection status
+function tunnel_app()
+    payload = Observable("")
+    session = Ref{Any}(nothing)
+    app = App() do s
+        session[] = s
+        root = DOM.div("tunnel")
+        onjs(s, payload, js"(v) => { window.__n = (window.__n || 0) + 1; }")
+        Bonito.onload(s, root, js"""(el) => {
+            window.__n = 0;
+            window.__st = [];
+            Bonito.register_connection_indicator({ onStatusChange(st) { window.__st.push(st); } });
+        }""")
+        return root
+    end
+    return (; app, payload, session)
+end
+
+function with_tunnel(f)
+    ctx = tunnel_app()
+    server = Bonito.Server(ctx.app, "127.0.0.1", 0; proxy_url = ".")
+    proxy = TunnelProxy(server.port)
+    win = ElectronCall.Window(get_test_app(), ElectronCall.URI("http://127.0.0.1:$(proxy.port)/"); show = false)
+    try
+        @test wait_for(() -> run(win, "!!(window.__st && window.__st.includes('connected'))"); timeout = 30) == :success
+        f(ctx, win, proxy, server)
+    finally
+        close(win)
+        close(proxy)
+        close(server)
+    end
+end
+
+updates(win) = run(win, "window.__n")
+statuses(win) = run(win, "window.__st")
+
+# the close code a websocket to `path` gets, or `:still_open`
+function ws_close_code(server, path; timeout = 5.0)
+    result = Channel{Any}(1)
+    errormonitor(@async HTTP.WebSockets.open("ws://127.0.0.1:$(server.port)$path") do ws
+        try
+            HTTP.WebSockets.receive(ws)
+            put!(result, :message)
+        catch e
+            e isa HTTP.WebSockets.WebSocketError || rethrow()
+            put!(result, e.message.code)
+        end
+    end)
+    timedwait(() -> isready(result), timeout) === :ok || return :still_open
+    return take!(result)
+end
+
+@testset "a phone behind a tunnel" begin
+
+    @testset "a send wedged on a dead connection holds up neither the reconnect nor the server" begin
+        with_tunnel() do ctx, win, proxy, server
+            handler = root_session(ctx.session[]).connection.handler
+            sending = Ref(true)
+            last_sent = Ref(time())
+            errormonitor(@async while sending[]
+                ctx.payload[] = randstring(50_000)
+                last_sent[] = time()
+                sleep(0.02)
+            end)
+            try
+                before = copy(proxy.legs)
+                foreach(stall!, before)   # the tab stops reading, sends block
+                @test wait_for(() -> time() - last_sent[] > 2; timeout = 30) == :success
+                wedged_on = @atomic handler.socket
+                # the rest of the server keeps answering
+                @test ws_close_code(server, "/no-such-session") == 4404
+                # the phone's connection dies, the page reconnects
+                n = updates(win)
+                foreach(cut!, before)
+                @test wait_for(() -> updates(win) > n + 10; timeout = 15) == :success
+                @test (@atomic handler.socket) !== wedged_on
+                @test isready(root_session(ctx.session[]))
+            finally
+                sending[] = false
+            end
+        end
+    end
+
+    @testset "a page whose session the server lost says so once, and stops" begin
+        with_tunnel() do ctx, win, proxy, server
+            @test ws_close_code(server, "/no-such-session") == 4404
+            run(win, "window.__st = []")
+            close(root_session(ctx.session[]))   # as after a restart or cleanup
+            @test wait_for(() -> "expired" in statuses(win); timeout = 10) == :success
+            sleep(3)   # no more retries
+            st = statuses(win)
+            @test last(st) == "expired"
+            @test count(==("connected"), st) <= 1
+        end
+    end
+
+    @testset "a socket that stays silent after the page comes back is replaced" begin
+        with_tunnel() do ctx, win, proxy, server
+            before = copy(proxy.legs)
+            foreach(mute!, before)
+            run(win, "window.WEBSOCKET.on_visible()")
+            @test wait_for(() -> length(proxy.legs) > length(before); timeout = 10) == :success
+            n = updates(win)
+            ctx.payload[] = "after"
+            @test wait_for(() -> updates(win) > n; timeout = 10) == :success
+        end
+    end
+
+    @testset "after giving up, the page tries again when it is shown" begin
+        with_tunnel() do ctx, win, proxy, server
+            proxy.refuse[] = true
+            foreach(cut!, copy(proxy.legs))
+            @test wait_for(() -> "disconnected" in statuses(win); timeout = 45) == :success
+            proxy.refuse[] = false
+            run(win, "window.__st = []; window.WEBSOCKET.on_visible()")
+            @test wait_for(() -> "connected" in statuses(win); timeout = 15) == :success
+            n = updates(win)
+            ctx.payload[] = "back"
+            @test wait_for(() -> updates(win) > n; timeout = 10) == :success
+        end
+    end
+
+end

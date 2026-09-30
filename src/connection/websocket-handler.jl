@@ -3,7 +3,7 @@ using HTTP.WebSockets: receive, isclosed
 using HTTP.WebSockets
 
 mutable struct WebSocketHandler
-    socket::Union{Nothing,WebSocket}
+    @atomic socket::Union{Nothing,WebSocket}
     lock::ReentrantLock
 end
 
@@ -11,7 +11,8 @@ WebSocketHandler(socket) = WebSocketHandler(socket, ReentrantLock())
 WebSocketHandler() = WebSocketHandler(nothing, ReentrantLock())
 
 function ws_should_throw(e)
-    WebSockets.isok(e) && return false
+    # any close, 1006 (peer vanished) included, just ends the connection
+    e isa WebSocketError && return false
     e isa Union{Base.IOError,EOFError} && return false
     e isa ArgumentError && e.msg == "send() requires `!(ws.writeclosed)`" && return false
     return true
@@ -22,6 +23,8 @@ function safe_read(websocket)
         # readavailable is what HTTP overloaded for websockets
         return receive(websocket)
     catch e
+        # closing a replaced socket (`install_socket!`) closes the channel we wait on
+        e isa InvalidStateException && !isopen(websocket.readchannel) && return nothing
         ws_should_throw(e) && rethrow(e)
         return nothing
     end
@@ -42,46 +45,46 @@ function safe_write(websocket, binary)
     end
 end
 
+# No lock: a write blocked on a peer that stopped reading holds it, and the
+# cleanup task calls this holding the route table, stalling every upgrade.
 function Base.isopen(ws::WebSocketHandler)
-    lock(ws.lock) do
-        isnothing(ws.socket) && return false
-        # isclosed(ws.socket) returns readclosed && writeclosed
-        # but we consider it closed if either is closed?
-        if ws.socket.readclosed || ws.socket.writeclosed
-            return false
-        end
-        # So, it turns out, ws connection where the tab gets closed
-        # stay open indefinitely, but aren't writable anymore
-        # TODO, figure out how to check for that
-        return true
+    socket = @atomic ws.socket
+    isnothing(socket) && return false
+    # isclosed(socket) returns readclosed && writeclosed
+    # but we consider it closed if either is closed?
+    if socket.readclosed || socket.writeclosed
+        return false
     end
+    # So, it turns out, ws connection where the tab gets closed
+    # stay open indefinitely, but aren't writable anymore
+    # TODO, figure out how to check for that
+    return true
 end
 
 function Base.write(ws::WebSocketHandler, binary::AbstractVector{UInt8})
     lock(ws.lock) do
-        if isnothing(ws.socket)
+        socket = @atomic ws.socket
+        if isnothing(socket)
             error("socket closed or not opened yet")
         end
-        written = safe_write(ws.socket, binary)
+        written = safe_write(socket, binary)
         if written != true
-            # The send failed (dying socket). Close our side, then THROW so
-            # `_send` falls into its queue-for-replay branch. Returning
-            # normally here used to silently drop the first message into a
-            # dead socket — not on the wire, not queued. The `close(ws)` runs
-            # first so the handler is torn down before we signal failure.
+            # The connection is gone: end the transport (a polite close waits
+            # for the peer) and THROW so `_send` queues the message for replay.
             @debug "couldnt write, closing ws"
-            close(ws)
+            @atomic ws.socket = nothing
+            socket.close_transport!()
             error("websocket write failed; socket closed")
         end
     end
 end
 
 function Base.close(ws::WebSocketHandler)
-    lock(ws.lock) do
-        isnothing(ws.socket) && return
+    lock_unwedged(ws) do
+        socket = @atomic ws.socket
+        isnothing(socket) && return
         try
-            socket = ws.socket
-            ws.socket = nothing
+            @atomic ws.socket = nothing
             isclosed(socket) || close(socket)
         catch e
             ws_should_throw(e) && @warn "error while closing websocket" exception=e
@@ -99,8 +102,44 @@ socket) does NOT tear down the session now owned by the new socket.
 """
 function is_current_socket(handler::WebSocketHandler, websocket::WebSocket)
     lock(handler.lock) do
-        return handler.socket === websocket
+        return (@atomic handler.socket) === websocket
     end
+end
+
+# Runs `f` holding the handler lock. A write to a peer that stopped reading (a
+# frozen phone tab) holds it until TCP gives up; after `grace` seconds we end
+# that socket's transport, so the write fails and its message is queued for replay.
+function lock_unwedged(f, handler::WebSocketHandler; grace = 2.0)
+    deadline = time() + grace
+    acquired = trylock(handler.lock)
+    while !acquired && time() < deadline
+        sleep(0.05)
+        acquired = trylock(handler.lock)
+    end
+    if !acquired
+        wedged = @atomic handler.socket
+        isnothing(wedged) || wedged.close_transport!()
+        lock(handler.lock)
+    end
+    try
+        return f()
+    finally
+        unlock(handler.lock)
+    end
+end
+
+# The page dialed a new socket, so the old one is dead to it: don't wait on a
+# write wedged there, and close it (a silent one would linger forever). 4409
+# only reaches a page still listening, i.e. a duplicated tab, and tells it not
+# to reconnect, so two tabs don't keep taking the session from each other.
+function install_socket!(handler::WebSocketHandler, websocket::WebSocket)
+    previous = lock_unwedged(handler) do
+        old = @atomic handler.socket
+        @atomic handler.socket = websocket
+        return old
+    end
+    isnothing(previous) || errormonitor(@async close(previous, WebSockets.CloseFrameBody(4409, "replaced")))
+    return
 end
 
 """
@@ -108,11 +147,7 @@ end
 """
 function run_connection_loop(session::Session, handler::WebSocketHandler, websocket::WebSocket)
     @debug("opening ws connection for session: $(session.id)")
-    # Install this socket as the handler's current socket under the lock so a
-    # reconnect that swaps the socket is atomic w.r.t. `isopen`/`is_current_socket`.
-    lock(handler.lock) do
-        handler.socket = websocket
-    end
+    install_socket!(handler, websocket)
     if session.status == SOFT_CLOSED
         session.status = OPEN
     end

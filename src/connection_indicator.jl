@@ -100,14 +100,16 @@ function jsrender(session::Session, indicator::ConnectionIndicator)
             connected: $(indicator.connected_color),
             connecting: $(indicator.connecting_color),
             disconnected: $(indicator.disconnected_color),
-            no_connection: $(indicator.no_connection_color)
+            no_connection: $(indicator.no_connection_color),
+            expired: $(indicator.disconnected_color)
         };
 
         const tooltips = {
             connected: "Connected to Julia server",
             connecting: "Connecting to Julia server...",
             disconnected: "Disconnected from Julia server",
-            no_connection: "No connection (static mode) - Julia interaction disabled"
+            no_connection: "No connection (static mode) - Julia interaction disabled",
+            expired: "Session expired - reload the page"
         };
 
         // The banner toggles via classList; we look it up lazily so it works
@@ -124,12 +126,12 @@ function jsrender(session::Session, indicator::ConnectionIndicator)
                 led.style.boxShadow = '0 0 ' + ($(indicator.size) / 2) + 'px ' + color;
                 led.title = tooltips[status] || tooltips.disconnected;
 
-                // Show the banner only on the give-up state ("disconnected").
-                // "connecting" is the transient retry phase — banner stays
-                // hidden so a 2s blip doesn't flash a scary modal at the user.
+                // Show the banner only on the give-up states ("disconnected",
+                // "expired"). "connecting" is the transient retry phase — banner
+                // stays hidden so a 2s blip doesn't flash a scary modal at the user.
                 const banner = getBanner();
                 if (banner) {
-                    if (status === "disconnected") {
+                    if (status === "disconnected" || status === "expired") {
                         banner.classList.add('bonito-offline-active');
                     } else {
                         banner.classList.remove('bonito-offline-active');

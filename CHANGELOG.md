@@ -11,6 +11,11 @@ All notable changes to Bonito.jl are documented here. The format is based on [Ke
 
 ### Fixed
 
+- A browser that stops reading its websocket (a frozen phone tab) no longer stalls every websocket upgrade on the server: `isopen` no longer waits on the lock a blocked send holds, which the session cleanup did while holding the route table.
+- A reconnect no longer waits for a send wedged on the dead connection it replaces: after 2 seconds that connection is ended and the message queued for replay. The replaced connection is closed.
+- A page whose session the server no longer has stops retrying instead of flapping between "connected" and "connecting": the server closes with 4404 and the page gets the new status `"expired"`.
+- A page shown again after the browser froze it (`visibilitychange`, `pageshow`) replaces a socket that stays silent and restarts a retry loop that ran out.
+- A websocket closed without a close frame (1006) is no longer logged as an error.
 - A sub-session replaced before the browser finished loading it (an Observable updated several times in quick succession) no longer loses its assets while the browser still fetches them: its init payload returned a 404, surfacing as an unhandled promise rejection. A closed sub's asset server now stays open until the browser reports that sub loaded.
 - A failed load of a sub-session that is already closed no longer marks the page as failed, so `isready` no longer throws for it.
 

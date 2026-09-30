@@ -32,7 +32,8 @@ const ConnectionStatus = {
     CONNECTING: "connecting",
     CONNECTED: "connected",
     DISCONNECTED: "disconnected",
-    NO_CONNECTION: "no_connection"
+    NO_CONNECTION: "no_connection",
+    EXPIRED: "expired" // the server lost the session, only a reload helps
 };
 
 /**
@@ -96,6 +97,8 @@ function notify_indicator_status() {
         let status;
         if (CONNECTION.status === "no_connection") {
             status = ConnectionStatus.NO_CONNECTION;
+        } else if (CONNECTION.status === "expired") {
+            status = ConnectionStatus.EXPIRED;
         } else if (CONNECTION.status === "open") {
             status = ConnectionStatus.CONNECTED;
         } else if (CONNECTION.status === "connecting") {
@@ -146,6 +149,12 @@ export function on_connection_close() {
     arm_reconnect_triggers();
 }
 
+// Final: the server closed with 4404/4409, nothing retries after this.
+export function on_connection_expired() {
+    CONNECTION.status = "expired";
+    notify_indicator_status();
+}
+
 // J3: lazily-registered window listeners that kick the websocket retry loop
 // back to life after a give-up. Registered once; the handlers no-op while the
 // connection is healthy.
@@ -163,7 +172,8 @@ function arm_reconnect_triggers() {
         // "connecting" the websocket state machine already owns recovery.
         if (CONNECTION.status === "open"
             || CONNECTION.status === "connecting"
-            || CONNECTION.status === "no_connection") {
+            || CONNECTION.status === "no_connection"
+            || CONNECTION.status === "expired") {
             return;
         }
         if (typeof window !== "undefined" && window.WEBSOCKET

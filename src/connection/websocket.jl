@@ -144,7 +144,7 @@ function should_cleanup(policy::DefaultCleanupPolicy, session::Session)
         if age_hours > policy.cleanup_time
             return true
         end
-    elseif !isopen(session) && session.status == DISPLAYED
+    elseif session.status == DISPLAYED && !isopen(session)
         # if the session is not SOFT_CLOSED,
         # closing time means time at which rendering was done and the html was send to the browser
         rendered_time_point = session.closing_time

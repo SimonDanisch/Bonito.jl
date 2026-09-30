@@ -10,6 +10,7 @@ const {
     on_connection_open,
     on_connection_close,
     on_connection_connecting,
+    on_connection_expired,
     send_close_session,
     send_pingpong,
     can_send_to_julia,
@@ -240,6 +241,7 @@ const Bonito = {
     on_connection_open,
     on_connection_close,
     on_connection_connecting,
+    on_connection_expired,
     send_close_session,
     send_pingpong,
 
@@ -291,6 +293,7 @@ export {
     on_connection_open,
     on_connection_close,
     on_connection_connecting,
+    on_connection_expired,
     send_close_session,
     send_pingpong,
     // Connection indicator API

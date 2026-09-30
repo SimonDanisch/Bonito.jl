@@ -333,3 +333,67 @@ function test_current_session(app)
         end
     end
 end
+
+# A TCP proxy standing in for the tunnel between a phone and the server
+# (reconnect.jl). Serve with `proxy_url = "."` so the websocket goes through it.
+#   stall!(leg)  stop reading from the server (a frozen tab): its sends block
+#   cut!(leg)    close the page's side, leave the server's open and unread
+#   mute!(leg)   drop everything both ways, both sides stay open
+#   refuse[]     close new connections at once
+using Sockets
+
+mutable struct TunnelLeg
+    page::Sockets.TCPSocket
+    server::Sockets.TCPSocket
+    stalled::Bool
+    muted::Bool
+end
+
+struct TunnelProxy
+    listener::Sockets.TCPServer
+    port::Int
+    legs::Vector{TunnelLeg}
+    refuse::Base.RefValue{Bool}
+end
+
+# a leg ends with an IOError (EPIPE, ECONNRESET) once either side is gone
+function tunnel_pump(from, to, leg, from_server::Bool)
+    try
+        while isopen(from) && !(from_server && leg.stalled)
+            data = readavailable(from)
+            isempty(data) && eof(from) && break
+            (leg.muted || (from_server && leg.stalled)) || write(to, data)
+        end
+    catch e
+        e isa Base.IOError || rethrow()
+    end
+end
+
+function TunnelProxy(server_port::Integer)
+    listener = Sockets.listen(Sockets.localhost, 0)
+    proxy = TunnelProxy(listener, Int(getsockname(listener)[2]), TunnelLeg[], Ref(false))
+    errormonitor(@async while isopen(listener)
+        page = try
+            accept(listener)
+        catch e
+            (e isa Base.IOError && !isopen(listener)) ? break : rethrow()
+        end
+        if proxy.refuse[]
+            close(page)
+            continue
+        end
+        leg = TunnelLeg(page, connect(Sockets.localhost, server_port), false, false)
+        push!(proxy.legs, leg)
+        errormonitor(@async tunnel_pump(leg.page, leg.server, leg, false))
+        errormonitor(@async tunnel_pump(leg.server, leg.page, leg, true))
+    end)
+    return proxy
+end
+
+function stall!(leg::TunnelLeg)
+    leg.stalled = true
+    Base.stop_reading(leg.server)
+end
+cut!(leg::TunnelLeg) = close(leg.page)
+mute!(leg::TunnelLeg) = (leg.muted = true)
+Base.close(proxy::TunnelProxy) = close(proxy.listener)

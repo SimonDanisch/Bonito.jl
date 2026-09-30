@@ -63,7 +63,7 @@ end
 # `=== handler.socket` comparison under the handler lock.
 function is_stale_helper(handler::WebSocketHandler, sock)
     lock(handler.lock) do
-        return handler.socket === sock
+        return (@atomic handler.socket) === sock
     end
 end
 
@@ -245,7 +245,7 @@ end
 # current; installing a new one makes the old one stale.
 @testset "B3: is_current_socket / stale-socket gate logic" begin
     handler = WebSocketHandler()
-    @test handler.socket === nothing
+    @test (@atomic handler.socket) === nothing
     sockA = Ref(:A)   # stand-ins for the === identity check only
     sockB = Ref(:B)
     @test is_stale_helper(handler, sockA) == false    # nothing is current
