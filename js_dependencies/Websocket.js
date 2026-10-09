@@ -209,11 +209,12 @@ class Websocket {
             }
         };
 
-        ws.onerror = function (event) {
-            console.error("WebSocket error observed:");
-            console.log(event);
-            // Let onclose handle the retry to avoid double retries
-        };
+        // Nothing to report here: browsers hide the cause of a WebSocket error
+        // on purpose, so the event says nothing, and every error is followed by
+        // `close`, which logs the close code and drives the retry. Logging it as
+        // an error put one into the console of every page whose server went
+        // away or closed its socket, with nothing to act on.
+        ws.onerror = function () {};
     }
 
     ensure_connection() {

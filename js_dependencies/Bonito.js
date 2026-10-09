@@ -40,6 +40,7 @@ const {
     free_object,
     force_free_object,
     move_dom_node,
+    lookup_node,
 } = Sessions;
 
 // Update one attribute of a node from an Observable.
@@ -257,6 +258,7 @@ const Bonito = {
     free_session,
     lock_loading,
     move_dom_node,
+    lookup_node,
     // Util
     update_node_attribute,
     update_dom_node,
@@ -307,6 +309,7 @@ export {
     free_session,
     lock_loading,
     move_dom_node,
+    lookup_node,
     // Util
     update_node_attribute,
     update_dom_node,

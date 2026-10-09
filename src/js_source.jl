@@ -101,9 +101,11 @@ function print_js_code(io::IO, jss::JSString, context::JSSourceContext)
     return context
 end
 
+# Not a plain `document.querySelector`: the node may belong to content mounted
+# outside the document right now (see `lookup_node` in Sessions.js).
 function print_js_code(io::IO, node::Node, context::JSSourceContext)
     session = context.session # can be nothing
-    print(io, "document.querySelector('[data-jscall-id=\"$(uuid(session, node))\"]')")
+    print(io, "Bonito.lookup_node(\"$(uuid(session, node))\")")
     return context
 end
 

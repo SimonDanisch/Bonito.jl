@@ -446,8 +446,6 @@ mutable struct Session{Connection <: FrontendConnection}
     # Per-session message filter — `_send` consults this to drop outgoing
     # messages when the export pipeline is recording state.
     ignore_message::RefValue{Function}
-    # For rendering Styles.
-    style_counter::Int
     imports::OrderedSet{Asset}
     global_stylesheets::OrderedSet{Styles}
     title::String
@@ -548,7 +546,7 @@ function Base.propertynames(s::Session, private::Bool=false)
         :parent_or_root, :parent, :status, :closing_time, :children, :id,
         :asset_server, :message_queue, :on_document_load, :connection_ready,
         :on_connection_ready, :init_error, :on_close, :on_open, :deregister_callbacks,
-        :session_objects, :ignore_message, :style_counter, :imports,
+        :session_objects, :ignore_message, :imports,
         :global_stylesheets, :title, :current_app, :io_context, :stylesheets,
     )
     return (direct..., ROOT_ONLY_FIELDS...)
@@ -645,7 +643,6 @@ function Session(connection::Connection=default_connection();
         deregister_callbacks,
         session_objects,
         ignore_message,
-        1,                                              # style_counter
         imports,
         OrderedSet{Styles}(),                           # global_stylesheets
         title,
@@ -714,7 +711,6 @@ function Session(parent_session::Session{Connection};
             Observables.ObserverFunction[],                  # deregister_callbacks
             Dict{String, Any}(),                             # session_objects
             RefValue{Function}(x -> false),                  # ignore_message
-            1,                                               # style_counter
             OrderedSet{Asset}(),                             # imports
             OrderedSet{Styles}(),                            # global_stylesheets
             title,

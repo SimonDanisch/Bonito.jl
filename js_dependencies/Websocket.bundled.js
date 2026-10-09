@@ -146,10 +146,7 @@ class Websocket {
                 this_ws.retry_connection();
             }
         };
-        ws.onerror = function(event) {
-            console.error("WebSocket error observed:");
-            console.log(event);
-        };
+        ws.onerror = function() {};
     }
     ensure_connection() {
         const ws = this.#websocket;

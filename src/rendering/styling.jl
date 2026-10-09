@@ -77,7 +77,14 @@ function Base.show(io::IO, ::MIME"text/plain", styles::Styles)
     end
 end
 
-function render_stylesheets!(root_session, session, stylesheets::OrderedDict{HTMLElement, OrderedSet{CSS}})
+# A generated class is named by the rule it carries. The browser has ONE class
+# namespace per page, and a page routinely hosts several independent sessions: a
+# worker app proxied into the host's page, apps in one notebook. Numbering the
+# classes per session gave two sessions the same name for different rules, so one
+# session's CSS restyled the other's elements (an eval app in a chat reshaped the
+# host's sidebar icons). A name derived from the rendered rule cannot mean two
+# things: wherever it was rendered, it carries the same CSS.
+function render_stylesheets!(session, stylesheets::OrderedDict{HTMLElement, OrderedSet{CSS}})
     combined = OrderedDict{CSS,Set{HTMLElement}}()
     for (node, styles) in stylesheets
         for css in styles
@@ -89,11 +96,11 @@ function render_stylesheets!(root_session, session, stylesheets::OrderedDict{HTM
         end
     end
     io = IOBuffer()
+    placeholder = "\x1fbonito-class\x1f"   # a control character never occurs in a rule
     for (css, nodes) in combined
-        idx = root_session.style_counter += 1
-        root_session.style_counter
-        id = string("style_", idx)
-        render_style(io, session, "." * id, css)
+        rule = sprint(render_style, session, "." * placeholder, css)
+        id = "bs-" * first(hash_content(rule), 16)
+        print(io, replace(rule, placeholder => id))
         for node in nodes
             attr = Hyperscript.attrs(node)
             attr["class"] = get!(attr, "class", "") * " " * id

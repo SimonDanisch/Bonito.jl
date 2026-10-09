@@ -255,6 +255,13 @@ export function done_initializing_session(session_id) {
 }
 
 
+// Whether the page is being left (reload, navigation, closed tab). Leaving
+// aborts every fetch still in flight, and each rejects with "Failed to fetch"
+// right after `pagehide`. A page restored from the back/forward cache is back.
+let PAGE_LEAVING = false;
+window.addEventListener("pagehide", () => { PAGE_LEAVING = true; });
+window.addEventListener("pageshow", () => { PAGE_LEAVING = false; });
+
 function init_session_from_msgs(session_id, messages) {
     // J10: report done_loading exactly once. This used to send_done_loading
     // AND rethrow, while every caller's surrounding .catch ALSO sent
@@ -285,11 +292,18 @@ export function init_session(session_id, message_promise, session_status, compre
         payload.then(() => send_done_loading(session_id, null));
         return;
     }
-    SESSIONS[session_id] = [new Set(), session_status];
+    // The session may be known already: Julia pins the objects its payload
+    // only references (track_in_session), so they outlive the sessions that
+    // shipped them while this payload waits for its DOM to reach the document.
+    const known = SESSIONS[session_id];
+    SESSIONS[session_id] = [known ? known[0] : new Set(), session_status];
     track_deleted_sessions(); // no-op if already tracking
     // Reported once here, since init_session_from_msgs never ran. Not rethrown
     // (J10): lock_loading's own catch would re-surface it as a duplicate error.
+    // Not at all while the page is being left: that aborts the fetch, which is
+    // no failure of this session, and the page and its sessions go anyway.
     const failed = (error) => {
+        if (PAGE_LEAVING) return;
         send_done_loading(session_id, error);
         console.error(error.stack || error);
     };
@@ -367,11 +381,52 @@ export function free_session(session_id) {
     });
 }
 
-export function on_node_available(node_id, timeout, max_timeout = 30000) {
+// The elements Bonito created from a session's serialized DOM, by their
+// `data-jscall-id`. Content is often mounted into a tree that is not in the
+// document: a virtual list keeps most rows off the page, a pane is detached
+// while hidden, an element waits to be inserted. A session starts
+// asynchronously, after its payload arrived, and by then its nodes may be out
+// of the document again. A document-only lookup then found nothing: onload code
+// threw on null and `on*` handlers were silently never attached, so the
+// content showed up later with dead buttons. Weak references, so the registry
+// never keeps a removed node alive.
+const CREATED_NODES = new Map();
+const CREATED_NODES_GC = new FinalizationRegistry((id) => {
+    const ref = CREATED_NODES.get(id);
+    if (ref !== undefined && ref.deref() === undefined) CREATED_NODES.delete(id);
+});
+
+export function register_created_node(node) {
+    const id = node.getAttribute("data-jscall-id");
+    if (id === null) return;
+    CREATED_NODES.set(id, new WeakRef(node));
+    CREATED_NODES_GC.register(node, id);
+}
+
+// What `$(node)` in a js"" string resolves to: the node in the document, or the
+// one Bonito created for it wherever that is mounted right now.
+export function lookup_node(node_id) {
+    const node = document.querySelector(`[data-jscall-id="${CSS.escape(node_id)}"]`);
+    if (node !== null) return node;
+    const created = CREATED_NODES.get(node_id);
+    return created === undefined ? null : created.deref() ?? null;
+}
+
+// Resolves with the node once it is in the document, or with null as soon as
+// `wanted()` turns false. Not `lookup_node`: what waits here is content whose
+// code may find its own nodes in the document only, because an older Bonito
+// generated it (an eval worker's project), so it must not start in a detached
+// tree. A target that is gone for good belonged to content that was replaced,
+// and Julia frees the waiting session then.
+export function on_node_available(node_id, timeout, max_timeout = 30000, wanted = () => true) {
     return new Promise((resolve, reject) => {
         let elapsed = 0;
         function test_node(current_timeout) {
-            const node = document.querySelector(`[data-jscall-id='${node_id}']`);
+            if (!wanted()) {
+                resolve(null);
+                return;
+            }
+            const node = document.querySelector(`[data-jscall-id="${CSS.escape(node_id)}"]`);
             if (node) {
                 resolve(node);
             } else {
@@ -415,8 +470,15 @@ export function update_session_dom(message) {
     // processing for every session for the full timeout. Only the synchronous
     // apply (DOM swap + replaying this session's init messages, which touches
     // the shared object cache) needs the lock.
-    return on_node_available(dom_node_selector, 1).then((dom) => {
+    const live = () => session_id in SESSIONS;
+    return on_node_available(dom_node_selector, 1, 30000, live).then((dom) => {
         lock_loading(() => {
+            // Freed while it waited: its target was replaced, nothing to show.
+            // Still reported done, so Julia drops the assets it kept for it.
+            if (dom === null || !live()) {
+                send_done_loading(session_id, null);
+                return;
+            }
             update_or_replace(dom, html, replace);
             init_session_from_msgs(session_id, messages);
         });
@@ -451,7 +513,9 @@ export function ensure_session_exists(session_id, session_status) {
 /**
  * Track a key in the session without adding to global cache.
  * Used by TrackingOnly extension - the object already exists in GLOBAL_OBJECT_CACHE
- * from a parent session, we just need to track it in this session.
+ * from another session, we just need to track it in this session. Julia also
+ * calls it to pin an object for a session whose payload the page reads later
+ * (`pin_on_page!`), which creates the session entry ahead of `init_session`.
  *
  * @param {string} session_id
  * @param {string} key - The object's cache key

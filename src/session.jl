@@ -101,6 +101,9 @@ function init_session(session::Session)
         if !isempty(session.message_queue) || !isempty(session.on_document_load)
             send(session, fused_messages!(session))
         end
+        # The browser reported its payload read, and the bundle went out ahead
+        # of anything sent from now on (unless a failed write queued it again).
+        isempty(session.message_queue) && mark_on_page!(root, session)
     end
     # Notify (re)connection listeners outside the lock: handlers may serialize
     # and send (e.g. WGLMakie re-synchronizing scene state on reconnect), which
@@ -474,10 +477,13 @@ function Sockets.send(session::Session, message::SerializedMessage; large=false)
     _send(session, message, large)
 end
 
+# Serialize and write under one lock: a message that registers an object as on
+# the page (`sends_in_order`) must not be overtaken by a later one that only
+# references it.
 function Sockets.send(session::Session, message::Dict{Symbol}; large=false)
     session.ignore_message[](message)::Bool && return
     collect_message!(message)
-    _send(session, SerializedMessage(session, message), large)
+    _send(session, message, large)
 end
 
 # JSUpdateObservable now builds messages with String keys (avoids `string(k)`
@@ -486,7 +492,7 @@ end
 function Sockets.send(session::Session, message::Dict{String}; large=false)
     session.ignore_message[](message)::Bool && return
     collect_message!(message)
-    _send(session, SerializedMessage(session, message), large)
+    _send(session, message, large)
 end
 
 # Backwards compatibility for connections that dont expect a SerializedMessage but Vector{UInt8}
@@ -539,8 +545,9 @@ end
 
 
 function _send(session::Session, message::Dict, large::Bool)
-    sm = SerializedMessage(session, message)
-    _send(session, sm, large)
+    lock(deletion_lock(root_session(session))) do
+        _send(session, SerializedMessage(session, message), large)
+    end
 end
 
 function HTTP.WebSockets.isclosed(session::Session)
@@ -870,7 +877,7 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         # If we have a head & body, we want to append our initialization
         # code and dom nodes to the right places, so we need to extract those
         head, body, dom = find_head_body(dom)
-        session_style = render_stylesheets!(root_session(session), session, session.stylesheets)
+        session_style = render_stylesheets!(session, session.stylesheets)
         # Root sessions ship the built-in widget theme (light + prefers-dark CSS
         # variables) so standalone apps follow the OS color scheme. OrderedSet
         # dedups, so adding the same const repeatedly is a no-op.

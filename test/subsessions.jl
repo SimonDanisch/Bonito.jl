@@ -370,3 +370,169 @@ end
     close(root)
     close(server)
 end
+
+@testset "a subsession whose DOM leaves the document before it starts" begin
+    # Content can be out of the document when its session starts: a virtual
+    # list mounts a row and evicts it before the session's payload arrived, a
+    # pane is hidden by detaching it. Node references resolved in the document
+    # only, so the start-up code found null and the `onclick` was never attached
+    # ("Bonito: skip onclick"): the row came back with a dead button.
+    clicked = Observable(false)
+    found = Observable{Any}(nothing)
+    app = App(() -> DOM.div(DOM.div(; id = "late-mount")))
+    display(edisplay, app)
+    session = app.session[]
+    button = DOM.button("go"; id = "late-button", onclick = js"e => $(clicked).notify(true)")
+    content = DOM.div(button, js"$(found).notify($(button) !== null)")
+    Bonito.dom_in_js(session, content, js"""(elem) => {
+        const mount = document.getElementById('late-mount');
+        mount.appendChild(elem);   // its session starts here...
+        elem.remove();             // ...and finishes while the content is detached
+        window.__late_content = elem;
+    }""")
+    @test Bonito.wait_for(() -> found[] !== nothing) == :success
+    @test found[] === true
+    evaljs(session, js"""(() => {
+        document.getElementById('late-mount').appendChild(window.__late_content);
+        document.getElementById('late-button').click();
+    })()""")
+    @test Bonito.wait_for(() -> clicked[]) == :success
+end
+
+# The page's object cache and Julia's owner sets must agree on what the page
+# holds when it reads a bare reference (`TrackingOnly`). Both tests park part
+# of the page out of the document, as a hidden pane or a virtual list does: the
+# subs rendered there load their payload only once they are back.
+function parked_page(outer1, outer2)
+    app = App(() -> DOM.div(DOM.div(outer1; id = "parked-holder"), outer2; id = "parked-page"))
+    display(edisplay, app)
+    return app
+end
+park!(session) = evaljs(session, js"window.__parked = document.getElementById('parked-holder'); window.__parked.remove();")
+unpark!(session) = evaljs(session, js"document.getElementById('parked-page').prepend(window.__parked);")
+# What the page's copy of `obs` is when `code` runs, reported back to `seen`.
+report_value(seen, obs) = js"$(seen).notify($(obs) ? $(obs).value : 'null')"
+
+@testset "a reference to an object whose only copy waits in a parked payload" begin
+    # The parked sub ships the Observable first. A sibling then got a bare
+    # reference and read null ("TrackingOnly: Key 63483 not found in
+    # GLOBAL_OBJECT_CACHE", then "Key 63483 not found! undefined").
+    shared = Observable("shared")
+    seen_parked, seen_sibling = Observable{Any}(nothing), Observable{Any}(nothing)
+    outer1, outer2 = Observable{Any}(DOM.div("a")), Observable{Any}(DOM.div("b"))
+    app = parked_page(outer1, outer2)
+    session = app.session[]
+    park!(session)
+    outer1[] = DOM.div(Observable{Any}(DOM.div("parked", report_value(seen_parked, shared))))
+    outer2[] = DOM.div("sibling", report_value(seen_sibling, shared))
+    @test Bonito.wait_for(() -> seen_sibling[] !== nothing) == :success
+    @test seen_sibling[] == "shared"
+    unpark!(session)
+    @test Bonito.wait_for(() -> seen_parked[] !== nothing) == :success
+    @test seen_parked[] == "shared"
+end
+
+@testset "a parked bare reference outlives the sub whose copy it relies on" begin
+    # A visible sub holds the Observable, so the parked one gets only a
+    # reference. The visible sub is re-rendered away before the parked one is
+    # read: the page freed the object, since no session it knew tracked it.
+    shared = Observable("shared")
+    seen_visible, seen_parked = Observable{Any}(nothing), Observable{Any}(nothing)
+    outer1 = Observable{Any}(DOM.div("a"))
+    outer2 = Observable{Any}(DOM.div("visible", report_value(seen_visible, shared)))
+    app = parked_page(outer1, outer2)
+    session = app.session[]
+    root = Bonito.root_session(session)
+    entry() = lock(() -> get(root.session_objects, shared.id, nothing), root.deletion_lock)
+    @test Bonito.wait_for(() -> seen_visible[] == "shared") == :success
+    @test Bonito.wait_for(() -> !isempty(entry().on_page)) == :success
+    park!(session)
+    outer1[] = DOM.div(Observable{Any}(DOM.div("parked", report_value(seen_parked, shared))))
+    outer2[] = DOM.div("gone")
+    outer2[] = DOM.div("gone again")
+    # Only the parked sub owns it now, and the page was told to free the rest.
+    @test Bonito.wait_for(() -> length(entry().owners) == 1 && isempty(entry().on_page)) == :success
+    unpark!(session)
+    @test Bonito.wait_for(() -> seen_parked[] !== nothing) == :success
+    @test seen_parked[] == "shared"
+end
+
+@testset "an object the page holds is sent as a reference" begin
+    # The fixes above ship a copy whenever the page might not hold one; once a
+    # connected session's copy is read, new owners still get only the key.
+    shared = Observable("shared")
+    seen = Observable{Any}(nothing)
+    app = App(() -> DOM.div("page", report_value(seen, shared)))
+    display(edisplay, app)
+    session = app.session[]
+    root = Bonito.root_session(session)
+    @test Bonito.wait_for(() -> seen[] == "shared") == :success
+    @test Bonito.wait_for(() -> lock(() -> !isempty(root.session_objects[shared.id].on_page), root.deletion_lock)) == :success
+    sub = Bonito.Session(session)
+    sent = Dict{String, Any}()
+    Bonito.add_cached!(() -> error("shipped a copy"), sub, sent, shared)
+    @test sent[shared.id] == Bonito.TrackingOnly(shared.id)
+    close(sub)
+end
+
+# An UpdateSession whose target is out of the document when it arrives: a
+# virtual list evicted the row, a pane is detached while hidden. The target is
+# built from a message, as a chat's tool body is, so Bonito created it.
+function detached_target_page()
+    app = App(() -> DOM.div(DOM.div(; id = "target-holder"); id = "target-page"))
+    display(edisplay, app)
+    session = app.session[]
+    target = DOM.div("placeholder"; id = "update-target")
+    Bonito.dom_in_js(session, target, js"(elem) => document.getElementById('target-holder').appendChild(elem)")
+    Bonito.wait_for(() -> Bonito.evaljs_value(session, js"!!document.getElementById('update-target')"))
+    evaljs(session, js"window.__target_holder = document.getElementById('target-holder'); window.__target_holder.remove();")
+    return session, Bonito.uuid(session, target)
+end
+unpark_target!(session) = evaljs(session, js"document.getElementById('target-page').append(window.__target_holder);")
+browser_knows(session, sub) = Bonito.evaljs_value(session, js"$(sub.id) in Bonito.Sessions.SESSIONS")
+
+@testset "an update waits until its target is back in the document" begin
+    # Applied into the detached target, code that finds its nodes in the
+    # document only, as every Bonito before `lookup_node` generates it (an eval
+    # worker on an older Bonito), found nothing: "Bonito: skip onclick", and the
+    # button stayed dead once the target was back.
+    found, clicked = Observable{Any}(nothing), Observable(false)
+    session, target = detached_target_page()
+    content = DOM.div(DOM.button("go"; id = "old-style-button"), js"""(() => {
+        const e = document.getElementById('old-style-button');
+        if (e) { e.onclick = () => $(clicked).notify(true); }
+        $(found).notify(e !== null);
+    })()""")
+    sub = Bonito.update_session_dom!(session, target, content; replace = false)
+    @test Bonito.wait_for(() -> browser_knows(session, sub)) == :success
+    sleep(0.5)
+    @test found[] === nothing
+    unpark_target!(session)
+    @test Bonito.wait_for(() -> found[] !== nothing) == :success
+    @test found[] === true
+    evaljs(session, js"document.getElementById('old-style-button').click()")
+    @test Bonito.wait_for(() -> clicked[]) == :success
+end
+
+@testset "an update freed while it waits for its target never applies" begin
+    # Its target was replaced, and Julia closed the update's session. Applied
+    # once a node with that id is back, it would start a session the page
+    # already freed. Its code marks the target in the page: Julia drops what a
+    # closed session notifies, so an Observable would not tell.
+    done = Observable(false)
+    session, target = detached_target_page()
+    sub = Bonito.update_session_dom!(session, target,
+        DOM.div("freed", js"document.getElementById('update-target').dataset.freedRan = 'yes'";
+                id = "freed-update"); replace = false)
+    @test Bonito.wait_for(() -> browser_knows(session, sub)) == :success
+    close(sub)
+    @test Bonito.wait_for(() -> !browser_knows(session, sub)) == :success
+    unpark_target!(session)
+    @test Bonito.wait_for(() -> Bonito.evaljs_value(session, js"!!document.getElementById('update-target')")) == :success
+    sleep(1.5)   # the freed update polls at most every second
+    @test Bonito.evaljs_value(session, js"document.getElementById('update-target').dataset.freedRan ?? 'no'") == "no"
+    @test !Bonito.evaljs_value(session, js"!!document.getElementById('freed-update')")
+    # The target is back, and a live update on it applies.
+    Bonito.update_session_dom!(session, target, DOM.div("live", js"$(done).notify(true)"); replace = false)
+    @test Bonito.wait_for(() -> done[]) == :success
+end

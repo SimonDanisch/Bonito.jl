@@ -41,6 +41,33 @@ end
     @test first(all_css) == css
 end
 
+@testset "generated classes mean the same rule in every session" begin
+    # One page often hosts several independent sessions (a worker app proxied
+    # into the host's page, apps in one notebook), and they share the page's one
+    # class namespace. Per-session numbering gave the second session's
+    # `.style_2 { padding-left: 4px; background: red }` to the first session's
+    # `.style_2` element. Each session here renders the same width rule at a
+    # different position, plus one rule of its own.
+    function class_rules(styles)
+        s = OfflineSession()
+        app = App(; indicator=nothing) do
+            DOM.div([DOM.div("x"; style=st) for st in styles]...)
+        end
+        html = repr(MIME"text/html"(), Bonito.session_dom(s, app))
+        rules = Dict(m[1] => strip(m[2]) for m in eachmatch(r"\.(bs-[0-9a-f]+) \{([^}]*)\}", html))
+        used = Set(m[1] for m in eachmatch(r"\b(bs-[0-9a-f]+)\b", html))
+        return rules, used
+    end
+    width = Styles("width" => "32px")
+    host, host_used = class_rules([width, Styles("background" => "green")])
+    app, app_used = class_rules([Styles("padding-left" => "4px", "background" => "red"), width])
+    @test length(host) == 2 && length(app) == 2
+    @test host_used == Set(keys(host)) && app_used == Set(keys(app))
+    shared = intersect(keys(host), keys(app))
+    @test length(shared) == 1                      # only the identical rule shares a name
+    @test host[only(shared)] == app[only(shared)] == "width: 32px;"
+end
+
 @testset "Col stacks content from the top" begin
     # Regression: a `Col` next to a taller sibling in a `Row` used to get
     # stretched to the row height and, with the default `align-content` (`normal`

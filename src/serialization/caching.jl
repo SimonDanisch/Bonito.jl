@@ -5,6 +5,9 @@ struct SerializationContext
     # and needs to resolve CacheKey references during unpacking.
     message_cache::OrderedDict{String, Any}
     session::Session
+    # Keys this message references bare although the page may read it late;
+    # pinned for `session` in one go once serialized (`pin_on_page!`).
+    pins::Vector{String}
 end
 
 """
@@ -21,19 +24,32 @@ cache. The `filter` step makes this self-healing — if a session vanished
 without a clean close, its dead id gets pruned and the entry can still
 be reclaimed.
 
-INVARIANT: every read or mutation of an entry's `owners` field happens
-under `root.deletion_lock` (the same lock that gates all
+`on_page` is the subset of `owners` whose reference the page has read, or
+reads before anything serialized from now on. Only while it is non-empty may
+a new owner send a bare `TrackingOnly`: an owner's copy can reach the page
+much later than its message was sent. A sub rendered inside other HTML loads
+its payload from an inline script, which runs only once its DOM is in the
+document, and a hidden pane or a virtual list keeps it out for as long as it
+likes. A queued message waits for its session to connect. For the same
+reason, a bare reference that the page may read late is pinned on the page
+right away (`pin_on_page!`): the owners whose copy it relies on may be freed
+before then, and the page frees an object once no session it knows tracks it.
+
+INVARIANT: every read or mutation of an entry's `owners` and `on_page`
+happens under `root.deletion_lock` (the same lock that gates all
 `session_objects` access). Plain `Set` is fine because the lock is the
 synchronization boundary; per-entry locking would just be overhead.
 """
 mutable struct CachedEntry
     object::Any
     owners::Set{String}
+    on_page::Set{String}
 end
+CachedEntry(object, owners::Set{String}) = CachedEntry(object, owners, Set{String}())
 CachedEntry(object) = CachedEntry(object, Set{String}())
 
 function SerializationContext(session::Session)
-    return SerializationContext(OrderedDict{String,Any}(), session)
+    return SerializationContext(OrderedDict{String,Any}(), session, String[])
 end
 
 object_identity(obs::Observable) = obs.id
@@ -77,7 +93,7 @@ end
 
 
 function serialize_cached(context::SerializationContext, obs::Observable)
-    return add_cached!(context.session, context.message_cache, obs) do
+    return add_cached!(context.session, context.message_cache, obs; pins=context.pins) do
         register_observable!(context.session, obs)
         return SerializedObservable(cache_key(context.session, obs), serialize_cached(context, obs[]))
     end
@@ -148,14 +164,17 @@ function serialize_cached(context::SerializationContext, dict::Dict{String,Any})
 end
 
 """
-    add_cached!(create_cached_object::Function, session::Session, message_cache::AbstractDict{String, Any}, key::String)
+    add_cached!(create_cached_object::Function, session::Session, message_cache::AbstractDict{String, Any}, key::String; pins=nothing)
 
 Checks if key is already cached by the session or it's root session (we skip any child session between root -> this session).
 If not cached already, we call `create_cached_object` to create a serialized form of the object corresponding to `key` and cache it.
 We return nothing if already cached, or the serialized object if not cached.
 We also handle the part of adding things to the message_cache from the serialization context.
+A bare reference the page may read late is pinned on the page: collected in `pins` to go out
+with the message, or right away without one.
 """
-function add_cached!(create_cached_object::Function, session::Session, send_to_js::AbstractDict{String, Any}, @nospecialize(object))::CacheKey
+function add_cached!(create_cached_object::Function, session::Session, send_to_js::AbstractDict{String, Any}, @nospecialize(object);
+                     pins::Union{Nothing, Vector{String}}=nothing)::CacheKey
     root = root_session(session)
     lock(root.deletion_lock) do
         key = cache_key(session, object)::String
@@ -185,21 +204,20 @@ function add_cached!(create_cached_object::Function, session::Session, send_to_j
         if haskey(root.session_objects, key)
             entry = root.session_objects[key]::CachedEntry
             # Root cache already holds this: register `session.id` as a new
-            # owner, and tell JS via TrackingOnly when its global cache has the
-            # object by the time it reads this session's messages. A session
-            # tree has exactly one page (§0), proxied roots included, which reads
-            # messages in the order they were sent, with one exception: a
-            # subsession rendered INSIDE this session's HTML (an Observable's
-            # DOM) has its init after this session's own. If only such
-            # sessions shipped the object, the page reads this session's
-            # reference first and gets null (a static `onclick` and a
-            # `map(...)` DOM sharing one Observable). Ship it again then; the
-            # page keeps the copy it already has. Everything is inside the
-            # root, so the root always ships it.
-            on_page_first = session !== root &&
-                any(id -> get_session(session, id) === nothing, entry.owners)
+            # owner. A bare TrackingOnly is only safe when the page has read
+            # another owner's copy by the time it reads this message
+            # (`on_page`), and still holds it then (in order, or pinned).
+            # Otherwise ship it again; the page keeps the copy it already has
+            # (a static `onclick` and a `map(...)` DOM sharing one Observable,
+            # a row in a hidden pane).
+            bare = !isempty(entry.on_page)
+            send_to_js[key] = bare ? TrackingOnly(key) : create_cached_object()
             push!(entry.owners, session.id)
-            send_to_js[key] = on_page_first ? TrackingOnly(key) : create_cached_object()
+            if sends_in_order(session)
+                push!(entry.on_page, session.id)
+            elseif bare
+                pins === nothing ? pin_on_page!(connection(root), root, session, [key]) : push!(pins, key)
+            end
         else
             # First time anyone in this connection cached this object.
             # IMPORTANT: call `create_cached_object` BEFORE inserting into
@@ -209,11 +227,46 @@ function add_cached!(create_cached_object::Function, session::Session, send_to_j
             # we insert first, the JS-update listener never gets attached
             # and JS notifies silently fail to reach Julia.
             serialized = create_cached_object()
-            root.session_objects[key] = CachedEntry(object, Set{String}((session.id,)))
+            entry = CachedEntry(object, Set{String}((session.id,)))
+            sends_in_order(session) && push!(entry.on_page, session.id)
+            root.session_objects[key] = entry
             send_to_js[key] = serialized
         end
         return result
     end
+end
+
+# Whether a message this session serializes now reaches the page after
+# everything it sent before, and before anything serialized later: it is
+# connected, nothing of it waits in its queue, and `send` serializes and writes
+# under one lock. A session that is still loading in the browser is not.
+sends_in_order(session::Session) = sends_in_order(connection(session), session)
+function sends_in_order(::FrontendConnection, session::Session)
+    return isready(session; throw=false) && isempty(session.message_queue)
+end
+# A static page reads the root's payload before any sub's, and frees nothing.
+sends_in_order(::NoConnection, session::Session) = isroot(session)
+
+# `session` got bare references to `keys` in a message the page may read late.
+# Have the page track the objects for it now, through the root, ahead of
+# whatever frees the sessions whose copy it relies on; the page keeps that
+# entry when the session's payload arrives (`init_session`). Caller holds
+# `deletion_lock`.
+function pin_on_page!(::FrontendConnection, root::Session, session::Session, keys::Vector{String})
+    status = isroot(session) ? "root" : "sub"
+    evaljs(root, js"$(keys).forEach(key => Bonito.Sessions.track_in_session($(session.id), key, $(status)))")
+    return
+end
+pin_on_page!(::NoConnection, ::Session, ::Session, ::Vector{String}) = nothing
+
+# `session` connected and its queue went out: the page has read its references.
+# Caller holds `deletion_lock`.
+function mark_on_page!(root::Session, session::Session)
+    for (key, value) in (session === root ? root.session_objects : session.session_objects)
+        entry = session === root ? value : get(root.session_objects, key, nothing)
+        entry isa CachedEntry && session.id in entry.owners && push!(entry.on_page, session.id)
+    end
+    return
 end
 
 function child_has_reference(child::Session, key)
@@ -246,6 +299,7 @@ function delete_cached!(root::Session, sub::Session, key::String)
     # This is the safety net that makes refcount-by-id robust.
     filter!(id -> get_session(root, id) !== nothing || id == root.id,
             entry.owners)
+    intersect!(entry.on_page, entry.owners)
     if isempty(entry.owners)
         pop!(root.session_objects, key)
         if entry.object isa Observable

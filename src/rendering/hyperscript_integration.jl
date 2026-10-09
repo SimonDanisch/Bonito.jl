@@ -74,10 +74,7 @@ end
 
 using .SVG
 
-function selector(node)
-    query_string = "[data-jscall-id=$(repr(uuid(node)))]"
-    return js"(document.querySelector($(query_string)))"
-end
+selector(node) = js"(Bonito.lookup_node($(uuid(node))))"
 
 # default turn attributes into strings
 attribute_render(session::Session, parent, attribute::String, x) = string(x)
