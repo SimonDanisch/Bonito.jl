@@ -374,11 +374,35 @@ export function free_session(session_id) {
             return;
         }
         const [tracked_objects, status] = session;
+        // Teardowns first, while the session's objects still exist.
+        const teardowns = ON_FREE.get(session_id);
+        ON_FREE.delete(session_id);
+        teardowns?.forEach((f) => {
+            try {
+                f();
+            } catch (e) {
+                send_error(`Error in an on_free callback of session ${session_id}`, e);
+            }
+        });
         delete SESSIONS[session_id];
         INITIALIZED_SESSIONS.delete(session_id);
         tracked_objects.forEach(free_object);
         tracked_objects.clear();
     });
+}
+
+// Teardown for what a session's code built and Bonito does not track (an
+// editor, a WebGL context): `f` runs once when the session is freed, which
+// Bonito does once its DOM left the document; right away if it is gone.
+const ON_FREE = new Map();   // session_id → [f]
+export function on_free(session_id, f) {
+    if (!(session_id in SESSIONS)) {
+        f();
+        return;
+    }
+    const teardowns = ON_FREE.get(session_id);
+    if (teardowns) teardowns.push(f);
+    else ON_FREE.set(session_id, [f]);
 }
 
 // The elements Bonito created from a session's serialized DOM, by their

@@ -536,3 +536,42 @@ end
     Bonito.update_session_dom!(session, target, DOM.div("live", js"$(done).notify(true)"); replace = false)
     @test Bonito.wait_for(() -> done[]) == :success
 end
+
+# `on_free` teardowns run once, when their session is freed.
+struct OnFreeProbe
+    label::String
+end
+function Bonito.jsrender(session::Session, p::OnFreeProbe)
+    return Bonito.jsrender(session, DOM.div(p.label,
+        js"""Bonito.Sessions.on_free($(session.id), () => {
+            window.__on_free = (window.__on_free || []).concat([$(p.label)]);
+        })"""; class = "on-free-probe"))
+end
+
+@testset "on_free runs once its session is freed" begin
+    # The display reuses its page: labels unique to this run.
+    run = string(rand(UInt32); base = 16)
+    label(x) = "$(run)-$(x)"
+    content = Observable{Any}(OnFreeProbe(label("first")))
+    app = App(() -> DOM.div(content; id = "on-free-host"))
+    display(edisplay, app)
+    session = app.session[]
+    freed() = [replace(x, "$(run)-" => "") for x in Bonito.evaljs_value(session, js"window.__on_free || []") if startswith(x, run)]
+    @test Bonito.wait_for(() -> Bonito.evaljs_value(session, js"!!document.querySelector('.on-free-probe')")) == :success
+    @test freed() == []
+    # A re-render closes the replaced sub one render later (double-buffered,
+    # see `detach_subsession!`); the teardown runs when it is freed, once.
+    content[] = OnFreeProbe(label("second"))
+    content[] = OnFreeProbe(label("third"))
+    @test Bonito.wait_for(() -> freed() == ["first"]) == :success
+    content[] = OnFreeProbe(label("fourth"))
+    @test Bonito.wait_for(() -> freed() == ["first", "second"]) == :success
+    # Its DOM leaving the document: the browser closes the session itself.
+    evaljs(session, js"document.getElementById('on-free-host').remove()")
+    @test Bonito.wait_for(() -> "fourth" in freed()) == :success
+    # Code that runs after its session is gone gets the teardown right away.
+    @test Bonito.evaljs_value(session, js"""(() => {
+        let ran = false;
+        Bonito.Sessions.on_free("no-such-session", () => { ran = true; });
+        return ran; })()""") == true
+end
