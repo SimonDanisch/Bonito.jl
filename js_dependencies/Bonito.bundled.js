@@ -4339,10 +4339,20 @@ function update_dom_node(dom, html) {
         return false;
     }
 }
-function fetch_binary(url) {
-    return fetch(url).then((response)=>{
+let refused_handler = null;
+function on_refused(handler) {
+    refused_handler = handler;
+}
+const is_refusal = (response)=>response.type === "opaqueredirect" || response.status === 401 || response.status === 403;
+function fetch_binary(url, refusals = 0) {
+    return fetch(url, {
+        redirect: "manual"
+    }).then((response)=>{
+        if (is_refusal(response) && refused_handler && refusals < 3) {
+            return refused_handler(url).then(()=>fetch_binary(url, refusals + 1));
+        }
         if (!response.ok) {
-            throw new Error("HTTP error, status = " + response.status);
+            throw new Error(is_refusal(response) ? "turned away by the server: " + url : "HTTP error, status = " + response.status);
         }
         return response.arrayBuffer();
     });
@@ -4428,6 +4438,7 @@ const Bonito = {
     encode_binary: encode_binary1,
     decode_base64_message: decode_base64_message1,
     fetch_binary,
+    on_refused,
     load_script,
     Connection: mod2,
     send_error: send_error1,
@@ -4464,6 +4475,6 @@ const Bonito = {
     generate_state_key
 };
 window.Bonito = Bonito;
-export { mod1 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, fetch_binary as fetch_binary, load_script as load_script, mod2 as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, on_connection_connecting1 as on_connection_connecting, on_connection_expired1 as on_connection_expired, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, register_connection_indicator1 as register_connection_indicator, unregister_connection_indicator1 as unregister_connection_indicator, set_no_connection1 as set_no_connection, is_no_connection1 as is_no_connection, ConnectionStatus1 as ConnectionStatus, mod as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, move_dom_node1 as move_dom_node, lookup_node1 as lookup_node, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany, OBJECT_FREEING_LOCK1 as OBJECT_FREEING_LOCK, can_send_to_julia1 as can_send_to_julia, free_object1 as free_object, send_to_julia1 as send_to_julia, throttle_function as throttle_function };
+export { mod1 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, fetch_binary as fetch_binary, on_refused as on_refused, load_script as load_script, mod2 as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, on_connection_connecting1 as on_connection_connecting, on_connection_expired1 as on_connection_expired, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, register_connection_indicator1 as register_connection_indicator, unregister_connection_indicator1 as unregister_connection_indicator, set_no_connection1 as set_no_connection, is_no_connection1 as is_no_connection, ConnectionStatus1 as ConnectionStatus, mod as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, move_dom_node1 as move_dom_node, lookup_node1 as lookup_node, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany, OBJECT_FREEING_LOCK1 as OBJECT_FREEING_LOCK, can_send_to_julia1 as can_send_to_julia, free_object1 as free_object, send_to_julia1 as send_to_julia, throttle_function as throttle_function };
 export { generate_state_key as generate_state_key };
 

@@ -327,6 +327,40 @@ end
     evaljs_value(sess, js"(() => { Bonito.fetch_binary = window.__fetch_binary; return true; })()")
 end
 
+@testset "a payload the server turned away is fetched again when the app says so" begin
+    # A login that ended turns the payload request away (here: 401). The app
+    # decides when to ask again (`on_refused`, once the login is back); the
+    # sub then loads as if nothing happened.
+    content = Observable{Any}(DOM.div("start"))
+    app = App(s -> DOM.div(content))
+    display(edisplay, app)
+    sess = app.session[]
+    evaljs_value(sess, js"""(() => {
+        window.__refused = [];
+        window.__fetch = window.fetch;
+        let turned_away = false;
+        window.fetch = (url, opts) => {
+            if (!turned_away && String(url).endsWith('.bin')) {
+                turned_away = true;
+                return Promise.resolve(new Response(null, {status: 401}));
+            }
+            return window.__fetch(url, opts);
+        };
+        Bonito.on_refused((url) => new Promise((resolve) => window.__refused.push(resolve)));
+        return true;
+    })()""")
+    content[] = DOM.div(map(x -> DOM.div("row $x", js"window.__row_loaded = true;"), Observable(1)))
+    # Asked straight through Electron: what Bonito sends the page meanwhile
+    # waits behind the turned-away payload, so messages arrive in order.
+    page(code) = run(edisplay.window, code)
+    @test Bonito.wait_for(() -> page("window.__refused.length === 1")) == :success
+    @test page("window.__row_loaded === undefined")
+    page("window.__refused[0](); true")
+    @test Bonito.wait_for(() -> page("window.__row_loaded === true")) == :success
+    @test page("window.__refused.length") == 1
+    page("window.fetch = window.__fetch; Bonito.on_refused(null); true")
+end
+
 @testset "a closed sub's assets wait for the browser's report" begin
     server = Server("127.0.0.1", 0)
     root = Bonito.HTTPSession(server)
