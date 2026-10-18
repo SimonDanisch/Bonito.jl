@@ -460,6 +460,8 @@ end
 # `SystemError` (errno `EADDRINUSE`) instead of the 1.x `Base.IOError` with
 # `UV_EADDRINUSE`. Walk the wrapped causes and recognise both shapes.
 function is_address_in_use(e)
+    # HTTP.jl binds in the caller and says so with its own type (all of 2.x).
+    e isa HTTP.AddressInUseError && return true
     e isa Base.IOError && return e.code == Base.UV_EADDRINUSE
     e isa Base.SystemError && return e.errnum == Base.Libc.EADDRINUSE
     if e isa TaskFailedException
