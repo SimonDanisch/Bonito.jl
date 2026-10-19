@@ -3586,8 +3586,18 @@ function tombstone_session(session_id) {
 const OBJECT_FREEING_LOCK = new m1({
     concurrency: 1
 });
-function lock_loading(f) {
-    OBJECT_FREEING_LOCK.add(f).catch((error)=>{
+function lock_loading(f, what = "a task") {
+    OBJECT_FREEING_LOCK.add(()=>{
+        const started = Date.now();
+        const watch = setTimeout(()=>console.info(`Bonito: everything from the server waits for ${what} (${3000 / 1000} s so far)`), 3000);
+        return Promise.resolve().then(f).finally(()=>{
+            clearTimeout(watch);
+            const took = Date.now() - started;
+            if (took >= 3000) {
+                console.info(`Bonito: ${what} held everything from the server for ${(took / 1000).toFixed(1)} s`);
+            }
+        });
+    }).catch((error)=>{
         send_error("Error inside object-freeing-locked task", error);
     });
 }
@@ -3838,7 +3848,7 @@ function free_session(session_id) {
         INITIALIZED_SESSIONS.delete(session_id);
         tracked_objects.forEach(free_object);
         tracked_objects.clear();
-    });
+    }, `freeing sub-page ${session_id}`);
 }
 const ON_FREE = new Map();
 function decode_binary(binary, compression_enabled) {
@@ -3884,7 +3894,7 @@ function init_session(session_id, message_promise, session_status, compression) 
             }
             init_session_from_msgs(session_id, messages);
         });
-    });
+    }, `the content of sub-page ${session_id}`);
 }
 function on_free(session_id, f) {
     if (!(session_id in SESSIONS)) {
@@ -3960,7 +3970,7 @@ function update_session_dom(message) {
             }
             update_or_replace(dom, html, replace);
             init_session_from_msgs(session_id, messages);
-        });
+        }, `showing sub-page ${session_id}`);
     }).catch((error)=>{
         send_done_loading(session_id, error);
     });

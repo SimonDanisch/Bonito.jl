@@ -111,11 +111,15 @@ function render_stylesheets!(session, stylesheets::OrderedDict{HTMLElement, Orde
 end
 
 function CSS(selector::String, args::CSS...)
-    return CSS(selector, Dict{String,Any}((arg.selector => arg for arg in args)))
+    attributes = OrderedDict{String,Any}()
+    foreach(arg -> declare!(attributes, arg.selector, arg), args)
+    return CSS(selector, attributes)
 end
 
 function CSS(selector::String, args::Pair...)
-    return CSS(selector, Dict{String,Any}(args...))
+    attributes = OrderedDict{String,Any}()
+    foreach(((k, v),) -> declare!(attributes, String(k), v), args)
+    return CSS(selector, attributes)
 end
 CSS(args::Pair...) = CSS("", args...)
 
@@ -177,9 +181,14 @@ function Base.merge!(defaults::Styles, priority::Styles)
     end
 end
 
+# `b` comes after `a`, so each of its declarations overrides all of `a`'s.
 function Base.merge(a::CSS, b::CSS)
     a.selector == b.selector || error("Can't merge CSS with different selectors: $(a.selector) != $(b.selector)")
-    return CSS(a.selector, merge(a.attributes, b.attributes))
+    attributes = OrderedDict{String,Any}(a.attributes)
+    for (k, v) in b.attributes
+        declare!(attributes, k, v)
+    end
+    return CSS(a.selector, attributes)
 end
 
 #=

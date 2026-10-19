@@ -217,23 +217,36 @@ end
 
 struct CSS
     selector::String
-    # TODO use some kind of immutable Dict
-    attributes::Dict{String, Union{CSS, String, Asset}}
+    # In the order given, which is part of the rule: a declaration overrides the
+    # ones before it (`border`, then `border-top-color`), and so does a nested
+    # rule. A `Dict` wrote them out in hash order, which put the shorthand last
+    # and painted every such spinner's arc grey.
+    attributes::OrderedDict{String, Union{CSS, String, Asset}}
     # We assume attributes to be immutable, so we calculate the hash once
     hash::UInt64
-    function CSS(selector, attributes::Dict{String,T}) where T <: Any
-        css = Dict{String,Union{CSS,String,Asset}}()
-        # Need to sort to always get the same hash!
-        sorted_keys = sort!(collect(keys(attributes)))
+    function CSS(selector, attributes::OrderedDict{String,T}) where T <: Any
+        css = OrderedDict{String,Union{CSS,String,Asset}}()
         h = hash(selector, UInt64(0))
-        h = hash(sorted_keys, h)
-        for k in sorted_keys
-            converted = convert_css_attribute(attributes[k])
+        for (k, v) in attributes
+            converted = convert_css_attribute(v)
             css[String(k)] = converted
-            h = hash(converted, h)
+            h = hash(converted, hash(k, h))
         end
         return new(selector, css, h)
     end
+end
+
+# A mapping without an order of its own gives none to keep: sorted, so equal
+# content always makes the same rule.
+CSS(selector, attributes::AbstractDict) =
+    CSS(selector, OrderedDict{String,Any}(sort!([String(k) => v for (k, v) in attributes]; by = first)))
+
+# Declare `key` last: given again, it overrides everything declared before it,
+# as a repeated declaration does in a stylesheet.
+function declare!(attributes::OrderedDict, key::AbstractString, value)
+    delete!(attributes, key)
+    attributes[key] = value
+    return attributes
 end
 
 Base.hash(css::CSS, h::UInt64) = hash(css.hash, h)

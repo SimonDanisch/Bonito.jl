@@ -18,13 +18,54 @@ const GetSessionDOM = "13"
 Handles the incoming websocket messages from the frontend.
 Messages are expected to be gzip compressed and packed via MsgPack.
 """
-function process_message(session::Session, bytes::AbstractVector{UInt8})
+function process_message(session::Session, bytes::AbstractVector{UInt8}; slow::Real = 0.5)
     if isempty(bytes)
         @warn "empty message received from frontend"
         return
     end
     data = deserialize_binary(bytes, session.compression_enabled)
-    return process_message(session, data)
+    # A page's messages are handled one after another: while one takes long,
+    # everything the page sends after it waits, its pings included, and the
+    # page looks frozen while every other page carries on. Say which.
+    t0 = time()
+    try
+        return process_message(session, data)
+    finally
+        took = time() - t0
+        took >= slow && log_slow_message(session, data, took)
+    end
+end
+
+const MESSAGE_NAMES = Dict(UpdateObservable => "UpdateObservable", OnjsCallback => "OnjsCallback",
+    EvalJavascript => "EvalJavascript", JavascriptError => "JavascriptError",
+    JavascriptWarning => "JavascriptWarning", RegisterObservable => "RegisterObservable",
+    JSDoneLoading => "JSDoneLoading", FusedMessage => "FusedMessage", CloseSession => "CloseSession",
+    PingPong => "PingPong", UpdateSession => "UpdateSession", GetSessionDOM => "GetSessionDOM")
+
+function log_slow_message(session::Session, data::AbstractDict, seconds::Real)
+    typ = get(data, "msg_type", "")
+    id = string(get(data, "id", get(data, "session", "")))
+    @warn "slow message from a page: the page waited for it" page = first(root_session(session).id, 8) type = get(MESSAGE_NAMES, typ, typ) id seconds = round(seconds; digits = 2) listeners = message_listeners(session, data)
+    return nothing
+end
+
+# Where the code that ran for an observable update lives: its listeners' source
+# locations ("chat.jl:1234"). Only for a slow message, so the lookup cost is fine.
+function message_listeners(session::Session, data::AbstractDict)
+    get(data, "msg_type", "") == UpdateObservable || return ""
+    root = root_session(session)
+    entry = lock(root.deletion_lock) do
+        get(session.session_objects, data["id"], get(root.session_objects, data["id"], nothing))
+    end
+    obs = entry isa CachedEntry ? entry.object : entry
+    obs isa Observables.AbstractObservable || return ""
+    sites = String[]
+    for (_, f) in Observables.listeners(obs)
+        for m in methods(f)
+            push!(sites, string(basename(string(m.file)), ":", m.line))
+        end
+    end
+    return join(unique!(sites), ", ")
 end
 
 # Decoded-frame entry point. Split out from the bytes path so a proxied worker

@@ -194,3 +194,23 @@ end
     end
     @test n_warn == 0
 end
+
+# A page's messages are handled one after another, so one the server takes long
+# on holds up everything the page sends after it, its pings included: the page
+# looks frozen while every other page carries on. It is logged with the code
+# that ran.
+@testset "a message the server takes long on is logged with what ran" begin
+    session = fresh_offline_session()
+    obs = Observable(0)
+    add_cached!(() -> nothing, session, Dict{String,Any}(), obs)
+    on(session, obs) do _v
+        sleep(0.6)
+    end
+    logs, _ = Test.collect_test_logs(() -> process_message(session, update_message_bytes(obs.id, 1)))
+    kw = Dict(only(l for l in logs if occursin("slow message", l.message)).kwargs)
+    @test kw[:type] == "UpdateObservable" && kw[:id] == obs.id && kw[:seconds] >= 0.6
+    @test occursin("key_not_found_race.jl", kw[:listeners])
+    fast, _ = Test.collect_test_logs(() -> process_message(session, update_message_bytes(obs.id, 2); slow = 5.0))
+    @test !any(l -> occursin("slow message", l.message), fast)
+    close(session)
+end

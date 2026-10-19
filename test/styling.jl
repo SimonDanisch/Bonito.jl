@@ -85,6 +85,30 @@ end
     @test align_content(Row(DOM.div("a"), DOM.div("b"))) == "normal"
 end
 
+@testset "declarations keep the order they were given" begin
+    # A later declaration overrides an earlier one, so the order is part of the
+    # rule. A Dict wrote `border` after `border-top-color` (hash order), and every
+    # spinner built that way showed a still grey ring instead of its accent arc.
+    css = CSS(".spin", "border" => "2px solid grey", "border-top-color" => "blue")
+    text = sprint(show, css)
+    @test findfirst("border:", text).start < findfirst("border-top-color:", text).start
+    @test collect(keys(css.attributes)) == ["border", "border-top-color"]
+    @test css != CSS(".spin", "border-top-color" => "blue", "border" => "2px solid grey")
+    # Given again, a declaration moves last and overrides everything before it.
+    again = CSS(".x", "border" => "1px", "border-top-color" => "blue", "border" => "2px")
+    @test collect(keys(again.attributes)) == ["border-top-color", "border"]
+    @test again.attributes["border"] == "2px"
+    # Merged, the second rule comes after the first.
+    m = merge(CSS(".x", "border" => "1px", "border-top-color" => "blue"), CSS(".x", "border" => "2px"))
+    @test collect(keys(m.attributes)) == ["border-top-color", "border"]
+    @test m.attributes["border"] == "2px"
+    # Nested rules keep theirs too: in a media query the later rule wins.
+    media = CSS("@media (max-width: 480px)", CSS(".b", "color" => "red"), CSS(".a", "color" => "blue"))
+    @test collect(keys(media.attributes)) == [".b", ".a"]
+    # A mapping with no order of its own is taken sorted: equal content, same rule.
+    @test CSS(".x", Dict("b" => "1", "a" => "2")) == CSS(".x", "a" => "2", "b" => "1")
+end
+
 @testset "merge & hash" begin
     css1 = CSS(
         "border" => "1px solid black",

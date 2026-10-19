@@ -37,13 +37,30 @@ function tombstone_session(session_id) {
 // Even though a moment later after initialization of session1, `is_still_referenced(object-x)` will return true and object won't get deleted.
 const OBJECT_FREEING_LOCK = new PQueue({ concurrency: 1 });
 
-export function lock_loading(f) {
+// Everything the server sends waits behind the task holding the lock, its
+// pings included: a page that looks frozen while the server is fine is waiting
+// here. Past this long, the page says what it waits for (the console, as info:
+// a refused payload waits for a login on purpose).
+const SLOW_LOCK_MS = 3000;
+
+export function lock_loading(f, what = "a task") {
     // J6: PQueue.add() returns a promise that rejects if the task throws.
     // Discarding it turned any throw inside a locked task into an unhandled
     // rejection (message silently dropped, send_error never called). Attach a
     // catch that surfaces the error with context. Callers that need their own
     // handling still attach a .catch inside `f` (those resolve here normally).
-    OBJECT_FREEING_LOCK.add(f).catch((error) => {
+    OBJECT_FREEING_LOCK.add(() => {
+        const started = Date.now();
+        const watch = setTimeout(() => console.info(
+            `Bonito: everything from the server waits for ${what} (${SLOW_LOCK_MS / 1000} s so far)`), SLOW_LOCK_MS);
+        return Promise.resolve().then(f).finally(() => {
+            clearTimeout(watch);
+            const took = Date.now() - started;
+            if (took >= SLOW_LOCK_MS) {
+                console.info(`Bonito: ${what} held everything from the server for ${(took / 1000).toFixed(1)} s`);
+            }
+        });
+    }).catch((error) => {
         send_error("Error inside object-freeing-locked task", error);
     });
 }
@@ -329,7 +346,7 @@ export function init_session(session_id, message_promise, session_status, compre
             // and does not throw (J10).
             init_session_from_msgs(session_id, messages);
         });
-    });
+    }, `the content of sub-page ${session_id}`);
 }
 
 /*
@@ -388,7 +405,7 @@ export function free_session(session_id) {
         INITIALIZED_SESSIONS.delete(session_id);
         tracked_objects.forEach(free_object);
         tracked_objects.clear();
-    });
+    }, `freeing sub-page ${session_id}`);
 }
 
 // Teardown for what a session's code built and Bonito does not track (an
@@ -505,7 +522,7 @@ export function update_session_dom(message) {
             }
             update_or_replace(dom, html, replace);
             init_session_from_msgs(session_id, messages);
-        });
+        }, `showing sub-page ${session_id}`);
     }).catch((error) => {
         send_done_loading(session_id, error);
     });

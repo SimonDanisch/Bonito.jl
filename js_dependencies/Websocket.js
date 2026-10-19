@@ -177,7 +177,7 @@ class Websocket {
                                 Bonito.notify_data_transfer(false);
                             }
                         });
-                });
+                }, `a message of ${binary.length} bytes`);
             };
         };
 

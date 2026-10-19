@@ -10,7 +10,9 @@ All notable changes to Bonito.jl are documented here. The format is based on [Ke
 - `Bonito.Sessions.on_free(session_id, f)` (JS): runs `f` once when the session is freed, for what a session's code built that Bonito does not track (an editor, a WebGL context). JS `Observable.off(callback)` removes a listener `on` added.
 - `Bonito.on_refused(handler)` (JS): called when the server turns a payload request away (a redirect to a login page, 401, 403). The payload is fetched again once the promise `handler` returns resolves, so an app can wait for its login to come back.
 - `Server(...; gate)`: a gate every request passes before any route, websocket upgrades included (`HTTPServer.gate_request`), and every response after it (`HTTPServer.gate_response`). A login check there covers every route, including the asset and websocket routes Bonito registers itself.
+- A message from a page that the server takes half a second or more to handle is logged with its type, the page and, for an observable update, where its listeners are defined. A page's messages are handled one after another, so such a message holds up everything after it, the page's pings included.
 
+### Fixed
 ### Fixed
 
 - A browser that stops reading its websocket (a frozen phone tab) no longer stalls every websocket upgrade on the server: `isopen` no longer waits on the lock a blocked send holds, which the session cleanup did while holding the route table.
@@ -27,6 +29,7 @@ All notable changes to Bonito.jl are documented here. The format is based on [Ke
 - A dropped websocket no longer logs a console error; its close code is logged instead.
 - A payload request the server turned away no longer hands the login page it was redirected to to the decoder ("Extra N byte(s) found at buffer[1]"). It fails with "turned away by the server", or waits for `on_refused`.
 - Generated CSS classes are named by the rule they carry, so two sessions on one page (a proxied worker app, several apps in a notebook) no longer give one class name two different rules.
+- `CSS` keeps its declarations in the order given, and so does `merge` (the second rule's declarations come last). A `Dict` wrote them in hash order, so a rule like `"border" => ..., "border-top-color" => ...` could come out with the shorthand last, and a spinner built that way showed a still grey ring. Nested rules keep their order too. A `CSS` built from a plain `Dict` is taken in sorted order.
 
 ## [5.0.0]
 
