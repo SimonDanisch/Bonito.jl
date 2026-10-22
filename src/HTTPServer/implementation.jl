@@ -160,7 +160,10 @@ function linkify_stacktrace(error_msg, bt::String)
     end
     return DOM.pre(
         DOM.h3(error_msg; style="color: red;"),
-        elements...;
+        # Children are flattened by Hyperscript. Splatting instead makes each
+        # stack length a different call signature and can spend seconds in JIT
+        # compilation while every other request on this thread waits.
+        elements;
         class="backtrace",
         style="overflow-x: auto;",
     )

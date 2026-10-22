@@ -65,12 +65,28 @@ function update_nocycle!(obs::Observable, @nospecialize(value), origin::Union{Se
             # the other sessions' updaters relay the new value onward.
             origin === nothing && continue
             f.session === origin && continue
+        end
+        started = time_ns()
+        try
             Base.invokelatest(f, value)
-        else
-            Base.invokelatest(f, value)
+        finally
+            took = (time_ns() - started) / 1e9
+            if took >= 0.5
+                Base.invokelatest(log_slow_listener, origin, obs.id, f, took)
+            end
         end
     end
     return
+end
+
+# Keep source lookup and logging off the normal update's inference path. The
+# whole-message warning lists every listener; this identifies the slow one.
+function log_slow_listener(origin, id, @nospecialize(listener), seconds)
+    sites = join(unique(string(basename(string(m.file)), ":", m.line)
+                        for m in methods(listener)), ", ")
+    page = origin === nothing ? "" : first(root_session(origin).id, 8)
+    @warn "slow observable listener" page id seconds = round(seconds; digits = 3) listener = sites
+    return nothing
 end
 
 # on & map versions that deregister when session closes!

@@ -81,9 +81,18 @@ function handle_render_error(f, session::Session)
         return f()
     catch err
         bt = Base.catch_backtrace()
+        started = time_ns()
         @error "Error rendering app" exception = (err, bt)
+        logged = time_ns()
         record_session_error!(session, err)
-        return HTTPServer.err_to_html(err, bt)
+        recorded = time_ns()
+        dom = HTTPServer.err_to_html(err, bt)
+        finished = time_ns()
+        if finished - started >= 500_000_000
+            # Report error recovery separately from the render that failed.
+            @warn "slow render-error recovery" page = first(root_session(session).id, 8) logging_seconds = (logged - started) / 1e9 recording_seconds = (recorded - logged) / 1e9 html_seconds = (finished - recorded) / 1e9
+        end
+        return dom
     end
 end
 
