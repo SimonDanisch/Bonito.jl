@@ -328,11 +328,15 @@ function stream_handler(application::Server, stream::Stream)
             # binary payloads (WGLMakie meshes, images, volumes; the typed-array
             # serialization tests) over this socket from a trusted local browser
             # (Electron / notebook / VSCode webview), so lift both caps back to
-            # unbounded.
+            # unbounded. HTTP 2.12 also closes a socket (1008, "too many unread
+            # messages") once its unread messages pass `4 * maxframesize`, and
+            # multiplies without an overflow check: `typemax(Int)` made that -4,
+            # so every socket closed on its first message. A quarter of
+            # `typemax(Int)` keeps both limits out of reach.
             HTTP.WebSockets.upgrade(
                 stream;
                 check_origin = (_...) -> true,
-                maxframesize = typemax(Int),
+                maxframesize = typemax(Int) ÷ 4,
                 maxfragmentation = typemax(Int),
             ) do ws
                 response = delegate(application.websocket_routes, application, stream.message, ws; peer_ip = peer)

@@ -135,6 +135,27 @@ end
 Bonito.HTTPServer.gate_response(::KeyGate, request, response) =
     (HTTP.setheader(response, "X-Gated" => "yes"); response)
 
+# A socket takes what a browser sends it, however large: Bonito lifts HTTP's
+# 16 MiB message cap. Under HTTP 2.12 the lifted cap of `typemax(Int)` overflowed
+# its unread-message bound and closed every socket on its first message.
+@testset "a websocket route takes any message" begin
+    server = Server("127.0.0.1", 0)
+    try
+        Bonito.HTTPServer.websocket_route!(server, "/echo" => (ctx, ws) -> foreach(m -> HTTP.WebSockets.send(ws, m), ws))
+        big = rand(UInt8, 20 * 1024 * 1024)
+        echoed = HTTP.WebSockets.open("ws://127.0.0.1:$(server.port)/echo"; maxframesize = 2 * length(big)) do ws
+            HTTP.WebSockets.send(ws, "hi")
+            small = HTTP.WebSockets.receive(ws)
+            HTTP.WebSockets.send(ws, big)
+            (small, HTTP.WebSockets.receive(ws))
+        end
+        @test echoed[1] == "hi"
+        @test echoed[2] == big
+    finally
+        close(server)
+    end
+end
+
 @testset "gate" begin
     server = Server("127.0.0.1", 0; gate = KeyGate("sesame"))
     url = "http://127.0.0.1:$(server.port)"
