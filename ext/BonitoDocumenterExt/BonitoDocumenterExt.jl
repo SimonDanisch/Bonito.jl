@@ -44,6 +44,7 @@ Base.@kwdef struct BonitoFormat <: Documenter.Writer
     # subfolder is one post (`post.xml` + `post.md` + `images/`). `nothing`
     # disables the blog. See `blog.jl`.
     blog::Union{Nothing, String} = nothing
+    assets::Vector{String}=[""]
 end
 
 Bonito.DocumenterBonito(; kwargs...) = BonitoFormat(; kwargs...)
