@@ -89,29 +89,36 @@ function log_slow_listener(origin, id, @nospecialize(listener), seconds)
     return nothing
 end
 
+# Observables keeps an Observable's listeners in a plain Vector. An Observable
+# that outlives one session (a component's state, a chat shared by every tab)
+# gets listeners added by one session's render while another session's `free`
+# removes its own, on other threads, and the Vector breaks: "Vector can not be
+# resized concurrently", or an `UndefRefError` and leaked listeners. Every
+# listener a Session adds or removes goes through this one lock. Callbacks never
+# run under it.
+const LISTENER_LOCK = ReentrantLock()
+
 # on & map versions that deregister when session closes!
 function Observables.on(f, session::Session, observable::Observable; update=false)
-    to_deregister = on(f, observable; update=update)
-    # If the session already closed (a late render task running after
-    # `free(session)` emptied `deregister_callbacks`), nothing will ever
-    # deregister this listener — it would leak permanently and keep firing
-    # into a dead session. Deregister immediately instead.
-    if isclosed(session)
-        off(to_deregister)
-        return to_deregister
+    to_deregister = lock(LISTENER_LOCK) do
+        o = on(f, observable)
+        # If the session already closed (a late render task running after
+        # `free(session)` emptied `deregister_callbacks`), nothing will ever
+        # deregister this listener — it would leak permanently and keep firing
+        # into a dead session. Deregister immediately instead.
+        isclosed(session) ? off(o) : push!(session.deregister_callbacks, o)
+        o
     end
-    push!(session.deregister_callbacks, to_deregister)
+    update && f(observable[])
     return to_deregister
 end
 
 function Observables.onany(f, session::Session, observables::Observable...)
-    to_deregister = onany(f, observables...)
-    if isclosed(session)
-        foreach(off, to_deregister)
-        return to_deregister
+    return lock(LISTENER_LOCK) do
+        to_deregister = onany(f, observables...)
+        isclosed(session) ? foreach(off, to_deregister) : append!(session.deregister_callbacks, to_deregister)
+        to_deregister
     end
-    append!(session.deregister_callbacks, to_deregister)
-    return to_deregister
 end
 
 @inline function Base.map!(@nospecialize(f), session::Session, result::AbstractObservable, os...; update::Bool=true)

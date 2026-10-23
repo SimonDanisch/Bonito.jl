@@ -40,4 +40,25 @@ Bonito.set_cleanup_time!(0.0)
     @test success == :success
     close(server)
 end
+
+# An Observable can outlive the sessions that render it (a component's state, a
+# chat every tab shows): one session adds listeners on one thread while another
+# session's `free` removes its own on another. Observables keeps them in a plain
+# Vector, which broke under that ("Vector can not be resized concurrently", or an
+# `UndefRefError` and leaked listeners) until `LISTENER_LOCK`; a sidebar render
+# in BonitoAgents' CI died of it. With the old code every run of this failed.
+@testset "sessions add and remove listeners of one Observable on many threads" begin
+    shared = Observable(0)
+    tasks = map(1:max(4, Threads.nthreads())) do _
+        Threads.@spawn for _ in 1:500
+            s = Session()
+            map(x -> x + 1, s, shared)
+            on(identity, s, shared)
+            close(s)
+        end
+    end
+    foreach(wait, tasks)        # a task that threw rethrows here
+    @test isempty(shared.listeners)
+end
+
 Bonito.set_cleanup_time!(30/60/60)

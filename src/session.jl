@@ -196,16 +196,21 @@ function free(session::Session)
         empty!(session.session_objects)
         empty!(session.on_document_load)
         empty!(session.message_queue)
-        # remove all listeners that where created for this session
-        foreach(off, session.deregister_callbacks)
-        empty!(session.deregister_callbacks)
+        # Remove all listeners that were created for this session, and close it
+        # in the same step (`LISTENER_LOCK`): a render adding a listener on
+        # another thread either lands before and is removed here, or finds the
+        # session closed and removes its own.
+        lock(LISTENER_LOCK) do
+            foreach(off, session.deregister_callbacks)
+            empty!(session.deregister_callbacks)
+            session.status = CLOSED
+        end
         # Asset/CSS bookkeeping that accumulated across this session's lifetime.
         # The WGLMakie memory-leak test asserts these are empty after close;
         # historically they leaked because nothing emptied them on the close path.
         empty!(session.imports)
         empty!(session.global_stylesheets)
         empty!(session.stylesheets)
-        session.status = CLOSED
     end
     return
 end
@@ -224,8 +229,10 @@ function Base.empty!(session::Session)
         empty!(session.session_objects)
         empty!(session.on_document_load)
         empty!(session.message_queue)
-        foreach(off, session.deregister_callbacks)
-        empty!(session.deregister_callbacks)
+        lock(LISTENER_LOCK) do
+            foreach(off, session.deregister_callbacks)
+            empty!(session.deregister_callbacks)
+        end
         empty!(session.imports)
         empty!(session.global_stylesheets)
         empty!(session.stylesheets)
