@@ -10,6 +10,9 @@ class Websocket {
     #retry_timeout_id = null;
     #expired = false; // the server closed with 4404/4409: only a reload helps
     #last_rx = 0; // time of the last message, to spot a dead socket that reads OPEN
+    #dialed_at = 0; // when the current socket was created
+    #quiet = false; // given up: trying on in the background, the page says "disconnected"
+    #quiet_timer = null;
 
     url = "";
     compression_enabled = false;
@@ -46,6 +49,7 @@ class Websocket {
             return;
         }
 
+        this.#stop_keep_trying();
         this.#cleanup_websocket(); // Clean up existing websocket
         this.#is_retrying = true;
 
@@ -73,6 +77,7 @@ class Websocket {
             self.#cleanup_websocket();
             self.#is_retrying = false; // Reset flag
             Bonito.on_connection_close();
+            self.#keep_trying();
         }
 
         function attempt_connection() {
@@ -99,8 +104,16 @@ class Websocket {
                 // If the websocket is closed, try to reconnect
                 self.tryconnect();
             } else if (self.#websocket.readyState === WebSocket.CONNECTING) {
-                // If it's still connecting, just wait
-                console.log("WebSocket is still connecting...");
+                if (self.#stuck_connecting()) {
+                    // A phone dials while its network is still asleep, and that
+                    // socket stays CONNECTING for minutes while a new one
+                    // connects at once.
+                    console.log("WebSocket stuck connecting, dialing again");
+                    self.#cleanup_websocket();
+                    self.tryconnect();
+                } else {
+                    console.log("WebSocket is still connecting...");
+                }
             }
             // Only schedule next attempt if we haven't succeeded and have time left
             if (!self.isopen() && (Date.now() - start_time) < total_time_ms) {
@@ -122,18 +135,23 @@ class Websocket {
     }
 
     tryconnect() {
-        // Notify indicator that we're attempting to connect
-        if (typeof Bonito !== 'undefined' && Bonito.on_connection_connecting) {
+        // Notify indicator that we're attempting to connect. Not after giving
+        // up: the page goes on saying "disconnected" until an attempt succeeds.
+        if (!this.#quiet && typeof Bonito !== 'undefined' && Bonito.on_connection_connecting) {
             Bonito.on_connection_connecting();
         }
 
         const ws = new WebSocket(this.url);
         ws.binaryType = "arraybuffer";
         this.#websocket = ws;
+        this.#dialed_at = Date.now();
         const this_ws = this;
+        let opened = false;
 
         ws.onopen = function () {
             console.log("CONNECTED!!: ", this_ws.url);
+            opened = true;
+            this_ws.#stop_keep_trying();
             this_ws.#onopen_callbacks.forEach((f) => f());
 
             ws.onmessage = function (evt) {
@@ -189,10 +207,16 @@ class Websocket {
                 // 4409: a duplicated tab took the session over, don't take it back.
                 this_ws.#expired = true;
                 this_ws.#stop_retrying();
+                this_ws.#stop_keep_trying();
                 this_ws.#cleanup_websocket();
                 if (typeof Bonito !== 'undefined' && Bonito.on_connection_expired) {
                     Bonito.on_connection_expired();
                 }
+                return;
+            }
+            // A background attempt after giving up that did not get through:
+            // the next one is already scheduled (`keep_trying`).
+            if (this_ws.#quiet && !opened) {
                 return;
             }
             // J2: flip the connection status off "open" the instant the socket
@@ -269,8 +293,46 @@ class Websocket {
         }, timeout_ms);
     }
 
+    // After giving up: one more attempt every `interval_ms` while the page is
+    // shown, so a phone whose network came back late reconnects by itself
+    // instead of waiting for a reload. A hidden page waits for `on_visible`,
+    // which starts a full round again.
+    #keep_trying(interval_ms = 10000) {
+        this.#stop_keep_trying();
+        this.#quiet = true;
+        const attempt = () => {
+            if (this.#expired || this.#is_retrying || this.isopen()) {
+                return;
+            }
+            const ws = this.#websocket;
+            const connecting = ws && ws.readyState === WebSocket.CONNECTING;
+            if (document.visibilityState === "visible" && (!connecting || this.#stuck_connecting())) {
+                this.#cleanup_websocket();
+                this.tryconnect();
+            }
+            this.#quiet_timer = setTimeout(attempt, interval_ms);
+        };
+        this.#quiet_timer = setTimeout(attempt, interval_ms);
+    }
+
+    #stop_keep_trying() {
+        if (this.#quiet_timer) {
+            clearTimeout(this.#quiet_timer);
+            this.#quiet_timer = null;
+        }
+        this.#quiet = false;
+    }
+
+    // A socket still CONNECTING well past a handshake's time (a phone's network
+    // was asleep when it dialed).
+    #stuck_connecting(timeout_ms = 8000) {
+        const ws = this.#websocket;
+        return !!ws && ws.readyState === WebSocket.CONNECTING && Date.now() - this.#dialed_at > timeout_ms;
+    }
+
     #reconnect_now() {
         this.#stop_retrying();
+        this.#stop_keep_trying();
         this.#cleanup_websocket();
         if (typeof Bonito !== 'undefined' && Bonito.on_connection_connecting) {
             Bonito.on_connection_connecting();
@@ -396,6 +458,10 @@ export function setup_connection({
                 ws.on_visible();
             }
         });
+        // Chrome's page lifecycle: a frozen background tab is resumed, and a
+        // phone's network comes back, often after the page was shown already.
+        document.addEventListener("resume", () => ws.on_visible());
+        window.addEventListener("online", () => ws.on_visible());
         let first_open = true;
         ws.on_open(() => {
             Bonito.on_connection_open(

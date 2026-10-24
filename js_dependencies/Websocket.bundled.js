@@ -9,6 +9,9 @@ class Websocket {
     #retry_timeout_id = null;
     #expired = false;
     #last_rx = 0;
+    #dialed_at = 0;
+    #quiet = false;
+    #quiet_timer = null;
     url = "";
     compression_enabled = false;
     constructor(url, compression_enabled){
@@ -37,6 +40,7 @@ class Websocket {
         if (this.isopen()) {
             return;
         }
+        this.#stop_keep_trying();
         this.#cleanup_websocket();
         this.#is_retrying = true;
         if (this.#retry_timeout_id) {
@@ -58,6 +62,7 @@ class Websocket {
             self.#cleanup_websocket();
             self.#is_retrying = false;
             Bonito.on_connection_close();
+            self.#keep_trying();
         }
         function attempt_connection() {
             if (self.isopen()) {
@@ -81,7 +86,13 @@ class Websocket {
             } else if (self.#websocket.readyState === WebSocket.CLOSED) {
                 self.tryconnect();
             } else if (self.#websocket.readyState === WebSocket.CONNECTING) {
-                console.log("WebSocket is still connecting...");
+                if (self.#stuck_connecting()) {
+                    console.log("WebSocket stuck connecting, dialing again");
+                    self.#cleanup_websocket();
+                    self.tryconnect();
+                } else {
+                    console.log("WebSocket is still connecting...");
+                }
             }
             if (!self.isopen() && Date.now() - start_time < total_time_ms) {
                 console.log(`Waiting ${delay / 1000}s before retry...`);
@@ -94,15 +105,19 @@ class Websocket {
         attempt_connection();
     }
     tryconnect() {
-        if (typeof Bonito !== 'undefined' && Bonito.on_connection_connecting) {
+        if (!this.#quiet && typeof Bonito !== 'undefined' && Bonito.on_connection_connecting) {
             Bonito.on_connection_connecting();
         }
         const ws = new WebSocket(this.url);
         ws.binaryType = "arraybuffer";
         this.#websocket = ws;
+        this.#dialed_at = Date.now();
         const this_ws = this;
+        let opened = false;
         ws.onopen = function() {
             console.log("CONNECTED!!: ", this_ws.url);
+            opened = true;
+            this_ws.#stop_keep_trying();
             this_ws.#onopen_callbacks.forEach((f)=>f());
             ws.onmessage = function(evt) {
                 this_ws.#last_rx = Date.now();
@@ -133,10 +148,14 @@ class Websocket {
             if (evt.code === 4404 || evt.code === 4409) {
                 this_ws.#expired = true;
                 this_ws.#stop_retrying();
+                this_ws.#stop_keep_trying();
                 this_ws.#cleanup_websocket();
                 if (typeof Bonito !== 'undefined' && Bonito.on_connection_expired) {
                     Bonito.on_connection_expired();
                 }
+                return;
+            }
+            if (this_ws.#quiet && !opened) {
                 return;
             }
             if (typeof Bonito !== 'undefined' && Bonito.on_connection_connecting) {
@@ -191,8 +210,37 @@ class Websocket {
             }
         }, timeout_ms);
     }
+    #keep_trying(interval_ms = 10000) {
+        this.#stop_keep_trying();
+        this.#quiet = true;
+        const attempt = ()=>{
+            if (this.#expired || this.#is_retrying || this.isopen()) {
+                return;
+            }
+            const ws = this.#websocket;
+            const connecting = ws && ws.readyState === WebSocket.CONNECTING;
+            if (document.visibilityState === "visible" && (!connecting || this.#stuck_connecting())) {
+                this.#cleanup_websocket();
+                this.tryconnect();
+            }
+            this.#quiet_timer = setTimeout(attempt, interval_ms);
+        };
+        this.#quiet_timer = setTimeout(attempt, interval_ms);
+    }
+    #stop_keep_trying() {
+        if (this.#quiet_timer) {
+            clearTimeout(this.#quiet_timer);
+            this.#quiet_timer = null;
+        }
+        this.#quiet = false;
+    }
+    #stuck_connecting(timeout_ms = 8000) {
+        const ws = this.#websocket;
+        return !!ws && ws.readyState === WebSocket.CONNECTING && Date.now() - this.#dialed_at > timeout_ms;
+    }
     #reconnect_now() {
         this.#stop_retrying();
+        this.#stop_keep_trying();
         this.#cleanup_websocket();
         if (typeof Bonito !== 'undefined' && Bonito.on_connection_connecting) {
             Bonito.on_connection_connecting();
@@ -269,6 +317,8 @@ function setup_connection({ proxy_url , session_id , compression_enabled , query
                 ws.on_visible();
             }
         });
+        document.addEventListener("resume", ()=>ws.on_visible());
+        window.addEventListener("online", ()=>ws.on_visible());
         let first_open = true;
         ws.on_open(()=>{
             Bonito.on_connection_open((binary)=>ws.send(binary), compression_enabled);

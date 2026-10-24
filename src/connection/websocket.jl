@@ -45,11 +45,12 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
     try
         run_connection_loop(session, connection.handler, websocket)
     finally
-        # Only tear down if THIS loop's socket is still the handler's current
-        # one. A stale loop (old socket that finally died after the browser
-        # reconnected and installed a new socket) must NOT close the session
-        # now owned by the live socket.
-        if !is_current_socket(connection.handler, websocket)
+        # Only tear down if no newer socket took over. A stale loop (old socket
+        # that finally died after the browser reconnected and installed a new
+        # socket) must NOT close the session now owned by the live socket. A
+        # failed write leaves no socket at all: this loop is the page's last,
+        # and the session goes to the cleanup policy like any other drop.
+        if superseded(connection.handler, websocket)
             @debug("Stale ws loop for $(session.id) exiting; not tearing down")
         elseif allow_soft_close(CLEANUP_POLICY[])
             @debug("Soft closing: $(session.id)")
@@ -63,7 +64,7 @@ function (connection::WebSocketConnection)(context, websocket::WebSocket)
 end
 
 
-const SERVER_CLEANUP_TASKS = Dict{Server, Tuple{Task, Base.Threads.Atomic{Bool}}}()
+const SERVER_CLEANUP_TASKS = Dict{Server, Tuple{Task, Timer}}()
 # `get!`/`delete!` on SERVER_CLEANUP_TASKS run from render tasks (via
 # `setup_connection` → `add_cleanup_task!`) and from `close(server)`. The Dict
 # has no internal synchronization, so concurrent access races a rehash.
@@ -195,18 +196,28 @@ end
 function add_cleanup_task!(server::Server)
     lock(SERVER_CLEANUP_LOCK) do
         get!(SERVER_CLEANUP_TASKS, server) do
-            close_ref = Base.Threads.Atomic{Bool}(true)
-            task = @async while close_ref[]
-                try
-                    sleep(1)
-                    cleanup_server(server)
-                catch e
-                    if !(e isa EOFError)
+            # Own the timer so shutdown can close it, instead of leaving a
+            # sleep(1) armed when a precompile workload finishes (#430).
+            timer = Timer(1; interval = 1)
+            task = @async try
+                while isopen(timer)
+                    try
+                        wait(timer)
+                    catch e
+                        e isa EOFError || rethrow()
+                        break
+                    end
+                    isopen(timer) || break
+                    try
+                        cleanup_server(server)
+                    catch e
                         @warn "error while cleaning up server" exception=(e, Base.catch_backtrace())
                     end
                 end
+            finally
+                close(timer)
             end
-            return (task, close_ref)
+            return (task, timer)
         end
     end
 end
@@ -221,12 +232,15 @@ created. `close(server)` should call this. Idempotent / safe to call on a
 server that never had a cleanup task.
 """
 function stop_cleanup_task!(server::Server)
-    lock(SERVER_CLEANUP_LOCK) do
-        entry = get(SERVER_CLEANUP_TASKS, server, nothing)
-        entry === nothing && return
-        entry[2][] = false   # close_ref → task exits on next loop check
-        delete!(SERVER_CLEANUP_TASKS, server)
+    entry = lock(SERVER_CLEANUP_LOCK) do
+        pop!(SERVER_CLEANUP_TASKS, server, nothing)
     end
+    isnothing(entry) && return
+    task, timer = entry
+    close(timer)
+    # Cleanup can run user on_close callbacks that close this server. Never
+    # wait for ourselves, nor hold the registry lock while joining the task.
+    task === current_task() || wait(task)
     return
 end
 

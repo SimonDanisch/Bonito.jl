@@ -15,6 +15,9 @@ All notable changes to Bonito.jl are documented here. The format is based on [Ke
 ### Fixed
 ### Fixed
 
+- Server shutdown and precompile cleanup explicitly close and join the session cleanup timer, instead of leaving a sleeping task pending at process exit (#430).
+- Server-side DOM updates preserve a disconnected page's reconnect grace period instead of treating it as a page that never connected. A failed websocket write also leaves the session eligible for soft-close cleanup.
+- Mobile pages replace stalled websocket handshakes and keep retrying while visible after the initial retry window ends; network-online and page-resume events trigger recovery too.
 - A browser that stops reading its websocket (a frozen phone tab) no longer stalls every websocket upgrade on the server: `isopen` no longer waits on the lock a blocked send holds, which the session cleanup did while holding the route table.
 - A reconnect no longer waits for a send wedged on the dead connection it replaces: after 2 seconds that connection is ended and the message queued for replay. The replaced connection is closed.
 - A page whose session the server no longer has stops retrying instead of flapping between "connected" and "connecting": the server closes with 4404 and the page gets the new status `"expired"`.

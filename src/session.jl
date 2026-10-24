@@ -830,11 +830,18 @@ function push_dependencies!(childs, session::Session)
 end
 
 function mark_displayed!(session::Session)
-    # Don't overwrite a CLOSED session with DISPLAYED — `isclosed` would
-    # flip back to false on a freed session. Atomic with a concurrent close.
+    # Only HTML on its way to the browser becomes DISPLAYED, timed from then.
+    # A session the browser connected to (OPEN, or SOFT_CLOSED: waiting for its
+    # page to come back) keeps its status: a root back at DISPLAYED counts as a
+    # page that never connected, which the cleanup closes after
+    # `session_open_wait_time`, so a phone away for minutes lost its page at
+    # the next update the server sent it. A root already DISPLAYED keeps the
+    # time its HTML left: updates queued for a page that never connects don't
+    # keep it alive. CLOSED stays closed (`isclosed` would flip back to false on
+    # a freed session). Atomic with a concurrent close.
     root = root_session(session)
     lock(deletion_lock(root)) do
-        session.status === CLOSED && return
+        session.status in (UNINITIALIZED, RENDERED) || return
         # Freshly rendered HTML, which the browser loads and reports.
         if !isroot(session) && session.status === RENDERED
             expect_browser_load!(root, session)

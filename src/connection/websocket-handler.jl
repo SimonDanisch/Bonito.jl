@@ -106,6 +106,15 @@ function is_current_socket(handler::WebSocketHandler, websocket::WebSocket)
     end
 end
 
+# Whether the page dialed a newer socket than `websocket`. After a failed write
+# the handler holds none (`Base.write` drops it), and the loop of the socket
+# that failed is still the page's last. No lock: a write stuck on the newer
+# socket must not hold up the old loop's exit.
+function superseded(handler::WebSocketHandler, websocket::WebSocket)
+    current = @atomic handler.socket
+    return !isnothing(current) && current !== websocket
+end
+
 # Runs `f` holding the handler lock. A write to a peer that stopped reading (a
 # frozen phone tab) holds it until TCP gives up; after `grace` seconds we end
 # that socket's transport, so the write fails and its message is queued for replay.

@@ -266,9 +266,12 @@ end
     try
         add_cleanup_task!(srv)
         @test lock(() -> haskey(SERVER_CLEANUP_TASKS, srv), SERVER_CLEANUP_LOCK)
-        task, close_ref = lock(() -> SERVER_CLEANUP_TASKS[srv], SERVER_CLEANUP_LOCK)
+        task, timer = lock(() -> SERVER_CLEANUP_TASKS[srv], SERVER_CLEANUP_LOCK)
+        yield() # let the cleanup task enter its timer wait
         stop_cleanup_task!(srv)
-        @test close_ref[] == false      # signaled to stop
+        @test !isopen(timer)
+        @test istaskdone(task)
+        @test !istaskfailed(task)
         @test !lock(() -> haskey(SERVER_CLEANUP_TASKS, srv), SERVER_CLEANUP_LOCK)
         # idempotent
         stop_cleanup_task!(srv)
