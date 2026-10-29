@@ -21,6 +21,11 @@ mutable struct Server
     # Sees every request before any route and every response after it (see
     # `gate_request`); `nothing` lets everything through.
     gate::Any
+    # Per-request callback `(request::HTTP.Request, peer_ip::String) -> Any`,
+    # invoked once for every request (HTTP + WebSocket upgrade). Replaces the
+    # `access_log=`/`logfmt""` server hook that HTTP.jl 2.x removed. `nothing`
+    # disables logging.
+    access_log::Union{Nothing, Function}
 end
 
 Routes(pairs::Pair...) = Routes(Pair{Any, Any}[pairs...], Base.ReentrantLock())
@@ -312,6 +317,7 @@ end
 function stream_handler(application::Server, stream::Stream)
     peer = peer_ip(stream)
     gate = application.gate
+    application.access_log !== nothing && application.access_log(stream.message, peer)
     if HTTP.WebSockets.isupgrade(stream.message)
         refusal = ask_gate(gate, stream.message)
         refusal === nothing || return respond!(stream, refusal)
@@ -396,6 +402,7 @@ function Server(
         routes = Routes(),
         websocket_routes = Routes(),
         gate = nothing,
+        access_log = nothing,
         listener_kw...
     )
     server = Server(
@@ -405,6 +412,7 @@ function Server(
         websocket_routes,
         haskey(listener_kw, :sslconfig) ? "https://" : "http://",
         gate,
+        access_log,
     )
 
     try
