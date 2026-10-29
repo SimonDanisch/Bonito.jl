@@ -50,7 +50,7 @@ end
     sdom = Bonito.session_dom(session, dom; init=false) # Init false to not inline messages
     msg = Bonito.fused_messages!(session)
     data = Bonito.SerializedMessage(session, msg)
-    decoded = msg[:payload][1]
+    decoded = only(m for m in msg[:payload] if m.data["msg_type"] == Bonito.OnjsCallback)
     mapped = obs1.listeners[1][2].result # we map(render, obs1) when rendering attributes, so only that will be in the session
     @test haskey(session.session_objects, mapped.id)
     # Obs registered correctly

@@ -1,15 +1,32 @@
 using Bonito, WGLMakie, Test
 using WGLMakie: Makie
 import ElectronCall
-const ECT = ElectronCall.Testing
+
+browser_js(ctx, code) = ElectronCall.run(ctx.window, code)
+wait_js(ctx, code; timeout = 10.0) =
+    Bonito.wait_for(() -> browser_js(ctx, code) === true; timeout) === :success
+
+function screenshot(ctx; path)
+    image = ElectronCall.run(ctx.app, """
+        (async () => {
+            const win = electron.BrowserWindow.fromId($(ctx.window.id));
+            return (await win.webContents.capturePage()).toPNG().toString('base64');
+        })()
+    """)
+    write(path, Bonito.Base64.base64decode(image))
+    return path
+end
 
 function with_browser(f, app)
     server = Bonito.Server("127.0.0.1", 0)
     try
         Bonito.route!(server, "/" => app)
-        ECT.open_window(; security = Bonito.HTTPServer.default_security_config(),
-                        electron_args = [Bonito.HTTPServer.default_electron_args();
-                                         "--use-angle=swiftshader"; "--enable-unsafe-swiftshader"]) do ctx
+        window = Bonito.EWindow(; options = Dict{String, Any}("show" => false,
+            "webPreferences" => Dict("backgroundThrottling" => false)),
+            electron_args = [Bonito.HTTPServer.default_electron_args();
+                             "--use-angle=swiftshader"; "--enable-unsafe-swiftshader"])
+        ctx = (app = window.app, window = window.window)
+        try
             ElectronCall.run(ctx.app, """(() => {
                 const wc = electron.BrowserWindow.fromId($(ctx.window.id)).webContents;
                 wc.testErrors = [];
@@ -19,7 +36,7 @@ function with_browser(f, app)
                 return true;
             })()""")
             ElectronCall.load(ctx.window, Bonito.HTTPServer.URI("http://127.0.0.1:$(server.port)"))
-            @test ECT.wait_for(ctx, "typeof Bonito !== 'undefined'"; timeout = 60.0)
+            @test wait_js(ctx, "typeof Bonito !== 'undefined'"; timeout = 60.0)
             try
                 f(ctx)
             finally
@@ -27,6 +44,9 @@ function with_browser(f, app)
                     "electron.BrowserWindow.fromId($(ctx.window.id)).webContents.testErrors")
                 @test isempty(errors)
             end
+        finally
+            close(window)
+            close(window.app)
         end
     finally
         close(server)
@@ -60,12 +80,12 @@ end
                     DOM.span(clicked; id = "clicked"), fig)
             end
             with_browser(app) do ctx
-                @test ECT.wait_for(ctx, "document.querySelector('canvas')?.width > 0"; timeout = 60.0)
+                @test wait_js(ctx, "document.querySelector('canvas')?.width > 0"; timeout = 60.0)
                 before = Makie.colorbuffer(fig)
                 @test size(before) == (360, 480)
                 @test length(unique(before)) > 10
-                ECT.dom_click(ctx, "#move")
-                @test ECT.wait_for(ctx, "document.querySelector('#clicked')?.textContent === '1'"; timeout = 10.0)
+                browser_js(ctx, "document.querySelector('#move').click()")
+                @test wait_js(ctx, "document.querySelector('#clicked')?.textContent === '1'"; timeout = 10.0)
                 moved = Makie.colorbuffer(fig)
                 @test count(before .!= moved) > 100
                 line = lines!(ax, Point2f[(0, 0), (2, 2)]; color = :blue, linewidth = 8)
@@ -75,8 +95,26 @@ end
                 delete!(ax, line)
                 restored = Makie.colorbuffer(fig)
                 @test count(restored .!= moved) < changed ÷ 10
-                ECT.screenshot(ctx; path = joinpath(tempdir(), "bonito-wglmakie-$compressed.png"))
+                screenshot(ctx; path = joinpath(tempdir(), "bonito-wglmakie-$compressed.png"))
             end
+        end
+    end
+
+    @testset "3D geometry, volume and image textures" begin
+        fig = Figure(size = (800, 360))
+        xs = range(-1f0, 1f0; length = 12)
+        surface!(Axis3(fig[1, 1]), xs, xs, [x^2 - y^2 for x in xs, y in xs])
+        volume!(Axis3(fig[1, 2]), reshape(collect(range(0f0, 1f0; length = 216)), 6, 6, 6);
+                algorithm = :mip)
+        pixels = Observable(fill(RGBAf(1, 0, 0, 1), 16, 16))
+        image!(Axis(fig[1, 3]), pixels)
+        with_browser(App(fig)) do ctx
+            @assert wait_js(ctx, "document.querySelector('canvas')?.width > 0"; timeout = 60.0)
+            before = Makie.colorbuffer(fig)
+            @test length(unique(before)) > 100
+            pixels[] = fill(RGBAf(0, 0, 1, 1), 16, 16)
+            @test count(before .!= Makie.colorbuffer(fig)) > 100
+            screenshot(ctx; path = joinpath(tempdir(), "bonito-wglmakie-3d.png"))
         end
     end
 
@@ -92,10 +130,10 @@ end
             @test count(before .!= Makie.colorbuffer(fig)) > 100
             second, _, _ = example_plot()
             deferred[] = second
-            @assert ECT.wait_for(ctx, "document.querySelectorAll('canvas').length === 2"; timeout = 30.0)
+            @assert wait_js(ctx, "document.querySelectorAll('canvas').length === 2"; timeout = 30.0)
             @test length(unique(Makie.colorbuffer(second))) > 10
             deferred[] = DOM.div()
-            @test ECT.wait_for(ctx, "document.querySelectorAll('canvas').length === 1"; timeout = 30.0)
+            @test wait_js(ctx, "document.querySelectorAll('canvas').length === 1"; timeout = 30.0)
         end
     end
 
@@ -106,9 +144,9 @@ end
             path = joinpath(dir, "plots.html")
             Bonito.export_static(path, App(DOM.div(first, second)))
             with_browser(_ -> Bonito.HTTP.Response(200, ["Content-Type" => "text/html"], read(path))) do ctx
-                @test ECT.wait_for(ctx, "document.querySelectorAll('canvas').length === 2 && " *
+                @test wait_js(ctx, "document.querySelectorAll('canvas').length === 2 && " *
                     "[...document.querySelectorAll('canvas')].every(c => c.width > 0)"; timeout = 60.0)
-                image = ECT.screenshot(ctx; path = joinpath(tempdir(), "bonito-wglmakie-offline.png"))
+                image = screenshot(ctx; path = joinpath(tempdir(), "bonito-wglmakie-offline.png"))
                 @test length(unique(WGLMakie.PNGFiles.load(image))) > 10
             end
         end

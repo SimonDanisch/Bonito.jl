@@ -22,6 +22,17 @@ end
 # normal reconnect/queue-replay path runs.
 Base.isopen(ws::DualWebsocket) = isopen(ws.low_latency) && isopen(ws.large_data)
 
+# JSDoneLoading can arrive over the first socket before the second opens.
+# Wait outside the session lock so its queued updates remain writable.
+function init_session(session::Session{DualWebsocket})
+    status = wait_for(; timeout = 30) do
+        isclosed(session) && return :closed
+        isopen(session.connection)
+    end
+    status === :success || return
+    return invoke(init_session, Tuple{Session}, session)
+end
+
 function Base.write(ws::DualWebsocket, binary::AbstractVector{UInt8})
     write(ws.low_latency, binary)
 end

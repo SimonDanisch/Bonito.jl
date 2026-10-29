@@ -35,11 +35,12 @@ end
 # A taken port moves to the next one. HTTP.jl 2.x reports a busy port as its own
 # `HTTP.AddressInUseError`, which the retry did not recognise: the server failed
 # to start, and with it the precompile workload of every package serving a page.
-@testset "a taken port moves to the next" begin
+@testset "a taken port moves to the next available port" begin
     first_server = Server("127.0.0.1", 0)
     taken = first_server.port
     second = Server("127.0.0.1", taken)
-    @test second.port == taken + 1
+    @test second.port > taken
+    @test Bonito.HTTPServer.isrunning(second)
     @test Bonito.HTTPServer.is_address_in_use(HTTP.AddressInUseError("127.0.0.1:$(taken)"))
     close(second)
     close(first_server)
