@@ -43,18 +43,8 @@ const {
     lookup_node,
 } = Sessions;
 
-// Update one attribute of a node from an Observable.
-//
-// Most attributes are reached through their reflecting IDL property, which is
-// what makes `value`, `checked` and friends behave: assigning the property is
-// the only way to move the LIVE state rather than just the initial-value
-// attribute. But an attribute with NO reflecting property — `data-*`, `aria-*`,
-// `for` (it is `htmlFor`), any hyphenated custom attribute — takes that
-// assignment on an expando instead, so the real attribute keeps its initial
-// value and never changes again. Silently: the expando is invisible to CSS
-// selectors, to `element.dataset`, and to `getAttribute`, and an Observable
-// CHILD of the same node keeps updating perfectly, so it reads as a styling bug
-// rather than a binding one. `attribute in node` is the discriminator.
+// Reflected properties update live input state (`value`, `checked`). Other
+// attributes (`data-*`, `aria-*`, `for`) need setAttribute, not an expando.
 function update_node_attribute(node, attribute, value) {
     if (node) {
         if (attribute === "class") {

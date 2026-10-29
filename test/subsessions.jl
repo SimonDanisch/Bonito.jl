@@ -1,3 +1,37 @@
+@testset "proxied content shares the host runtime across hostname aliases" begin
+    host_value = Observable(0)
+    remote_value = Observable(0)
+    app = App() do host
+        on(host, remote_value) do value
+            host_value[] = value + 1
+        end
+        remote = App() do _
+            DOM.button("remote"; id = "proxy-button",
+                onclick = js"() => $(remote_value).notify(1)")
+        end
+        DOM.div(DOM.span(host_value; id = "host-value"), Bonito.embed_app(host, remote))
+    end
+    server = Server(app, "127.0.0.1", 0)
+    window = TestWindow(URI("http://127.0.0.1:$(server.port)"))
+    try
+        @test Bonito.wait_for(; timeout = 10) do
+            run(window, "document.querySelector('#proxy-button') !== null")
+        end == :success
+        @test run(window, "[...document.scripts].filter(s => s.src.includes('/assets/') && s.src.includes('-Bonito.bundled.js')).length") == 1
+        host_value[] = 1
+        @test Bonito.wait_for(; timeout = 10) do
+            run(window, "document.querySelector('#host-value')?.textContent === '1'")
+        end == :success
+        run(window, "document.querySelector('#proxy-button').click()")
+        @test Bonito.wait_for(; timeout = 10) do
+            run(window, "document.querySelector('#host-value')?.textContent === '2'")
+        end == :success
+    finally
+        close(window)
+        close(server)
+    end
+end
+
 @testset "Observable + Session cleanup (parent-owned)" begin
     # When an Observable is interpolated DIRECTLY by the App's session (not
     # only by inner sub-sessions that `jsrender`'s `Observable` overload

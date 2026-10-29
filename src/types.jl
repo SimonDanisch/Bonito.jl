@@ -357,14 +357,8 @@ function ConnectionIndicator(;
     )
 end
 
-# A subsession whose DOM went to the browser, which has not reported it loaded
-# (its `JSDoneLoading`, success or failure) yet. Until it does, it may still
-# fetch the sub's assets, first of all its init payload, which it only requests
-# once it gets to the sub. Closing the asset server in that window answers those
-# fetches with a 404 for a session that, from the browser's side, is still
-# loading: an Observable updated three times in quick succession closes its
-# first render that early. So the asset server is closed by whichever comes
-# last, the session's close (`closed`) or the browser's report.
+# Keep a displayed sub's assets until both its close and the browser's
+# JSDoneLoading report. Replacing a still-loading sub must not 404 its payload.
 mutable struct BrowserLoad
     const asset_server::AbstractAssetServer
     const since::Float64

@@ -21,10 +21,7 @@ mutable struct Server
     # Sees every request before any route and every response after it (see
     # `gate_request`); `nothing` lets everything through.
     gate::Any
-    # Per-request callback `(request::HTTP.Request, peer_ip::String) -> Any`,
-    # invoked once for every request (HTTP + WebSocket upgrade). Replaces the
-    # `access_log=`/`logfmt""` server hook that HTTP.jl 2.x removed. `nothing`
-    # disables logging.
+    # Optional `(request, peer_ip)` callback, including WebSocket upgrades.
     access_log::Union{Nothing, Function}
 end
 

@@ -37,7 +37,7 @@ new_root() = Session(NoConnection(); asset_server=NoServer())
                  "/..%2f..%2fetc%2fpasswd")
         resp = serve(evil)
         @test resp.status in (403, 404)
-        @test !occursin("root:", String(copy(resp.body)))
+        @test !occursin("root:", String(resp.body))
     end
 
     # The in-folder secret IS still reachable by its own name (sanity: the guard

@@ -157,7 +157,10 @@ Bonito.HTTPServer.gate_response(::KeyGate, request, response) =
 end
 
 @testset "gate" begin
-    server = Server("127.0.0.1", 0; gate = KeyGate("sesame"))
+    logged = String[]
+    log_lock = ReentrantLock()
+    server = Server("127.0.0.1", 0; gate = KeyGate("sesame"),
+        access_log = (request, _) -> lock(() -> push!(logged, request.target), log_lock))
     url = "http://127.0.0.1:$(server.port)"
     try
         route!(server, "/who" => ctx -> HTTP.Response(200, HTTP.header(ctx.request, "X-Who", "nobody")))
@@ -183,6 +186,9 @@ end
             HTTP.WebSockets.receive(ws)
         end
         @test echoed == "hi"
+        @test lock(() -> count(==("/who"), logged), log_lock) == 3
+        @test lock(() -> count(==("/nothing-here"), logged), log_lock) == 1
+        @test lock(() -> count(==("/echo"), logged), log_lock) == 2
     finally
         close(server)
     end

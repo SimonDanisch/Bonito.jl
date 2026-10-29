@@ -884,6 +884,8 @@ function collect_session_objects!(session::Session, objects=Vector{Any}[])
 end
 
 
+setup_runtime(session::Session) = DOM.script(src=url(session, BonitoLib), type="module")
+
 function session_dom(session::Session, dom::Node; init=true, html_document=false, dom_id=isroot(session) ? "root" : "subsession-application-dom")
     lock(root_session(session).deletion_lock) do
         # the dom we can render may be anything between a
@@ -944,8 +946,6 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
             push!(children(head), session_style)
             append!(children(head), global_styles)
         end
-        # first render BonitoLib
-        Bonito_import = DOM.script(src=url(session, BonitoLib), type="module")
         init_server = setup_asset_server(session.asset_server)
         if !isnothing(init_server)
             pushfirst!(children(body), jsrender(session, init_server))
@@ -982,7 +982,8 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         push_dependencies!(children(head), session)
 
         if !issubsession
-            pushfirst!(children(head), Bonito_import)
+            runtime = setup_runtime(session)
+            isnothing(runtime) || pushfirst!(children(head), runtime)
         end
         session.status = RENDERED
         return dom

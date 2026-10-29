@@ -13,8 +13,10 @@ All notable changes to Bonito.jl are documented here. The format is based on [Ke
 - A message from a page that the server takes half a second or more to handle is logged with its type, the page and, for an observable update, where its listeners are defined. A page's messages are handled one after another, so such a message holds up everything after it, the page's pings included.
 
 ### Fixed
-### Fixed
 
+- Proxied apps reuse the host's Bonito runtime, so a relative asset URL or hostname alias cannot load a second runtime and leave the host unready.
+- The precompile serving workload waits for session readiness instead of assuming initialization finishes within 200 ms.
+- Pin the browser queue dependency so rebuilding bundles does not pick up incompatible upstream releases.
 - Server shutdown and precompile cleanup explicitly close and join the session cleanup timer, instead of leaving a sleeping task pending at process exit (#430).
 - Server-side DOM updates preserve a disconnected page's reconnect grace period instead of treating it as a page that never connected. A failed websocket write also leaves the session eligible for soft-close cleanup.
 - Mobile pages replace stalled websocket handshakes and keep retrying while visible after the initial retry window ends; network-online and page-resume events trigger recovery too.

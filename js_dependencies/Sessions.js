@@ -1,5 +1,5 @@
 import { decode_binary } from "./Protocol.js";
-import PQueue from "https://esm.sh/p-queue";
+import PQueue from "https://esm.sh/p-queue@9.3.5?target=es2022";
 
 import {
     send_close_session,
@@ -422,15 +422,8 @@ export function on_free(session_id, f) {
     else ON_FREE.set(session_id, [f]);
 }
 
-// The elements Bonito created from a session's serialized DOM, by their
-// `data-jscall-id`. Content is often mounted into a tree that is not in the
-// document: a virtual list keeps most rows off the page, a pane is detached
-// while hidden, an element waits to be inserted. A session starts
-// asynchronously, after its payload arrived, and by then its nodes may be out
-// of the document again. A document-only lookup then found nothing: onload code
-// threw on null and `on*` handlers were silently never attached, so the
-// content showed up later with dead buttons. Weak references, so the registry
-// never keeps a removed node alive.
+// Find serialized nodes even while their pane or row is detached. Weak
+// references let removed nodes be collected without breaking deferred onload.
 const CREATED_NODES = new Map();
 const CREATED_NODES_GC = new FinalizationRegistry((id) => {
     const ref = CREATED_NODES.get(id);

@@ -126,6 +126,10 @@ function render_proxied(app::App, prefix::AbstractString;
     return ProxyRender(session, html, init_url, String(prefix), compression)
 end
 
+# The host owns the runtime. A second import URL (relative versus absolute,
+# or another hostname) would reset its browser-side connection and caches.
+setup_runtime(::Session{<:ProxyConnection}) = nothing
+
 # ── Host side: route inbound browser frames for proxied (worker) sessions ───
 
 const REMOTE_ROUTES_KEY = :bonito_remote_routes
