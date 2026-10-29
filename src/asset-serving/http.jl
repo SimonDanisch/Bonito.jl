@@ -3,10 +3,8 @@ using .HTTPServer: has_route, get_route, route!
 # Every live registration of one served path, in registration order; the entry
 # is dropped when the last one goes. Mutated in place under `parent.lock`.
 #
-# Several holders can register the same path: the key is a content hash, so the
-# BYTES are identical, but a proxied `RemoteAsset` also carries the registering
-# worker's bridge driver. Serving the newest and falling back on release keeps
-# the path on a driver that is still alive.
+# File-backed keys identify paths, which several proxy drivers can register.
+# Serve the newest registration and fall back to a live one when it closes.
 struct AssetEntry
     assets::Vector{AbstractAsset}
 end
@@ -127,7 +125,7 @@ function Base.close(server::ChildAssetServer)
     end
 end
 
-# Caller must hold `parent.lock`. Registers `asset` under its content key
+# Caller must hold `parent.lock`. Registers `asset` under its asset key
 # (appending to the existing registrations if the path is already served),
 # records it on `child`, and returns the URL the browser should fetch.
 function register!(parent::HTTPAssetServer, child::ChildAssetServer, asset::AbstractAsset)

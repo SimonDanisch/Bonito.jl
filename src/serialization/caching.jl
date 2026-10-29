@@ -55,17 +55,9 @@ end
 object_identity(obs::Observable) = obs.id
 object_identity(obj::Any) = string(hash(obj))
 
-# The browser keys every cached object (observables, assets) in ONE global cache
-# shared across all sessions on the page. Observable ids are a process-global
-# counter (`Observables.OBSID_COUNTER`), so two Julia processes both start at
-# 1,2,3… — fine for one server, a guaranteed collision once a *proxied* session
-# (rendered in a worker process, see `ProxyConnection`) shares the page. So a
-# proxied session namespaces its observable keys with a per-session prefix; the
-# host routes inbound updates back to the worker by that prefix. The prefix lives
-# on the connection (`id_prefix`), is `""` for every normal session — so
-# `cache_key` is byte-identical to the old `obs.id` everywhere except proxied
-# sessions. Assets are content-hashed (globally unique already) and shared on
-# purpose, so they are never prefixed.
+# Observable ids are process-local. Proxy prefixes disambiguate them in the
+# browser's shared cache and route updates to the worker. Normal sessions keep
+# obs.id; asset identities remain shared across sessions.
 function cache_key(session::Session, obs::Observable)
     prefix = id_prefix(connection(session))
     return isempty(prefix) ? obs.id : string(prefix, "/", obs.id)

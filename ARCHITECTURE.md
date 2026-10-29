@@ -217,7 +217,7 @@ the interface to implement:
 
 Asset side (dispatch on the `AbstractAssetServer` subtype):
 - `url(server, asset)`: WHERE the bytes are reachable: `HTTPAssetServer` /
-  `ChildAssetServer` → registered `/assets/<content-hash-key>` route (with
+  `ChildAssetServer` → registered `/assets/<asset-key>` route (with
   refcounting, §9); `NoServer` → `data:` URL (fully inlined page, nothing
   served); `AssetFolder`/`DocumenterAssets` → the file is WRITTEN into the
   export folder and a page-relative path returned; `online_path` short-circuits
@@ -287,10 +287,9 @@ with IDENTICAL session semantics (§0 must keep holding!).
   `proxy_asset_add` (eager bytes ≤256KB else lazy); host stores `RemoteAsset`
   in its `HTTPAssetServer` via a per-bridge `ChildAssetServer` and serves
   ranges via `proxy_fetch_timed` (30s bound → 504, never a wedged HTTP task).
-  An `AssetEntry` keeps every live registration of a path (the key is a
-  content hash, so only the driver differs): the newest is served, and
-  releasing one falls back to a survivor rather than stranding the path on a
-  closed bridge.
+  An `AssetEntry` keeps every live registration of a key (file-backed assets
+  are keyed by path). It serves the newest registration and falls back to a
+  survivor on release, keeping the path on a live driver.
 
 ## 10. Display & export: `display.jl`, `export.jl`
 
