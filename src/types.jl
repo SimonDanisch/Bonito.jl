@@ -217,23 +217,36 @@ end
 
 struct CSS
     selector::String
-    # TODO use some kind of immutable Dict
-    attributes::Dict{String, Union{CSS, String, Asset}}
+    # In the order given, which is part of the rule: a declaration overrides the
+    # ones before it (`border`, then `border-top-color`), and so does a nested
+    # rule. A `Dict` wrote them out in hash order, which put the shorthand last
+    # and painted every such spinner's arc grey.
+    attributes::OrderedDict{String, Union{CSS, String, Asset}}
     # We assume attributes to be immutable, so we calculate the hash once
     hash::UInt64
-    function CSS(selector, attributes::Dict{String,T}) where T <: Any
-        css = Dict{String,Union{CSS,String,Asset}}()
-        # Need to sort to always get the same hash!
-        sorted_keys = sort!(collect(keys(attributes)))
+    function CSS(selector, attributes::OrderedDict{String,T}) where T <: Any
+        css = OrderedDict{String,Union{CSS,String,Asset}}()
         h = hash(selector, UInt64(0))
-        h = hash(sorted_keys, h)
-        for k in sorted_keys
-            converted = convert_css_attribute(attributes[k])
+        for (k, v) in attributes
+            converted = convert_css_attribute(v)
             css[String(k)] = converted
-            h = hash(converted, h)
+            h = hash(converted, hash(k, h))
         end
         return new(selector, css, h)
     end
+end
+
+# A mapping without an order of its own gives none to keep: sorted, so equal
+# content always makes the same rule.
+CSS(selector, attributes::AbstractDict) =
+    CSS(selector, OrderedDict{String,Any}(sort!([String(k) => v for (k, v) in attributes]; by = first)))
+
+# Declare `key` last: given again, it overrides everything declared before it,
+# as a repeated declaration does in a stylesheet.
+function declare!(attributes::OrderedDict, key::AbstractString, value)
+    delete!(attributes, key)
+    attributes[key] = value
+    return attributes
 end
 
 Base.hash(css::CSS, h::UInt64) = hash(css.hash, h)
@@ -344,6 +357,14 @@ function ConnectionIndicator(;
     )
 end
 
+# Keep a displayed sub's assets until both its close and the browser's
+# JSDoneLoading report. Replacing a still-loading sub must not 404 its payload.
+mutable struct PendingAssetLoad
+    const asset_server::AbstractAssetServer
+    const since::Float64
+    closed::Bool
+end
+
 """
 Root-only session state. One `RootSession` exists per real connection (per
 session tree). Holds the OS-level connection, the receive inbox, deletion
@@ -378,6 +399,9 @@ mutable struct RootSession{Connection <: FrontendConnection}
     dispatch_count::Threads.Atomic{Int}
     # Shared msgpack scratch-buffer pool for the whole tree (see `PackIOPool`).
     pack_pool::PackIOPool
+    # Sub id => its `PendingAssetLoad`, in display order. Under `deletion_lock`.
+    pending_asset_loads::OrderedDict{String, PendingAssetLoad}
+    pending_asset_timer::Union{Nothing,Timer}
 end
 
 """
@@ -430,8 +454,6 @@ mutable struct Session{Connection <: FrontendConnection}
     # Per-session message filter — `_send` consults this to drop outgoing
     # messages when the export pipeline is recording state.
     ignore_message::RefValue{Function}
-    # For rendering Styles.
-    style_counter::Int
     imports::OrderedSet{Asset}
     global_stylesheets::OrderedSet{Styles}
     title::String
@@ -501,7 +523,7 @@ metadata_dict(s::Session)       = root_data(s).metadata
 const ROOT_ONLY_FIELDS = (
     :connection, :inbox, :js_comm, :dom_uuid_counter,
     :compression_enabled, :deletion_lock, :threadid, :metadata,
-    :closing, :dispatch_count, :pack_pool,
+    :closing, :dispatch_count, :pack_pool, :pending_asset_loads, :pending_asset_timer,
 )
 
 function Base.getproperty(s::Session, f::Symbol)
@@ -532,7 +554,7 @@ function Base.propertynames(s::Session, private::Bool=false)
         :parent_or_root, :parent, :status, :closing_time, :children, :id,
         :asset_server, :message_queue, :on_document_load, :connection_ready,
         :on_connection_ready, :init_error, :on_close, :on_open, :deregister_callbacks,
-        :session_objects, :ignore_message, :style_counter, :imports,
+        :session_objects, :ignore_message, :imports,
         :global_stylesheets, :title, :current_app, :io_context, :stylesheets,
     )
     return (direct..., ROOT_ONLY_FIELDS...)
@@ -610,6 +632,8 @@ function Session(connection::Connection=default_connection();
         false,                                          # closing
         Threads.Atomic{Int}(0),                         # dispatch_count
         PackIOPool(),                                   # pack_pool
+        OrderedDict{String, PendingAssetLoad}(),         # pending_asset_loads
+        nothing,                                        # pending_asset_timer
     )
     session = Session{Connection}(
         root_state,                                     # parent_or_root
@@ -628,7 +652,6 @@ function Session(connection::Connection=default_connection();
         deregister_callbacks,
         session_objects,
         ignore_message,
-        1,                                              # style_counter
         imports,
         OrderedSet{Styles}(),                           # global_stylesheets
         title,
@@ -697,7 +720,6 @@ function Session(parent_session::Session{Connection};
             Observables.ObserverFunction[],                  # deregister_callbacks
             Dict{String, Any}(),                             # session_objects
             RefValue{Function}(x -> false),                  # ignore_message
-            1,                                               # style_counter
             OrderedSet{Asset}(),                             # imports
             OrderedSet{Styles}(),                            # global_stylesheets
             title,

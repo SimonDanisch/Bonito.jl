@@ -41,6 +41,33 @@ end
     @test first(all_css) == css
 end
 
+@testset "generated classes mean the same rule in every session" begin
+    # One page often hosts several independent sessions (a worker app proxied
+    # into the host's page, apps in one notebook), and they share the page's one
+    # class namespace. Per-session numbering gave the second session's
+    # `.style_2 { padding-left: 4px; background: red }` to the first session's
+    # `.style_2` element. Each session here renders the same width rule at a
+    # different position, plus one rule of its own.
+    function class_rules(styles)
+        s = OfflineSession()
+        app = App(; indicator=nothing) do
+            DOM.div([DOM.div("x"; style=st) for st in styles]...)
+        end
+        html = repr(MIME"text/html"(), Bonito.session_dom(s, app))
+        rules = Dict(m[1] => strip(m[2]) for m in eachmatch(r"\.(bs-[0-9a-f]+) \{([^}]*)\}", html))
+        used = Set(m[1] for m in eachmatch(r"\b(bs-[0-9a-f]+)\b", html))
+        return rules, used
+    end
+    width = Styles("width" => "32px")
+    host, host_used = class_rules([width, Styles("background" => "green")])
+    app, app_used = class_rules([Styles("padding-left" => "4px", "background" => "red"), width])
+    @test length(host) == 2 && length(app) == 2
+    @test host_used == Set(keys(host)) && app_used == Set(keys(app))
+    shared = intersect(keys(host), keys(app))
+    @test length(shared) == 1                      # only the identical rule shares a name
+    @test host[only(shared)] == app[only(shared)] == "width: 32px;"
+end
+
 @testset "Col stacks content from the top" begin
     # Regression: a `Col` next to a taller sibling in a `Row` used to get
     # stretched to the row height and, with the default `align-content` (`normal`
@@ -56,6 +83,30 @@ end
     # Grid/Row keep the CSS default so explicit fr-track layouts are unaffected
     @test align_content(Grid(DOM.div("a"))) == "normal"
     @test align_content(Row(DOM.div("a"), DOM.div("b"))) == "normal"
+end
+
+@testset "declarations keep the order they were given" begin
+    # A later declaration overrides an earlier one, so the order is part of the
+    # rule. A Dict wrote `border` after `border-top-color` (hash order), and every
+    # spinner built that way showed a still grey ring instead of its accent arc.
+    css = CSS(".spin", "border" => "2px solid grey", "border-top-color" => "blue")
+    text = sprint(show, css)
+    @test findfirst("border:", text).start < findfirst("border-top-color:", text).start
+    @test collect(keys(css.attributes)) == ["border", "border-top-color"]
+    @test css != CSS(".spin", "border-top-color" => "blue", "border" => "2px solid grey")
+    # Given again, a declaration moves last and overrides everything before it.
+    again = CSS(".x", "border" => "1px", "border-top-color" => "blue", "border" => "2px")
+    @test collect(keys(again.attributes)) == ["border-top-color", "border"]
+    @test again.attributes["border"] == "2px"
+    # Merged, the second rule comes after the first.
+    m = merge(CSS(".x", "border" => "1px", "border-top-color" => "blue"), CSS(".x", "border" => "2px"))
+    @test collect(keys(m.attributes)) == ["border-top-color", "border"]
+    @test m.attributes["border"] == "2px"
+    # Nested rules keep theirs too: in a media query the later rule wins.
+    media = CSS("@media (max-width: 480px)", CSS(".b", "color" => "red"), CSS(".a", "color" => "blue"))
+    @test collect(keys(media.attributes)) == [".b", ".a"]
+    # A mapping with no order of its own is taken sorted: equal content, same rule.
+    @test CSS(".x", Dict("b" => "1", "a" => "2")) == CSS(".x", "a" => "2", "b" => "1")
 end
 
 @testset "merge & hash" begin

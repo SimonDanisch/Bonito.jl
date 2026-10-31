@@ -1,3 +1,17 @@
+@testset "strings interpolated into js are string literals" begin
+    # They used to be wrapped in single quotes, unescaped: a quote in the value
+    # ended the literal (a shell command like `X='a' sh` broke the whole script),
+    # and anything after it ran as code.
+    render(x) = sprint(io -> Bonito.print_js_code(io, x, Bonito.JSSourceContext()))
+    for x in ("plain", "it's", "say \"hi\"", "back\\slash", "two\nlines\r", "tab\tbell\a",
+              "</script><script>alert(1)</script>", "sep\u2028\u2029", "ünïcødé ✓", "")
+        @test Bonito.JSON.parse(render(x)) == x
+    end
+    @test render(:sym) == "\"sym\""
+    cmd = "curl x | CRED='w-1' sh"
+    @test render(js"f($(cmd))") == "f(\"curl x | CRED='w-1' sh\")"
+end
+
 @testset "Slider value snapping" begin
     # A `value=` that isn't bit-exact on the grid must snap to the nearest tick
     # (or clamp), not crash with `invalid index: nothing`. Regression for
@@ -36,7 +50,7 @@ end
     sdom = Bonito.session_dom(session, dom; init=false) # Init false to not inline messages
     msg = Bonito.fused_messages!(session)
     data = Bonito.SerializedMessage(session, msg)
-    decoded = msg[:payload][1]
+    decoded = only(m for m in msg[:payload] if m.data["msg_type"] == Bonito.OnjsCallback)
     mapped = obs1.listeners[1][2].result # we map(render, obs1) when rendering attributes, so only that will be in the session
     @test haskey(session.session_objects, mapped.id)
     # Obs registered correctly

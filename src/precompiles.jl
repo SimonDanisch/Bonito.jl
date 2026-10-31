@@ -54,7 +54,8 @@ function serve_workload(app::App; updates = Pair{Observable, Any}[])
             # messages through the websocket write path
             announce(ws, root.id)
             isnothing(sub) || announce(ws, sub.id)
-            sleep(0.2)
+            wait_for_ready(root) === :success || error("precompile root session did not open")
+            isnothing(sub) || wait_for_ready(sub) === :success || error("precompile sub-session did not open")
             # observable updates compile the interaction hot path
             # (inbox reader -> process_message -> update_nocycle!)
             keyed_updates = Pair{String, Any}[]

@@ -16,6 +16,40 @@ using Bonito: SerializedMessage, SessionCache, serialize_binary, deserialize_bin
 
 const EXT_BIN_TAG = Int8(0x12)
 
+@testset "dual websocket waits for both sockets before flushing" begin
+    server = Bonito.Server("127.0.0.1", 0)
+    connection = Bonito.DualWebsocket(server)
+    session = Session(connection; asset_server = Bonito.NoServer(), compression_enabled = false)
+    Bonito.setup_connection(session)
+    Bonito.mark_displayed!(session)
+    Bonito.send(session; msg_type = Bonito.UpdateObservable, id = "pending", payload = 1)
+    initializing = @async Bonito.init_session(session)
+    try
+        yield()
+        @test !istaskdone(initializing)
+        @test !isready(session.connection_ready)
+        base = "ws://127.0.0.1:$(server.port)/$(session.id)"
+        Bonito.HTTP.WebSockets.open(base * "?low_latency") do low
+            @test Bonito.wait_for(() -> isopen(connection.low_latency); timeout = 5) === :success
+            @test !isready(session.connection_ready)
+            Bonito.send(session; msg_type = Bonito.UpdateObservable, id = "pending", payload = 2)
+            Bonito.HTTP.WebSockets.open(base * "?large_data") do _
+                @test timedwait(() -> istaskdone(initializing), 10) === :ok
+                fetch(initializing)
+                @test isready(session)
+                @test isempty(session.message_queue)
+                if isempty(session.message_queue)
+                    @test !isempty(Bonito.HTTP.WebSockets.receive(low))
+                end
+            end
+        end
+    finally
+        close(session)
+        close(server)
+        wait(initializing)
+    end
+end
+
 # Walk one msgpack EXT one level deeper. Returns the inner-array decoded by
 # the bare MsgPack.unpack (no codec) — same shape JS sees from
 # `MsgPack.decode(uint_8_array)`.
@@ -33,7 +67,7 @@ function unwrap_inner_ext(elem)
 end
 
 function make_session()
-    Bonito.Session(Bonito.NoConnection(); asset_server = Bonito.NoServer())
+    Bonito.Session(Bonito.NoConnection(); asset_server = Bonito.NoServer(), compression_enabled = false)
 end
 
 @testset "protocol roundtrip" begin

@@ -18,13 +18,54 @@ const GetSessionDOM = "13"
 Handles the incoming websocket messages from the frontend.
 Messages are expected to be gzip compressed and packed via MsgPack.
 """
-function process_message(session::Session, bytes::AbstractVector{UInt8})
+function process_message(session::Session, bytes::AbstractVector{UInt8}; slow::Real = 0.5)
     if isempty(bytes)
         @warn "empty message received from frontend"
         return
     end
     data = deserialize_binary(bytes, session.compression_enabled)
-    return process_message(session, data)
+    # A page's messages are handled one after another: while one takes long,
+    # everything the page sends after it waits, its pings included, and the
+    # page looks frozen while every other page carries on. Say which.
+    t0 = time()
+    try
+        return process_message(session, data)
+    finally
+        took = time() - t0
+        took >= slow && log_slow_message(session, data, took)
+    end
+end
+
+const MESSAGE_NAMES = Dict(UpdateObservable => "UpdateObservable", OnjsCallback => "OnjsCallback",
+    EvalJavascript => "EvalJavascript", JavascriptError => "JavascriptError",
+    JavascriptWarning => "JavascriptWarning", RegisterObservable => "RegisterObservable",
+    JSDoneLoading => "JSDoneLoading", FusedMessage => "FusedMessage", CloseSession => "CloseSession",
+    PingPong => "PingPong", UpdateSession => "UpdateSession", GetSessionDOM => "GetSessionDOM")
+
+function log_slow_message(session::Session, data::AbstractDict, seconds::Real)
+    typ = get(data, "msg_type", "")
+    id = string(get(data, "id", get(data, "session", "")))
+    @warn "slow message from a page: the page waited for it" page = first(root_session(session).id, 8) type = get(MESSAGE_NAMES, typ, typ) id seconds = round(seconds; digits = 2) listeners = message_listeners(session, data)
+    return nothing
+end
+
+# Where the code that ran for an observable update lives: its listeners' source
+# locations ("chat.jl:1234"). Only for a slow message, so the lookup cost is fine.
+function message_listeners(session::Session, data::AbstractDict)
+    get(data, "msg_type", "") == UpdateObservable || return ""
+    root = root_session(session)
+    entry = lock(root.deletion_lock) do
+        get(session.session_objects, data["id"], get(root.session_objects, data["id"], nothing))
+    end
+    obs = entry isa CachedEntry ? entry.object : entry
+    obs isa Observables.AbstractObservable || return ""
+    sites = String[]
+    for (_, f) in Observables.listeners(obs)
+        for m in methods(f)
+            push!(sites, string(basename(string(m.file)), ":", m.line))
+        end
+    end
+    return join(unique!(sites), ", ")
 end
 
 # Decoded-frame entry point. Split out from the bytes path so a proxied worker
@@ -78,10 +119,6 @@ function process_message(session::Session, data::AbstractDict)
             @debug "Observable $(data["id"]) not found (or session closed/closing)"
         else
             try
-                # `session` is the originating session: `update_nocycle!` skips
-                # only that session's JS updater so the value doesn't echo back
-                # to the browser that just sent it, while OTHER sessions sharing
-                # the same observable still receive the update.
                 Base.invokelatest(update_nocycle!, obj, data["payload"], session)
             finally
                 Threads.atomic_sub!(root.dispatch_count, 1)
@@ -92,28 +129,39 @@ function process_message(session::Session, data::AbstractDict)
     elseif typ == JavascriptWarning
         @warn "Error in Javascript: $(data["message"])\n)"
     elseif typ == JSDoneLoading
+        root = root_session(session)
+        id = data["session"]
+        # `get_session` recurses through `session.children`, which is mutated
+        # under `deletion_lock` by close/free/Session(parent). Iterating it
+        # unlocked races those mutations. Snapshot the lookup under the lock,
+        # with the `PendingAssetLoad` this report ends; fire `on_connection_ready`
+        # outside it.
+        load, sub = lock(root.deletion_lock) do
+            load = pop!(root.pending_asset_loads, id, nothing)
+            expire_loading_assets!(root)
+            load, get_session(session, id)
+        end
+        load === nothing || close(load)
         # Bail early if the receiving session is already torn down. The
         # message may have been dispatched from the inbox @async pool
         # *after* close() ran.
         if isclosed(session)
             @debug "JSDoneLoading on a closed session — ignoring"
         elseif data["exception"] != "nothing"
-            exception = JSException(session, data)
-            show(stderr, exception)
-            # Route through the shared helper so the connection indicator's
-            # error observable picks up the cause. The WS is already up
-            # (we're processing a message it delivered), so the resulting
-            # JSUpdateObservable actually reaches the browser.
-            record_session_error!(session, exception)
-        else
-            # `get_session` recurses through `session.children`, which is
-            # mutated under `deletion_lock` by close/free/Session(parent).
-            # Iterating it unlocked races those mutations. Snapshot the
-            # lookup under the lock; fire `on_connection_ready` outside it.
-            root = root_session(session)
-            sub = lock(root.deletion_lock) do
-                get_session(session, data["session"])
+            if isnothing(sub) || isclosed(sub)
+                # Failing to load a sub that is closed or unknown is no error of
+                # the live page, which must not be marked as failed for it.
+                @debug "JSDoneLoading error for a closed or unknown sub, ignoring" id
+            else
+                exception = JSException(session, data)
+                show(stderr, exception)
+                # Route through the shared helper so the connection indicator's
+                # error observable picks up the cause. The WS is already up
+                # (we're processing a message it delivered), so the resulting
+                # JSUpdateObservable actually reaches the browser.
+                record_session_error!(session, exception)
             end
+        else
             if !isnothing(sub) && !isclosed(sub)
                 # this may block the connection!
                 @async try
@@ -126,9 +174,9 @@ function process_message(session::Session, data::AbstractDict)
                 # This can happen for IJulia output after kernel restart,
                 # since the loaded html will try to init + connect back
                 # TODO, there should be a better way to prevent them from reconnecting
-                @debug("Sub session with id $(data["session"]) not found")
+                @debug("Sub session with id $(id) not found")
             else
-                @debug "JSDoneLoading for closed sub $(data["session"]) — ignoring"
+                @debug "JSDoneLoading for closed sub $(id) — ignoring"
             end
         end
     elseif typ == CloseSession

@@ -1,3 +1,37 @@
+@testset "proxied content shares the host runtime across hostname aliases" begin
+    host_value = Observable(0)
+    remote_value = Observable(0)
+    app = App() do host
+        on(host, remote_value) do value
+            host_value[] = value + 1
+        end
+        remote = App() do _
+            DOM.button("remote"; id = "proxy-button",
+                onclick = js"() => $(remote_value).notify(1)")
+        end
+        DOM.div(DOM.span(host_value; id = "host-value"), Bonito.embed_app(host, remote))
+    end
+    server = Server(app, "127.0.0.1", 0)
+    window = TestWindow(URI("http://127.0.0.1:$(server.port)"))
+    try
+        @test Bonito.wait_for(; timeout = 10) do
+            run(window, "document.querySelector('#proxy-button') !== null")
+        end == :success
+        @test run(window, "[...document.scripts].filter(s => s.src.includes('/assets/') && s.src.includes('-Bonito.bundled.js')).length") == 1
+        host_value[] = 1
+        @test Bonito.wait_for(; timeout = 10) do
+            run(window, "document.querySelector('#host-value')?.textContent === '1'")
+        end == :success
+        run(window, "document.querySelector('#proxy-button').click()")
+        @test Bonito.wait_for(; timeout = 10) do
+            run(window, "document.querySelector('#host-value')?.textContent === '2'")
+        end == :success
+    finally
+        close(window)
+        close(server)
+    end
+end
+
 @testset "Observable + Session cleanup (parent-owned)" begin
     # When an Observable is interpolated DIRECTLY by the App's session (not
     # only by inner sub-sessions that `jsrender`'s `Observable` overload
@@ -24,7 +58,7 @@
         @test root.session_objects[global_obs.id].object === global_obs
         # The App session is the owner that keeps the obs alive across the
         # dom_obs1 re-render below.
-        @test session.id in root.session_objects[global_obs.id].owners
+        @test session in root.session_objects[global_obs.id].owners
         # A render sub for dom_obs1 also tracks the obs via the JSCode's
         # CacheKey reference (value `nothing` is the tracking marker).
         obs_sub = first(s for (_, s) in session.children
@@ -42,6 +76,35 @@
                   values(session.children))
     end
 end
+@testset "one Observable in a map(...) DOM and in a static handler" begin
+    # The map's DOM renders as a subsession inside the page and ships the
+    # Observable first. The static button's handler, in the page's own session,
+    # used to get only a reference to it; the page reads its own session's
+    # messages before the subsession's, so the reference resolved to null and
+    # every click threw "Cannot read properties of null (reading 'notify')".
+    action = Observable{Any}(nothing)
+    rerender = Observable(1)
+    app = App() do s
+        rows = map(rerender) do n
+            DOM.button("row"; id = "in-map-$(n)", onclick = js"e => $(action).notify('from the map')")
+        end
+        return DOM.div(rows, DOM.button("static"; id = "static", onclick = js"e => $(action).notify('from the page')"))
+    end
+    display(edisplay, app)
+    click(id) = Bonito.evaljs(app.session[], js"document.getElementById($(id)).click()")
+    click("static")
+    @test Bonito.wait_for(() -> action[] == "from the page") == :success
+    click("in-map-1")
+    @test Bonito.wait_for(() -> action[] == "from the map") == :success
+    # A new render of the map leaves both working.
+    rerender[] = 2
+    @test Bonito.wait_for(() -> Bonito.evaljs_value(app.session[], js"!!document.getElementById('in-map-2')")) == :success
+    click("static")
+    @test Bonito.wait_for(() -> action[] == "from the page") == :success
+    click("in-map-2")
+    @test Bonito.wait_for(() -> action[] == "from the map") == :success
+end
+
 Bonito.set_cleanup_time!(0.0)
 @testset "server cleanup" begin
     # Close the full display (window + handler/session). `close(::ElectronDisplay)`
@@ -58,9 +121,7 @@ Bonito.set_cleanup_time!(0.0)
     # browser display route & asset server
     @test Set(first.(server.routes.table)) == Set(["/browser-display", r"\Q/assets/\E(?:(?:(?:[\da-f]){40})(?:-.*))"])
     asset_server = server.routes.table[2][2]
-    # Force GC + wait for the deferred Session-level @async close finalizer
-    # (types.jl) to drain. ChildAssetServer no longer has its own finalizer;
-    # Session's safety-net @async close handles the orphaned-Session case.
+    # Collect orphaned child asset handles and let their deferred close run.
     GC.gc(true)
     GC.gc(true)
     Bonito.wait_for(() -> isempty(asset_server.files); timeout=5)
@@ -144,7 +205,7 @@ end
     file = joinpath(mktempdir(), "leaktest.js"); write(file, "window.X = 1;")
     parent = root.asset_server.parent
     key = "/assets/" * Bonito.unique_file_key(Asset(file))
-    refcount() = (e = get(parent.files, key, nothing); e === nothing ? 0 : e.refcount)
+    refcount() = (e = get(parent.files, key, nothing); e === nothing ? 0 : Bonito.refcount(e))
     app = App(s -> DOM.div("x", Asset(file)))
 
     subA = Session(root); Bonito.session_dom(subA, app)
@@ -157,6 +218,48 @@ end
     @test refcount() == 0                # freed when the last holder closes
     @test isempty(root.imports)
     @test isempty(parent.files)
+    close(server)
+end
+
+@testset "a released registration never leaves the path on a dead holder" begin
+    # Same content key, several holders, DIFFERENT asset objects — identical
+    # bytes, but a proxied `RemoteAsset` also carries the registering worker's
+    # bridge driver, so which object is served decides which driver is fetched
+    # from. Serving the newest keeps a restarted worker in front; releasing it
+    # has to fall back to a survivor, or the path strands on a closed holder and
+    # every later fetch times out while a live holder exists.
+    server = Server("0.0.0.0", 0)
+    parent = Bonito.HTTPAssetServer(Dict{String,Bonito.AssetEntry}(), server,
+                                    ReentrantLock())
+    file = joinpath(mktempdir(), "adopt.js"); write(file, "window.Y = 1;")
+    key = "/assets/" * Bonito.unique_file_key(Asset(file))
+    served() = Bonito.served_asset(parent.files[key])
+    reg!(child, asset) = lock(parent.lock) do
+        Bonito.register!(parent, child, asset)
+    end
+
+    childA, childB = Bonito.ChildAssetServer(parent), Bonito.ChildAssetServer(parent)
+    assetA, assetB = Asset(file), Asset(file)
+    reg!(childA, assetA)
+    reg!(childB, assetB)
+    @test Bonito.refcount(parent.files[key]) == 2
+    @test served() === assetB             # newest holder serves
+
+    # The NEWEST holder leaves while an older one is still serving a page.
+    close(childB)
+    @test Bonito.refcount(parent.files[key]) == 1
+    @test served() === assetA             # falls back, never stays on childB
+
+    # And the mirror: re-register, then drop the OLDER one.
+    childC = Bonito.ChildAssetServer(parent)
+    assetC = Asset(file)
+    reg!(childC, assetC)
+    close(childA)
+    @test Bonito.refcount(parent.files[key]) == 1
+    @test served() === assetC
+
+    close(childC)
+    @test isempty(parent.files)           # last registration gone → entry dropped
     close(server)
 end
 
@@ -207,4 +310,410 @@ end
     Bonito.wait_for(() -> test_obs[] == 20)
     @test test_obs[] == 20
     @test run(edisplay.window, "window.obs_value") == 19
+end
+
+@testset "a sub replaced before the browser loaded it keeps its assets until it has" begin
+    # Rows that are sub-sessions of their own (a non-trivial Observable each),
+    # with init messages, so the browser fetches every row's init payload. Three
+    # renders back to back close the first generation on the server before the
+    # browser has even received it; its payloads were gone by the time the
+    # browser asked (404).
+    row(tag, i) = map(x -> DOM.div("$tag row $x",
+                                   js"window.__rows[$(tag)] = (window.__rows[$(tag)] || 0) + 1;"),
+                      Observable(i))
+    rows(tag) = DOM.div([row(tag, i) for i in 1:10]...)
+    content = Observable{Any}(DOM.div("start"))
+    app = App(s -> DOM.div(content))
+    display(edisplay, app)
+    sess = app.session[]
+    root = Bonito.root_session(sess)
+    # Payload fetches in flight, every one that fails, and every rejection
+    # nobody handled.
+    evaljs_value(sess, js"""(() => {
+        window.__rows = {};
+        window.__failed = [];
+        window.__in_flight = 0;
+        window.__fetch_binary = Bonito.fetch_binary;
+        Bonito.fetch_binary = (url) => {
+            window.__in_flight += 1;
+            return window.__fetch_binary(url)
+                .catch((e) => { window.__failed.push(String(e)); throw e; })
+                .finally(() => { window.__in_flight -= 1; });
+        };
+        window.addEventListener('unhandledrejection', (e) => window.__failed.push(String(e.reason)));
+        return true;
+    })()""")
+    # The root is shared with the tests before this one: only its own entries count.
+    before = lock(() -> Set(keys(root.pending_asset_loads)), root.deletion_lock)
+    for k in 1:3
+        content[] = rows("gen$k")
+    end
+    # The browser is done once the last generation ran (the earlier ones were
+    # inserted, and so fetched, before it) and no payload fetch is in flight.
+    done = js"(window.__rows['gen3'] || 0) === 10 && window.__in_flight === 0"
+    @test Bonito.wait_for(() -> evaljs_value(sess, done)) == :success
+    @test evaljs_value(sess, js"window.__failed") == []
+    # Every sub displayed here was reported, so nothing waits on the browser.
+    @test Bonito.wait_for(() -> lock(() -> issubset(keys(root.pending_asset_loads), before),
+                                     root.deletion_lock)) == :success
+    evaljs_value(sess, js"(() => { Bonito.fetch_binary = window.__fetch_binary; return true; })()")
+end
+
+@testset "a payload the server turned away is fetched again when the app says so" begin
+    # A login that ended turns the payload request away (here: 401). The app
+    # decides when to ask again (`on_refused`, once the login is back); the
+    # sub then loads as if nothing happened.
+    content = Observable{Any}(DOM.div("start"))
+    app = App(s -> DOM.div(content))
+    display(edisplay, app)
+    sess = app.session[]
+    evaljs_value(sess, js"""(() => {
+        window.__refused = [];
+        window.__fetch = window.fetch;
+        let turned_away = false;
+        window.fetch = (url, opts) => {
+            if (!turned_away && String(url).endsWith('.bin')) {
+                turned_away = true;
+                return Promise.resolve(new Response(null, {status: 401}));
+            }
+            return window.__fetch(url, opts);
+        };
+        Bonito.on_refused((url) => new Promise((resolve) => window.__refused.push(resolve)));
+        return true;
+    })()""")
+    content[] = DOM.div(map(x -> DOM.div("row $x", js"window.__row_loaded = true;"), Observable(1)))
+    # Asked straight through Electron: what Bonito sends the page meanwhile
+    # waits behind the turned-away payload, so messages arrive in order.
+    page(code) = run(edisplay.window, code)
+    @test Bonito.wait_for(() -> page("window.__refused.length === 1")) == :success
+    @test page("window.__row_loaded === undefined")
+    page("window.__refused[0](); true")
+    @test Bonito.wait_for(() -> page("window.__row_loaded === true")) == :success
+    @test page("window.__refused.length") == 1
+    page("window.fetch = window.__fetch; Bonito.on_refused(null); true")
+end
+
+@testset "a closed sub's assets wait for the browser's report" begin
+    server = Server("127.0.0.1", 0)
+    root = Bonito.HTTPSession(server)
+    # `root` has no browser, so the reports are sent by hand.
+    report(sub; exception = "nothing") = Bonito.process_message(root, Dict{String,Any}(
+        "msg_type" => Bonito.JSDoneLoading, "session" => sub.id,
+        "exception" => exception, "message" => "", "stacktrace" => "nothing"))
+    displayed() = let displayed_sub = first(Bonito.render_subsession(root, DOM.div(js"1"); init = true))
+        Bonito.mark_displayed!(displayed_sub)
+        displayed_sub
+    end
+
+    # Closed before the browser reported: its init payload stays servable...
+    sub = displayed()
+    @test !isempty(sub.asset_server.files)
+    close(sub)
+    @test !isempty(sub.asset_server.files)
+    # ...until the report, which failed: the payload was gone. That is no error
+    # of the page.
+    report(sub; exception = "Error: gone")
+    @test isempty(sub.asset_server.files)
+    @test isempty(root.pending_asset_loads)
+    @test root.init_error[] === nothing
+
+    # Reported first, closed later: the close takes its assets.
+    sub = displayed()
+    report(sub)
+    @test !isempty(sub.asset_server.files)
+    close(sub)
+    @test isempty(sub.asset_server.files)
+
+    # A sub that is never reported goes once it is older than the grace period.
+    sub = displayed()
+    close(sub)
+    lock(() -> Bonito.expire_loading_assets!(root; timeout = 0.0), root.deletion_lock)
+    @test isempty(sub.asset_server.files)
+
+    # The root owns cleanup, including roots behind a proxy with no WS route.
+    remote = Bonito.embed_app(root, App(() -> DOM.div("worker")))
+    worker = remote.render.session
+    sub = first(Bonito.render_subsession(worker, DOM.div(js"1"); init = true))
+    lock(worker.deletion_lock) do
+        Bonito.retain_loading_assets!(worker, sub; timeout = 0.02)
+    end
+    close(sub)
+    @test Bonito.wait_for(() -> isempty(sub.asset_server.keys)) == :success
+    @test Bonito.wait_for(() -> lock(() -> worker.pending_asset_timer === nothing,
+        worker.deletion_lock)) == :success
+    @test !Bonito.isclosed(worker)
+    close(worker)
+
+    detached = displayed()
+    Bonito.detach_subsession!(detached)
+    @test !isempty(detached.asset_server.files)
+
+    # A live sub's failure is still the page's error.
+    silence_logs(() -> report(displayed(); exception = "Error: real"))
+    @test root.init_error[] isa Bonito.JSException
+    close(root)
+    @test root.pending_asset_timer === nothing
+    @test isempty(detached.asset_server.files)
+    close(server)
+end
+
+@testset "a subsession whose DOM leaves the document before it starts" begin
+    # Content can be out of the document when its session starts: a virtual
+    # list mounts a row and evicts it before the session's payload arrived, a
+    # pane is hidden by detaching it. Node references resolved in the document
+    # only, so the start-up code found null and the `onclick` was never attached
+    # ("Bonito: skip onclick"): the row came back with a dead button.
+    clicked = Observable(false)
+    found = Observable{Any}(nothing)
+    app = App(() -> DOM.div(DOM.div(; id = "late-mount")))
+    display(edisplay, app)
+    session = app.session[]
+    button = DOM.button("go"; id = "late-button", onclick = js"e => $(clicked).notify(true)")
+    content = DOM.div(button, js"$(found).notify($(button) !== null)")
+    Bonito.dom_in_js(session, content, js"""(elem) => {
+        const mount = document.getElementById('late-mount');
+        mount.appendChild(elem);   // its session starts here...
+        elem.remove();             // ...and finishes while the content is detached
+        window.__late_content = elem;
+    }""")
+    @test Bonito.wait_for(() -> found[] !== nothing) == :success
+    @test found[] === true
+    evaljs(session, js"""(() => {
+        document.getElementById('late-mount').appendChild(window.__late_content);
+        document.getElementById('late-button').click();
+    })()""")
+    @test Bonito.wait_for(() -> clicked[]) == :success
+end
+
+# The page's object cache and Julia's owner sets must agree on what the page
+# holds when it reads a bare reference (`TrackingOnly`). Both tests park part
+# of the page out of the document, as a hidden pane or a virtual list does: the
+# subs rendered there load their payload only once they are back.
+function parked_page(outer1, outer2)
+    app = App(() -> DOM.div(DOM.div(outer1; id = "parked-holder"), outer2; id = "parked-page"))
+    display(edisplay, app)
+    return app
+end
+park!(session) = evaljs(session, js"window.__parked = document.getElementById('parked-holder'); window.__parked.remove();")
+unpark!(session) = evaljs(session, js"document.getElementById('parked-page').prepend(window.__parked);")
+# What the page's copy of `obs` is when `code` runs, reported back to `seen`.
+report_value(seen, obs) = js"$(seen).notify($(obs) ? $(obs).value : 'null')"
+
+@testset "a reference to an object whose only copy waits in a parked payload" begin
+    # The parked sub ships the Observable first. A sibling then got a bare
+    # reference and read null ("TrackingOnly: Key 63483 not found in
+    # GLOBAL_OBJECT_CACHE", then "Key 63483 not found! undefined").
+    shared = Observable("shared")
+    seen_parked, seen_sibling = Observable{Any}(nothing), Observable{Any}(nothing)
+    outer1, outer2 = Observable{Any}(DOM.div("a")), Observable{Any}(DOM.div("b"))
+    app = parked_page(outer1, outer2)
+    session = app.session[]
+    park!(session)
+    outer1[] = DOM.div(Observable{Any}(DOM.div("parked", report_value(seen_parked, shared))))
+    outer2[] = DOM.div("sibling", report_value(seen_sibling, shared))
+    @test Bonito.wait_for(() -> seen_sibling[] !== nothing) == :success
+    @test seen_sibling[] == "shared"
+    unpark!(session)
+    @test Bonito.wait_for(() -> seen_parked[] !== nothing) == :success
+    @test seen_parked[] == "shared"
+end
+
+@testset "a parked payload outlives the last visible owner" begin
+    # The parked payload must load after the visible owner and its browser
+    # copy have been freed. Updates must survive until initialization, too.
+    shared = Observable("shared")
+    seen_visible, seen_parked = Observable{Any}(nothing), Observable{Any}(nothing)
+    outer1 = Observable{Any}(DOM.div("a"))
+    outer2 = Observable{Any}(DOM.div("visible", report_value(seen_visible, shared)))
+    app = parked_page(outer1, outer2)
+    session = app.session[]
+    root = Bonito.root_session(session)
+    entry() = lock(() -> get(root.session_objects, shared.id, nothing), root.deletion_lock)
+    @test Bonito.wait_for(() -> seen_visible[] == "shared") == :success
+    @test Bonito.wait_for(() -> any(Bonito.sends_in_order, entry().owners)) == :success
+    park!(session)
+    outer1[] = DOM.div(Observable{Any}(DOM.div("parked", report_value(seen_parked, shared))))
+    outer2[] = DOM.div("gone")
+    outer2[] = DOM.div("gone again")
+    # Only the parked sub owns it now, and the page was told to free the rest.
+    @test Bonito.wait_for(() -> length(entry().owners) == 1 && !any(Bonito.sends_in_order, entry().owners)) == :success
+    shared[] = "latest"
+    unpark!(session)
+    @test Bonito.wait_for(() -> seen_parked[] !== nothing) == :success
+    @test seen_parked[] == "latest"
+end
+
+@testset "updates before any owner initializes" begin
+    shared = Observable("initial")
+    seen = Observable{Any}(nothing)
+    outer = Observable{Any}(DOM.div("waiting"))
+    app = parked_page(outer, DOM.div())
+    session = app.session[]
+    park!(session)
+    outer[] = DOM.div(Observable{Any}(DOM.div(report_value(seen, shared))))
+    shared[] = "latest"
+    @test seen[] === nothing
+    unpark!(session)
+    @test Bonito.wait_for(() -> seen[] !== nothing) == :success
+    @test seen[] == "latest"
+    shared[] = "live"
+    @test Bonito.wait_for(() -> evaljs_value(session, js"$(shared).value") == "live") == :success
+end
+
+@testset "ownership passes between uninitialized subsessions" begin
+    shared = Observable("initial")
+    seen = Observable{Any}(nothing)
+    first, second = Observable{Any}(DOM.div()), Observable{Any}(DOM.div())
+    app = parked_page(DOM.div(first, second), DOM.div())
+    session = app.session[]
+    park!(session)
+    first[] = DOM.div(Observable{Any}(DOM.div(js"$(shared).value")))
+    shared[] = "before transfer"
+    second[] = DOM.div(Observable{Any}(DOM.div(report_value(seen, shared))))
+    first[] = DOM.div("gone")
+    first[] = DOM.div("gone again")
+    shared[] = "after transfer"
+    unpark!(session)
+    @test Bonito.wait_for(() -> seen[] !== nothing) == :success
+    @test seen[] == "after transfer"
+end
+
+@testset "deferred payloads carry values; live messages reuse browser objects" begin
+    shared = Observable("shared")
+    seen = Observable{Any}(nothing)
+    app = App(() -> DOM.div("page", report_value(seen, shared)))
+    display(edisplay, app)
+    session = app.session[]
+    root = Bonito.root_session(session)
+    @test Bonito.wait_for(() -> seen[] == "shared") == :success
+    sub = Bonito.Session(session)
+    sent = Dict{String, Any}()
+    queued = length(root.message_queue)
+    Bonito.add_cached!(() -> "complete value", sub, sent, shared)
+    @test sent[shared.id] == "complete value"
+    @test length(root.message_queue) == queued
+    # Once initialized, this session can reference other browser-owned values.
+    Bonito.init_session(sub)
+    other = Observable("other")
+    evaljs_value(session, js"$(other).value")
+    empty!(sent)
+    Bonito.add_cached!(() -> error("shipped a copy"), sub, sent, other)
+    @test sent[other.id] == Bonito.TrackingOnly(other.id)
+    close(sub)
+end
+
+@testset "a shared Observable still updates after its first subsession closes" begin
+    shared = Observable("initial")
+    first = Observable{Any}(DOM.div(js"window.__shared_first = $(shared)"))
+    second = Observable{Any}(DOM.div("waiting"))
+    app = App(() -> DOM.div(first, second))
+    display(edisplay, app)
+    session = app.session[]
+    second[] = DOM.div(js"window.__shared_survivor = $(shared)")
+    @test Bonito.wait_for(() -> evaljs_value(session, js"!!window.__shared_survivor")) == :success
+    first[] = DOM.div("gone")
+    first[] = DOM.div("gone again")
+    shared[] = "updated"
+    @test Bonito.wait_for(() -> evaljs_value(session, js"window.__shared_survivor.value") == "updated") == :success
+end
+
+# An UpdateSession whose target is out of the document when it arrives: a
+# virtual list evicted the row, a pane is detached while hidden. The target is
+# built from a message, as a chat's tool body is, so Bonito created it.
+function detached_target_page()
+    app = App(() -> DOM.div(DOM.div(; id = "target-holder"); id = "target-page"))
+    display(edisplay, app)
+    session = app.session[]
+    target = DOM.div("placeholder"; id = "update-target")
+    Bonito.dom_in_js(session, target, js"(elem) => document.getElementById('target-holder').appendChild(elem)")
+    Bonito.wait_for(() -> Bonito.evaljs_value(session, js"!!document.getElementById('update-target')"))
+    evaljs(session, js"window.__target_holder = document.getElementById('target-holder'); window.__target_holder.remove();")
+    return session, Bonito.uuid(session, target)
+end
+unpark_target!(session) = evaljs(session, js"document.getElementById('target-page').append(window.__target_holder);")
+browser_knows(session, sub) = Bonito.evaljs_value(session, js"$(sub.id) in Bonito.Sessions.SESSIONS")
+
+@testset "an update waits until its target is back in the document" begin
+    # Applied into the detached target, code that finds its nodes in the
+    # document only, as every Bonito before `lookup_node` generates it (an eval
+    # worker on an older Bonito), found nothing: "Bonito: skip onclick", and the
+    # button stayed dead once the target was back.
+    found, clicked = Observable{Any}(nothing), Observable(false)
+    session, target = detached_target_page()
+    content = DOM.div(DOM.button("go"; id = "old-style-button"), js"""(() => {
+        const e = document.getElementById('old-style-button');
+        if (e) { e.onclick = () => $(clicked).notify(true); }
+        $(found).notify(e !== null);
+    })()""")
+    sub = Bonito.update_session_dom!(session, target, content; replace = false)
+    @test Bonito.wait_for(() -> browser_knows(session, sub)) == :success
+    sleep(0.5)
+    @test found[] === nothing
+    unpark_target!(session)
+    @test Bonito.wait_for(() -> found[] !== nothing) == :success
+    @test found[] === true
+    evaljs(session, js"document.getElementById('old-style-button').click()")
+    @test Bonito.wait_for(() -> clicked[]) == :success
+end
+
+@testset "an update freed while it waits for its target never applies" begin
+    # Its target was replaced, and Julia closed the update's session. Applied
+    # once a node with that id is back, it would start a session the page
+    # already freed. Its code marks the target in the page: Julia drops what a
+    # closed session notifies, so an Observable would not tell.
+    done = Observable(false)
+    session, target = detached_target_page()
+    sub = Bonito.update_session_dom!(session, target,
+        DOM.div("freed", js"document.getElementById('update-target').dataset.freedRan = 'yes'";
+                id = "freed-update"); replace = false)
+    @test Bonito.wait_for(() -> browser_knows(session, sub)) == :success
+    close(sub)
+    @test Bonito.wait_for(() -> !browser_knows(session, sub)) == :success
+    unpark_target!(session)
+    @test Bonito.wait_for(() -> Bonito.evaljs_value(session, js"!!document.getElementById('update-target')")) == :success
+    sleep(1.5)   # the freed update polls at most every second
+    @test Bonito.evaljs_value(session, js"document.getElementById('update-target').dataset.freedRan ?? 'no'") == "no"
+    @test !Bonito.evaljs_value(session, js"!!document.getElementById('freed-update')")
+    # The target is back, and a live update on it applies.
+    Bonito.update_session_dom!(session, target, DOM.div("live", js"$(done).notify(true)"); replace = false)
+    @test Bonito.wait_for(() -> done[]) == :success
+end
+
+# `on_free` teardowns run once, when their session is freed.
+struct OnFreeProbe
+    label::String
+end
+function Bonito.jsrender(session::Session, p::OnFreeProbe)
+    return Bonito.jsrender(session, DOM.div(p.label,
+        js"""Bonito.Sessions.on_free($(session.id), () => {
+            window.__on_free = (window.__on_free || []).concat([$(p.label)]);
+        })"""; class = "on-free-probe"))
+end
+
+@testset "on_free runs once its session is freed" begin
+    # The display reuses its page: labels unique to this run.
+    run = string(rand(UInt32); base = 16)
+    label(x) = "$(run)-$(x)"
+    content = Observable{Any}(OnFreeProbe(label("first")))
+    app = App(() -> DOM.div(content; id = "on-free-host"))
+    display(edisplay, app)
+    session = app.session[]
+    freed() = [replace(x, "$(run)-" => "") for x in Bonito.evaljs_value(session, js"window.__on_free || []") if startswith(x, run)]
+    @test Bonito.wait_for(() -> Bonito.evaljs_value(session, js"!!document.querySelector('.on-free-probe')")) == :success
+    @test freed() == []
+    # A re-render closes the replaced sub one render later (double-buffered,
+    # see `detach_subsession!`); the teardown runs when it is freed, once.
+    content[] = OnFreeProbe(label("second"))
+    content[] = OnFreeProbe(label("third"))
+    @test Bonito.wait_for(() -> freed() == ["first"]) == :success
+    content[] = OnFreeProbe(label("fourth"))
+    @test Bonito.wait_for(() -> freed() == ["first", "second"]) == :success
+    # Its DOM leaving the document: the browser closes the session itself.
+    evaljs(session, js"document.getElementById('on-free-host').remove()")
+    @test Bonito.wait_for(() -> "fourth" in freed()) == :success
+    # Code that runs after its session is gone gets the teardown right away.
+    @test Bonito.evaljs_value(session, js"""(() => {
+        let ran = false;
+        Bonito.Sessions.on_free("no-such-session", () => { ran = true; });
+        return ran; })()""") == true
 end

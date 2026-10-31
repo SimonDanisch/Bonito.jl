@@ -1,6 +1,6 @@
 name = "Bonito"
 uuid = "824d6782-a2ef-11e9-3a09-e5662e0c26f8"
-version = "5.2.0"
+version = "5.3.0"
 authors = ["SimonDanisch <sdanisch@gmail.com>"]
 
 [deps]
@@ -46,7 +46,7 @@ MarkdownAST = "0.1"
 Base64 = "1.0, 1.6"
 CodecZlib = "0.7"
 Colors = "0.12, 0.13"
-CommonMark = "1"
+CommonMark = "1.0.4"
 Dates = "1.0, 1.6"
 Deno_jll = "1"
 HTTP = "2.4"

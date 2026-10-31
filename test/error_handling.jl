@@ -28,6 +28,10 @@ Base.showerror(io::IO, e::_ErrHandlingDemoErr) = print(io, "_ErrHandlingDemoErr:
 # cleanly. Different code path than a handler-throws error.
 struct _ErrHandlingUnpackable end
 
+# A renderer can fail quickly while formatting its exception is the slow part.
+struct SlowRenderedError <: Exception end
+Base.showerror(io::IO, ::SlowRenderedError) = (sleep(0.6); print(io, "slow error text"))
+
 # Wait briefly for app.session[] to be set + an awaited condition to hold,
 # without depending on Bonito's `wait_for_ready` (which is itself under test).
 function _wait_until(cond; timeout=2.0)
@@ -49,6 +53,36 @@ end
 # the actual test summary stays readable; tests still assert the error
 # was caught and surfaced through the documented mechanisms.
 Logging.with_logger(Logging.NullLogger()) do
+    @testset "long backtraces reuse the error-page renderer" begin
+        Bonito.HTTPServer.linkify_stacktrace("warmup", "warmup")
+        for n in (173, 229, 317)
+            trace = join(("  [$i] render at ./rendering/demo.jl:$i" for i in 1:n), '\n')
+            elapsed = @elapsed dom = Bonito.HTTPServer.linkify_stacktrace("<failure>", trace)
+            # Previously every line count created a new vararg signature and
+            # spent seconds compiling on a desktop, blocking HTTP service.
+            @test elapsed < 1.0
+            html = repr(MIME"text/html"(), dom)
+            @test occursin("&#60;failure&#62;", html)
+            @test occursin("vscode://file/./rendering/demo.jl:$n", html)
+            @test count("<br />", html) == n
+        end
+    end
+
+    @testset "slow error recovery reports which stage waited" begin
+        session = Session(Bonito.NoConnection(); asset_server = Bonito.NoServer())
+        logs, dom = Test.collect_test_logs() do
+            Bonito.handle_render_error(session) do
+                throw(SlowRenderedError())
+            end
+        end
+        @test session.init_error[] isa SlowRenderedError
+        @test occursin("slow error text", repr(MIME"text/html"(), dom))
+        recovery = Dict(only(l for l in logs if l.message == "slow render-error recovery").kwargs)
+        @test recovery[:page] == first(session.id, 8)
+        @test recovery[:html_seconds] >= 0.5
+        close(session)
+    end
+
     @testset "handler throws → 200 with inline error, init_error sticky" begin
         app = App() do session
             throw(_ErrHandlingDemoErr("boom"))

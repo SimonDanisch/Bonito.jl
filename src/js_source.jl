@@ -72,8 +72,27 @@ function print_js_code(io::IO, x::Number, context::JSSourceContext)
     return context
 end
 
+# A string becomes a JS string literal with everything that could end it escaped:
+# quotes, backslashes, line breaks, and `<` (a `</script>` inside a string would
+# close an inline script). Inline rather than shipped beside the source, so JS
+# code printed as text (`string(js"...")`, `"$(jscode)"`) still runs. The result
+# is valid JSON too.
 function print_js_code(io::IO, x::Union{Symbol, AbstractString}, context::JSSourceContext)
-    print(io, "'", x, "'")
+    print(io, '"')
+    for c in string(x)
+        if c == '"' || c == '\\'
+            print(io, '\\', c)
+        elseif c == '\n'
+            print(io, "\\n")
+        elseif c == '\r'
+            print(io, "\\r")
+        elseif c < ' ' || c == '<' || c == '\u2028' || c == '\u2029'
+            print(io, "\\u", lpad(string(UInt32(c); base = 16), 4, '0'))
+        else
+            print(io, c)
+        end
+    end
+    print(io, '"')
     return context
 end
 
@@ -82,9 +101,11 @@ function print_js_code(io::IO, jss::JSString, context::JSSourceContext)
     return context
 end
 
+# Not a plain `document.querySelector`: the node may belong to content mounted
+# outside the document right now (see `lookup_node` in Sessions.js).
 function print_js_code(io::IO, node::Node, context::JSSourceContext)
     session = context.session # can be nothing
-    print(io, "document.querySelector('[data-jscall-id=\"$(uuid(session, node))\"]')")
+    print(io, "Bonito.lookup_node(\"$(uuid(session, node))\")")
     return context
 end
 

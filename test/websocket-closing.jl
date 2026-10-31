@@ -50,3 +50,64 @@
         @test isready(Bonito.root_session(session))
     end
 end
+
+mutable struct PausedSocketCleanup <: Bonito.CleanupPolicy
+    checked::Channel{Nothing}
+    resume::Base.Event
+    paused::Threads.Atomic{Bool}
+    soft::Bool
+end
+Bonito.should_cleanup(::PausedSocketCleanup, ::Session) = false
+function Bonito.allow_soft_close(policy::PausedSocketCleanup)
+    if !Threads.atomic_xchg!(policy.paused, true)
+        put!(policy.checked, nothing)
+        wait(policy.resume)
+    end
+    return policy.soft
+end
+
+@testset "a departing socket cannot close its replacement" begin
+    for Connection in (Bonito.WebSocketConnection, Bonito.DualWebsocket), soft in (false, true)
+        server = Server("127.0.0.1", 0)
+        connection = Connection(server)
+        session = Session(connection; asset_server = Bonito.NoServer())
+        policy = PausedSocketCleanup(Channel{Nothing}(1), Base.Event(), Threads.Atomic{Bool}(false), soft)
+        previous = Bonito.CLEANUP_POLICY[]
+        done = Base.Event()
+        sockets = Channel{HTTP.WebSockets.WebSocket}(2)
+        clients = Task[]
+        try
+            Bonito.setup_connection(session)
+            session.status = Bonito.OPEN
+            Bonito.set_cleanup_policy!(policy)
+            query = Connection === Bonito.DualWebsocket ? "?low_latency" : ""
+            url = "ws://127.0.0.1:$(server.port)/$(session.id)$(query)"
+            connect() = push!(clients, @async HTTP.WebSockets.open(url) do socket
+                put!(sockets, socket)
+                wait(done)
+            end)
+            connect()
+            @test Bonito.wait_for(() -> isready(sockets)) == :success
+            original = take!(sockets)
+            original.close_transport!()
+            @test Bonito.wait_for(() -> isready(policy.checked)) == :success
+            connect()
+            @test Bonito.wait_for(() -> isready(sockets)) == :success
+            replacement = take!(sockets)
+            handler = first(Bonito.websocket_handlers(connection))
+            @test Bonito.wait_for(() -> isopen(handler)) == :success
+            notify(policy.resume)
+            sleep(0.1) # let the old loop finish its paused cleanup
+            @test !replacement.readclosed
+            @test session.status === Bonito.OPEN
+            @test isopen(handler)
+        finally
+            notify(policy.resume)
+            notify(done)
+            Bonito.set_cleanup_policy!(previous)
+            close(session)
+            close(server)
+            foreach(wait, clients)
+        end
+    end
+end

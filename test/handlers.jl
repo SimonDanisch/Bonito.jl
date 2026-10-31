@@ -421,3 +421,40 @@ end
         end
     end
 end
+
+@testset "existing handler wrappers cover the whole server" begin
+    mktempdir() do dir
+        log_file = joinpath(dir, "requests.log")
+        logger = LoggingHandler(Bonito.HTTPServer.delegate, log_file)
+        handler = ProtectedRoute(logger, SingleUser("admin", "secret"))
+        server = Bonito.Server("127.0.0.1", 0; handler, proxy_url = ".")
+        base_url = "http://127.0.0.1:$(server.port)"
+        headers = ["Authorization" => "Basic " * base64encode("admin:secret")]
+        try
+            route!(server, "/" => App(() -> DOM.div("protected content")))
+            Bonito.HTTPServer.websocket_route!(server, "/echo" => (ctx, ws) ->
+                foreach(message -> HTTP.WebSockets.send(ws, message), ws))
+            @test HTTP.get(base_url; status_exception = false).status == 401
+            response = HTTP.get(base_url, headers)
+            @test response.status == 200
+            asset = match(r"\"(/assets/[^\"?]+\.js(?:\?[^\"]*)?)\"", String(response.body))
+            @test asset !== nothing
+            if asset !== nothing
+                @test HTTP.get(base_url * asset[1]; status_exception = false).status == 401
+                @test HTTP.get(base_url * asset[1], headers).status == 200
+            end
+            @test_throws Exception HTTP.WebSockets.open(ws -> nothing,
+                "ws://127.0.0.1:$(server.port)/echo")
+            echoed = HTTP.WebSockets.open("ws://127.0.0.1:$(server.port)/echo"; headers) do ws
+                HTTP.WebSockets.send(ws, "authenticated")
+                HTTP.WebSockets.receive(ws)
+            end
+            @test echoed == "authenticated"
+            entries = readlines(log_file)
+            @test length(entries) == 3
+            @test occursin("GET /echo", last(entries))
+        finally
+            close(server)
+        end
+    end
+end

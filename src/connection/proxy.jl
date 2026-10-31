@@ -126,6 +126,10 @@ function render_proxied(app::App, prefix::AbstractString;
     return ProxyRender(session, html, init_url, String(prefix), compression)
 end
 
+# The host owns the runtime. A second import URL (relative versus absolute,
+# or another hostname) would reset its browser-side connection and caches.
+setup_runtime(::Session{<:ProxyConnection}) = nothing
+
 # ── Host side: route inbound browser frames for proxied (worker) sessions ───
 
 const REMOTE_ROUTES_KEY = :bonito_remote_routes
@@ -135,6 +139,10 @@ const REMOTE_ROUTES_KEY = :bonito_remote_routes
 # data)` — in-process: straight into the worker's `process_message`; remote: the
 # decoded frame re-packed onto the worker's websocket, where its own inbox path
 # (decompress + unpack + dispatch) runs identically to a direct-WS session.
+#
+# Proxied roots use the same object-cache dedup as any root: one proxied root
+# per browser page, so §0 holds and `add_cached!` can ship each object once.
+
 struct RemoteSession{D}
     id::String          # worker session id == observable-id prefix
     driver::D           # host-side driver; inbound browser frames route through
