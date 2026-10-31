@@ -7,7 +7,6 @@ function SerializedMessage(session::Session, data)
     return lock(root_session(session).deletion_lock) do
         ctx = SerializationContext(session)
         message_data = serialize_cached(ctx, data)
-        isempty(ctx.pins) || pin_on_page!(connection(session), root_session(session), session, ctx.pins)
         return SerializedMessage(
             SessionCache(session, ctx.message_cache),
             message_data,

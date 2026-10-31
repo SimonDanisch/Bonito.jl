@@ -56,6 +56,21 @@ This pattern of wrapping handlers is similar to middleware in other web framewor
 protected_logged_app = ProtectedRoute(logged_app, password_store)
 ```
 
+## Wrapping the whole server
+
+Use the same wrappers around the server's routing handler to cover every route,
+including assets and WebSocket upgrades registered later:
+
+```julia
+handler = ProtectedRoute(Bonito.HTTPServer.delegate, SingleUser("admin", "secret"))
+server = Bonito.Server("127.0.0.1", 8080; handler)
+route!(server, "/" => App(DOM.h1("Private app")))
+```
+
+The wrapper runs before route matching (`context.match` is `nothing` at that
+point). An accepted WebSocket upgrade returns `nothing` after it closes, so a
+wrapper that modifies responses must leave that result unchanged.
+
 ## Built-in Handlers
 
 Bonito provides several ready-to-use handlers:

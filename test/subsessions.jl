@@ -58,7 +58,7 @@ end
         @test root.session_objects[global_obs.id].object === global_obs
         # The App session is the owner that keeps the obs alive across the
         # dom_obs1 re-render below.
-        @test session.id in root.session_objects[global_obs.id].owners
+        @test session in root.session_objects[global_obs.id].owners
         # A render sub for dom_obs1 also tracks the obs via the JSCode's
         # CacheKey reference (value `nothing` is the tracking marker).
         obs_sub = first(s for (_, s) in session.children
@@ -121,9 +121,7 @@ Bonito.set_cleanup_time!(0.0)
     # browser display route & asset server
     @test Set(first.(server.routes.table)) == Set(["/browser-display", r"\Q/assets/\E(?:(?:(?:[\da-f]){40})(?:-.*))"])
     asset_server = server.routes.table[2][2]
-    # Force GC + wait for the deferred Session-level @async close finalizer
-    # (types.jl) to drain. ChildAssetServer no longer has its own finalizer;
-    # Session's safety-net @async close handles the orphaned-Session case.
+    # Collect orphaned child asset handles and let their deferred close run.
     GC.gc(true)
     GC.gc(true)
     Bonito.wait_for(() -> isempty(asset_server.files); timeout=5)
@@ -346,7 +344,7 @@ end
         return true;
     })()""")
     # The root is shared with the tests before this one: only its own entries count.
-    before = lock(() -> Set(keys(root.loading_in_browser)), root.deletion_lock)
+    before = lock(() -> Set(keys(root.pending_asset_loads)), root.deletion_lock)
     for k in 1:3
         content[] = rows("gen$k")
     end
@@ -356,7 +354,7 @@ end
     @test Bonito.wait_for(() -> evaljs_value(sess, done)) == :success
     @test evaljs_value(sess, js"window.__failed") == []
     # Every sub displayed here was reported, so nothing waits on the browser.
-    @test Bonito.wait_for(() -> lock(() -> issubset(keys(root.loading_in_browser), before),
+    @test Bonito.wait_for(() -> lock(() -> issubset(keys(root.pending_asset_loads), before),
                                      root.deletion_lock)) == :success
     evaljs_value(sess, js"(() => { Bonito.fetch_binary = window.__fetch_binary; return true; })()")
 end
@@ -416,7 +414,7 @@ end
     # of the page.
     report(sub; exception = "Error: gone")
     @test isempty(sub.asset_server.files)
-    @test isempty(root.loading_in_browser)
+    @test isempty(root.pending_asset_loads)
     @test root.init_error[] === nothing
 
     # Reported first, closed later: the close takes its assets.
@@ -429,13 +427,33 @@ end
     # A sub that is never reported goes once it is older than the grace period.
     sub = displayed()
     close(sub)
-    lock(() -> Bonito.expect_browser_load!(root, displayed(); grace = 0.0), root.deletion_lock)
+    lock(() -> Bonito.expire_loading_assets!(root; timeout = 0.0), root.deletion_lock)
     @test isempty(sub.asset_server.files)
+
+    # The root owns cleanup, including roots behind a proxy with no WS route.
+    remote = Bonito.embed_app(root, App(() -> DOM.div("worker")))
+    worker = remote.render.session
+    sub = first(Bonito.render_subsession(worker, DOM.div(js"1"); init = true))
+    lock(worker.deletion_lock) do
+        Bonito.retain_loading_assets!(worker, sub; timeout = 0.02)
+    end
+    close(sub)
+    @test Bonito.wait_for(() -> isempty(sub.asset_server.keys)) == :success
+    @test Bonito.wait_for(() -> lock(() -> worker.pending_asset_timer === nothing,
+        worker.deletion_lock)) == :success
+    @test !Bonito.isclosed(worker)
+    close(worker)
+
+    detached = displayed()
+    Bonito.detach_subsession!(detached)
+    @test !isempty(detached.asset_server.files)
 
     # A live sub's failure is still the page's error.
     silence_logs(() -> report(displayed(); exception = "Error: real"))
     @test root.init_error[] isa Bonito.JSException
     close(root)
+    @test root.pending_asset_timer === nothing
+    @test isempty(detached.asset_server.files)
     close(server)
 end
 
@@ -500,10 +518,9 @@ report_value(seen, obs) = js"$(seen).notify($(obs) ? $(obs).value : 'null')"
     @test seen_parked[] == "shared"
 end
 
-@testset "a parked bare reference outlives the sub whose copy it relies on" begin
-    # A visible sub holds the Observable, so the parked one gets only a
-    # reference. The visible sub is re-rendered away before the parked one is
-    # read: the page freed the object, since no session it knew tracked it.
+@testset "a parked payload outlives the last visible owner" begin
+    # The parked payload must load after the visible owner and its browser
+    # copy have been freed. Updates must survive until initialization, too.
     shared = Observable("shared")
     seen_visible, seen_parked = Observable{Any}(nothing), Observable{Any}(nothing)
     outer1 = Observable{Any}(DOM.div("a"))
@@ -513,21 +530,55 @@ end
     root = Bonito.root_session(session)
     entry() = lock(() -> get(root.session_objects, shared.id, nothing), root.deletion_lock)
     @test Bonito.wait_for(() -> seen_visible[] == "shared") == :success
-    @test Bonito.wait_for(() -> !isempty(entry().on_page)) == :success
+    @test Bonito.wait_for(() -> any(Bonito.sends_in_order, entry().owners)) == :success
     park!(session)
     outer1[] = DOM.div(Observable{Any}(DOM.div("parked", report_value(seen_parked, shared))))
     outer2[] = DOM.div("gone")
     outer2[] = DOM.div("gone again")
     # Only the parked sub owns it now, and the page was told to free the rest.
-    @test Bonito.wait_for(() -> length(entry().owners) == 1 && isempty(entry().on_page)) == :success
+    @test Bonito.wait_for(() -> length(entry().owners) == 1 && !any(Bonito.sends_in_order, entry().owners)) == :success
+    shared[] = "latest"
     unpark!(session)
     @test Bonito.wait_for(() -> seen_parked[] !== nothing) == :success
-    @test seen_parked[] == "shared"
+    @test seen_parked[] == "latest"
 end
 
-@testset "an object the page holds is sent as a reference" begin
-    # The fixes above ship a copy whenever the page might not hold one; once a
-    # connected session's copy is read, new owners still get only the key.
+@testset "updates before any owner initializes" begin
+    shared = Observable("initial")
+    seen = Observable{Any}(nothing)
+    outer = Observable{Any}(DOM.div("waiting"))
+    app = parked_page(outer, DOM.div())
+    session = app.session[]
+    park!(session)
+    outer[] = DOM.div(Observable{Any}(DOM.div(report_value(seen, shared))))
+    shared[] = "latest"
+    @test seen[] === nothing
+    unpark!(session)
+    @test Bonito.wait_for(() -> seen[] !== nothing) == :success
+    @test seen[] == "latest"
+    shared[] = "live"
+    @test Bonito.wait_for(() -> evaljs_value(session, js"$(shared).value") == "live") == :success
+end
+
+@testset "ownership passes between uninitialized subsessions" begin
+    shared = Observable("initial")
+    seen = Observable{Any}(nothing)
+    first, second = Observable{Any}(DOM.div()), Observable{Any}(DOM.div())
+    app = parked_page(DOM.div(first, second), DOM.div())
+    session = app.session[]
+    park!(session)
+    first[] = DOM.div(Observable{Any}(DOM.div(js"$(shared).value")))
+    shared[] = "before transfer"
+    second[] = DOM.div(Observable{Any}(DOM.div(report_value(seen, shared))))
+    first[] = DOM.div("gone")
+    first[] = DOM.div("gone again")
+    shared[] = "after transfer"
+    unpark!(session)
+    @test Bonito.wait_for(() -> seen[] !== nothing) == :success
+    @test seen[] == "after transfer"
+end
+
+@testset "deferred payloads carry values; live messages reuse browser objects" begin
     shared = Observable("shared")
     seen = Observable{Any}(nothing)
     app = App(() -> DOM.div("page", report_value(seen, shared)))
@@ -535,12 +586,35 @@ end
     session = app.session[]
     root = Bonito.root_session(session)
     @test Bonito.wait_for(() -> seen[] == "shared") == :success
-    @test Bonito.wait_for(() -> lock(() -> !isempty(root.session_objects[shared.id].on_page), root.deletion_lock)) == :success
     sub = Bonito.Session(session)
     sent = Dict{String, Any}()
-    Bonito.add_cached!(() -> error("shipped a copy"), sub, sent, shared)
-    @test sent[shared.id] == Bonito.TrackingOnly(shared.id)
+    queued = length(root.message_queue)
+    Bonito.add_cached!(() -> "complete value", sub, sent, shared)
+    @test sent[shared.id] == "complete value"
+    @test length(root.message_queue) == queued
+    # Once initialized, this session can reference other browser-owned values.
+    Bonito.init_session(sub)
+    other = Observable("other")
+    evaljs_value(session, js"$(other).value")
+    empty!(sent)
+    Bonito.add_cached!(() -> error("shipped a copy"), sub, sent, other)
+    @test sent[other.id] == Bonito.TrackingOnly(other.id)
     close(sub)
+end
+
+@testset "a shared Observable still updates after its first subsession closes" begin
+    shared = Observable("initial")
+    first = Observable{Any}(DOM.div(js"window.__shared_first = $(shared)"))
+    second = Observable{Any}(DOM.div("waiting"))
+    app = App(() -> DOM.div(first, second))
+    display(edisplay, app)
+    session = app.session[]
+    second[] = DOM.div(js"window.__shared_survivor = $(shared)")
+    @test Bonito.wait_for(() -> evaljs_value(session, js"!!window.__shared_survivor")) == :success
+    first[] = DOM.div("gone")
+    first[] = DOM.div("gone again")
+    shared[] = "updated"
+    @test Bonito.wait_for(() -> evaljs_value(session, js"window.__shared_survivor.value") == "updated") == :success
 end
 
 # An UpdateSession whose target is out of the document when it arrives: a

@@ -120,21 +120,23 @@ end
     end
 end
 
-# A gate in front of every route: here, only requests with the right key pass,
-# and what it lets through carries who it let in.
-struct KeyGate
+struct KeyAuthentication{Handler}
+    handler::Handler
     key::String
 end
-function Bonito.HTTPServer.gate_request(g::KeyGate, request)
-    HTTP.removeheader(request, "X-Who")                  # only the gate says who
-    HTTP.header(request, "X-Key", "") == "boom" && error("the gate broke")
-    HTTP.header(request, "X-Key", "") == g.key ||
+
+function Bonito.HTTPServer.apply_handler(authentication::KeyAuthentication, context)
+    request = context.request
+    HTTP.removeheader(request, "X-Who")
+    HTTP.header(request, "X-Key", "") == "boom" && error("authentication failed")
+    HTTP.header(request, "X-Key", "") == authentication.key ||
         return HTTP.Response(401, ["Cache-Control" => "no-store"], "no entry")
     HTTP.setheader(request, "X-Who" => "admitted")
-    return nothing
+    response = Bonito.HTTPServer.apply_handler(authentication.handler, context)
+    response === nothing && return nothing
+    HTTP.setheader(response, "X-Authenticated" => "yes")
+    return response
 end
-Bonito.HTTPServer.gate_response(::KeyGate, request, response) =
-    (HTTP.setheader(response, "X-Gated" => "yes"); response)
 
 # A socket takes what a browser sends it, however large: Bonito lifts HTTP's
 # 16 MiB message cap. Under HTTP 2.12 the lifted cap of `typemax(Int)` overflowed
@@ -157,28 +159,28 @@ Bonito.HTTPServer.gate_response(::KeyGate, request, response) =
     end
 end
 
-@testset "gate" begin
+@testset "server handler wrappers" begin
     logged = String[]
     log_lock = ReentrantLock()
-    server = Server("127.0.0.1", 0; gate = KeyGate("sesame"),
+    server = Server("127.0.0.1", 0; handler = KeyAuthentication(Bonito.HTTPServer.delegate, "sesame"),
         access_log = (request, _) -> lock(() -> push!(logged, request.target), log_lock))
     url = "http://127.0.0.1:$(server.port)"
     try
         route!(server, "/who" => ctx -> HTTP.Response(200, HTTP.header(ctx.request, "X-Who", "nobody")))
         Bonito.HTTPServer.websocket_route!(server, "/echo" => (ctx, ws) -> foreach(m -> HTTP.WebSockets.send(ws, m), ws))
         get(key; who = "") = HTTP.get("$(url)/who", ["X-Key" => key, "X-Who" => who]; status_exception = false, retry = false)
-        # Refused before any route: the route never runs, the gate's answer is final.
+        # Refused before any route: the route never runs, the handler wrapper's answer is final.
         r = get("wrong")
-        @test r.status == 401 && String(r.body) == "no entry" && HTTP.header(r, "X-Gated") == ""
-        # Let through, with what the gate set; a client's own X-Who never survives.
+        @test r.status == 401 && String(r.body) == "no entry" && HTTP.header(r, "X-Authenticated") == ""
+        # Let through, with the authenticated identity; a client's own X-Who never survives.
         r = get("sesame"; who = "forged")
-        @test r.status == 200 && String(r.body) == "admitted" && HTTP.header(r, "X-Gated") == "yes"
-        # Unknown routes are the gate's business too.
+        @test r.status == 200 && String(r.body) == "admitted" && HTTP.header(r, "X-Authenticated") == "yes"
+        # Unknown routes are authenticated too.
         @test HTTP.get("$(url)/nothing-here"; status_exception = false).status == 401
-        # A gate that throws refuses, and says nothing about why.
+        # A failing handler wrapper never reaches the route.
         r = get("boom")
-        @test r.status == 500 && !occursin("broke", String(r.body))
-        # Websocket upgrades pass the gate first: refused without the key...
+        @test r.status == 500 && !occursin("authentication failed", String(r.body))
+        # Websocket upgrades are authenticated first: refused without the key...
         @test_throws Exception HTTP.WebSockets.open(ws -> nothing, "ws://127.0.0.1:$(server.port)/echo";
                                                     headers = ["X-Key" => "wrong"])
         # ...served with it.
@@ -193,7 +195,7 @@ end
     finally
         close(server)
     end
-    # Without a gate nothing changes.
+    # Without handler wrapper nothing changes.
     open_server = Server("127.0.0.1", 0)
     try
         route!(open_server, "/who" => ctx -> HTTP.Response(200, "anyone"))

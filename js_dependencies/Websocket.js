@@ -414,8 +414,7 @@ export function setup_connection({
     proxy_url,
     session_id,
     compression_enabled,
-    query,
-    main_connection,
+    queries = [""],
 }) {
     // TODO why does this make the tests hang?
     // Detect tab duplication using BroadcastChannel.
@@ -443,40 +442,31 @@ export function setup_connection({
     // }
 
     const url = websocket_url(session_id, proxy_url);
-    console.log(`connecting : ${url + query}`);
-    const ws = new Websocket(url + query, compression_enabled);
-    window.WEBSOCKET = ws;
-    if (main_connection) {
-        // mobile browsers fire these, not `focus`, when a frozen tab comes back
-        document.addEventListener("visibilitychange", () => {
-            if (document.visibilityState === "visible") {
-                ws.on_visible();
-            }
+    const sockets = queries.map(query => new Websocket(url + query, compression_enabled));
+    const main = sockets[0];
+    window.WEBSOCKET = main;
+    const on_visible = () => {
+        main.on_visible();
+        sockets.slice(1).forEach(ws => {
+            if (!ws.isopen()) ws.on_visible();
         });
-        window.addEventListener("pageshow", (evt) => {
-            if (evt.persisted) {
-                ws.on_visible();
-            }
-        });
-        // Chrome's page lifecycle: a frozen background tab is resumed, and a
-        // phone's network comes back, often after the page was shown already.
-        document.addEventListener("resume", () => ws.on_visible());
-        window.addEventListener("online", () => ws.on_visible());
-        let first_open = true;
-        ws.on_open(() => {
-            Bonito.on_connection_open(
-                (binary) => ws.send(binary),
-                compression_enabled
-            );
-            if (first_open) {
-                first_open = false;
-            } else {
-                // websocket reconnected: re-announce the initialized sessions
-                // so the julia side re-opens them - flushing messages queued
-                // while disconnected and firing `session.on_open` for
-                // integrations that re-synchronize state (e.g. WGLMakie).
-                Bonito.Sessions.reannounce_initialized_sessions();
-            }
-        });
-    }
+    };
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") on_visible();
+    });
+    window.addEventListener("pageshow", evt => {
+        if (evt.persisted) on_visible();
+    });
+    document.addEventListener("resume", on_visible);
+    window.addEventListener("online", on_visible);
+    let first_open = true;
+    sockets.forEach(ws => ws.on_open(() => {
+        if (!sockets.every(socket => socket.isopen())) return;
+        Bonito.on_connection_open(binary => main.send(binary), compression_enabled);
+        if (first_open) {
+            first_open = false;
+        } else {
+            Bonito.Sessions.reannounce_initialized_sessions();
+        }
+    }));
 }

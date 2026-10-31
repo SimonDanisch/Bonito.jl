@@ -20,11 +20,7 @@ struct LargeUpdate
 end
 
 function (x::JSUpdateObservable)(@nospecialize(value))
-    # Lock-protected check-then-send so a concurrent
-    # jsrender(::Session, ::Observable) listener can't slip a
-    # detach_subsession! between our liveness check and our write —
-    # which would put a stale UpdateObservable on the wire after the
-    # UpdateSession that freed its target on JS.
+    # Serialize and send before a concurrent teardown can remove the owner.
     try
         lock(deletion_lock(root_session(x.session))) do
             isclosed(x.session) && return
@@ -33,7 +29,14 @@ function (x::JSUpdateObservable)(@nospecialize(value))
             # String keys (not Symbols) avoid `string(k)` per key inside
             # serialize_cached, hot on every Observable update.
             msg = Dict{String,Any}("payload" => data, "id" => x.id, "msg_type" => UpdateObservable)
-            send(x.session, msg; large=is_large)
+            entry = get(x.session.session_objects, x.id, nothing)
+            entry === nothing && return
+            # Payload objects must be freed with an owner, not kept by the sender.
+            message = SerializedMessage(first(entry.owners), msg)
+            if !any(sends_in_order, entry.owners)
+                register_owners!(message.cache, x.id, entry, SerializedObservable(x.id, nothing))
+            end
+            send(x.session, message; large=is_large)
         end
     catch e
         # Don't swallow real failures at @debug — a serialization/pack error
@@ -47,77 +50,37 @@ end
 
 
 """
-Update the value of an observable, without echoing the change back to the
-frontend session that originated it.
-
-`origin` is the session whose browser just pushed this value. We must skip
-ONLY that session's `JSUpdateObservable` (so the value doesn't bounce back to
-the tab that sent it), but still fire every OTHER session's updater — when two
-browser sessions share one observable, session B has to see A's update.
-Skipping all `JSUpdateObservable`s (the old behavior) silently desynced them.
-All non-`JSUpdateObservable` listeners (user `on`/`map`) always fire.
+Apply a browser update and notify Julia listeners without echoing it to JavaScript.
 """
-function update_nocycle!(obs::Observable, @nospecialize(value), origin::Union{Session,Nothing}=nothing)
-    obs.val = value
-    for (prio, f) in Observables.listeners(obs)
-        if f isa JSUpdateObservable
-            # Skip only the updater bound to the originating session; let
-            # the other sessions' updaters relay the new value onward.
-            origin === nothing && continue
-            f.session === origin && continue
-        end
-        started = time_ns()
-        try
-            Base.invokelatest(f, value)
-        finally
-            took = (time_ns() - started) / 1e9
-            if took >= 0.5
-                Base.invokelatest(log_slow_listener, origin, obs.id, f, took)
-            end
-        end
+function update_nocycle!(obs::Observable, @nospecialize(value), session::Union{Session,Nothing}=nothing)
+    snapshot() = begin
+        obs.val = value
+        copy(Observables.listeners(obs))
+    end
+    callbacks = session === nothing ? snapshot() : lock(snapshot, deletion_lock(session))
+    for (prio, f) in callbacks
+        f isa JSUpdateObservable && continue
+        Base.invokelatest(f, value)
     end
     return
 end
 
-# Keep source lookup and logging off the normal update's inference path. The
-# whole-message warning lists every listener; this identifies the slow one.
-function log_slow_listener(origin, id, @nospecialize(listener), seconds)
-    sites = join(unique(string(basename(string(m.file)), ":", m.line)
-                        for m in methods(listener)), ", ")
-    page = origin === nothing ? "" : first(root_session(origin).id, 8)
-    @warn "slow observable listener" page id seconds = round(seconds; digits = 3) listener = sites
-    return nothing
-end
-
-# Observables keeps an Observable's listeners in a plain Vector. An Observable
-# that outlives one session (a component's state, a chat shared by every tab)
-# gets listeners added by one session's render while another session's `free`
-# removes its own, on other threads, and the Vector breaks: "Vector can not be
-# resized concurrently", or an `UndefRefError` and leaked listeners. Every
-# listener a Session adds or removes goes through this one lock. Callbacks never
-# run under it.
-const LISTENER_LOCK = ReentrantLock()
-
 # on & map versions that deregister when session closes!
 function Observables.on(f, session::Session, observable::Observable; update=false)
-    to_deregister = lock(LISTENER_LOCK) do
-        o = on(f, observable)
-        # If the session already closed (a late render task running after
-        # `free(session)` emptied `deregister_callbacks`), nothing will ever
-        # deregister this listener — it would leak permanently and keep firing
-        # into a dead session. Deregister immediately instead.
-        isclosed(session) ? off(o) : push!(session.deregister_callbacks, o)
-        o
+    to_deregister = lock(deletion_lock(session)) do
+        listener = on(f, observable)
+        isclosed(session) ? off(listener) : push!(session.deregister_callbacks, listener)
+        return listener
     end
     update && f(observable[])
     return to_deregister
 end
 
 function Observables.onany(f, session::Session, observables::Observable...)
-    return lock(LISTENER_LOCK) do
-        to_deregister = onany(f, observables...)
-        isclosed(session) ? foreach(off, to_deregister) : append!(session.deregister_callbacks, to_deregister)
-        to_deregister
+    return lock(deletion_lock(session)) do
+        listeners = onany(f, observables...)
+        isclosed(session) ? foreach(off, listeners) : append!(session.deregister_callbacks, listeners)
+        return listeners
     end
 end
 

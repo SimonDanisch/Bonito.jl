@@ -7,18 +7,16 @@ drift; function names are the stable anchors.
 
 ## 0. The one invariant everything hangs on
 
-An `App` renders into a `Session`; the session serializes objects ONCE and
-after that ships only references; the frontend mirrors the session's state.
-This is only sound because a session tree has exactly ONE frontend, reached
-over ONE ordered connection: **"serialized" implies "delivered to the owning
-page, in order"**. Every subsystem below leans on that: the object cache sends
-`TrackingOnly` refs for anything already cached; plots reference glyphs shipped
-earlier; the init bundle assumes queued messages replay before later sends.
-When you build anything where fragments mount independently (proxied workers,
-lazily-mounted chat results), you must either preserve this invariant
-(serialize-on-mount, per-page cache scope) or make every payload
-self-contained/pullable. Breaking it silently is how "sometimes the plot never
-loads" bugs are born.
+An `App` renders into a `Session`. One session tree owns one browser-side
+object cache. Messages sent on its live connection are ordered and can reuse
+objects already loaded by that browser. Subsession DOM can mount much later,
+so their initialization payloads carry complete values. Merely serializing a
+subsession does not mean that its objects exist in the browser yet.
+
+Browser-facing Observables belong to one session tree. App-global sources
+use `bind_global(session, source)` to create a distinct Observable per session;
+see [Observable ownership in the App guide](docs/src/app.md) and the rules at
+the top of [AGENTS.md](AGENTS.md).
 
 ## 1. Session model: `types.jl`, `session.jl`
 
@@ -116,9 +114,8 @@ Msg types: `UpdateObservable "0"`, `OnjsCallback "1"`, `EvalJavascript "2"`,
   local handling.
 - `UpdateObservable`: object looked up + dispatch slot claimed under
   `deletion_lock` (guarded by `closing`), listener invoked OUTSIDE the lock
-  with `update_nocycle!(obj, payload, session)`: the originating session's JS
-  updater is skipped (no echo), other sessions sharing the observable still
-  update. `dispatch_count` is what `close` drains.
+  with `update_nocycle!(obj, payload, session)`, without echoing to JavaScript.
+  `dispatch_count` is what `close` drains.
 - `JSDoneLoading`: error variant records on `init_error`; success resolves the
   sub via locked `get_session` walk and fires `sub.on_connection_ready(sub)`
   async, which is what flips `connection_ready`/flushes the queue via
@@ -160,32 +157,41 @@ features (e.g. glyph batches as EvalJS events) replay correctly in
 
 ## 5. Serialization & the object cache: `serialization/`
 
-- `SerializedMessage(session, msg)` packs eagerly at enqueue time (msgpack +
-  optional compression), so a message's object registrations are fixed when it
-  is CREATED, not when flushed.
-- `add_cached!(create, session, send_to_js, object)`: key = `cache_key(session,
-  object)` (PREFIXED under ProxyConnection). Root holds `CachedEntry(object,
-  owners::Set{session ids})`; subs hold marker keys. First cacher serializes
-  fully (and `register_observable!` attaches the JS-update listener EXACTLY
-  once; insert into `root.session_objects` only AFTER `create_cached_object`,
-  see inline comment); later cachers add themselves as owners and send
-  `TrackingOnly(key)`.
-- Proxied roots take the same TrackingOnly branch as any other root, because
-  there is one proxied root per browser page (§9): §0 holds, so whatever a
-  prior sub shipped is already in that page's cache.
+- `SerializedMessage(session, msg)` collects object registrations when created.
+  MsgPack packing and optional compression happen when it is written or exported.
+- `add_cached!` registers objects under `cache_key(session, object)` (prefixed
+  for proxied roots). The root's `CachedEntry` holds the object and its owning
+  sessions. Subsessions keep marker keys so closing one removes its ownership.
+- A live, ordered message may use `TrackingOnly` when another owner is ready
+  and has no queued messages, meaning its copy precedes this message.
+  Deferred initialization payloads carry complete values instead. The browser
+  preserves an existing Observable's identity when receiving a second copy.
+  Updates and releases include pending owners as nested `SessionCache` values,
+  so their Observables survive until the delayed initialization reads them.
+- `pending_asset_loads` retains a closed subsession's asset registrations until
+  its `JSDoneLoading` report, preventing 404s for payloads still being fetched.
+  A root-owned timer expires unreported loads after five minutes, including
+  proxied roots, and stops when no loads remain.
 - `evaljs_value` builds a throwaway comm Observable OUTSIDE session lifetime, so
   it must free it manually on both sides (JS `force_free_object`, Julia
   `remove_js_updates!` + cache deletion by the PREFIXED key).
 
 ## 6. Locking discipline
 
-One lock per tree: `root.deletion_lock` (reentrant). Held for: cache/children
+Session state has one lock per tree: `root.deletion_lock` (reentrant). Held for: cache/children
 mutation, status transitions, queue/write decision, `get_session` walks,
 session_dom. NEVER held across: user listeners (UpdateObservable dispatch,
 on_close), the init-bundle socket write, `on_node_available`-style waits.
 `cleanup_server` documents the one ordering hazard: never take
 `websocket_routes.lock` around `close(session)` (which takes deletion_lock →
 routes lock); snapshot under the routes lock, close outside.
+
+Listener registration, removal and browser-dispatch snapshots use that same
+session lock; callbacks run after releasing it. Independent session trees do
+not share a listener lock. Apps create session-local Observables; app-global
+sources use `bind_global(session, source)`, which creates a separate Observable
+for the session and removes its source subscription when the session closes.
+Do not reuse a browser-bound Observable across independent session trees.
 
 ## 7. Connections: `connection/`
 

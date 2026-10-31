@@ -71,3 +71,20 @@ end
     end
     @test success == :success
 end
+
+@testset "boolean and string attributes" begin
+    flag = Observable(false)
+    app = App(() -> DOM.button("toggle"; id = "boolean-attributes",
+        disabled = flag, ariaExpanded = flag, dataActive = flag))
+    display(edisplay, app)
+    session = app.session[]
+    attributes() = evaljs_value(session, js"""(() => {
+        const node = document.getElementById('boolean-attributes');
+        return [node.disabled, node.getAttribute('aria-expanded'), node.dataset.active];
+    })()""")
+    @test attributes() == [false, "false", "false"]
+    flag[] = true
+    @test Bonito.wait_for(() -> attributes() == [true, "true", "true"]) == :success
+    flag[] = false
+    @test Bonito.wait_for(() -> attributes() == [false, "false", "false"]) == :success
+end

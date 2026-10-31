@@ -359,7 +359,7 @@ end
 
 # Keep a displayed sub's assets until both its close and the browser's
 # JSDoneLoading report. Replacing a still-loading sub must not 404 its payload.
-mutable struct BrowserLoad
+mutable struct PendingAssetLoad
     const asset_server::AbstractAssetServer
     const since::Float64
     closed::Bool
@@ -399,8 +399,9 @@ mutable struct RootSession{Connection <: FrontendConnection}
     dispatch_count::Threads.Atomic{Int}
     # Shared msgpack scratch-buffer pool for the whole tree (see `PackIOPool`).
     pack_pool::PackIOPool
-    # Sub id => its `BrowserLoad`, in display order. Under `deletion_lock`.
-    loading_in_browser::OrderedDict{String, BrowserLoad}
+    # Sub id => its `PendingAssetLoad`, in display order. Under `deletion_lock`.
+    pending_asset_loads::OrderedDict{String, PendingAssetLoad}
+    pending_asset_timer::Union{Nothing,Timer}
 end
 
 """
@@ -522,7 +523,7 @@ metadata_dict(s::Session)       = root_data(s).metadata
 const ROOT_ONLY_FIELDS = (
     :connection, :inbox, :js_comm, :dom_uuid_counter,
     :compression_enabled, :deletion_lock, :threadid, :metadata,
-    :closing, :dispatch_count, :pack_pool, :loading_in_browser,
+    :closing, :dispatch_count, :pack_pool, :pending_asset_loads, :pending_asset_timer,
 )
 
 function Base.getproperty(s::Session, f::Symbol)
@@ -631,7 +632,8 @@ function Session(connection::Connection=default_connection();
         false,                                          # closing
         Threads.Atomic{Int}(0),                         # dispatch_count
         PackIOPool(),                                   # pack_pool
-        OrderedDict{String, BrowserLoad}(),             # loading_in_browser
+        OrderedDict{String, PendingAssetLoad}(),         # pending_asset_loads
+        nothing,                                        # pending_asset_timer
     )
     session = Session{Connection}(
         root_state,                                     # parent_or_root

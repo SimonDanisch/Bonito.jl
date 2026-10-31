@@ -52,46 +52,9 @@ function Base.close(ws::DualWebsocket)
     return
 end
 
-"""
-    handles a new websocket connection to a session
-"""
-function (connection::DualWebsocket)(context, websocket::WebSocket)
-    request = context.request
-    uri = URIs.URI(request.target)
-    session_id = URIs.splitpath(uri.path)[1]
-    @debug("WS session id: $(session_id)")
-    session = connection.session
-    if isnothing(session)
-        error("Websocket connection skipped setup")
-    end
-    @assert session_id == session.id
-    handler = uri.query == "low_latency" ? connection.low_latency : connection.large_data
-    try
-        run_connection_loop(session, handler, websocket)
-    finally
-        # Close our own handler only if this socket is still current; a stale
-        # loop must not tear down the live socket a reconnect installed.
-        if is_current_socket(handler, websocket)
-            close(handler)
-        else
-            @debug("Stale ws loop for $(session.id) exiting; not closing handler")
-        end
-        # Fire the session transition once BOTH legs are dead, regardless of which
-        # leg (stale or not) observes it last. Gating this on `is_current_socket`
-        # let a stale last leg exit without firing it, leaking the session as OPEN.
-        # Idempotent via the CLOSED guard. Require both legs dead so the first leg
-        # to drop doesn't kill a session the other is still serving (e.g. JSDoneLoading).
-        if !isopen(connection.low_latency) && !isopen(connection.large_data)
-            if allow_soft_close(CLEANUP_POLICY[])
-                @debug("Soft closing: $(session.id)")
-                soft_close(session)
-            else
-                @debug("Closing: $(session.id)")
-                close(session)
-            end
-        end
-    end
-end
+websocket_handlers(connection::DualWebsocket) = (connection.low_latency, connection.large_data)
+websocket_handler(connection::DualWebsocket, uri) =
+    uri.query == "low_latency" ? connection.low_latency : connection.large_data
 
 function setup_connection(session::Session, connection::DualWebsocket)
     connection.session = session
@@ -100,12 +63,8 @@ function setup_connection(session::Session, connection::DualWebsocket)
     HTTPServer.websocket_route!(server, "/$(session.id)?low_latency" => connection)
     HTTPServer.websocket_route!(server, "/$(session.id)?large_data" => connection)
     external_url = HTTPServer.relative_url(server, "")
-    js_ll = setup_websocket_connection_js(external_url, session; query="?low_latency")
-    js_ld = setup_websocket_connection_js(external_url, session; query="?large_data", main_connection=false)
-    return js"{
-        $(js_ll)
-        $(js_ld)
-    }"
+    return setup_websocket_connection_js(external_url, session;
+        queries = ["?low_latency", "?large_data"])
 end
 
 function setup_connection(session::Session{DualWebsocket})

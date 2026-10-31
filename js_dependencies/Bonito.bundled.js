@@ -3997,9 +3997,6 @@ function track_in_session(session_id, key, session_status) {
     }
     const tracked_objects = session[0];
     tracked_objects.add(key);
-    if (!(key in GLOBAL_OBJECT_CACHE)) {
-        console.warn(`TrackingOnly: Key ${key} not found in GLOBAL_OBJECT_CACHE`);
-    }
 }
 function register_in_session_cache(session_id, key, object, session_status) {
     ensure_session_exists(session_id, session_status);

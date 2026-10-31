@@ -7,6 +7,25 @@ Bonito core and BonitoBook (`MonacoEditor` / `EvalEditor` / `CellEditor` /
 project-level CONVENTIONS.md; this file is about *architecture*: how state,
 rendering, and Julia↔JS communication should be organized.
 
+## Session ownership: read first
+
+- Create browser-facing Observables and widget instances inside the `App`
+  handler. Each independent session gets its own instances.
+- For an app-global Observable source, use `bind_global(session, source)` and
+  render the returned Observable. It is a distinct Observable whose source
+  subscription is removed when the session closes. The binding is one-way.
+- Use `on(f, session, obs)`, `onany(f, session, ...)` and session-aware `map`
+  for listeners that belong to the session.
+- Parent sessions and their subsessions share one tree and may reference the
+  same session-local Observable. Independent session trees must not directly
+  reuse a browser-bound Observable or mutable widget instance.
+- Use the tree's existing `root.deletion_lock` for session bookkeeping; run
+  value and close callbacks outside it. Do not add a process-wide listener
+  lock to coordinate independent sessions.
+
+See [Observable ownership in the App guide](docs/src/app.md) and
+[`bind_global`](src/app.jl) before changing Observable lifetime or locking.
+
 Related developer docs:
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — how Bonito actually works, file by
   file: session tree, wire protocol, send/queue path, object cache, locking,
@@ -55,11 +74,10 @@ The consequences of this shape:
   render the same widget into a fresh session after a reload and end up
   in the same visual state.
 
-Construct observables in the constructor, not in `jsrender`: `jsrender`
-runs once per session/tab, so any state created there is per-tab and
-silently diverges between tabs. Per-tab state is occasionally right (a
-local "is this panel expanded here" toggle) — make that an explicit,
-commented choice.
+Construct widget Observables in the widget constructor and create the widget
+instance inside the `App` handler. This gives each independent session its
+own state. `jsrender` renders that instance; it should not create replacement
+Observables on every render. App-global sources use `bind_global` as above.
 
 ## 2. State ownership: app object down, never globals up
 

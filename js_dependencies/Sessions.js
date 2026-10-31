@@ -309,9 +309,7 @@ export function init_session(session_id, message_promise, session_status, compre
         payload.then(() => send_done_loading(session_id, null));
         return;
     }
-    // The session may be known already: Julia pins the objects its payload
-    // only references (track_in_session), so they outlive the sessions that
-    // shipped them while this payload waits for its DOM to reach the document.
+    // Preserve registrations already decoded for this session.
     const known = SESSIONS[session_id];
     SESSIONS[session_id] = [known ? known[0] : new Set(), session_status];
     track_deleted_sessions(); // no-op if already tracking
@@ -547,9 +545,7 @@ export function ensure_session_exists(session_id, session_status) {
 /**
  * Track a key in the session without adding to global cache.
  * Used by TrackingOnly extension - the object already exists in GLOBAL_OBJECT_CACHE
- * from another session, we just need to track it in this session. Julia also
- * calls it to pin an object for a session whose payload the page reads later
- * (`pin_on_page!`), which creates the session entry ahead of `init_session`.
+ * from another session; this records the new owner.
  *
  * @param {string} session_id
  * @param {string} key - The object's cache key
@@ -569,9 +565,6 @@ export function track_in_session(session_id, key, session_status) {
     // Track in session (object should already be in GLOBAL_OBJECT_CACHE)
     tracked_objects.add(key);
 
-    if (!(key in GLOBAL_OBJECT_CACHE)) {
-        console.warn(`TrackingOnly: Key ${key} not found in GLOBAL_OBJECT_CACHE`);
-    }
 }
 
 /**

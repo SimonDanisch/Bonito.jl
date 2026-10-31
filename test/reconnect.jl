@@ -62,7 +62,7 @@ end
 
 countrecv(ctx, v) = lock(ctx.lk) do; count(==(v), ctx.recv); end
 ws_isopen(win) = run(win, "window.WEBSOCKET.isopen()") === true
-force_disconnect(win) = run(win, "window.WEBSOCKET.close()")
+force_disconnect(win) = run(win, "window.WEBSOCKET.close(); window.WEBSOCKET.isopen()")
 
 # Run `f(ctx, win)` against a fresh Electron window (reusing the shared Electron
 # process), connected and with the setup evaljs applied. Always closes the window.
@@ -95,8 +95,7 @@ end
             @test wait_for(() -> run(win, "window.__o_out.value") == 7; timeout=5) == :success
 
             # kill the socket; it must auto-reconnect and the session must survive
-            force_disconnect(win)
-            @test ws_isopen(win) == false
+            @test force_disconnect(win) === false
             @test wait_for(() -> ws_isopen(win); timeout=15) == :success
             @test isopen(session)
             @test isready(root_session(session))
@@ -415,4 +414,34 @@ end
         end
     end
 
+end
+
+@testset "DualWebsocket replays after either socket reconnects" begin
+    Bonito.force_connection!(Bonito.DualWebsocket)
+    try
+        with_roundtrip() do ctx, win
+            root = root_session(ctx.app.session[])
+            bulk = Observable{Any}(0)
+            evaljs(ctx.app.session[], js"window.__bulk_out = $(bulk)")
+            bulk[] = Bonito.LargeUpdate(42)
+            @test wait_for(() -> run(win, "window.__bulk_out.value") == 42) == :success
+            @test isempty(root.message_queue)
+            for (value, handler) in enumerate(Bonito.websocket_handlers(root.connection))
+                lock(root.deletion_lock) do
+                    socket = @atomic handler.socket
+                    socket.close_transport!()
+                    ctx.obs_out[] = value
+                    @test !isempty(root.message_queue)
+                end
+                @test wait_for(timeout = 15) do
+                    isopen(root.connection) && isempty(root.message_queue) &&
+                        run(win, "window.__o_out.value") == value
+                end == :success
+                run(win, "window.__o_in.notify($(value))")
+                @test wait_for(() -> countrecv(ctx, value) == 1) == :success
+            end
+        end
+    finally
+        Bonito.force_connection!(Bonito.WebSocketConnection)
+    end
 end

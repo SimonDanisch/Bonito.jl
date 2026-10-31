@@ -29,17 +29,18 @@ app = App(; loading_page=LoadingPage(text="Initializing...")) do session
 end
 ```
 
-If you depend on global observable, make sure to bind it to the session.
-This is pretty important, since every time you display the app, listeners will get registered to it, that will just continue staying there until your Julia process gets closed.
-`bind_global` prevents that by binding the observable to the life cycle of the session and cleaning up the state after the app isn't displayed anymore.
-If you serve the `App` via a `Server`, be aware, that those globals will be shared with everyone visiting the page, so possibly by many users concurrently.
+# Observable ownership
+Create browser-facing Observables and widgets inside the handler for each session.
+For an app-global source, render [`bind_global`](@ref)'s session-local result.
+Closing the session removes its subscription to the source.
 ```julia
-global some_observable = Observable("global hello world")
-App() do session::Session
-    bound_global = bind_global(session, some_observable)
-    return DOM.div(bound_global)
+source = Observable("Ready")
+App() do session
+    status = bind_global(session, source)
+    return DOM.div(status)
 end
 ```
+
 """
 App
 
@@ -125,6 +126,21 @@ function update_app!(parent::Session, new_app::App)
     return new_app
 end
 
+"""
+    bind_global(session, source::AbstractObservable)
+
+Create a session-local Observable that follows an app-global `source`. Render
+this result in the app; closing `session` removes its source subscription.
+Updates flow from source to result. The result does not write back to source,
+and values are not deep-copied.
+
+```julia
+source = Observable("Ready")
+App() do session
+    DOM.div(bind_global(session, source))
+end
+```
+"""
 function bind_global(session::Session, var::AbstractObservable{T}) where T
     # preserve eltype:
     result = Observable{T}(var[])

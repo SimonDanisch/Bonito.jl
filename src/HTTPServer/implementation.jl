@@ -18,44 +18,12 @@ mutable struct Server
     routes::Routes
     websocket_routes::Routes
     protocol::String
-    # Sees every request before any route and every response after it (see
-    # `gate_request`); `nothing` lets everything through.
-    gate::Any
+    handler::Any
     # Optional `(request, peer_ip)` callback, including WebSocket upgrades.
     access_log::Union{Nothing, Function}
 end
 
 Routes(pairs::Pair...) = Routes(Pair{Any, Any}[pairs...], Base.ReentrantLock())
-
-"""
-    gate_request(gate, request) -> Union{Nothing, HTTP.Response}
-
-Asked for every request a `Server(...; gate)` receives, before any route, websocket
-upgrades included: `nothing` lets the request through to the routes (the gate may
-have changed it on the way, e.g. set a header), a response answers it instead and
-refuses the upgrade. A gate that throws refuses too. Define it for the type of your
-gate, together with `gate_response` if responses need a last change.
-"""
-gate_request(::Nothing, request) = nothing
-
-"""
-    gate_response(gate, request, response) -> HTTP.Response
-
-The response a route gave to a request `gate_request` let through, as it leaves
-the server. The gate's own answers do not pass here.
-"""
-gate_response(gate, request, response) = response
-
-# A gate that fails does not let the request through, and tells the client no
-# more than that.
-function ask_gate(gate, request)
-    try
-        return gate_request(gate, request)
-    catch e
-        @error "the server's gate failed; request refused" target = request.target exception = (e, catch_backtrace())
-        return Response(500, ["Content-Type" => "text/plain; charset=utf-8"], "internal error\n")
-    end
-end
 
 # Priorities, so that e.g. r".*" doesn't catch absolut matches by e.g a string
 pattern_priority(x::Pair) = pattern_priority(x[1])
@@ -313,57 +281,39 @@ end
 
 function stream_handler(application::Server, stream::Stream)
     peer = peer_ip(stream)
-    gate = application.gate
     application.access_log !== nothing && application.access_log(stream.message, peer)
+    handler = request -> begin
+        routes = HTTP.WebSockets.isupgrade(request) ? application.websocket_routes : application.routes
+        context = (; routes, application, request, match = nothing, peer_ip = peer, stream)
+        return apply_handler(application.handler, context)
+    end
     if HTTP.WebSockets.isupgrade(stream.message)
-        refusal = ask_gate(gate, stream.message)
-        refusal === nothing || return respond!(stream, refusal)
         try
-            # `check_origin = true` keeps the permissive 1.x behaviour: Bonito
-            # connects from VSCode webviews, Electron, notebooks, … whose Origin
-            # won't match Host. `upgrade` keeps HTTP and websockets on a single
-            # (route-dispatched) port and drains any bytes buffered with the
-            # handshake into the codec.
-            # HTTP 2.4 started capping inbound WebSocket messages by default
-            # (`maxframesize` 16 MiB, was `typemax(Int)` through 2.3.1; plus a
-            # 1024-frame `maxfragmentation` cap) and closes with 1009
-            # "frame/message too large" when exceeded. Bonito round-trips large
-            # binary payloads (WGLMakie meshes, images, volumes; the typed-array
-            # serialization tests) over this socket from a trusted local browser
-            # (Electron / notebook / VSCode webview), so lift both caps back to
-            # unbounded. HTTP 2.12 also closes a socket (1008, "too many unread
-            # messages") once its unread messages pass `4 * maxframesize`, and
-            # multiplies without an overflow check: `typemax(Int)` made that -4,
-            # so every socket closed on its first message. A quarter of
-            # `typemax(Int)` keeps both limits out of reach.
-            HTTP.WebSockets.upgrade(
-                stream;
-                check_origin = (_...) -> true,
-                maxframesize = typemax(Int) ÷ 4,
-                maxfragmentation = typemax(Int),
-            ) do ws
-                response = delegate(application.websocket_routes, application, stream.message, ws; peer_ip = peer)
-                # No such session (server restarted or cleaned it up): 4404 tells
-                # the page to stop retrying, a plain close would look like a blip.
-                if response isa Response && response.status == 404
-                    close(ws, HTTP.WebSockets.CloseFrameBody(4404, "no such session"))
-                end
-            end
-            return
+            response = handler(stream.message)
+            response === nothing || respond!(stream, response)
         catch e
-            # When browser closes we may get an io error here!
-            if !(e isa Base.IOError)
-                rethrow(e)
-            end
+            e isa Base.IOError || rethrow()
+        end
+        return
+    end
+    serve_stream!(HTTP.streamhandler(handler), stream)
+end
+
+function delegate(context)
+    (; routes, application, request, peer_ip, stream) = context
+    if !HTTP.WebSockets.isupgrade(request)
+        return delegate(routes, application, request; peer_ip)
+    end
+    # Notebook/webview origins differ from Host. Large plot payloads also exceed
+    # HTTP's default frame limit; ÷ 4 avoids overflow in its unread-message bound.
+    HTTP.WebSockets.upgrade(stream; check_origin = (_...) -> true,
+            maxframesize = typemax(Int) ÷ 4, maxfragmentation = typemax(Int)) do ws
+        response = delegate(routes, application, request, ws; peer_ip)
+        if response isa Response && response.status == 404
+            close(ws, HTTP.WebSockets.CloseFrameBody(4404, "no such session"))
         end
     end
-    http_handler = HTTP.streamhandler() do request
-        refusal = ask_gate(gate, request)
-        refusal === nothing || return refusal
-        response = delegate(application.routes, application, request; peer_ip = peer)
-        return gate_response(gate, request, response)
-    end
-    serve_stream!(http_handler, stream)
+    return nothing
 end
 
 respond!(stream::Stream, response::Response) = serve_stream!(HTTP.streamhandler(_ -> response), stream)
@@ -382,15 +332,12 @@ function serve_stream!(handler, stream::Stream)
 end
 
 """
-Server(
-        dom, url::String, port::Int;
-        verbose = -1, gate = nothing
-    )
+    Server(host::String, port::Int; handler = HTTPServer.delegate, kwargs...)
 
-Creates an application that manages the global server state!
-
-`gate` sees every request before any route and every response after it: see
-`gate_request` and `gate_response`.
+Start an HTTP server for Bonito apps, assets and WebSockets.
+Wrap the server's routing handler using the same `apply_handler` interface as
+route handlers, for example `handler = ProtectedRoute(HTTPServer.delegate, users)`.
+A WebSocket upgrade returns `nothing` after the socket closes.
 """
 function Server(
         url::String, port::Int;
@@ -398,7 +345,7 @@ function Server(
         proxy_url = "",
         routes = Routes(),
         websocket_routes = Routes(),
-        gate = nothing,
+        handler = delegate,
         access_log = nothing,
         listener_kw...
     )
@@ -408,7 +355,7 @@ function Server(
         routes,
         websocket_routes,
         haskey(listener_kw, :sslconfig) ? "https://" : "http://",
-        gate,
+        handler,
         access_log,
     )
 

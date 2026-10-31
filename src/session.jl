@@ -101,9 +101,6 @@ function init_session(session::Session)
         if !isempty(session.message_queue) || !isempty(session.on_document_load)
             send(session, fused_messages!(session))
         end
-        # The browser reported its payload read, and the bundle went out ahead
-        # of anything sent from now on (unless a failed write queued it again).
-        isempty(session.message_queue) && mark_on_page!(root, session)
     end
     # Notify (re)connection listeners outside the lock: handlers may serialize
     # and send (e.g. WGLMakie re-synchronizing scene state on reconnect), which
@@ -169,6 +166,8 @@ function free(session::Session)
     lock(root.deletion_lock) do
         # don't double free!
         session.status === CLOSED && return
+        release = session !== root && isready(root; throw=false) ?
+            SerializedMessage(root, Dict(:msg_type => FusedMessage, :payload => [])) : nothing
         # unregister all cached objects from root session
         # If we're a child session, we need to remove all objects trackt in our root session:
         if session !== root
@@ -181,6 +180,10 @@ function free(session::Session)
             for key in collect(keys(session.session_objects))
                 if haskey(root.session_objects, key)
                     delete_cached!(root, session, key)
+                    entry = get(root.session_objects, key, nothing)
+                    if release !== nothing && entry !== nothing && entry.object isa Observable
+                        register_owners!(release.cache, key, entry, TrackingOnly(key))
+                    end
                 end
             end
         else
@@ -192,19 +195,17 @@ function free(session::Session)
             end
         end
 
+        if release !== nothing && !isempty(release.cache.objects)
+            send(root, release)
+        end
         # delete_cached! only deletes in the root session so we need to still empty the session_objects:
         empty!(session.session_objects)
         empty!(session.on_document_load)
         empty!(session.message_queue)
-        # Remove all listeners that were created for this session, and close it
-        # in the same step (`LISTENER_LOCK`): a render adding a listener on
-        # another thread either lands before and is removed here, or finds the
-        # session closed and removes its own.
-        lock(LISTENER_LOCK) do
-            foreach(off, session.deregister_callbacks)
-            empty!(session.deregister_callbacks)
-            session.status = CLOSED
-        end
+        # Registration and close share deletion_lock; closed sessions add no listeners.
+        foreach(off, session.deregister_callbacks)
+        empty!(session.deregister_callbacks)
+        session.status = CLOSED
         # Asset/CSS bookkeeping that accumulated across this session's lifetime.
         # The WGLMakie memory-leak test asserts these are empty after close;
         # historically they leaked because nothing emptied them on the close path.
@@ -229,10 +230,8 @@ function Base.empty!(session::Session)
         empty!(session.session_objects)
         empty!(session.on_document_load)
         empty!(session.message_queue)
-        lock(LISTENER_LOCK) do
-            foreach(off, session.deregister_callbacks)
-            empty!(session.deregister_callbacks)
-        end
+        foreach(off, session.deregister_callbacks)
+        empty!(session.deregister_callbacks)
         empty!(session.imports)
         empty!(session.global_stylesheets)
         empty!(session.stylesheets)
@@ -240,15 +239,9 @@ function Base.empty!(session::Session)
     return session
 end
 
-function soft_close(session::Session)
-    # Guard against resurrecting a session that was explicitly CLOSED by user
-    # code. The WS handler's `finally` calls `soft_close` unconditionally;
-    # without this guard a CLOSED session would flip to SOFT_CLOSED, `isclosed`
-    # would report false again, and late `_send`s would queue into a
-    # never-drained queue. Take the lock so the CLOSED-check and the status
-    # write are atomic w.r.t. a concurrent `close()`.
+function soft_close(session::Session; condition = Returns(true))
     lock(deletion_lock(root_session(session))) do
-        session.status === CLOSED && return
+        (session.status === CLOSED || !condition()) && return
         session.status = SOFT_CLOSED
         session.closing_time = time()
     end
@@ -275,27 +268,27 @@ const DISPATCH_DRAIN_TIMEOUT = 5.0
 # and may call `evaljs_value`, which needs the lock. After this returns no
 # user listener is running, so the subsequent locked teardown flips CLOSED with
 # nothing in flight.
-function drain_dispatch!(root::Session)
+function drain_dispatch!(root::Session; condition = Returns(true))
     already = lock(deletion_lock(root)) do
-        root.status === CLOSED && return true
+        (root.status === CLOSED || !condition()) && return true
         root.closing = true
         return false
     end
-    already && return
+    already && return false
     deadline = time() + DISPATCH_DRAIN_TIMEOUT
     while root.dispatch_count[] > 0 && time() < deadline
         sleep(0.0005)
     end
-    return
+    return true
 end
 
 # Close path for the ROOT of a session tree. Tears down OS-level resources
 # (the WS connection, the inbox channel) in addition to the per-session state
 # that `close_subsession` handles.
-function close_root_session(session::Session)
+function close_root_session(session::Session; condition = Returns(true))
     # Stop admitting UpdateObservable dispatches and let in-flight listeners
     # drain BEFORE we take the lock, so none fires once teardown sets CLOSED.
-    drain_dispatch!(session)
+    drain_dispatch!(session; condition) || return
     # Capture the listeners we'll fire AFTER releasing the lock. `nothing`
     # signals "already closed, fire nothing" so a re-entrant close is a no-op.
     on_close_listeners = lock(deletion_lock(session)) do
@@ -315,10 +308,11 @@ function close_root_session(session::Session)
         end
         free(session)   # sets session.status = CLOSED
         close(session.asset_server)
-        # No report comes after this. A sub still open here closes its asset
-        # server itself, since its entry is gone.
-        foreach(close, values(session.loading_in_browser))
-        empty!(session.loading_in_browser)
+        # Detached subsessions are no longer in children, but still own assets.
+        foreach(load -> close(load.asset_server), values(session.pending_asset_loads))
+        empty!(session.pending_asset_loads)
+        session.pending_asset_timer === nothing || close(session.pending_asset_timer)
+        session.pending_asset_timer = nothing
         session.current_app[] = nothing
         session.io_context[] = nothing
         close(inbox(session))
@@ -339,22 +333,41 @@ function close_root_session(session::Session)
     return
 end
 
-# `session`'s DOM is about to go to the browser, see `BrowserLoad`. Caller holds
-# `deletion_lock`.
-function expect_browser_load!(root::Session, session::Session; grace=300.0)
-    loads = root.loading_in_browser
-    t = time()
-    # Oldest first. A sub whose DOM never reached the document never reports:
-    # its entry is dropped at the next display after `grace` seconds.
-    while !isempty(loads) && t - last(first(loads)).since > grace
-        close(last(popfirst!(loads)))
+# A replaced subsession can still be fetching its payload. Retain its assets
+# until the browser reports completion, or five minutes pass without a report.
+# Caller holds deletion_lock.
+function retain_loading_assets!(root::Session, session::Session; timeout = 300.0)
+    expire_loading_assets!(root)
+    get!(root.pending_asset_loads, session.id) do
+        PendingAssetLoad(session.asset_server, time(), false)
     end
-    delete!(loads, session.id)   # a re-display moves it to the back
-    loads[session.id] = BrowserLoad(session.asset_server, t, false)
+    # Proxied roots have no local WebSocket route for server cleanup to visit.
+    if root.pending_asset_timer === nothing
+        weak_root = WeakRef(root)
+        root.pending_asset_timer = Timer(min(timeout, 1.0); interval = min(timeout, 1.0)) do timer
+            owner = weak_root.value
+            owner === nothing && return close(timer)
+            lock(owner.deletion_lock) do
+                expire_loading_assets!(owner; timeout)
+            end
+        end
+    end
     return
 end
 
-function Base.close(load::BrowserLoad)
+function expire_loading_assets!(root::Session; now = time(), timeout = 300.0)
+    loads = root.pending_asset_loads
+    while !isempty(loads) && now - last(first(loads)).since > timeout
+        close(last(popfirst!(loads)))
+    end
+    if isempty(loads) && root.pending_asset_timer !== nothing
+        close(root.pending_asset_timer)
+        root.pending_asset_timer = nothing
+    end
+    return
+end
+
+function Base.close(load::PendingAssetLoad)
     load.closed && close(load.asset_server)
     return
 end
@@ -403,12 +416,12 @@ function close_subsession(session::Session)
             close(last(first(session.children)))
         end
         free(session)   # no-op if detach already CLOSED us
-        # JS-side free; skip if the connection isn't ready (still
-        # initializing or already torn down).
-        isready(root; throw=false) && evaljs(root, js"""Bonito.free_session($(session.id))""")
+        if isready(root; throw=false)
+            evaljs(root, js"Bonito.free_session($(session.id))")
+        end
         # While the browser is still loading this sub, its report closes the
-        # asset server (see `BrowserLoad`). ChildAssetServer.close is idempotent.
-        load = get(root.loading_in_browser, session.id, nothing)
+        # asset server (see `PendingAssetLoad`). ChildAssetServer.close is idempotent.
+        load = get(root.pending_asset_loads, session.id, nothing)
         if load === nothing
             close(session.asset_server)
         else
@@ -530,7 +543,7 @@ function _send(session::Session, sm::SerializedMessage, large::Bool)
         if isready(session; throw=false)
             try
                 if large
-                    write_large(session.connection, sm)
+                    write_large(session.connection, serialize_binary(sm))
                 else
                     write(session.connection, sm)
                 end
@@ -745,7 +758,7 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
     # also matches by key (the JSUpdateObservable's `.id` is the cache key).
     key = cache_key(session, comm)
     lock(root.deletion_lock) do
-        remove_js_updates!(key, comm)
+        remove_js_updates!(key, comm, root_session(session))
         delete!(session.session_objects, key)
         delete!(root.session_objects, key)
     end
@@ -844,7 +857,7 @@ function mark_displayed!(session::Session)
         session.status in (UNINITIALIZED, RENDERED) || return
         # Freshly rendered HTML, which the browser loads and reports.
         if !isroot(session) && session.status === RENDERED
-            expect_browser_load!(root, session)
+            retain_loading_assets!(root, session)
         end
         session.status = DISPLAYED
         session.closing_time = time()
@@ -1047,7 +1060,7 @@ function update_session_dom!(parent::Session, node_uuid::String, app_or_dom; rep
         "dom_node_selector" => node_uuid
     )
     message = SerializedMessage(sub, session_update)
-    # Before the send, so the browser's report can't arrive first (`BrowserLoad`).
+    # Before the send, so the browser's report can't arrive first (`PendingAssetLoad`).
     mark_displayed!(parent)
     mark_displayed!(sub)
     send(root_session(parent), message)

@@ -72,7 +72,6 @@ function Base.write(ws::WebSocketHandler, binary::AbstractVector{UInt8})
             # The connection is gone: end the transport (a polite close waits
             # for the peer) and THROW so `_send` queues the message for replay.
             @debug "couldnt write, closing ws"
-            @atomic ws.socket = nothing
             socket.close_transport!()
             error("websocket write failed; socket closed")
         end
@@ -92,48 +91,28 @@ function Base.close(ws::WebSocketHandler)
     end
 end
 
-"""
-    is_current_socket(handler, websocket) -> Bool
+# Call under the session lock when changing session state.
+is_current_socket(handler::WebSocketHandler, websocket::WebSocket) =
+    (@atomic handler.socket) === websocket
 
-True iff `websocket` is still the socket `handler` is bound to. Used by the WS
-connection callback's `finally` so a *stale* loop (an old, half-open socket
-still parked in `safe_read` when the browser reconnected and installed a new
-socket) does NOT tear down the session now owned by the new socket.
-"""
-function is_current_socket(handler::WebSocketHandler, websocket::WebSocket)
-    lock(handler.lock) do
-        return (@atomic handler.socket) === websocket
-    end
-end
-
-# Whether the page dialed a newer socket than `websocket`. After a failed write
-# the handler holds none (`Base.write` drops it), and the loop of the socket
-# that failed is still the page's last. No lock: a write stuck on the newer
-# socket must not hold up the old loop's exit.
-function superseded(handler::WebSocketHandler, websocket::WebSocket)
-    current = @atomic handler.socket
-    return !isnothing(current) && current !== websocket
-end
-
-# Runs `f` holding the handler lock. A write to a peer that stopped reading (a
-# frozen phone tab) holds it until TCP gives up; after `grace` seconds we end
-# that socket's transport, so the write fails and its message is queued for replay.
-function lock_unwedged(f, handler::WebSocketHandler; grace = 2.0)
+# A stalled write holds both the session and handler locks. End its transport
+# after `grace` so reconnect can take either lock and replay queued messages.
+function lock_unwedged(f, handler::WebSocketHandler; grace = 2.0, guard = handler.lock)
     deadline = time() + grace
-    acquired = trylock(handler.lock)
+    acquired = trylock(guard)
     while !acquired && time() < deadline
         sleep(0.05)
-        acquired = trylock(handler.lock)
+        acquired = trylock(guard)
     end
     if !acquired
         wedged = @atomic handler.socket
         isnothing(wedged) || wedged.close_transport!()
-        lock(handler.lock)
+        lock(guard)
     end
     try
         return f()
     finally
-        unlock(handler.lock)
+        unlock(guard)
     end
 end
 
@@ -156,11 +135,14 @@ end
 """
 function run_connection_loop(session::Session, handler::WebSocketHandler, websocket::WebSocket)
     @debug("opening ws connection for session: $(session.id)")
-    install_socket!(handler, websocket)
-    if session.status == SOFT_CLOSED
-        session.status = OPEN
+    installed = lock_unwedged(handler; guard = deletion_lock(root_session(session))) do
+        (isclosed(session) || session.closing) && return false
+        install_socket!(handler, websocket)
+        session.status == SOFT_CLOSED && (session.status = OPEN)
+        return true
     end
-    while isopen(handler)
+    installed || return
+    while is_current_socket(handler, websocket) && isopen(handler)
         bytes = safe_read(websocket)
         # nothing means the browser closed the connection so we're done
         isnothing(bytes) && break
@@ -184,15 +166,14 @@ end
     returns the javascript snippet to setup the connection
 """
 function setup_websocket_connection_js(
-    proxy_url, session::Session; query="", main_connection=true)
+    proxy_url, session::Session; queries = [""])
     return js"""
         $(Websocket).then(WS => {
             WS.setup_connection({
                 proxy_url: $(proxy_url),
                 session_id: $(session.id),
                 compression_enabled: $(session.compression_enabled),
-                query: $(query),
-                main_connection: $(main_connection)
+                queries: $(queries)
             })
         })
     """

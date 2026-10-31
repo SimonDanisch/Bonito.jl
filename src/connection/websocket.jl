@@ -29,36 +29,27 @@ function Base.close(ws::WebSocketConnection)
     return
 end
 
-"""
-    handles a new websocket connection to a session
-"""
-function (connection::WebSocketConnection)(context, websocket::WebSocket)
-    request = context.request
-    uri = URIs.URI(request.target)
-    session_id = URIs.splitpath(uri.path)[1]
-    @debug("WS session id: $(session_id)")
+websocket_handlers(connection::WebSocketConnection) = (connection.handler,)
+websocket_handler(connection::WebSocketConnection, uri) = connection.handler
+
+function (connection::AbstractWebsocketConnection)(context, websocket::WebSocket)
+    uri = URIs.URI(context.request.target)
     session = connection.session
-    if isnothing(session)
-        error("Websocket connection skipped setup")
-    end
-    @assert session_id == session.id
+    isnothing(session) && error("Websocket connection skipped setup")
+    @assert URIs.splitpath(uri.path)[1] == session.id
+    handler = websocket_handler(connection, uri)
     try
-        run_connection_loop(session, connection.handler, websocket)
+        run_connection_loop(session, handler, websocket)
     finally
-        # Only tear down if no newer socket took over. A stale loop (old socket
-        # that finally died after the browser reconnected and installed a new
-        # socket) must NOT close the session now owned by the live socket. A
-        # failed write leaves no socket at all: this loop is the page's last,
-        # and the session goes to the cleanup policy like any other drop.
-        if superseded(connection.handler, websocket)
-            @debug("Stale ws loop for $(session.id) exiting; not tearing down")
-        elseif allow_soft_close(CLEANUP_POLICY[])
-            @debug("Soft closing: $(session.id)")
-            soft_close(session)
+        websocket.close_transport!()
+        # Recheck ownership under the session lock before changing session state.
+        # Failed writes retain the socket's identity for this check.
+        condition() = is_current_socket(handler, websocket) &&
+            !any(isopen, websocket_handlers(connection))
+        if allow_soft_close(CLEANUP_POLICY[])
+            soft_close(session; condition)
         else
-            @debug("Closing: $(session.id)")
-            # might as well close it immediately
-            close(session)
+            close_root_session(session; condition)
         end
     end
 end

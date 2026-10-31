@@ -9,7 +9,7 @@ All notable changes to Bonito.jl are documented here. The format is based on [Ke
 - `HierarchicalMenu` widget with `HierarchicalMenuItem` and `HierarchicalSubMenu` for nested, collapsible menus. The clicked leaf's value is pushed to `menu.selected_value`. Themed via the `--bonito-widget-*` CSS variables (dark-mode aware) and styleable through the `style` keyword.
 - `Bonito.Sessions.on_free(session_id, f)` (JS): runs `f` once when the session is freed, for what a session's code built that Bonito does not track (an editor, a WebGL context). JS `Observable.off(callback)` removes a listener `on` added.
 - `Bonito.on_refused(handler)` (JS): called when the server turns a payload request away (a redirect to a login page, 401, 403). The payload is fetched again once the promise `handler` returns resolves, so an app can wait for its login to come back.
-- `Server(...; gate)`: a gate every request passes before any route, websocket upgrades included (`HTTPServer.gate_request`), and every response after it (`HTTPServer.gate_response`). A login check there covers every route, including the asset and websocket routes Bonito registers itself.
+- `Server(...; handler = HTTPServer.delegate)` accepts existing Bonito handler wrappers, such as `ProtectedRoute`, around all routes, assets and WebSocket upgrades.
 - A message from a page that the server takes half a second or more to handle is logged with its type, the page and, for an observable update, where its listeners are defined. A page's messages are handled one after another, so such a message holds up everything after it, the page's pings included.
 
 ### Fixed
@@ -17,9 +17,9 @@ All notable changes to Bonito.jl are documented here. The format is based on [Ke
 - Proxied apps reuse the host's Bonito runtime, so a relative asset URL or hostname alias cannot load a second runtime and leave the host unready.
 - The precompile serving workload waits for session readiness instead of assuming initialization finishes within 200 ms.
 - Pin the browser queue dependency so rebuilding bundles does not pick up incompatible upstream releases.
-- Dual-websocket sessions wait for both sockets before becoming ready, so an early initialization report cannot strand queued updates.
+- Dual-websocket sessions wait for both sockets before becoming ready and replay queued updates when either socket reconnects.
 - Server shutdown and precompile cleanup explicitly close and join the session cleanup timer, instead of leaving a sleeping task pending at process exit (#430).
-- Server-side DOM updates preserve a disconnected page's reconnect grace period instead of treating it as a page that never connected. A failed websocket write also leaves the session eligible for soft-close cleanup.
+- Server-side DOM updates preserve a disconnected page's reconnect grace period instead of treating it as a page that never connected. A failed websocket write also leaves the session eligible for soft-close cleanup. Stale read loops cannot close a replacement connection.
 - Mobile pages replace stalled websocket handshakes and keep retrying while visible after the initial retry window ends; network-online and page-resume events trigger recovery too.
 - A browser that stops reading its websocket (a frozen phone tab) no longer stalls every websocket upgrade on the server: `isopen` no longer waits on the lock a blocked send holds, which the session cleanup did while holding the route table.
 - A reconnect no longer waits for a send wedged on the dead connection it replaces: after 2 seconds that connection is ended and the message queued for replay. The replaced connection is closed.
@@ -28,7 +28,10 @@ All notable changes to Bonito.jl are documented here. The format is based on [Ke
 - A websocket closed without a close frame (1006) is no longer logged as an error.
 - A sub-session replaced before the browser finished loading it (an Observable updated several times in quick succession) no longer loses its assets while the browser still fetches them: its init payload returned a 404, surfacing as an unhandled promise rejection. A closed sub's asset server now stays open until the browser reports that sub loaded.
 - A failed load of a sub-session that is already closed no longer marks the page as failed, so `isready` no longer throws for it.
-- An Observable shared by several sub-sessions no longer reads as `null` in one of them ("TrackingOnly: Key K not found in GLOBAL_OBJECT_CACHE"). A sub got only a reference while the page had no copy yet, because the copy sat in a payload of content kept out of the document (a hidden pane, a virtual list). Or the page had already freed it, because the sub holding the copy went away first. A reference is now sent only once the page has read another session's copy, and one the page reads late is pinned for its session.
+- Deferred subsessions retain current Observable values after the last visible owner closes. Initialization reuses existing browser Observables.
+- Observable updaters survive the first subsession that registered them and are removed when their last owner closes.
+- Abandoned asset loads expire through a root-owned timer, including in proxied sessions. Root shutdown releases their assets immediately.
+- Boolean `aria-*` and `data-*` attribute values serialize as strings and update correctly.
 - Content that is out of the document when its session starts (a virtual-list row, a detached pane) keeps its `onclick` handlers and onload code: node lookups also find the nodes Bonito created that are not in the document.
 - `update_session_dom!` whose target is out of the document still waits until the target is back, so content generated by an older Bonito (an eval worker's project) keeps finding its nodes. If Julia closes that session while it waits, the update is dropped instead of starting a session the page already freed.
 - Leaving a page no longer reports the payload fetches it aborts as session errors.

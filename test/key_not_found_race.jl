@@ -30,7 +30,7 @@ using Bonito: Observable, on
 
 # A bare-bones root session with no real connection / asset server. Good
 # enough to exercise process_message + free without bringing up Electron.
-fresh_offline_session() = Session(NoConnection(); asset_server = NoServer())
+fresh_offline_session() = Session(NoConnection(); asset_server = NoServer(), compression_enabled = false)
 
 # Synthesise the exact bytes a real frontend would send for an
 # `UpdateObservable` notification.
@@ -210,26 +210,20 @@ end
     kw = Dict(only(l for l in logs if occursin("slow message", l.message)).kwargs)
     @test kw[:type] == "UpdateObservable" && kw[:id] == obs.id && kw[:seconds] >= 0.6
     @test occursin("key_not_found_race.jl", kw[:listeners])
-    listener = Dict(only(l for l in logs if l.message == "slow observable listener").kwargs)
-    @test listener[:id] == obs.id && listener[:seconds] >= 0.5
-    @test occursin("key_not_found_race.jl", listener[:listener])
     fast, _ = Test.collect_test_logs(() -> process_message(session, update_message_bytes(obs.id, 2); slow = 5.0))
     @test !any(l -> occursin("slow message", l.message), fast)
     close(session)
 end
 
-@testset "a slow listener that throws is still identified" begin
+@testset "listener errors propagate without invoking the callback twice" begin
     session = fresh_offline_session()
     obs = Observable(0)
+    calls = Ref(0)
     on(session, obs) do _
-        sleep(0.6)
-        error("listener failed after waiting")
+        calls[] += 1
+        error("listener failed")
     end
-    logs, _ = Test.collect_test_logs() do
-        @test_throws ErrorException Bonito.update_nocycle!(obs, 1, session)
-    end
-    listener = Dict(only(l for l in logs if l.message == "slow observable listener").kwargs)
-    @test listener[:page] == first(session.id, 8)
-    @test listener[:id] == obs.id
+    @test_throws ErrorException Bonito.update_nocycle!(obs, 1, session)
+    @test calls[] == 1
     close(session)
 end

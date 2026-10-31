@@ -13,7 +13,7 @@ app = App(DOM.div("Hello World"))
 # App with session access
 app = App() do session::Session
     button = Button("Click me")
-    on(button.value) do _
+    on(session, button.value) do _
         println("Button clicked!")
     end
     return button
@@ -25,6 +25,37 @@ app = App() do session::Session, request::HTTP.Request
     return DOM.div("You requested: $path")
 end
 ```
+
+## [Observable ownership](@id app-observable-ownership)
+
+Create browser-facing Observables and widgets inside the `App` handler so
+each independent session gets its own instances. Parent sessions and their
+subsessions belong to one tree and can reference the same session-local state.
+
+For an app-global data source, use [`bind_global`](@ref):
+
+```julia
+using Bonito
+
+status_source = Observable("Ready") # app-global source
+app = App() do session
+    count = Observable(0) # fresh state for this session
+    status = bind_global(session, status_source)
+    return DOM.div(DOM.span(count), DOM.span(status))
+end
+
+status_source[] = "Running" # updates every live session's bound status
+```
+
+`bind_global` creates a distinct Observable for each session. Updates flow
+from the source to the bound Observable; changing the bound Observable does
+not write back to the source. Values are not deep-copied. Closing the session
+removes its source subscription, preventing listeners from accumulating on
+long-lived sources.
+
+Use `on(f, session, obs)`, `onany(f, session, ...)` and session-aware `map`
+for session-owned callbacks. Directly reusing a browser-bound Observable or
+mutable widget instance across independent sessions bypasses this ownership.
 
 ## App Options
 

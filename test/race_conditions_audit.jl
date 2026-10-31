@@ -335,7 +335,7 @@ end
 
         # Patched cleanup pattern (mirrors session.jl evaljs_value):
         # remove_js_updates! now matches by cache-key id (B14), not by session.
-        remove_js_updates!(cache_key(sub, comm), comm)
+        remove_js_updates!(cache_key(sub, comm), comm, sub)
         delete!(sub.session_objects, comm.id)
         delete!(root.session_objects, comm.id)
         still_has = any(((p,f),)-> f isa JSUpdateObservable, comm.listeners)

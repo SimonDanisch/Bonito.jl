@@ -79,7 +79,8 @@ selector(node) = js"(Bonito.lookup_node($(uuid(node))))"
 # default turn attributes into strings
 attribute_render(session::Session, parent, attribute::String, x) = string(x)
 attribute_render(session::Session, parent, attribute::String, x::Nothing) = x
-attribute_render(session::Session, parent, attribute::String, x::Bool) = x
+attribute_render(session::Session, parent, attribute::String, x::Bool) =
+    is_boolean_attribute(attribute) ? x : string(x)
 
 
 function attribute_render(session::Session, parent, attribute::String, obs::Observable)

@@ -119,10 +119,6 @@ function process_message(session::Session, data::AbstractDict)
             @debug "Observable $(data["id"]) not found (or session closed/closing)"
         else
             try
-                # `session` is the originating session: `update_nocycle!` skips
-                # only that session's JS updater so the value doesn't echo back
-                # to the browser that just sent it, while OTHER sessions sharing
-                # the same observable still receive the update.
                 Base.invokelatest(update_nocycle!, obj, data["payload"], session)
             finally
                 Threads.atomic_sub!(root.dispatch_count, 1)
@@ -138,10 +134,12 @@ function process_message(session::Session, data::AbstractDict)
         # `get_session` recurses through `session.children`, which is mutated
         # under `deletion_lock` by close/free/Session(parent). Iterating it
         # unlocked races those mutations. Snapshot the lookup under the lock,
-        # with the `BrowserLoad` this report ends; fire `on_connection_ready`
+        # with the `PendingAssetLoad` this report ends; fire `on_connection_ready`
         # outside it.
         load, sub = lock(root.deletion_lock) do
-            pop!(root.loading_in_browser, id, nothing), get_session(session, id)
+            load = pop!(root.pending_asset_loads, id, nothing)
+            expire_loading_assets!(root)
+            load, get_session(session, id)
         end
         load === nothing || close(load)
         # Bail early if the receiving session is already torn down. The
