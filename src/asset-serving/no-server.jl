@@ -45,6 +45,12 @@ setup_asset_server(::NoServer) = nothing
 
 function url(::NoServer, asset::Asset)
     !isempty(asset.online_path) && return asset.online_path
+    # Relocated install: the bundle file recorded at precompile time is gone,
+    # but its bytes live on in `bundle_data` — serve those (same fallback as
+    # the HTTP asset server).
+    if asset.es6module && !isfile(bundle_path(asset)) && !isempty(asset.bundle_data)
+        return to_data_url(String(bundle_data_snapshot(asset)), "application/javascript")
+    end
     return to_data_url(local_path(asset))
 end
 

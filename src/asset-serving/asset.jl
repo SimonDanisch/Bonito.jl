@@ -367,6 +367,15 @@ function needs_bundling(asset::Asset)
     asset.es6module || return false
     path = get_path(asset)
     bundled = bundle_path(asset)
+    # Relocated install (AppBundler bundle, moved depot): the absolute paths
+    # recorded at precompile time no longer exist, but the bundle bytes were
+    # snapshotted into `bundle_data` by the Asset constructor exactly for this
+    # case. Re-bundling could neither read the source nor write the output —
+    # and because it can never succeed, answering `true` here made EVERY
+    # `url(asset)` call re-run deno (~1-2s each, dozens per page render).
+    if !is_online(path) && !isfile(path) && !isempty(asset.bundle_data)
+        return false
+    end
     return needs_bundling(path, bundled)
 end
 
