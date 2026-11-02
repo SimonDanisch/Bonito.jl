@@ -12,6 +12,103 @@ const PingPong = "11"
 const UpdateSession = "12"
 const GetSessionDOM = "13"
 
+const JavascriptResult = "14"
+const MessageWindowInfo = "15"
+const MessageWindowQuery = "16"
+const MessageWindowCredit = "17"
+const MessageWindowClosed = "18"
+const ProxyConnectionState = "19"
+
+function message_window_info(session::Session; resume::Bool)
+    state = message_budget(root_data(session).dispatcher.budget)
+    return Dict{String,Any}(
+        "msg_type"=>MessageWindowInfo, "owner"=>state.owner, "alias"=>session.id,
+        "capacity"=>state.capacity, "received"=>state.received, "released"=>state.released,
+        "resume"=>resume, "default"=>isempty(id_prefix(connection(session))),
+        "compression"=>session.compression_enabled,
+    )
+end
+
+function send_message_window(session::Session; resume::Bool)
+    isready(session; throw=false) || return nothing
+    send(session, message_window_info(session; resume))
+    return nothing
+end
+
+function send_message_credit(session::Session, budget::MessageBudget)
+    isready(session; throw=false) || return nothing
+    state = message_budget(budget)
+    send(session; msg_type=MessageWindowCredit, owner=state.owner, received=state.received, released=state.released)
+    return nothing
+end
+
+"""
+    receive!(session, frame)
+
+Receive one frontend frame. Transports use this entry point; JavaScript results
+complete their requests independently of the ordered application callbacks.
+"""
+function receive!(session::Session, frame::AbstractVector{UInt8})
+    data = try
+        deserialize_binary(frame, session.compression_enabled)
+    catch err
+        err isa InterruptException && rethrow()
+        @warn "error while decoding received msg" exception=(err, catch_backtrace())
+        return nothing
+    end
+    return receive!(session, data)
+end
+
+function receive!(session::Session, data::AbstractDict)
+    root = root_session(session)
+    typ = data["msg_type"]
+    if typ == JavascriptResult
+        id = data["id"]
+        outcome = haskey(data, "error") ? JSFailure(ErrorException(data["error"])) : JSSuccess(data["result"])
+        complete_js!(root_data(root).js_requests, id, outcome) && return nothing
+        route_to_remote(root, data)
+        return nothing
+    end
+    route_to_remote(root, data) && return nothing
+    dispatcher = root_data(root).dispatcher
+    if typ == ProxyConnectionState
+        connection(root) isa ProxyConnection || error("Connection state requires a proxy session")
+        if data["open"]
+            @async init_session(root)
+        else
+            close(connection(root))
+            soft_close(root)
+        end
+    elseif typ == MessageWindowQuery
+        if data["id"] == dispatcher.budget.owner
+            send_message_window(root; resume=true)
+        else
+            send(root; msg_type=MessageWindowClosed, owner=data["id"])
+        end
+    elseif typ == UpdateObservable
+        if get(data, "flow_owner", nothing) != dispatcher.budget.owner
+            send(root; msg_type=MessageWindowClosed, owner=get(data, "flow_owner", ""))
+            return nothing
+        end
+        budget = dispatcher.budget
+        if admit_message!(budget, Int(data["event_sequence"]))
+            put!(dispatcher.inbox, IncomingMessage(session, data, budget))
+        else
+            send_message_credit(session, budget)
+        end
+    elseif typ == PingPong
+        process_message(session, data)
+    else
+        # Lifecycle work can run user close/open callbacks; keep it off the receiver.
+        @async try
+            process_message(session, data)
+        catch err
+            @warn "error while processing lifecycle msg" exception=(err, catch_backtrace())
+        end
+    end
+    return nothing
+end
+
 """
     process_message(session::Session, bytes::AbstractVector{UInt8})
 

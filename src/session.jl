@@ -58,6 +58,7 @@ function init_session(session::Session)
             return (false, nothing)
         end
         session.status = OPEN
+        session === root && open_js!(root_data(root).js_requests)
         # Snapshot + drain the queued setup messages while holding the lock so
         # we don't race `get_messages!`'s `empty!`. `connection_ready` is still
         # un-signaled, so concurrent `_send`s queue behind us (they take the
@@ -106,6 +107,8 @@ function init_session(session::Session)
     # and send (e.g. WGLMakie re-synchronizing scene state on reconnect), which
     # takes the deletion_lock themselves. Fired after connection_ready is
     # signaled so those sends reach the wire directly instead of queueing.
+    (session === root || !isempty(id_prefix(connection(session)))) && send_message_window(root; resume=true)
+    session === root && notify_remote_connection(session, true)
     session.on_open[] = true
     return
 end
@@ -163,6 +166,7 @@ function free(session::Session)
     # the lock), corrupting `session_objects` mid-iteration. The lock is
     # reentrant, so callers that already hold it pay nothing extra.
     root = root_session(session)
+    cancel_js!(root_data(root).js_requests, session.id, InvalidStateException("Session closed", :closed))
     lock(root.deletion_lock) do
         # don't double free!
         session.status === CLOSED && return
@@ -224,6 +228,8 @@ function Base.empty!(session::Session)
     root === session || error("empty!(::Session) is only valid for root sessions")
     lock(deletion_lock(root)) do
         session.status === CLOSED && return
+        close_js!(root_data(root).js_requests, InvalidStateException("Session reset", :closed))
+        open_js!(root_data(root).js_requests)
         for key in collect(keys(session.session_objects))
             force_delete!(session, key)
         end
@@ -240,12 +246,15 @@ function Base.empty!(session::Session)
 end
 
 function soft_close(session::Session; condition = Returns(true))
-    lock(deletion_lock(root_session(session))) do
-        (session.status === CLOSED || !condition()) && return
+    changed = lock(deletion_lock(root_session(session))) do
+        (session.status === CLOSED || !condition()) && return false
+        close_js!(root_data(session).js_requests, ErrorException("Session disconnected"))
         session.status = SOFT_CLOSED
         session.closing_time = time()
+        return true
     end
-    return
+    changed && notify_remote_connection(session, false)
+    return nothing
 end
 
 function Base.close(session::Session)
@@ -272,6 +281,7 @@ function drain_dispatch!(root::Session; condition = Returns(true))
     already = lock(deletion_lock(root)) do
         (root.status === CLOSED || !condition()) && return true
         root.closing = true
+        close_js!(root_data(root).js_requests, InvalidStateException("Session closed", :closed))
         return false
     end
     already && return false
@@ -315,7 +325,7 @@ function close_root_session(session::Session; condition = Returns(true))
         session.pending_asset_timer = nothing
         session.current_app[] = nothing
         session.io_context[] = nothing
-        close(inbox(session))
+        root_data(session).dispatcher.owner == session.id && close(inbox(session))
         session.status = CLOSED
         close(connection(session))
         return listeners
@@ -539,8 +549,14 @@ function _send(session::Session, sm::SerializedMessage, large::Bool)
     # render error has been recorded we still want this message to land in the
     # queue (where the page wrap's init bundle picks it up) rather than crash
     # the surrounding render. External waiters surface the error themselves.
-    lock(deletion_lock(root_session(session))) do
-        if isready(session; throw=false)
+    root = root_session(session)
+    lock(deletion_lock(root)) do
+        request_id = get(sm.data, "request_id", nothing)
+        if request_id !== nothing && !is_pending(root_data(root).js_requests, request_id)
+            return
+        end
+        ready = request_id === nothing ? isready(session; throw=false) : isready(root; throw=false) && !isclosed(session)
+        if ready
             try
                 if large
                     write_large(session.connection, serialize_binary(sm))
@@ -553,10 +569,14 @@ function _send(session::Session, sm::SerializedMessage, large::Bool)
                 # queue for replay, not propagate out and lose the message
                 # `Base.write(::WebSocketHandler)` now rethrows on a
                 # failed send so this catch actually fires.
+                haskey(sm.data, "request_id") && rethrow()
+                get(sm.data, "msg_type", nothing) in (MessageWindowInfo, MessageWindowCredit, MessageWindowClosed) && return
                 @debug "_send write failed; falling back to message_queue for replay" exception = (e, catch_backtrace())
                 # fall through to push!
             end
         end
+        haskey(sm.data, "request_id") && error("Session disconnected before request submission")
+        get(sm.data, "msg_type", nothing) in (MessageWindowInfo, MessageWindowCredit, MessageWindowClosed) && return
         push!(session.message_queue, sm)
     end
     return
@@ -694,91 +714,82 @@ function evaljs(has_session, jss::JSCode)
 end
 
 """
-    evaljs_value(session::Session, js::JSCode)
+    evaljs_async(session, code; timeout=10.0)
 
-Evals `js` code and returns the jsonified value.
-Blocks until value is returned. May block indefinitely, when called with a session
-that doesn't have a connection to the browser.
+Submit JavaScript and return a `JSFuture`. `fetch` waits for its value or error;
+`wait` and `isready` also work. Completion does not wait for Julia UI callbacks.
 """
-function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
+function evaljs_async(session::Session, code; timeout::Real=10.0)
     root = root_session(session)
-    if !isready(root)
-        if error_on_closed
-            error("Session is not open and would result in this function to indefinitely block.
-            It may unblock, if the browser is still connecting and opening the session later on. If this is expected,
-            you may try setting `error_on_closed=false`")
-        end
+    requests = root_data(root).js_requests
+    future = js_request!(requests; timeout, owner=session.id)
+    isready(future) && return future
+    if isclosed(session) || root.closing
+        complete_js!(requests, future.id, JSFailure(InvalidStateException("Session closed", :closed)))
+        return future
+    end
+    if !isready(root; throw=false)
+        complete_js!(requests, future.id, JSFailure(ErrorException("Session is not open")))
+        return future
+    end
+    # `code` stays a statement, so a trailing `;` or comment keeps working.
+    script = js"""{
+        const js_request_failed = error => Bonito.send_to_julia({msg_type: $(JavascriptResult), id: $(future.id), error: String(error)});
+        try {
+            const maybe_promise = $(code)
+            ;Promise.resolve(maybe_promise).then(result =>
+                Bonito.send_to_julia({msg_type: $(JavascriptResult), id: $(future.id), result})
+            ).catch(js_request_failed);
+        } catch (error) {
+            js_request_failed(error);
+        }
+    }"""
+    try
+        send(session; msg_type=EvalJavascript, payload=script, request_id=future.id)
+    catch err
+        err isa InterruptException && rethrow()
+        complete_js!(requests, future.id, JSFailure(err))
+    end
+    return future
+end
+
+"""
+    evaljs_value(session, code; timeout=10.0, error_on_closed=true)
+
+Evaluate JavaScript and wait for its value (or Promise) to complete.
+This waits for the browser result, not for Julia application callbacks.
+"""
+function evaljs_value(session::Session, code; error_on_closed=true, timeout=10.0)
+    if !isready(root_session(session))
+        error_on_closed && error("Session is not open. It may open once the browser connects; pass `error_on_closed=false` to get `nothing` instead.")
         return nothing
     end
-    # For each request we need a new observable to have this thread safe
-    # And multiple request not waiting on the same observable
-    comm = Observable{Any}(nothing)
-
-    js_with_result = js"""{
-        const comm = $(comm);
-        try{
-            const maybe_promise = $(js);
-            // support returning a promise:
-            Promise.resolve(maybe_promise).then(result=> {
-                comm.notify({result});
-            })
-        }catch(e){
-            comm.notify({error: e.toString()});
-        } finally {
-            // manually delete!
-            Bonito.lock_loading(() => {
-                // we need to free the object, since it exists outside of the session lifetime
-                // and we don't want to keep it around forever
-                Bonito.Sessions.force_free_object(comm.id);
-            });
-        }
-    }
-    """
-
-    evaljs(session, js_with_result)
-    # TODO, have an on error callback, that triggers when evaljs goes wrong
-    # (e.g. because of syntax error that isn't caught by the above try catch!)
-    # TODO do this with channels, but we still dont have a way to timeout for wait(channel)... so...
-    result = fetch(Threads.@spawn wait_for(timeout=timeout) do
-        lock(root.deletion_lock) do
-            Bonito.isclosed(session) && return :closed
-            return !isnothing(comm[])
-        end
-    end)
-    value = comm[]
-    # Manually free observable, since it exists outside session lifetimes.
-    # `register_observable!` attaches a JSUpdateObservable listener keyed by the
-    # observable's cache key, so we must strip it explicitly here — the
-    # session's own `free()` won't, since this comm lives outside the session
-    # lifetime.
-    # Registration is keyed by `cache_key(session, comm)`, NOT `comm.id` — on a
-    # ProxyConnection session those differ (the key is `prefix/comm.id`).
-    # Deleting by `comm.id` left a leaked CachedEntry per call on proxied
-    # sessions. Use the same key the registration used. `remove_js_updates!`
-    # also matches by key (the JSUpdateObservable's `.id` is the cache key).
-    key = cache_key(session, comm)
-    lock(root.deletion_lock) do
-        remove_js_updates!(key, comm, root_session(session))
-        delete!(session.session_objects, key)
-        delete!(root.session_objects, key)
-    end
-    Observables.clear(comm) # cleanup
-    result == :closed && return
-    if isnothing(value)
-        error("Timed out")
-    end
-    if haskey(value, "error")
-        error(value["error"])
-    else
-        return value["result"]
+    try
+        return fetch(evaljs_async(session, code; timeout))
+    catch err
+        err isa InvalidStateException && err.state === :closed || rethrow()
+        return nothing
     end
 end
 
-function evaljs_value(with_session, js; error_on_closed=true, timeout=100.0)
-    evaljs_value(session(with_session), js; error_on_closed=error_on_closed, timeout=timeout)
+evaljs_async(with_session, code; kwargs...) = evaljs_async(session(with_session), code; kwargs...)
+function evaljs_value(with_session, code; error_on_closed=true, timeout=100.0)
+    return evaljs_value(session(with_session), code; error_on_closed, timeout)
 end
 
 function session_dom(session::Session, app::App; init=true, html_document=false, request=HTTP.Request())
+    root = root_session(session)
+    if (session === root && (html_document || session.status === UNINITIALIZED)) ||
+            !isempty(id_prefix(connection(session)))
+        lock(root.deletion_lock) do
+            dispatcher = root_data(root).dispatcher
+            if html_document && dispatcher.owner == session.id
+                dispatcher.budget = MessageBudget("$(session.id)/flow/$(uuid4())", dispatcher.budget.capacity)
+            end
+            # A remote page may first appear as a subsession of an unrendered root.
+            pushfirst!(session.message_queue, SerializedMessage(session, message_window_info(root; resume=false)))
+        end
+    end
     dom = rendered_dom(session, app, request)
     # A top-level page needs a Node. `nothing` comes from App(nothing;
     # indicator=nothing); a `String` or `HTML{String}` is what jsrender returns

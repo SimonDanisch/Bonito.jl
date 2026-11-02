@@ -21,6 +21,9 @@ using Bonito: jsrender
 include("cleanup.jl")
 include("ElectronTests.jl")
 include("test_helpers.jl")
+include("js_future.jl")
+include("js_future_transport.jl")
+include("message_budget.jl")
 
 function wait_on_test_observable(trigger; timeout=20)
     global test_observable
@@ -123,6 +126,7 @@ end
         end
         @testset "server" begin
             _rf("server.jl")
+            include("js_future_browser.jl")
         end
         @testset "subsessions" begin
             _rf("subsessions.jl")

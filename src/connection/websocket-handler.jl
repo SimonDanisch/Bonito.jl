@@ -151,9 +151,9 @@ function run_connection_loop(session::Session, handler::WebSocketHandler, websoc
         # and `put!` then throws InvalidStateException, which escapes the loop
         # and lets the `finally` soft_close an already-CLOSED session. Catch
         # exactly that closed-channel signal and break cleanly instead.
-        isopen(session.inbox) || break
+        isopen(inbox(session)) || break
         try
-            put!(session.inbox, bytes)
+            receive!(session, bytes)
         catch e
             e isa InvalidStateException && break
             rethrow()

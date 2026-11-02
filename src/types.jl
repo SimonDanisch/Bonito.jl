@@ -365,6 +365,20 @@ mutable struct PendingAssetLoad
     closed::Bool
 end
 
+struct IncomingMessage
+    session::Any
+    data::AbstractDict
+    budget::MessageBudget
+end
+
+mutable struct MessageDispatcher
+    owner::String
+    inbox::Channel{IncomingMessage}
+    budget::MessageBudget
+end
+
+MessageDispatcher(owner::String, capacity::Int) = MessageDispatcher(owner, Channel{IncomingMessage}(capacity), MessageBudget("$owner/flow/$(uuid4())", capacity))
+
 """
 Root-only session state. One `RootSession` exists per real connection (per
 session tree). Holds the OS-level connection, the receive inbox, deletion
@@ -377,7 +391,7 @@ the `Session.parent_or_root::Union{RootSession{Con}, Session{Con}}` field.
 """
 mutable struct RootSession{Connection <: FrontendConnection}
     connection::Connection
-    inbox::Channel{Vector{UInt8}}
+    dispatcher::MessageDispatcher
     js_comm::Observable{Union{Nothing, Dict{String, Any}}}
     # For rendering Hyperscript.Node and giving them a unique id inside the
     # session tree. Atomic because `uuid(session, node)` (in
@@ -402,6 +416,7 @@ mutable struct RootSession{Connection <: FrontendConnection}
     # Sub id => its `PendingAssetLoad`, in display order. Under `deletion_lock`.
     pending_asset_loads::OrderedDict{String, PendingAssetLoad}
     pending_asset_timer::Union{Nothing,Timer}
+    js_requests::JSRequests
 end
 
 """
@@ -506,7 +521,7 @@ end
 
 # ───── Convenience accessors for root-only fields ──────────────────────────
 
-inbox(s::Session)               = root_data(s).inbox
+inbox(s::Session)               = root_data(s).dispatcher.inbox
 connection(s::Session)          = root_data(s).connection
 js_comm(s::Session)             = root_data(s).js_comm
 dom_uuid_counter(s::Session)    = root_data(s).dom_uuid_counter
@@ -521,7 +536,7 @@ metadata_dict(s::Session)       = root_data(s).metadata
 # every caller in this refactor.
 
 const ROOT_ONLY_FIELDS = (
-    :connection, :inbox, :js_comm, :dom_uuid_counter,
+    :connection, :js_comm, :dom_uuid_counter,
     :compression_enabled, :deletion_lock, :threadid, :metadata,
     :closing, :dispatch_count, :pack_pool, :pending_asset_loads, :pending_asset_timer,
 )
@@ -614,15 +629,16 @@ function Session(connection::Connection=default_connection();
                  title="Bonito App",
                  compression_enabled=default_compression(),
                  ignore_message=RefValue{Function}(x -> false),
+                 dispatcher::Union{Nothing,MessageDispatcher}=nothing,
                  n_inbox=1024) where {Connection <: FrontendConnection}
     # Finite inbox capacity: an unbounded `Channel(Inf)` let a flooding
     # frontend — or a wedged reader (e.g. deletion_lock contention) — grow the
     # inbox without limit, pinning memory and spawning unbounded work. A
     # bounded buffer applies backpressure to the WS read loop's `put!` instead.
-    inbox = Channel{Vector{UInt8}}(n_inbox)
+    receive_dispatcher = dispatcher === nothing ? MessageDispatcher(id, n_inbox) : dispatcher
     root_state = RootSession{Connection}(
         connection,
-        inbox,
+        receive_dispatcher,
         js_comm,
         Threads.Atomic{Int}(0),
         compression_enabled,
@@ -634,6 +650,7 @@ function Session(connection::Connection=default_connection();
         PackIOPool(),                                   # pack_pool
         OrderedDict{String, PendingAssetLoad}(),         # pending_asset_loads
         nothing,                                        # pending_asset_timer
+        JSRequests(id),                                 # js_requests
     )
     session = Session{Connection}(
         root_state,                                     # parent_or_root
@@ -659,33 +676,28 @@ function Session(connection::Connection=default_connection();
         RefValue{Union{Nothing, IOContext}}(nothing),   # io_context
         OrderedDict{HTMLElement, OrderedSet{CSS}}(),    # stylesheets
     )
-    # Inbox reader task. Captures `session` by reference so `process_message`
-    # can find it. The Channel keeps the task alive (via `bind`); the task
-    # exits when the channel is closed by `close(session)`. Julia's GC
-    # collects the resulting Session ↔ inbox ↔ task ↔ closure cycle once
-    # nothing outside it holds the session.
-    task = Task() do
-        # Process inbox messages SEQUENTIALLY. The old per-message
-        # `@async` removed all ordering guarantees: an `UpdateObservable`
-        # could be overtaken by a later message and a stale value would win.
-        # The branches that genuinely need to run off the reader (so they
-        # don't block the connection — `JSDoneLoading`'s `on_connection_ready`,
-        # `GetSessionDOM`) already spawn their own `@async` *inside*
-        # `process_message`, so sequential dispatch here keeps ordering for
-        # the synchronous branches (notably UpdateObservable) without stalling
-        # on the slow ones.
-        for message in inbox
-            try
-                process_message(session, message)
-            catch e
-                @warn "error while processing received msg" exception = (
-                    e, Base.catch_backtrace()
-                )
+    if dispatcher === nothing
+        inbox = receive_dispatcher.inbox
+        task = Task() do
+            for message in inbox
+                try
+                    process_message(message.session, message.data)
+                catch err
+                    @warn "error while processing received msg" exception=(err, catch_backtrace())
+                finally
+                    release_message!(message.budget, Int(message.data["event_sequence"]))
+                    # An embedded app can close while its events are queued, so credits
+                    # travel through the root that owns the dispatcher. A newer budget
+                    # means the page reloaded and no longer expects this one's credits.
+                    if message.budget === receive_dispatcher.budget && credit_due!(message.budget, isempty(inbox))
+                        send_message_credit(session, message.budget)
+                    end
+                end
             end
         end
+        bind(inbox, task)
+        schedule(task)
     end
-    bind(inbox, task)
-    schedule(task)
     return session
 end
 

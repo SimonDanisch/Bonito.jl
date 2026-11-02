@@ -21,7 +21,7 @@ the top of [AGENTS.md](AGENTS.md).
 ## 1. Session model: `types.jl`, `session.jl`
 
 - `RootSession{Connection}` holds the per-tree shared state: the connection,
-  the `inbox::Channel` (inbound frames), `deletion_lock` (THE lock, see §6),
+  the ordered message dispatcher, pending JavaScript requests, `deletion_lock` (§6),
   `metadata::Dict` (root-scoped: `get_metadata`/`set_metadata!` always walk to
   root), dom uuid counter, msgpack scratch pool, and the close handshake fields
   (`closing::Bool`, `dispatch_count`).
@@ -125,6 +125,19 @@ Msg types: `UpdateObservable "0"`, `OnjsCallback "1"`, `EvalJavascript "2"`,
 - `GetSessionDOM`: async + fully locked: `free(sub)` (re-render from scratch),
   re-attach to children, `open!`, `update_subsession_dom!` → UpdateSession.
 
+Transports call `receive!` for bytes or decoded dictionaries. JavaScript replies
+complete a root-owned `JSFuture` immediately; application Observable updates run
+in order on the dispatcher. In-process embedded apps share that dispatcher.
+`evaljs_async` returns a future; `evaljs_value` fetches it. Neither is a barrier
+for Julia callbacks: tests must wait explicitly for the state a click changes.
+
+Normal events use a bounded client window and cumulative receiver credits.
+Credits are returned after callbacks complete, while results bypass the window.
+A burst shares credits: one goes out when the queue drains or every quarter window.
+Reconnection replays only unacknowledged event sequence numbers, which the
+receiver deduplicates. JavaScript requests are never queued for replay: timeout,
+close or disconnect completes their future, and late replies are ignored.
+
 JS side (`Sessions.js`):
 - `init_session(id, message_promise|null, status, compression)` registers the
   session, decodes+replays the bundle under `lock_loading`, then
@@ -172,9 +185,9 @@ features (e.g. glyph batches as EvalJS events) replay correctly in
   its `JSDoneLoading` report, preventing 404s for payloads still being fetched.
   A root-owned timer expires unreported loads after five minutes, including
   proxied roots, and stops when no loads remain.
-- `evaljs_value` builds a throwaway comm Observable OUTSIDE session lifetime, so
-  it must free it manually on both sides (JS `force_free_object`, Julia
-  `remove_js_updates!` + cache deletion by the PREFIXED key).
+- JavaScript requests live in the root's `JSRequests`, independently of cached
+  Observables. Completion removes the request and closes its deadline timer;
+  the returned future retains only its cached outcome.
 
 ## 6. Locking discipline
 
@@ -201,7 +214,7 @@ Do not reuse a browser-bound Observable across independent session trees.
   page session, apps render as subs; `force_subsession!` forces the same
   mode, e.g. for workers/Documenter).
 - `WebSocketConnection` (`websocket.jl`): per-root ws route `"/<session.id>"`;
-  `run_connection_loop` pumps frames into `root.inbox`; reconnects swap the
+  `run_connection_loop` passes frames to `receive!`; reconnects swap the
   socket under `WebSocketHandler.lock`, stale loops detect via
   `is_current_socket` and do NOT tear down. `soft_close` + `CleanupPolicy`
   (default: 30s never-connected timeout; `cleanup_time` hrs reconnect window

@@ -37,6 +37,11 @@ jobs:
           export DBUS_SESSION_BUS_PID
       - name: Checkout
         uses: actions/checkout@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test browser message windows
+        run: node --test test/message_window.mjs
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}

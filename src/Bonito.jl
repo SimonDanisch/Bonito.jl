@@ -33,6 +33,8 @@ function wait_for end
 function wait_for_ready end
 
 include("deno.jl")
+include("js_future.jl")
+include("message_budget.jl")
 include("types.jl")
 include("HTTPServer/HTTPServer.jl")
 include("HTTPServer/folderserver.jl")
@@ -88,7 +90,8 @@ export Slider, Button, TextField, NumberInput, Checkbox, RangeSlider, CodeEditor
 export HierarchicalMenu, HierarchicalMenuItem, HierarchicalSubMenu
 export browser_display, configure_server!, Server, show_html, html, route!, online_url, use_electron_display
 export Observable, on, onany, bind_global
-export linkjs, evaljs, evaljs_value, onjs
+export linkjs, evaljs, evaljs_value, evaljs_async, JSFuture, onjs
+public receive!
 export NoServer, AssetFolder, HTTPAssetServer, DocumenterAssets
 export NoConnection, IJuliaConnection, PlutoConnection, WebSocketConnection
 export export_static, Routes, interactive_server

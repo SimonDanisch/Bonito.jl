@@ -75,11 +75,14 @@ function serve_workload(app::App; updates = Pair{Observable, Any}[])
                     end
                 end
             end
-            for (key, payload) in keyed_updates
+            owner = root_data(root).dispatcher.budget.owner
+            for (sequence, (key, payload)) in enumerate(keyed_updates)
                 HTTP.WebSockets.send(ws, MsgPack.pack(Dict{String, Any}(
                     "msg_type" => UpdateObservable,
                     "id" => key,
                     "payload" => payload,
+                    "flow_owner" => owner,
+                    "event_sequence" => sequence,
                 )))
             end
             sleep(0.2)
@@ -93,7 +96,7 @@ function serve_workload(app::App; updates = Pair{Observable, Any}[])
                 # Expected: our protocol client never answers, so the round-trip
                 # times out by design. Anything else is a real failure — let it
                 # reach the outer warn-and-skip handler instead of hiding here.
-                (e isa ErrorException && e.msg == "Timed out") || rethrow()
+                (e isa InvalidStateException && e.state === :timed_out) || rethrow()
             end
         end
     catch e

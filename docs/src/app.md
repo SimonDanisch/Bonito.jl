@@ -57,6 +57,26 @@ Use `on(f, session, obs)`, `onany(f, session, ...)` and session-aware `map`
 for session-owned callbacks. Directly reusing a browser-bound Observable or
 mutable widget instance across independent sessions bypasses this ownership.
 
+## JavaScript results
+
+Use `evaljs_async` to evaluate JavaScript and get a reusable future:
+
+```julia
+future = evaljs_async(session, js"Promise.resolve(42)"; timeout=5)
+value = fetch(future) # 42; fetching again returns the same value
+```
+
+`evaljs_value(session, code)` combines submission and `fetch`. JavaScript
+results complete independently of the ordered Julia Observable callbacks,
+including when a callback waits for a child task that fetches a result.
+Neither function waits for Julia callbacks triggered by the script. Wait for
+the resulting Observable or UI state explicitly when testing an interaction.
+
+A timeout or disconnect fails the future and removes the pending request.
+Requests are not replayed after reconnect. A timeout does not stop JavaScript
+that already reached the browser. Submitting to a disconnected session fails;
+wait until it reconnects before submitting a new request.
+
 ## App Options
 
 The `App` constructor accepts the following keyword arguments:

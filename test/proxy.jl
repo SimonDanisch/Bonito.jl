@@ -207,7 +207,7 @@ end
         wsession = r.render.session
 
         # Browser reports the worker session finished loading → worker goes ready.
-        process_message(host, Dict{String,Any}(
+        Bonito.receive!(host, Dict{String,Any}(
             "msg_type" => "8", "session" => prefix, "exception" => "nothing"))
         # on_connection_ready runs async; wait for it.
         tlimit = time() + 5
@@ -219,8 +219,10 @@ end
         empty!(connection(host).frames)   # isolate the update relay
 
         # Browser → worker: update `clicks` (prefixed id), as the browser would send it.
-        process_message(host, Dict{String,Any}(
-            "msg_type" => "0", "id" => "$(prefix)/$(clicks.id)", "payload" => 5))
+        Bonito.receive!(host, Dict{String,Any}(
+            "msg_type" => "0", "id" => "$(prefix)/$(clicks.id)", "payload" => 5,
+            "flow_owner" => Bonito.root_data(wsession).dispatcher.budget.owner, "event_sequence" => 1))
+        @test Bonito.wait_for(() -> doubled[] == 10; timeout=5) == :success
 
         @test clicks[]  == 5      # inbound update reached the real worker observable
         @test doubled[] == 10     # the worker-side reaction fired
@@ -228,6 +230,48 @@ end
         # Worker → browser: the derived update was relayed with the prefixed id.
         updates = collect_updates(connection(host).frames)
         @test ("$(prefix)/$(doubled.id)" => 10) in updates
+        close(host)
+    end
+
+    @testset "a closing embedded app still returns its event credits" begin
+        host = Session(CaptureConnection(); compression_enabled=false)
+        host.status = Bonito.OPEN
+        put!(host.connection_ready, true)
+        # The first app holds the shared queue while the second one closes.
+        held, closing = Observable(0), Observable(0)
+        entered, release = Channel{Nothing}(1), Channel{Nothing}(1)
+        holding_app = App() do s
+            on(s, held) do _
+                put!(entered, nothing)
+                take!(release)
+            end
+            onjs(s, held, js"(x)=>{}")
+            return DOM.div()
+        end
+        closing_app = App() do s
+            onjs(s, closing, js"(x)=>{}")
+            return DOM.div()
+        end
+        holder, closed = embed_app(host, holding_app), embed_app(host, closing_app)
+        for r in (holder, closed)
+            Bonito.receive!(host, Dict{String,Any}(
+                "msg_type" => "8", "session" => r.render.prefix, "exception" => "nothing"))
+            @test Bonito.wait_for(() -> isready(r.render.session; throw=false); timeout=5) == :success
+        end
+        budget = Bonito.root_data(host).dispatcher.budget
+        event(id, sequence) = Dict{String,Any}("msg_type" => "0", "id" => id, "payload" => sequence,
+            "flow_owner" => budget.owner, "event_sequence" => sequence)
+        Bonito.receive!(host, event("$(holder.render.prefix)/$(held.id)", 1))
+        take!(entered)
+        foreach(sequence -> Bonito.receive!(host, event("$(closed.render.prefix)/$(closing.id)", sequence)), 2:3)
+        close(closed.render.session)
+        empty!(connection(host).frames)
+        put!(release, nothing)
+        @test Bonito.wait_for(() -> Bonito.message_budget(budget).released == 3; timeout=5) == :success
+        credits() = [message["released"] for message in map(decode_sm, copy(connection(host).frames))
+                     if message isa AbstractDict && get(message, "msg_type", "") == Bonito.MessageWindowCredit]
+        @test Bonito.wait_for(() -> 3 in credits(); timeout=5) == :success
+        @test length(credits()) < 3 # the burst shared its credits
         close(host)
     end
 
@@ -247,14 +291,16 @@ end
         # Not ready yet (no JSDoneLoading forwarded): the worker reacts, but its
         # outbound update must QUEUE on the worker, not hit the browser — the
         # browser hasn't registered the objects yet.
-        process_message(host, Dict{String,Any}(
-            "msg_type" => "0", "id" => "$(r.render.prefix)/$(v.id)", "payload" => 7))
+        Bonito.receive!(host, Dict{String,Any}(
+            "msg_type" => "0", "id" => "$(r.render.prefix)/$(v.id)", "payload" => 7,
+            "flow_owner" => Bonito.root_data(wsession).dispatcher.budget.owner, "event_sequence" => 1))
+        @test Bonito.wait_for(() -> w[] == 8; timeout=5) == :success
         @test w[] == 8                                       # worker reacted
         @test isempty(collect_updates(connection(host).frames))  # but nothing relayed
         @test !isempty(root_session(wsession).message_queue)     # it's queued instead
 
         # Forward JSDoneLoading → worker flushes the queue to the browser.
-        process_message(host, Dict{String,Any}(
+        Bonito.receive!(host, Dict{String,Any}(
             "msg_type" => "8", "session" => r.render.prefix, "exception" => "nothing"))
         # init_session flips ready then flushes on an async task — poll for the frame.
         want = "$(r.render.prefix)/$(w.id)" => 8

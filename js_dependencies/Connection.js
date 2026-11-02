@@ -1,4 +1,5 @@
-import { encode_binary } from "./Protocol.js";
+import { MessageWindows } from "./MessageWindow.js";
+import { encode_binary, decode_binary } from "./Protocol.js";
 import { lookup_global_object, update_session_dom } from "./Sessions.js";
 
 // Save some bytes by using ints for switch variable
@@ -13,7 +14,12 @@ const FusedMessage = "9";
 const CloseSession = "10";
 const PingPong = "11";
 const UpdateSession = "12";
-const GetSessionDOM = "13"
+const GetSessionDOM = "13";
+const JavascriptResult = "14";
+const MessageWindowInfo = "15";
+const MessageWindowQuery = "16";
+const MessageWindowCredit = "17";
+const MessageWindowClosed = "18";
 
 const PING_INTERVAL = 5000
 
@@ -52,6 +58,18 @@ const CONNECTION = {
     lastPing: Date.now(),
     indicator: null,
 };
+
+CONNECTION.windows = new MessageWindows({
+    snapshot: message => decode_binary(encode_binary(message,false),false),
+    encode: message => encode_binary(message,CONNECTION.compression_enabled),
+    send: bytes => {
+        if (CONNECTION.status!=="open" || CONNECTION.send_message===undefined) return false;
+        const accepted=CONNECTION.send_message(bytes);
+        if (accepted!==true) on_connection_close();
+        return accepted;
+    },
+    query: owner => send_to_julia({msg_type:MessageWindowQuery,id:owner}),
+});
 
 /**
  * Register a connection indicator object.
@@ -122,6 +140,7 @@ export function on_connection_open(send_message_callback, compression_enabled, e
     CONNECTION.send_message = send_message_callback;
     CONNECTION.status = "open";
     CONNECTION.compression_enabled = compression_enabled;
+    CONNECTION.windows.open();
     // Notify indicator of connected status
     notify_indicator_status();
     // Once connection open, we send all messages that have queued up.
@@ -141,6 +160,7 @@ export function on_connection_open(send_message_callback, compression_enabled, e
 
 export function on_connection_close() {
     CONNECTION.status = "closed";
+    CONNECTION.windows.disconnect();
     notify_indicator_status();
     // J3: after the websocket retry loop gave up there is otherwise no path
     // back. Keep messages queued (send_to_julia queues on every non-"open",
@@ -152,6 +172,7 @@ export function on_connection_close() {
 // Final: the server closed with 4404/4409, nothing retries after this.
 export function on_connection_expired() {
     CONNECTION.status = "expired";
+    CONNECTION.windows.disconnect();
     notify_indicator_status();
 }
 
@@ -196,6 +217,11 @@ export function is_julia_responsive(){
 }
 
 export function send_to_julia(message) {
+    if (message.msg_type===UpdateObservable && CONNECTION.status!=="no_connection") {
+        CONNECTION.windows.enqueue(message);
+        return;
+    }
+    if (message.msg_type===JavascriptResult && CONNECTION.status!=="open") return;
     const { send_message, status, compression_enabled } = CONNECTION;
     if (send_message !== undefined && status === "open") {
         // J2: send_message (Websocket.send) returns false when the underlying
@@ -281,6 +307,16 @@ export function send_close_session(session, subsession) {
 export function process_message(data) {
     try {
         switch (data.msg_type) {
+            case MessageWindowInfo:
+                if (data.default) CONNECTION.compression_enabled=data.compression;
+                CONNECTION.windows.configure(data);
+                break;
+            case MessageWindowCredit:
+                CONNECTION.windows.credit(data);
+                break;
+            case MessageWindowClosed:
+                CONNECTION.windows.forget(data.owner);
+                break;
             case UpdateObservable: {
                 // A late UpdateObservable can arrive for an object the browser
                 // already freed (a sub closed during a DOM swap, or an

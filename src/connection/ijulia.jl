@@ -69,7 +69,7 @@ function setup_connection(session::Session, ::Nothing)
             comm.on_msg = function (msg)
                 data_b64 = msg.content["data"]
                 bytes = $(Base64).base64decode(data_b64)
-                put!(session.inbox, bytes)
+                $(receive!)(session, bytes)
             end
             comm.on_close = (args...) -> close(session)
         end
@@ -97,8 +97,13 @@ function setup_connection(session::Session, ::Nothing)
             Bonito.decode_base64_message(msg.content.data.data, $(session.compression_enabled)).then(Bonito.process_message)
         });
 
+        let sending = Promise.resolve();
         Bonito.on_connection_open((binary) => {
-            Bonito.base64encode(binary).then(x=> comm.send(x))
+            sending = sending.then(() => Bonito.base64encode(binary)).then(x => comm.send(x)).catch(error => {
+                Bonito.on_connection_close();
+                console.error(error);
+            });
+            return true;
         }, $(session.compression_enabled));
     })()
     """
