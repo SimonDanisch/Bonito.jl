@@ -1,5 +1,10 @@
 function html(body)
-    return HTTP.Response(200, ["Content-Type" => "text/html", "charset" => "utf-8"], body=body)
+    return HTTP.Response(200, [
+        "Content-Type" => "text/html",
+        "charset" => "utf-8",
+        # Cached HTML can refer to a session that the server already closed.
+        "Cache-Control" => "no-store",
+    ], body=body)
 end
 
 function response_404(body="Not Found")

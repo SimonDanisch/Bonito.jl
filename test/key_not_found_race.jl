@@ -30,7 +30,7 @@ using Bonito: Observable, on
 
 # A bare-bones root session with no real connection / asset server. Good
 # enough to exercise process_message + free without bringing up Electron.
-fresh_offline_session() = Session(NoConnection(); asset_server = NoServer())
+fresh_offline_session() = Session(NoConnection(); asset_server = NoServer(), compression_enabled = false)
 
 # Synthesise the exact bytes a real frontend would send for an
 # `UpdateObservable` notification.
@@ -193,4 +193,37 @@ end
         @info "Key-not-found warnings observed" n_warn sample
     end
     @test n_warn == 0
+end
+
+# A page's messages are handled one after another, so one the server takes long
+# on holds up everything the page sends after it, its pings included: the page
+# looks frozen while every other page carries on. It is logged with the code
+# that ran.
+@testset "a message the server takes long on is logged with what ran" begin
+    session = fresh_offline_session()
+    obs = Observable(0)
+    add_cached!(() -> nothing, session, Dict{String,Any}(), obs)
+    on(session, obs) do _v
+        sleep(0.6)
+    end
+    logs, _ = Test.collect_test_logs(() -> process_message(session, update_message_bytes(obs.id, 1)))
+    kw = Dict(only(l for l in logs if occursin("slow message", l.message)).kwargs)
+    @test kw[:type] == "UpdateObservable" && kw[:id] == obs.id && kw[:seconds] >= 0.6
+    @test occursin("key_not_found_race.jl", kw[:listeners])
+    fast, _ = Test.collect_test_logs(() -> process_message(session, update_message_bytes(obs.id, 2); slow = 5.0))
+    @test !any(l -> occursin("slow message", l.message), fast)
+    close(session)
+end
+
+@testset "listener errors propagate without invoking the callback twice" begin
+    session = fresh_offline_session()
+    obs = Observable(0)
+    calls = Ref(0)
+    on(session, obs) do _
+        calls[] += 1
+        error("listener failed")
+    end
+    @test_throws ErrorException Bonito.update_nocycle!(obs, 1, session)
+    @test calls[] == 1
+    close(session)
 end

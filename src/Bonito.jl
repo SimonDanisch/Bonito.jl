@@ -121,10 +121,12 @@ On Julia 1.11+, this is called automatically via atexit (which runs before seria
 On Julia 1.10, this must be called manually after precompilation workloads.
 """
 function cleanup_globals()
-    for (_, (_, close_ref)) in SERVER_CLEANUP_TASKS
-        close_ref[] = false
+    servers = lock(SERVER_CLEANUP_LOCK) do
+        collect(keys(SERVER_CLEANUP_TASKS))
     end
-    empty!(SERVER_CLEANUP_TASKS)
+    for server in servers
+        stop_cleanup_task!(server)
+    end
     CURRENT_SESSION[] = nothing
     if !isnothing(GLOBAL_SERVER[])
         close(GLOBAL_SERVER[])

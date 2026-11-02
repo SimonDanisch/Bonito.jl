@@ -4,7 +4,7 @@
 # NoConnection / mock FrontendConnections and exercise the Julia-side invariant
 # directly (locks, ordering, status transitions).
 #
-# Findings covered here: B1, B2, B3, B4, B5, B6, B7, B15, B16, B22, B23, B24,
+# Findings covered here: B1, B2, B4, B5, B6, B7, B15, B16, B22, B23, B24,
 # B27, B28, B29, B30, B31, B32, B33, B34, B35, B36, B46.
 
 using Bonito
@@ -16,8 +16,7 @@ using Bonito: Session, NoConnection, NoServer, FrontendConnection,
               OPEN, CLOSED, SOFT_CLOSED, DISPLAYED, UNINITIALIZED,
               UpdateObservable, JSDoneLoading, CloseSession,
               SerializedMessage, root_session, isclosed, MsgPack
-using Bonito: WebSocketHandler, is_current_socket, run_connection_loop,
-              SERVER_CLEANUP_TASKS, SERVER_CLEANUP_LOCK, add_cleanup_task!,
+using Bonito: SERVER_CLEANUP_TASKS, SERVER_CLEANUP_LOCK, add_cleanup_task!,
               stop_cleanup_task!, cleanup_server
 using Observables
 using Bonito.DOM
@@ -58,15 +57,6 @@ ready_mock_session() = begin
     s
 end
 
-# Helper for B3: mirror is_current_socket but accept any object as the socket
-# (the production method is typed to WebSocket). The logic under test is the
-# `=== handler.socket` comparison under the handler lock.
-function is_stale_helper(handler::WebSocketHandler, sock)
-    lock(handler.lock) do
-        return handler.socket === sock
-    end
-end
-
 @testset "stability_core" begin
 
 # ── B1: update_nocycle! / user callback must run OUTSIDE deletion_lock ───────
@@ -104,34 +94,37 @@ end
     @test obs[] == 42
 end
 
-# ── B15: update_nocycle! skips ONLY the originating session's updater ────────
-# Two JSUpdateObservables for the same observable (two browser sessions). An
-# update originating from session A must skip A's updater but FIRE B's.
-@testset "B15: update_nocycle! skips only originating session's JS updater" begin
-    sA = ready_mock_session()
-    sB = ready_mock_session()
-    obs = Observable(0)
-    # Register the observable on BOTH sessions so each gets a JSUpdateObservable
-    # listener bound to it (mirrors two browser sessions sharing one observable).
-    register_observable!(sA, obs)
-    register_observable!(sB, obs)
-    # Track user listeners too (must always fire).
+@testset "bound globals isolate browser updates and session lifetimes" begin
+    source = Observable(0)
+    first_root, second_root = ready_mock_session(), ready_mock_session()
+    first_bound = bind_global(first_root, source)
+    second_bound = bind_global(second_root, source)
+    @test first_bound !== second_bound
+    @test first_bound !== source
+    SerializedMessage(first_root, first_bound)
+    SerializedMessage(second_root, second_bound)
     user_fired = Ref(0)
-    on(_ -> user_fired[] += 1, obs)
-    writesA_before = length(sA.connection.writes)
-    writesB_before = length(sB.connection.writes)
-    # Update originating from sA: sA's updater is skipped (no echo back), sB's
-    # updater fires (relays the new value to the other browser).
-    update_nocycle!(obs, 7, sA)
-    @test obs[] == 7
+    on(_ -> user_fired[] += 1, first_bound)
+    first_writes = length(first_root.connection.writes)
+    second_writes = length(second_root.connection.writes)
+
+    update_nocycle!(first_bound, 7, first_root)
+    @test first_bound[] == 7
+    @test second_bound[] == source[] == 0
     @test user_fired[] == 1
-    @test length(sA.connection.writes) == writesA_before        # sA NOT echoed
-    @test length(sB.connection.writes) == writesB_before + 1    # sB relayed (B15)
-    # With origin=nothing (legacy behavior) ALL JS updaters are skipped.
-    update_nocycle!(obs, 9, nothing)
-    @test length(sA.connection.writes) == writesA_before
-    @test length(sB.connection.writes) == writesB_before + 1
-    close(sA); close(sB)
+    @test length(first_root.connection.writes) == first_writes
+    @test length(second_root.connection.writes) == second_writes
+
+    source[] = 9
+    @test first_bound[] == second_bound[] == 9
+    @test length(first_root.connection.writes) == first_writes + 1
+    @test length(second_root.connection.writes) == second_writes + 1
+    close(first_root)
+    source[] = 11
+    @test first_bound[] == 9
+    @test second_bound[] == 11
+    close(second_root)
+    @test isempty(source.listeners)
 end
 
 # ── B16: collect_messages resets COLLECT_MESSAGES even on throw ─────────────
@@ -235,40 +228,18 @@ end
     @test isclosed(s2)
 end
 
-# ── B3: stale ws loop must not tear down a reconnected session ──────────────
-# `is_current_socket` is the gate the connection callback's `finally` uses to
-# decide whether to tear down. We can't construct a real HTTP.WebSocket
-# offline (the field is typed to WebSocket), so we test the gate's logic via
-# `is_stale_helper`, which performs the identical `=== handler.socket` check
-# under `handler.lock`. A fresh handler (socket === nothing) is never "current"
-# for any real socket; once a socket is installed only that exact object is
-# current; installing a new one makes the old one stale.
-@testset "B3: is_current_socket / stale-socket gate logic" begin
-    handler = WebSocketHandler()
-    @test handler.socket === nothing
-    sockA = Ref(:A)   # stand-ins for the === identity check only
-    sockB = Ref(:B)
-    @test is_stale_helper(handler, sockA) == false    # nothing is current
-    handler2 = WebSocketHandler()
-    # Simulate the field via the helper's logic directly (the production field
-    # is WebSocket-typed). The gate is a pure identity comparison under lock:
-    cur = sockA
-    @test (cur === sockA) == true
-    @test (cur === sockB) == false   # a stale loop's socket would compare false
-    # And the real method is locked + identity-based:
-    @test is_current_socket isa Function
-    @test is_stale_helper(handler2, nothing) == true  # both nothing → "current"
-end
-
 # ── B7: stop_cleanup_task! stops the task and removes the Dict entry ─────────
 @testset "B7: cleanup task is stopped + removed; Dict access is locked" begin
     srv = Bonito.Server(Bonito.App(() -> DOM.div("noop")), "127.0.0.1", 0)
     try
         add_cleanup_task!(srv)
         @test lock(() -> haskey(SERVER_CLEANUP_TASKS, srv), SERVER_CLEANUP_LOCK)
-        task, close_ref = lock(() -> SERVER_CLEANUP_TASKS[srv], SERVER_CLEANUP_LOCK)
+        task, timer = lock(() -> SERVER_CLEANUP_TASKS[srv], SERVER_CLEANUP_LOCK)
+        yield() # let the cleanup task enter its timer wait
         stop_cleanup_task!(srv)
-        @test close_ref[] == false      # signaled to stop
+        @test !isopen(timer)
+        @test istaskdone(task)
+        @test !istaskfailed(task)
         @test !lock(() -> haskey(SERVER_CLEANUP_TASKS, srv), SERVER_CLEANUP_LOCK)
         # idempotent
         stop_cleanup_task!(srv)
@@ -297,7 +268,7 @@ end
     @test haskey(root.session_objects, key)
     @test any(((p, f),) -> f isa JSUpdateObservable, comm.listeners)
     # Mirror the patched evaljs_value cleanup (delete by cache_key, B27):
-    remove_js_updates!(key, comm)
+    remove_js_updates!(key, comm, root)
     delete!(root.session_objects, key)
     @test !haskey(root.session_objects, key)
     @test !any(((p, f),) -> f isa JSUpdateObservable, comm.listeners)
@@ -341,7 +312,9 @@ Bonito.serialize_cached(::Bonito.SerializationContext, ::B30Unserializable) =
     s = Session(conn; asset_server = NoServer())
     s.status = OPEN
     put!(s.connection_ready, true)
-    up = JSUpdateObservable(s, "k")
+    obs = Observable(0)
+    SerializedMessage(s, obs)
+    up = JSUpdateObservable(s, obs.id)
     @test s.init_error[] === nothing
     # serialize_cached throws inside the updater (the @error is deliberate; we
     # assert the recorded session error below).
@@ -350,6 +323,21 @@ Bonito.serialize_cached(::Bonito.SerializationContext, ::B30Unserializable) =
     end
     @test s.init_error[] !== nothing   # recorded via record_session_error! (B30)
     close(s)
+end
+
+@testset "update payloads belong to an Observable's remaining owner" begin
+    root = ready_mock_session()
+    first_owner, survivor = Session(root), Session(root)
+    shared = Observable{Any}(nothing)
+    SerializedMessage(first_owner, shared)
+    SerializedMessage(survivor, shared)
+    close(first_owner)
+    nested = Observable(42)
+    shared[] = nested
+    @test root.session_objects[nested.id].owners == Set([survivor])
+    close(survivor)
+    @test isempty(root.session_objects)
+    close(root)
 end
 
 # ── B31: on(f, CLOSED session, obs) deregisters immediately (no leak) ────────
@@ -445,3 +433,29 @@ end
 end
 
 end  # @testset stability_core
+
+@testset "bound globals retain one updater per session tree" begin
+    source = Observable(0)
+    first_root, second_root = Session(), Session()
+    first_bound = bind_global(first_root, source)
+    second_bound = bind_global(second_root, source)
+    first_sub, surviving_sub = Session(first_root), Session(first_root)
+    SerializedMessage(first_sub, first_bound)
+    SerializedMessage(surviving_sub, first_bound)
+    SerializedMessage(second_root, second_bound)
+    updaters(obs) = [f for (_, f) in obs.listeners if f isa JSUpdateObservable]
+    @test only(updaters(first_bound)).session === first_root
+    @test only(updaters(second_bound)).session === second_root
+    close(first_sub)
+    @test length(updaters(first_bound)) == 1
+    close(surviving_sub)
+    @test isempty(updaters(first_bound))
+    @test length(updaters(second_bound)) == 1
+    close(first_root)
+    source[] = 42
+    @test first_bound[] == 0
+    @test second_bound[] == 42
+    close(second_root)
+    @test isempty(updaters(second_bound))
+    @test isempty(source.listeners)
+end

@@ -59,6 +59,14 @@ class Observable {
     on(callback) {
         this.#callbacks.push(callback);
     }
+
+    /**
+     * @param {any} callback the function given to `on`
+     */
+    off(callback) {
+        const i = this.#callbacks.indexOf(callback);
+        if (i !== -1) this.#callbacks.splice(i, 1);
+    }
 }
 
 export function onany(observables, f) {

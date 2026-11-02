@@ -18,6 +18,7 @@ using Bonito.CodecZlib
 using Test
 using Bonito: jsrender
 
+include("cleanup.jl")
 include("ElectronTests.jl")
 include("test_helpers.jl")
 

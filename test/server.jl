@@ -32,6 +32,20 @@ Bonito.set_cleanup_time!(0.0)
     Bonito.Bonito.set_cleanup_time!(0.0)
 end
 
+# A taken port moves to the next one. HTTP.jl 2.x reports a busy port as its own
+# `HTTP.AddressInUseError`, which the retry did not recognise: the server failed
+# to start, and with it the precompile workload of every package serving a page.
+@testset "a taken port moves to the next available port" begin
+    first_server = Server("127.0.0.1", 0)
+    taken = first_server.port
+    second = Server("127.0.0.1", taken)
+    @test second.port > taken
+    @test Bonito.HTTPServer.isrunning(second)
+    @test Bonito.HTTPServer.is_address_in_use(HTTP.AddressInUseError("127.0.0.1:$(taken)"))
+    close(second)
+    close(first_server)
+end
+
 @testset "proxy_url" begin
     server = Server("0.0.0.0", 8787)
     port = server.port # just in case this 8787 is used already somehow
@@ -61,6 +75,27 @@ end
     end
     close(server)
 end
+@testset "served pages are uncacheable (Cache-Control: no-store)" begin
+    # The session id is baked into the HTML, so a cached page would revive a
+    # fresh page against a dead session (broken DOM, "double freeing session").
+    app = App(() -> DOM.div("cache-header-check"))
+    server = Server("0.0.0.0", 0)
+    try
+        route!(server, "/" => app)
+        resp = HTTP.get("http://localhost:$(server.port)/")
+        cc = [v for (k, v) in resp.headers if lowercase(k) == "cache-control"]
+        @test cc == ["no-store"]
+        # Two plain fetches must mint DIFFERENT sessions (the id is baked into
+        # the page): if this ever fails the server itself started replaying
+        # session HTML, which no cache header can save.
+        body1 = String(resp.body)
+        body2 = String(HTTP.get("http://localhost:$(server.port)/").body)
+        @test body1 != body2
+    finally
+        close(server)
+    end
+end
+
 @testset "request target forwarded to handler" begin
     # Regression test: `route!(server, r".*" => app)` must forward the HTTP
     # request into the app handler so `r.target` reflects the requested path
@@ -82,6 +117,91 @@ end
         @test !occursin("/hello/world", body2)
     finally
         close(server)
+    end
+end
+
+struct KeyAuthentication{Handler}
+    handler::Handler
+    key::String
+end
+
+function Bonito.HTTPServer.apply_handler(authentication::KeyAuthentication, context)
+    request = context.request
+    HTTP.removeheader(request, "X-Who")
+    HTTP.header(request, "X-Key", "") == "boom" && error("authentication failed")
+    HTTP.header(request, "X-Key", "") == authentication.key ||
+        return HTTP.Response(401, ["Cache-Control" => "no-store"], "no entry")
+    HTTP.setheader(request, "X-Who" => "admitted")
+    response = Bonito.HTTPServer.apply_handler(authentication.handler, context)
+    response === nothing && return nothing
+    HTTP.setheader(response, "X-Authenticated" => "yes")
+    return response
+end
+
+# A socket takes what a browser sends it, however large: Bonito lifts HTTP's
+# 16 MiB message cap. Under HTTP 2.12 the lifted cap of `typemax(Int)` overflowed
+# its unread-message bound and closed every socket on its first message.
+@testset "a websocket route takes any message" begin
+    server = Server("127.0.0.1", 0)
+    try
+        Bonito.HTTPServer.websocket_route!(server, "/echo" => (ctx, ws) -> foreach(m -> HTTP.WebSockets.send(ws, m), ws))
+        big = rand(UInt8, 20 * 1024 * 1024)
+        echoed = HTTP.WebSockets.open("ws://127.0.0.1:$(server.port)/echo"; maxframesize = 2 * length(big)) do ws
+            HTTP.WebSockets.send(ws, "hi")
+            small = HTTP.WebSockets.receive(ws)
+            HTTP.WebSockets.send(ws, big)
+            (small, HTTP.WebSockets.receive(ws))
+        end
+        @test echoed[1] == "hi"
+        @test echoed[2] == big
+    finally
+        close(server)
+    end
+end
+
+@testset "server handler wrappers" begin
+    logged = String[]
+    log_lock = ReentrantLock()
+    server = Server("127.0.0.1", 0; handler = KeyAuthentication(Bonito.HTTPServer.delegate, "sesame"),
+        access_log = (request, _) -> lock(() -> push!(logged, request.target), log_lock))
+    url = "http://127.0.0.1:$(server.port)"
+    try
+        route!(server, "/who" => ctx -> HTTP.Response(200, HTTP.header(ctx.request, "X-Who", "nobody")))
+        Bonito.HTTPServer.websocket_route!(server, "/echo" => (ctx, ws) -> foreach(m -> HTTP.WebSockets.send(ws, m), ws))
+        get(key; who = "") = HTTP.get("$(url)/who", ["X-Key" => key, "X-Who" => who]; status_exception = false, retry = false)
+        # Refused before any route: the route never runs, the handler wrapper's answer is final.
+        r = get("wrong")
+        @test r.status == 401 && String(r.body) == "no entry" && HTTP.header(r, "X-Authenticated") == ""
+        # Let through, with the authenticated identity; a client's own X-Who never survives.
+        r = get("sesame"; who = "forged")
+        @test r.status == 200 && String(r.body) == "admitted" && HTTP.header(r, "X-Authenticated") == "yes"
+        # Unknown routes are authenticated too.
+        @test HTTP.get("$(url)/nothing-here"; status_exception = false).status == 401
+        # A failing handler wrapper never reaches the route.
+        r = get("boom")
+        @test r.status == 500 && !occursin("authentication failed", String(r.body))
+        # Websocket upgrades are authenticated first: refused without the key...
+        @test_throws Exception HTTP.WebSockets.open(ws -> nothing, "ws://127.0.0.1:$(server.port)/echo";
+                                                    headers = ["X-Key" => "wrong"])
+        # ...served with it.
+        echoed = HTTP.WebSockets.open("ws://127.0.0.1:$(server.port)/echo"; headers = ["X-Key" => "sesame"]) do ws
+            HTTP.WebSockets.send(ws, "hi")
+            HTTP.WebSockets.receive(ws)
+        end
+        @test echoed == "hi"
+        @test lock(() -> count(==("/who"), logged), log_lock) == 3
+        @test lock(() -> count(==("/nothing-here"), logged), log_lock) == 1
+        @test lock(() -> count(==("/echo"), logged), log_lock) == 2
+    finally
+        close(server)
+    end
+    # Without handler wrapper nothing changes.
+    open_server = Server("127.0.0.1", 0)
+    try
+        route!(open_server, "/who" => ctx -> HTTP.Response(200, "anyone"))
+        @test String(HTTP.get("http://127.0.0.1:$(open_server.port)/who").body) == "anyone"
+    finally
+        close(open_server)
     end
 end
 

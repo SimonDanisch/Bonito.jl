@@ -50,3 +50,21 @@ jobs:
         with:
           run: |
             julia --project=@. -e "using Pkg; Pkg.test(coverage=true)"
+  wglmakie:
+    name: WGLMakie
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      JULIA_NUM_THREADS: "4"
+      LIBGL_ALWAYS_SOFTWARE: "1"
+    steps:
+      - uses: actions/checkout@v2
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: "1"
+      - uses: julia-actions/cache@v1
+      - run: sudo apt-get update && sudo apt-get install -y xvfb libgl1-mesa-dri
+      - name: Install downstream test dependencies
+        run: julia --project=test/wglmakie -e 'using Pkg; Pkg.instantiate()'
+      - name: Exercise WGLMakie in a browser
+        run: xvfb-run -a julia --project=test/wglmakie test/wglmakie/runtests.jl

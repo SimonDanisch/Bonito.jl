@@ -20,11 +20,7 @@ struct LargeUpdate
 end
 
 function (x::JSUpdateObservable)(@nospecialize(value))
-    # Lock-protected check-then-send so a concurrent
-    # jsrender(::Session, ::Observable) listener can't slip a
-    # detach_subsession! between our liveness check and our write —
-    # which would put a stale UpdateObservable on the wire after the
-    # UpdateSession that freed its target on JS.
+    # Serialize and send before a concurrent teardown can remove the owner.
     try
         lock(deletion_lock(root_session(x.session))) do
             isclosed(x.session) && return
@@ -33,7 +29,14 @@ function (x::JSUpdateObservable)(@nospecialize(value))
             # String keys (not Symbols) avoid `string(k)` per key inside
             # serialize_cached, hot on every Observable update.
             msg = Dict{String,Any}("payload" => data, "id" => x.id, "msg_type" => UpdateObservable)
-            send(x.session, msg; large=is_large)
+            entry = get(x.session.session_objects, x.id, nothing)
+            entry === nothing && return
+            # Payload objects must be freed with an owner, not kept by the sender.
+            message = SerializedMessage(first(entry.owners), msg)
+            if !any(sends_in_order, entry.owners)
+                register_owners!(message.cache, x.id, entry, SerializedObservable(x.id, nothing))
+            end
+            send(x.session, message; large=is_large)
         end
     catch e
         # Don't swallow real failures at @debug — a serialization/pack error
@@ -47,55 +50,38 @@ end
 
 
 """
-Update the value of an observable, without echoing the change back to the
-frontend session that originated it.
-
-`origin` is the session whose browser just pushed this value. We must skip
-ONLY that session's `JSUpdateObservable` (so the value doesn't bounce back to
-the tab that sent it), but still fire every OTHER session's updater — when two
-browser sessions share one observable, session B has to see A's update.
-Skipping all `JSUpdateObservable`s (the old behavior) silently desynced them.
-All non-`JSUpdateObservable` listeners (user `on`/`map`) always fire.
+Apply a browser update and notify Julia listeners without echoing it to JavaScript.
 """
-function update_nocycle!(obs::Observable, @nospecialize(value), origin::Union{Session,Nothing}=nothing)
-    obs.val = value
-    for (prio, f) in Observables.listeners(obs)
-        if f isa JSUpdateObservable
-            # Skip only the updater bound to the originating session; let
-            # the other sessions' updaters relay the new value onward.
-            origin === nothing && continue
-            f.session === origin && continue
-            Base.invokelatest(f, value)
-        else
-            Base.invokelatest(f, value)
-        end
+function update_nocycle!(obs::Observable, @nospecialize(value), session::Union{Session,Nothing}=nothing)
+    snapshot() = begin
+        obs.val = value
+        copy(Observables.listeners(obs))
+    end
+    callbacks = session === nothing ? snapshot() : lock(snapshot, deletion_lock(session))
+    for (prio, f) in callbacks
+        f isa JSUpdateObservable && continue
+        Base.invokelatest(f, value)
     end
     return
 end
 
 # on & map versions that deregister when session closes!
 function Observables.on(f, session::Session, observable::Observable; update=false)
-    to_deregister = on(f, observable; update=update)
-    # If the session already closed (a late render task running after
-    # `free(session)` emptied `deregister_callbacks`), nothing will ever
-    # deregister this listener — it would leak permanently and keep firing
-    # into a dead session. Deregister immediately instead.
-    if isclosed(session)
-        off(to_deregister)
-        return to_deregister
+    to_deregister = lock(deletion_lock(session)) do
+        listener = on(f, observable)
+        isclosed(session) ? off(listener) : push!(session.deregister_callbacks, listener)
+        return listener
     end
-    push!(session.deregister_callbacks, to_deregister)
+    update && f(observable[])
     return to_deregister
 end
 
 function Observables.onany(f, session::Session, observables::Observable...)
-    to_deregister = onany(f, observables...)
-    if isclosed(session)
-        foreach(off, to_deregister)
-        return to_deregister
+    return lock(deletion_lock(session)) do
+        listeners = onany(f, observables...)
+        isclosed(session) ? foreach(off, listeners) : append!(session.deregister_callbacks, listeners)
+        return listeners
     end
-    append!(session.deregister_callbacks, to_deregister)
-    return to_deregister
 end
 
 @inline function Base.map!(@nospecialize(f), session::Session, result::AbstractObservable, os...; update::Bool=true)
@@ -136,6 +122,11 @@ function jsrender(session::Session, obs::Observable)
         # on prev_sub, and bails. Without the lock a stale UpdateObservable
         # can land on JS after the UpdateSession that freed its target.
         lock(deletion_lock(root_session(session))) do
+            # close may have taken the lock while this notify was already in
+            # flight, and the `off` in `free` can't cancel an in-flight
+            # listener. The DOM is gone with the session, so bail quietly;
+            # update_session_dom! keeps its loud error for real misuse.
+            isclosed(session) && return
             new_sub = update_session_dom!(session, uuid(session, root_node), data; replace=false)
             if new_sub !== prev_sub
                 older_sub !== nothing && close(older_sub)

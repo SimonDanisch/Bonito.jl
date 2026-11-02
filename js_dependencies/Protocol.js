@@ -8,6 +8,7 @@ import {
     lookup_global_object,
     ensure_session_exists,
     GLOBAL_OBJECT_CACHE,
+    register_created_node,
 } from "./Sessions.js";
 
 /**
@@ -211,6 +212,7 @@ register_ext(DOM_NODE_TAG, (uint_8_array, context) => {
         }
     });
     children.forEach((child) => node.append(child));
+    register_created_node(node);
     return node;
 });
 
@@ -234,6 +236,7 @@ register_ext(RAW_HTML_TAG, (uint_8_array, context) => {
         fresh.textContent = old_script.textContent;
         old_script.replaceWith(fresh);
     }
+    div.querySelectorAll("[data-jscall-id]").forEach(register_created_node);
     return div;
 });
 

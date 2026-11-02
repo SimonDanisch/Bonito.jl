@@ -1,0 +1,14 @@
+[deps]
+Bonito = "824d6782-a2ef-11e9-3a09-e5662e0c26f8"
+ElectronCall = "8ddd578f-0c94-4c64-8c65-f083f291b266"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
+
+[sources]
+Bonito = {path = "../.."}
+ElectronCall = {url = "https://github.com/IanButterworth/ElectronCall.jl.git", rev = "main"}
+
+[compat]
+Bonito = "5"
+WGLMakie = "0.13"
+julia = "1.11"

@@ -35,3 +35,56 @@ end
     end
     @test success == :success
 end
+
+# Regression: `update_node_attribute` reached every attribute through its
+# reflecting IDL PROPERTY (`node[attribute] = value`). That is required for
+# `value`/`checked` — assigning the property is what moves the live state — but
+# an attribute with no such property (`data-*`, `aria-*`, any hyphenated custom
+# attribute) took the assignment on an EXPANDO instead, leaving the real
+# attribute frozen at whatever the first render wrote. Silently: the expando is
+# invisible to CSS selectors, to `element.dataset` and to `getAttribute`, and an
+# Observable CHILD of the same node kept updating perfectly — so it presented as
+# a styling bug, not a binding one.
+@testset "data attribute with observable" begin
+    app = App() do session
+        state = Observable("before")
+        evaljs(session, js"""
+            $(state).notify("after");
+        """)
+        DOM.div(DOM.div("HEY HEY"; id="probe", dataState=state, title=state))
+    end
+    display(edisplay, app)
+    Bonito.wait_for_ready(app)
+    success = Bonito.wait_for() do
+        res = evaljs_value(app.session[], js"""(()=>{
+            const b = document.getElementById("probe");
+            if (!b) return "no node";
+            return JSON.stringify({
+                attr: b.getAttribute("data-state"),
+                dataset: b.dataset.state,
+                title: b.getAttribute("title"),
+                // the old code left the new value here instead
+                expando: b["data-state"] ?? null,
+            });
+        })()""")
+        res == """{"attr":"after","dataset":"after","title":"after","expando":null}"""
+    end
+    @test success == :success
+end
+
+@testset "boolean and string attributes" begin
+    flag = Observable(false)
+    app = App(() -> DOM.button("toggle"; id = "boolean-attributes",
+        disabled = flag, ariaExpanded = flag, dataActive = flag))
+    display(edisplay, app)
+    session = app.session[]
+    attributes() = evaljs_value(session, js"""(() => {
+        const node = document.getElementById('boolean-attributes');
+        return [node.disabled, node.getAttribute('aria-expanded'), node.dataset.active];
+    })()""")
+    @test attributes() == [false, "false", "false"]
+    flag[] = true
+    @test Bonito.wait_for(() -> attributes() == [true, "true", "true"]) == :success
+    flag[] = false
+    @test Bonito.wait_for(() -> attributes() == [false, "false", "false"]) == :success
+end

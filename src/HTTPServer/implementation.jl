@@ -18,10 +18,8 @@ mutable struct Server
     routes::Routes
     websocket_routes::Routes
     protocol::String
-    # Per-request callback `(request::HTTP.Request, peer_ip::String) -> Any`,
-    # invoked once for every request (HTTP + WebSocket upgrade). Replaces the
-    # `access_log=`/`logfmt""` server hook that HTTP.jl 2.x removed. `nothing`
-    # disables logging.
+    handler::Any
+    # Optional `(request, peer_ip)` callback, including WebSocket upgrades.
     access_log::Union{Nothing, Function}
 end
 
@@ -132,7 +130,10 @@ function linkify_stacktrace(error_msg, bt::String)
     end
     return DOM.pre(
         DOM.h3(error_msg; style="color: red;"),
-        elements...;
+        # Children are flattened by Hyperscript. Splatting instead makes each
+        # stack length a different call signature and can spend seconds in JIT
+        # compilation while every other request on this thread waits.
+        elements;
         class="backtrace",
         style="overflow-x: auto;",
     )
@@ -281,44 +282,45 @@ end
 function stream_handler(application::Server, stream::Stream)
     peer = peer_ip(stream)
     application.access_log !== nothing && application.access_log(stream.message, peer)
+    handler = request -> begin
+        routes = HTTP.WebSockets.isupgrade(request) ? application.websocket_routes : application.routes
+        context = (; routes, application, request, match = nothing, peer_ip = peer, stream)
+        return apply_handler(application.handler, context)
+    end
     if HTTP.WebSockets.isupgrade(stream.message)
         try
-            # `check_origin = true` keeps the permissive 1.x behaviour: Bonito
-            # connects from VSCode webviews, Electron, notebooks, … whose Origin
-            # won't match Host. `upgrade` keeps HTTP and websockets on a single
-            # (route-dispatched) port and drains any bytes buffered with the
-            # handshake into the codec.
-            # HTTP 2.4 started capping inbound WebSocket messages by default
-            # (`maxframesize` 16 MiB, was `typemax(Int)` through 2.3.1; plus a
-            # 1024-frame `maxfragmentation` cap) and closes with 1009
-            # "frame/message too large" when exceeded. Bonito round-trips large
-            # binary payloads (WGLMakie meshes, images, volumes; the typed-array
-            # serialization tests) over this socket from a trusted local browser
-            # (Electron / notebook / VSCode webview), so lift both caps back to
-            # unbounded.
-            HTTP.WebSockets.upgrade(
-                stream;
-                check_origin = (_...) -> true,
-                maxframesize = typemax(Int),
-                maxfragmentation = typemax(Int),
-            ) do ws
-                delegate(application.websocket_routes, application, stream.message, ws; peer_ip = peer)
-            end
-            return
+            response = handler(stream.message)
+            response === nothing || respond!(stream, response)
         catch e
-            # When browser closes we may get an io error here!
-            if !(e isa Base.IOError)
-                rethrow(e)
-            end
+            e isa Base.IOError || rethrow()
+        end
+        return
+    end
+    serve_stream!(HTTP.streamhandler(handler), stream)
+end
+
+function delegate(context)
+    (; routes, application, request, peer_ip, stream) = context
+    if !HTTP.WebSockets.isupgrade(request)
+        return delegate(routes, application, request; peer_ip)
+    end
+    # Notebook/webview origins differ from Host. Large plot payloads also exceed
+    # HTTP's default frame limit; ÷ 4 avoids overflow in its unread-message bound.
+    HTTP.WebSockets.upgrade(stream; check_origin = (_...) -> true,
+            maxframesize = typemax(Int) ÷ 4, maxfragmentation = typemax(Int)) do ws
+        response = delegate(routes, application, request, ws; peer_ip)
+        if response isa Response && response.status == 404
+            close(ws, HTTP.WebSockets.CloseFrameBody(4404, "no such session"))
         end
     end
-    http_handler = HTTP.streamhandler() do request
-        delegate(
-            application.routes, application, request; peer_ip = peer,
-        )
-    end
+    return nothing
+end
+
+respond!(stream::Stream, response::Response) = serve_stream!(HTTP.streamhandler(_ -> response), stream)
+
+function serve_stream!(handler, stream::Stream)
     try
-        http_handler(stream)
+        handler(stream)
     catch e
         # we expect the IOError to happen, if either the page gets closed
         # or we close the server!
@@ -326,15 +328,16 @@ function stream_handler(application::Server, stream::Stream)
             rethrow(e)
         end
     end
+    return
 end
 
 """
-Server(
-        dom, url::String, port::Int;
-        verbose = -1
-    )
+    Server(host::String, port::Int; handler = HTTPServer.delegate, kwargs...)
 
-Creates an application that manages the global server state!
+Start an HTTP server for Bonito apps, assets and WebSockets.
+Wrap the server's routing handler using the same `apply_handler` interface as
+route handlers, for example `handler = ProtectedRoute(HTTPServer.delegate, users)`.
+A WebSocket upgrade returns `nothing` after the socket closes.
 """
 function Server(
         url::String, port::Int;
@@ -342,6 +345,7 @@ function Server(
         proxy_url = "",
         routes = Routes(),
         websocket_routes = Routes(),
+        handler = delegate,
         access_log = nothing,
         listener_kw...
     )
@@ -351,6 +355,7 @@ function Server(
         routes,
         websocket_routes,
         haskey(listener_kw, :sslconfig) ? "https://" : "http://",
+        handler,
         access_log,
     )
 
@@ -414,6 +419,8 @@ end
 # `SystemError` (errno `EADDRINUSE`) instead of the 1.x `Base.IOError` with
 # `UV_EADDRINUSE`. Walk the wrapped causes and recognise both shapes.
 function is_address_in_use(e)
+    # HTTP.jl binds in the caller and says so with its own type (all of 2.x).
+    e isa HTTP.AddressInUseError && return true
     e isa Base.IOError && return e.code == Base.UV_EADDRINUSE
     e isa Base.SystemError && return e.errnum == Base.Libc.EADDRINUSE
     if e isa TaskFailedException

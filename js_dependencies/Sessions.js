@@ -1,5 +1,5 @@
 import { decode_binary } from "./Protocol.js";
-import PQueue from "https://esm.sh/p-queue";
+import PQueue from "https://esm.sh/p-queue@9.3.5?target=es2022";
 
 import {
     send_close_session,
@@ -37,13 +37,30 @@ function tombstone_session(session_id) {
 // Even though a moment later after initialization of session1, `is_still_referenced(object-x)` will return true and object won't get deleted.
 const OBJECT_FREEING_LOCK = new PQueue({ concurrency: 1 });
 
-export function lock_loading(f) {
+// Everything the server sends waits behind the task holding the lock, its
+// pings included: a page that looks frozen while the server is fine is waiting
+// here. Past this long, the page says what it waits for (the console, as info:
+// a refused payload waits for a login on purpose).
+const SLOW_LOCK_MS = 3000;
+
+export function lock_loading(f, what = "a task") {
     // J6: PQueue.add() returns a promise that rejects if the task throws.
     // Discarding it turned any throw inside a locked task into an unhandled
     // rejection (message silently dropped, send_error never called). Attach a
     // catch that surfaces the error with context. Callers that need their own
     // handling still attach a .catch inside `f` (those resolve here normally).
-    OBJECT_FREEING_LOCK.add(f).catch((error) => {
+    OBJECT_FREEING_LOCK.add(() => {
+        const started = Date.now();
+        const watch = setTimeout(() => console.info(
+            `Bonito: everything from the server waits for ${what} (${SLOW_LOCK_MS / 1000} s so far)`), SLOW_LOCK_MS);
+        return Promise.resolve().then(f).finally(() => {
+            clearTimeout(watch);
+            const took = Date.now() - started;
+            if (took >= SLOW_LOCK_MS) {
+                console.info(`Bonito: ${what} held everything from the server for ${(took / 1000).toFixed(1)} s`);
+            }
+        });
+    }).catch((error) => {
         send_error("Error inside object-freeing-locked task", error);
     });
 }
@@ -255,6 +272,13 @@ export function done_initializing_session(session_id) {
 }
 
 
+// Whether the page is being left (reload, navigation, closed tab). Leaving
+// aborts every fetch still in flight, and each rejects with "Failed to fetch"
+// right after `pagehide`. A page restored from the back/forward cache is back.
+let PAGE_LEAVING = false;
+window.addEventListener("pagehide", () => { PAGE_LEAVING = true; });
+window.addEventListener("pageshow", () => { PAGE_LEAVING = false; });
+
 function init_session_from_msgs(session_id, messages) {
     // J10: report done_loading exactly once. This used to send_done_loading
     // AND rethrow, while every caller's surrounding .catch ALSO sent
@@ -271,23 +295,56 @@ function init_session_from_msgs(session_id, messages) {
 }
 
 export function init_session(session_id, message_promise, session_status, compression) {
-    SESSIONS[session_id] = [new Set(), session_status];
+    // Settled right here, not once the loading lock gets to this session: the
+    // payload's fetch can fail before that, and a rejection with no handler
+    // attached yet is reported as unhandled even though it is handled below.
+    const payload = Promise.resolve(message_promise).then(
+        (binary) => ({ binary }),
+        (error) => ({ error })
+    );
+    // J8: a session Julia already freed is not brought back. Reporting it done
+    // (once its payload settled) is still needed: that is what lets Julia drop
+    // the assets it kept for this session while the browser might fetch them.
+    if (FREED_SESSION_TOMBSTONES.has(session_id)) {
+        payload.then(() => send_done_loading(session_id, null));
+        return;
+    }
+    // Preserve registrations already decoded for this session.
+    const known = SESSIONS[session_id];
+    SESSIONS[session_id] = [known ? known[0] : new Set(), session_status];
     track_deleted_sessions(); // no-op if already tracking
+    // Reported once here, since init_session_from_msgs never ran. Not rethrown
+    // (J10): lock_loading's own catch would re-surface it as a duplicate error.
+    // Not at all while the page is being left: that aborts the fetch, which is
+    // no failure of this session, and the page and its sessions go anyway.
+    const failed = (error) => {
+        if (PAGE_LEAVING) return;
+        send_done_loading(session_id, error);
+        console.error(error.stack || error);
+    };
     lock_loading(() => {
-        return Promise.resolve(message_promise).then((binary) => {
-            const messages = binary ? decode_binary(binary, compression) : [];
+        return payload.then(({ binary, error }) => {
+            if (!(session_id in SESSIONS)) {
+                // Freed while its payload was in flight: nothing to initialize.
+                send_done_loading(session_id, null);
+                return;
+            }
+            if (error) {
+                failed(error);
+                return;
+            }
+            let messages;
+            try {
+                messages = binary ? decode_binary(binary, compression) : [];
+            } catch (e) {
+                failed(e);
+                return;
+            }
             // init_session_from_msgs reports its own failures via done_loading
             // and does not throw (J10).
             init_session_from_msgs(session_id, messages);
-        }).catch((error) => {
-            // Only reached when message_promise rejects or decode_binary throws
-            // — i.e. init_session_from_msgs never ran, so done_loading was not
-            // yet sent. Report once here. Do NOT rethrow (J10): lock_loading's
-            // own catch would otherwise re-surface it as a duplicate error.
-            send_done_loading(session_id, error);
-            console.error(error.stack || error);
         });
-    });
+    }, `the content of sub-page ${session_id}`);
 }
 
 /*
@@ -322,26 +379,86 @@ export function close_session(session_id) {
 // called from julia!
 export function free_session(session_id) {
     lock_loading(() => {
+        // J8: remember this id so a late in-flight message can't resurrect it.
+        // That includes one we don't know yet: a sub Julia closed before the
+        // browser got to it, whose `init_session` is still on its way.
+        tombstone_session(session_id);
         const session = SESSIONS[session_id];
         if (!session) {
-            console.warn("double freeing session from Julia!");
+            console.debug(`freeing session ${session_id}, which was never initialized here`);
             return;
         }
         const [tracked_objects, status] = session;
+        // Teardowns first, while the session's objects still exist.
+        const teardowns = ON_FREE.get(session_id);
+        ON_FREE.delete(session_id);
+        teardowns?.forEach((f) => {
+            try {
+                f();
+            } catch (e) {
+                send_error(`Error in an on_free callback of session ${session_id}`, e);
+            }
+        });
         delete SESSIONS[session_id];
-        // J8: remember this id so a late in-flight message can't resurrect it.
-        tombstone_session(session_id);
         INITIALIZED_SESSIONS.delete(session_id);
         tracked_objects.forEach(free_object);
         tracked_objects.clear();
-    });
+    }, `freeing sub-page ${session_id}`);
 }
 
-export function on_node_available(node_id, timeout, max_timeout = 30000) {
+// Teardown for what a session's code built and Bonito does not track (an
+// editor, a WebGL context): `f` runs once when the session is freed, which
+// Bonito does once its DOM left the document; right away if it is gone.
+const ON_FREE = new Map();   // session_id → [f]
+export function on_free(session_id, f) {
+    if (!(session_id in SESSIONS)) {
+        f();
+        return;
+    }
+    const teardowns = ON_FREE.get(session_id);
+    if (teardowns) teardowns.push(f);
+    else ON_FREE.set(session_id, [f]);
+}
+
+// Find serialized nodes even while their pane or row is detached. Weak
+// references let removed nodes be collected without breaking deferred onload.
+const CREATED_NODES = new Map();
+const CREATED_NODES_GC = new FinalizationRegistry((id) => {
+    const ref = CREATED_NODES.get(id);
+    if (ref !== undefined && ref.deref() === undefined) CREATED_NODES.delete(id);
+});
+
+export function register_created_node(node) {
+    const id = node.getAttribute("data-jscall-id");
+    if (id === null) return;
+    CREATED_NODES.set(id, new WeakRef(node));
+    CREATED_NODES_GC.register(node, id);
+}
+
+// What `$(node)` in a js"" string resolves to: the node in the document, or the
+// one Bonito created for it wherever that is mounted right now.
+export function lookup_node(node_id) {
+    const node = document.querySelector(`[data-jscall-id="${CSS.escape(node_id)}"]`);
+    if (node !== null) return node;
+    const created = CREATED_NODES.get(node_id);
+    return created === undefined ? null : created.deref() ?? null;
+}
+
+// Resolves with the node once it is in the document, or with null as soon as
+// `wanted()` turns false. Not `lookup_node`: what waits here is content whose
+// code may find its own nodes in the document only, because an older Bonito
+// generated it (an eval worker's project), so it must not start in a detached
+// tree. A target that is gone for good belonged to content that was replaced,
+// and Julia frees the waiting session then.
+export function on_node_available(node_id, timeout, max_timeout = 30000, wanted = () => true) {
     return new Promise((resolve, reject) => {
         let elapsed = 0;
         function test_node(current_timeout) {
-            const node = document.querySelector(`[data-jscall-id='${node_id}']`);
+            if (!wanted()) {
+                resolve(null);
+                return;
+            }
+            const node = document.querySelector(`[data-jscall-id="${CSS.escape(node_id)}"]`);
             if (node) {
                 resolve(node);
             } else {
@@ -385,11 +502,18 @@ export function update_session_dom(message) {
     // processing for every session for the full timeout. Only the synchronous
     // apply (DOM swap + replaying this session's init messages, which touches
     // the shared object cache) needs the lock.
-    return on_node_available(dom_node_selector, 1).then((dom) => {
+    const live = () => session_id in SESSIONS;
+    return on_node_available(dom_node_selector, 1, 30000, live).then((dom) => {
         lock_loading(() => {
+            // Freed while it waited: its target was replaced, nothing to show.
+            // Still reported done, so Julia drops the assets it kept for it.
+            if (dom === null || !live()) {
+                send_done_loading(session_id, null);
+                return;
+            }
             update_or_replace(dom, html, replace);
             init_session_from_msgs(session_id, messages);
-        });
+        }, `showing sub-page ${session_id}`);
     }).catch((error) => {
         send_done_loading(session_id, error);
     });
@@ -421,7 +545,7 @@ export function ensure_session_exists(session_id, session_status) {
 /**
  * Track a key in the session without adding to global cache.
  * Used by TrackingOnly extension - the object already exists in GLOBAL_OBJECT_CACHE
- * from a parent session, we just need to track it in this session.
+ * from another session; this records the new owner.
  *
  * @param {string} session_id
  * @param {string} key - The object's cache key
@@ -441,9 +565,6 @@ export function track_in_session(session_id, key, session_status) {
     // Track in session (object should already be in GLOBAL_OBJECT_CACHE)
     tracked_objects.add(key);
 
-    if (!(key in GLOBAL_OBJECT_CACHE)) {
-        console.warn(`TrackingOnly: Key ${key} not found in GLOBAL_OBJECT_CACHE`);
-    }
 }
 
 /**

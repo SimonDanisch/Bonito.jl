@@ -10,6 +10,7 @@ const {
     on_connection_open,
     on_connection_close,
     on_connection_connecting,
+    on_connection_expired,
     send_close_session,
     send_pingpong,
     can_send_to_julia,
@@ -39,14 +40,23 @@ const {
     free_object,
     force_free_object,
     move_dom_node,
+    lookup_node,
 } = Sessions;
 
+// Reflected properties update live input state (`value`, `checked`). Other
+// attributes (`data-*`, `aria-*`, `for`) need setAttribute, not an expando.
 function update_node_attribute(node, attribute, value) {
     if (node) {
         if (attribute === "class") {
             node.className = value; // Use className for class attribute
-        } else if (node[attribute] != value) {
-            node[attribute] = value;
+        } else if (attribute in node) {
+            if (node[attribute] != value) {
+                node[attribute] = value;
+            }
+        } else if (value === null || value === undefined || value === false) {
+            node.removeAttribute(attribute);
+        } else {
+            node.setAttribute(attribute, value);
         }
         return true;
     } else {
@@ -63,14 +73,34 @@ function update_dom_node(dom, html) {
         return false;
     }
 }
+// A payload the server's gate turned away: a login that ended answers with a
+// redirect to the login page (or 401/403). The app says when asking again makes
+// sense (`on_refused`); without it, the load fails.
+let refused_handler = null;
 /**
- * @param {RequestInfo | URL} url
+ * @param {(url: string) => Promise<void>} handler resolves once the request may be asked again
  */
-function fetch_binary(url) {
-    return fetch(url).then((response) => {
-        if (!response.ok) {
+function on_refused(handler) {
+    refused_handler = handler;
+}
+const is_refusal = (response) =>
+    response.type === "opaqueredirect" || response.status === 401 || response.status === 403;
 
-            throw new Error("HTTP error, status = " + response.status);
+/**
+ * @param {string} url
+ * @param {number} refusals how often it was turned away already
+ */
+function fetch_binary(url, refusals = 0) {
+    // `manual`: a payload is never redirected; followed, the gate's redirect
+    // handed back the login page, which then failed to decode. Asked again a
+    // few times only: what keeps turning one payload away is no ended login.
+    return fetch(url, { redirect: "manual" }).then((response) => {
+        if (is_refusal(response) && refused_handler && refusals < 3) {
+            return refused_handler(url).then(() => fetch_binary(url, refusals + 1));
+        }
+        if (!response.ok) {
+            throw new Error(is_refusal(response) ? "turned away by the server: " + url
+                                                 : "HTTP error, status = " + response.status);
         }
         return response.arrayBuffer();
     });
@@ -213,6 +243,7 @@ const Bonito = {
     encode_binary,
     decode_base64_message,
     fetch_binary,
+    on_refused,
     load_script,
 
     Connection,
@@ -222,6 +253,7 @@ const Bonito = {
     on_connection_open,
     on_connection_close,
     on_connection_connecting,
+    on_connection_expired,
     send_close_session,
     send_pingpong,
 
@@ -237,6 +269,7 @@ const Bonito = {
     free_session,
     lock_loading,
     move_dom_node,
+    lookup_node,
     // Util
     update_node_attribute,
     update_dom_node,
@@ -265,6 +298,7 @@ export {
     encode_binary,
     decode_base64_message,
     fetch_binary,
+    on_refused,
     load_script,
     Connection,
     send_error,
@@ -273,6 +307,7 @@ export {
     on_connection_open,
     on_connection_close,
     on_connection_connecting,
+    on_connection_expired,
     send_close_session,
     send_pingpong,
     // Connection indicator API
@@ -286,6 +321,7 @@ export {
     free_session,
     lock_loading,
     move_dom_node,
+    lookup_node,
     // Util
     update_node_attribute,
     update_dom_node,

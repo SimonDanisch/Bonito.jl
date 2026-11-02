@@ -37,7 +37,7 @@ new_root() = Session(NoConnection(); asset_server=NoServer())
                  "/..%2f..%2fetc%2fpasswd")
         resp = serve(evil)
         @test resp.status in (403, 404)
-        @test !occursin("root:", String(copy(resp.body)))
+        @test !occursin("root:", String(resp.body))
     end
 
     # The in-folder secret IS still reachable by its own name (sanity: the guard
@@ -151,19 +151,19 @@ end
     Bonito.add_cached!(() -> Bonito.SerializedObservable(key, obs[]),
                        sub, Dict{String,Any}(), obs)
     entry = root.session_objects[key]
-    @test sub.id in entry.owners
-    @test !(root.id in entry.owners)
+    @test sub in entry.owners
+    @test !(root in entry.owners)
 
     # Now root references the same observable → it must become an owner too,
     # so the entry survives the sub closing.
     Bonito.add_cached!(() -> Bonito.SerializedObservable(key, obs[]),
                        root, Dict{String,Any}(), obs)
-    @test root.id in entry.owners
+    @test root in entry.owners
 
     # Sub closes; entry must remain because root still owns it.
     Bonito.delete_cached!(root, sub, key)
     @test haskey(root.session_objects, key)
-    @test root.id in root.session_objects[key].owners
+    @test root in root.session_objects[key].owners
 end
 
 @testset "B14 remove_js_updates! matches by cache-key id, not session" begin
@@ -180,7 +180,7 @@ end
               obs.listeners)
 
     # Removing by key drops it regardless of which session is passed.
-    Bonito.remove_js_updates!(key, obs)
+    Bonito.remove_js_updates!(key, obs, sub)
     @test !any(((p, f),) -> f isa Bonito.JSUpdateObservable && f.id == key,
                obs.listeners)
 end
