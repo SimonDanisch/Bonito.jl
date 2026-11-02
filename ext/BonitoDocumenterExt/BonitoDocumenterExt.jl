@@ -29,6 +29,8 @@ Backing struct for [`Bonito.DocumenterBonito`](@ref). Keyword arguments:
 - `home`: a NamedTuple describing the hero/landing page (see `home.jl`); when
   `nothing` (the default) every page uses the standard doc layout.
 - `description`: site description (currently informational).
+- `assets`: extra head assets, using the same strings or `Documenter.asset(...)`
+  entries as `Documenter.HTML` (for example `["assets/favicon.ico"]`).
 """
 Base.@kwdef struct BonitoFormat <: Documenter.Writer
     repo::String = ""
@@ -44,7 +46,7 @@ Base.@kwdef struct BonitoFormat <: Documenter.Writer
     # subfolder is one post (`post.xml` + `post.md` + `images/`). `nothing`
     # disables the blog. See `blog.jl`.
     blog::Union{Nothing, String} = nothing
-    assets::Vector{String}=[""]
+    assets::Vector = String[]
 end
 
 Bonito.DocumenterBonito(; kwargs...) = BonitoFormat(; kwargs...)

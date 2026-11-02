@@ -43,7 +43,7 @@ makedocs(
         devurl = "dev",
         version = "dev",
         logo = "assets/bonito-dark.svg",
-        assets=["assets/favicon.ico"],
+        assets = ["assets/favicon.ico"],
         home = home,
         blog = "blog",
     ),

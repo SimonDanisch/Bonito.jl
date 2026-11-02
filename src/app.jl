@@ -1,5 +1,5 @@
 """
-    App(callback_or_dom; title="Bonito App", loading_page=nothing)
+    App(callback_or_dom; title="Bonito App", favicon=nothing, loading_page=nothing)
     App((session, request) -> DOM.div(...))
     App((session::Session) -> DOM.div(...))
     App((request::HTTP.Request) -> DOM.div(...))
@@ -8,6 +8,9 @@
 
 # Keywords
 - `title::String`: Browser tab title (default: `"Bonito App"`)
+- `favicon`: An image `Asset`, local file path, or remote URL for the browser tab
+  icon (default: `nothing`). Included in standalone pages and static exports;
+  embedded apps leave the containing page's icon unchanged.
 - `indicator::Union{Nothing, AbstractConnectionIndicator}`: Connection status indicator (default: `nothing`)
 - `loading_page`: A component (e.g. `LoadingPage()`) to display while the app handler runs.
   When set, the app DOM is wrapped in an `Observable` that initially shows the loading page,
@@ -19,6 +22,11 @@ using Bonito
 app = App() do
     return DOM.div(DOM.h1("hello world"), js\"\"\"console.log('hello world')\"\"\")
 end
+```
+
+# Browser tab icon
+```julia
+App(DOM.h1("My app"); title="My app", favicon=Asset("logo.svg"))
 ```
 
 # Loading Page
@@ -291,7 +299,7 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
         # inline error HTML) and the page wrap finishes normally. Infrastructure
         # failures (Session ctor, find_head_body, sprint, …) propagate to the
         # HTTPServer's `delegate` which returns a 500.
-        parent_dom = session_dom(parent, App(nothing; indicator=handler.current_app.indicator, loading_page=nothing); html_document=true)
+        parent_dom = session_dom(parent, App(nothing; indicator=handler.current_app.indicator, loading_page=nothing, favicon=handler.current_app.favicon); html_document=true)
         sub_dom = session_dom(sub, handler.current_app)
         _, parent_body, _ = find_head_body(parent_dom)
         push!(children(parent_body), sub_dom)

@@ -123,6 +123,8 @@ end
         end
         @testset "server" begin
             _rf("server.jl")
+            include("favicon.jl")
+            include("favicon_browser.jl")
         end
         @testset "subsessions" begin
             _rf("subsessions.jl")

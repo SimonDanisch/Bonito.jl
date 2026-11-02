@@ -45,6 +45,22 @@ function search_index_json(entries)
     return String(take!(io))
 end
 
+# Use Documenter's asset handling for CSS, scripts and icons, including relative
+# paths from nested pages and attributes supplied through Documenter.asset.
+function page_document(body, settings, src, title)
+    assets = Documenter.HTML(; assets=settings.assets, edit_link=settings.devbranch).assets
+    links = Documenter.HTMLWriter.asset_links(src, assets)
+    return DOM.html(
+        DOM.head(
+            DOM.meta(; charset="UTF-8"),
+            DOM.meta(; name="viewport", content="width=device-width, initial-scale=1.0"),
+            DOM.title(title),
+            [Bonito.HTML{String}(sprint(show, node)) for node in links],
+        ),
+        DOM.body(body),
+    )
+end
+
 function render(doc::Documenter.Document, settings::BonitoFormat)
     @info "BonitoDocumenter: rendering Bonito documentation site."
     builddir = isabspath(doc.user.build) ? doc.user.build : joinpath(doc.user.root, doc.user.build)
@@ -77,7 +93,7 @@ function render(doc::Documenter.Document, settings::BonitoFormat)
                 outline = outline, version_label = version_label, search_index_script = search_script)
         end
 
-        app = Bonito.App(shell; title = title)
+        app = Bonito.App(page_document(shell, settings, html_name(src), title); title = title)
         outpath = joinpath(builddir, html_name(src))
         mkpath(dirname(outpath))
         # `invokelatest`: example apps were evaluated in earlier world ages, so run

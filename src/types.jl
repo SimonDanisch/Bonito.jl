@@ -793,16 +793,19 @@ mutable struct App
     indicator::Union{Nothing,AbstractConnectionIndicator}
     loading_page::Any # Union{Nothing, LoadingPage} - LoadingPage defined later in components.jl
     loading_task::Base.RefValue{Union{Nothing, Task}}
+    favicon::Union{Nothing,AbstractAsset}
     function App(
         handler::Any;
         title::AbstractString="Bonito App",
         indicator::Union{Nothing,AbstractConnectionIndicator}=nothing,
         loading_page=nothing,
+        favicon::Union{Nothing,AbstractString,AbstractAsset}=nothing,
     )
         n_handler = normalize_handler(handler)
         session = Base.RefValue{Union{Session,Nothing}}(nothing)
         loading_task = Base.RefValue{Union{Nothing, Task}}(nothing)
-        app = new(n_handler, session, title, indicator, loading_page, loading_task)
+        icon = favicon isa AbstractString ? Asset(String(favicon)) : favicon
+        app = new(n_handler, session, title, indicator, loading_page, loading_task, icon)
         app.handler = create_handler(app, n_handler, loading_page)
         # No finalizer. Session lifetime is owned by `root.children` (or by a
         # buffer like `DisplayHandler.previous_session` / the observable

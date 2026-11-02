@@ -789,7 +789,7 @@ function session_dom(session::Session, app::App; init=true, html_document=false,
         dom = DOM.div(dom)
     end
     try
-        return session_dom(session, dom; init=init, html_document=html_document)
+        return session_dom(session, dom; init=init, html_document=html_document, favicon=app.favicon)
     catch err
         # Page-wrap failure (msgpack pack error on the init bundle, broken
         # asset, etc). The user handler already returned cleanly so it isn't
@@ -899,7 +899,7 @@ end
 
 setup_runtime(session::Session) = DOM.script(src=url(session, BonitoLib), type="module")
 
-function session_dom(session::Session, dom::Node; init=true, html_document=false, dom_id=isroot(session) ? "root" : "subsession-application-dom")
+function session_dom(session::Session, dom::Node; init=true, html_document=false, dom_id=isroot(session) ? "root" : "subsession-application-dom", favicon=nothing)
     lock(root_session(session).deletion_lock) do
         # the dom we can render may be anything between a
         # dom fragment or a full page with head & body etc.
@@ -958,6 +958,9 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
         else
             push!(children(head), session_style)
             append!(children(head), global_styles)
+        end
+        if html_document && !isnothing(favicon)
+            push!(children(head), DOM.link(; rel="icon", href=url(session, favicon)))
         end
         init_server = setup_asset_server(session.asset_server)
         if !isnothing(init_server)

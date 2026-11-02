@@ -235,7 +235,7 @@ function build_blog(doc, settings, builddir, assets; version_label, search_index
         nav = navbar(settings, doc.user.sitename; version_label = version_label, has_sidebar = false)
         shell = page_shell(; head_assets = head_assets(), navbar_dom = nav,
             body = body, search_index_script = search_index_script)
-        app = Bonito.App(shell; title = title)
+        app = Bonito.App(page_document(shell, settings, file, title); title = title)
         outpath = joinpath(builddir, file)
         mkpath(dirname(outpath))
         Base.invokelatest(Bonito.export_static, outpath, app;
