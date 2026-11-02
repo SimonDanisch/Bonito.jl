@@ -11,9 +11,18 @@ All notable changes to Bonito.jl are documented here. The format is based on [Ke
 - `Bonito.on_refused(handler)` (JS): called when the server turns a payload request away (a redirect to a login page, 401, 403). The payload is fetched again once the promise `handler` returns resolves, so an app can wait for its login to come back.
 - `Server(...; handler = HTTPServer.delegate)` accepts existing Bonito handler wrappers, such as `ProtectedRoute`, around all routes, assets and WebSocket upgrades.
 - A message from a page that the server takes half a second or more to handle is logged with its type, the page and, for an observable update, where its listeners are defined. A page's messages are handled one after another, so such a message holds up everything after it, the page's pings included.
+- `evaljs_async(session, code; timeout)` submits JavaScript and returns a `JSFuture` that supports `fetch`, `wait` and `isready`. Results complete independently of Observable callbacks, so a callback or its child task can fetch one.
+- `Bonito.receive!(session, frame)` is the single entry point for transports and bridges. It accepts encoded frames and decoded messages.
+
+### Changed
+
+- `evaljs_value` waits for its JavaScript result only. It no longer also waits for Julia callbacks triggered by earlier browser events, so wait for the Observable or UI state an interaction changes. A timeout now throws `InvalidStateException` with state `:timed_out`. A disconnect fails waiting requests at once, and a request is never replayed after reconnect.
+- Browser Observable updates use a bounded window with receiver credits, so a blocked callback cannot stop JavaScript results from arriving. Sending more than 4096 updates faster than Julia handles them throws in the browser.
+- `session.inbox` is removed. Transports call `Bonito.receive!`.
 
 ### Fixed
 
+- Fix `evaljs_value` inside browser-triggered Observable listeners, including embedded apps and queue-filling event bursts, while retaining normal event ordering.
 - Proxied apps reuse the host's Bonito runtime, so a relative asset URL or hostname alias cannot load a second runtime and leave the host unready.
 - The precompile serving workload waits for session readiness instead of assuming initialization finishes within 200 ms.
 - Pin the browser queue dependency so rebuilding bundles does not pick up incompatible upstream releases.

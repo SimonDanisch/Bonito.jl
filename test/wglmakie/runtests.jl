@@ -100,6 +100,32 @@ end
         end
     end
 
+    @testset "scene insertion from browser callbacks" begin
+        for embedded in (false, true)
+            fig, ax, _ = example_plot()
+            inner = App() do session
+                insert = Observable(false)
+                status = Observable("waiting")
+                on(session, insert) do _
+                    new_axis = Axis(fig[1, 2])
+                    lines!(new_axis, [0, 1, 0]; color=:blue, linewidth=5)
+                    Colorbar(fig[1, 3]; limits=(0, 1))
+                    status[] = "inserted"
+                end
+                DOM.div(DOM.button("Insert"; id="insert", onclick=js"() => $(insert).notify(true)"),
+                    DOM.span(status; id="status"), fig)
+            end
+            app = embedded ? App(s -> Bonito.embed_app(s, inner)) : inner
+            with_browser(app) do ctx
+                @test wait_js(ctx, "document.querySelector('canvas')?.width > 0"; timeout=60)
+                before = Makie.colorbuffer(fig)
+                browser_js(ctx, "document.querySelector('#insert').click()")
+                @test wait_js(ctx, "document.querySelector('#status')?.textContent === 'inserted'"; timeout=30)
+                @test count(before .!= Makie.colorbuffer(fig)) > 100
+            end
+        end
+    end
+
     @testset "3D geometry, volume and image textures" begin
         fig = Figure(size = (800, 360))
         xs = range(-1f0, 1f0; length = 12)

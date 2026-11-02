@@ -160,16 +160,18 @@ Mirror the dispatcher in the JS class (`process_message(msg)` over
 message types are an `error`, not a silent fall-through — protocol drift
 should be loud.
 
-**c) Request/response (Julia asks JS for something) → message pair with a
-`request_id`, plus `Bonito.wait_for`:**
+**c) Read a JavaScript result → `evaljs_async` and `fetch`:**
 
 ```julia
-send(editor; type = "capture-output", request_id = id)
-status = Bonito.wait_for(timeout = 5.0) do
-    msg = editor.capture_response[]
-    msg isa AbstractDict && get(msg, "request_id", "") == id
-end
+future = evaljs_async(session, js"$(output_node).controller.capture_output('png')")
+image = fetch(future)
 ```
+
+The JavaScript method returns a value or Promise. Results bypass the ordered
+Observable callback queue, so a callback or its child task can safely fetch.
+Do not wait on a reply Observable from inside an Observable callback: that reply
+would wait behind the callback itself. `evaljs_value` is the blocking convenience
+form. It waits for the JavaScript result; it is not a barrier for Julia callbacks.
 
 What you should **not** see: stringly-typed events flowing through ad-hoc
 `evaljs` calls; JS reading app state out of the DOM; two components

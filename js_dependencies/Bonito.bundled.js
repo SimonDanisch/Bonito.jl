@@ -3385,6 +3385,196 @@ var ul = Te, bl = wt, wl = cl, gl = wt, pl = ne, xl = {
     ungzip: gl,
     constants: pl
 }, { Deflate: kl , deflate: vl , deflateRaw: El , gzip: yl  } = Rn, { Inflate: Sl , inflate: Al , inflateRaw: Rl , ungzip: zl  } = xl, ml = vl, Ol = Al;
+class MessageWindow {
+    constructor({ capacity , limit , encode , send  }){
+        if (!Number.isSafeInteger(capacity) || capacity < 1 || !Number.isSafeInteger(limit) || limit < capacity) {
+            throw new RangeError("Invalid message window capacity");
+        }
+        this.capacity = capacity;
+        this.limit = limit;
+        this.encode = encode;
+        this.send = send;
+        this.pending = [];
+        this.head = 0;
+        this.history = new Map();
+        this.assigned = 0;
+        this.sent = 0;
+        this.received = 0;
+        this.released = 0;
+        this.connected = false;
+        this.flushing = false;
+    }
+    get backlog() {
+        return this.pending.length - this.head + this.history.size;
+    }
+    enqueue(message) {
+        if (this.backlog >= this.limit) throw new Error("Message backlog capacity exceeded");
+        const sequence = this.assigned + 1;
+        const packet = this.encode(message, sequence);
+        this.assigned = sequence;
+        this.pending.push({
+            sequence,
+            packet
+        });
+        this.flush();
+    }
+    disconnect() {
+        this.connected = false;
+    }
+    update(received, released) {
+        if (!Number.isSafeInteger(received) || !Number.isSafeInteger(released) || released < 0 || received < released || received > this.sent) {
+            throw new Error("Invalid message credit");
+        }
+        this.received = Math.max(this.received, received);
+        this.released = Math.max(this.released, released);
+        for (const sequence of this.history.keys()){
+            if (sequence > this.received) break;
+            this.history.delete(sequence);
+        }
+    }
+    ack(received, released) {
+        this.update(received, released);
+        this.flush();
+    }
+    resume(received, released) {
+        if (received < this.received || released < this.released) {
+            throw new Error("Receiver lost message window state");
+        }
+        this.update(received, released);
+        this.connected = true;
+        for (const packet of this.history.values()){
+            if (!this.transmit(packet)) return;
+        }
+        this.flush();
+    }
+    transmit(packet) {
+        let accepted;
+        try {
+            accepted = this.send(packet);
+        } catch (error) {
+            this.connected = false;
+            throw error;
+        }
+        if (accepted !== true) {
+            this.connected = false;
+            return false;
+        }
+        return true;
+    }
+    flush() {
+        if (!this.connected || this.flushing) return;
+        this.flushing = true;
+        try {
+            while(this.connected && this.head < this.pending.length && this.sent - this.released < this.capacity){
+                const { sequence , packet  } = this.pending[this.head++];
+                this.sent = sequence;
+                this.history.set(sequence, packet);
+                if (!this.transmit(packet)) break;
+            }
+            if (this.head > 0 && this.head * 2 >= this.pending.length) {
+                this.pending = this.pending.slice(this.head);
+                this.head = 0;
+            }
+        } finally{
+            this.flushing = false;
+        }
+    }
+}
+class MessageWindows {
+    constructor({ encode , send , query , snapshot =structuredClone  }){
+        this.encode = encode;
+        this.send = send;
+        this.query = query;
+        this.snapshot = snapshot;
+        this.unconfigured = [];
+        this.windows = new Map();
+        this.aliases = new Map();
+        this.defaultOwner = null;
+        this.connected = false;
+    }
+    configure(info) {
+        let window1 = this.windows.get(info.owner);
+        if (!window1) {
+            window1 = new MessageWindow({
+                capacity: info.capacity,
+                limit: Math.max(4096, info.capacity),
+                encode: (message, sequence)=>this.encode({
+                        ...message,
+                        flow_owner: info.owner,
+                        event_sequence: sequence
+                    }),
+                send: (packet)=>this.send(packet)
+            });
+            this.windows.set(info.owner, window1);
+        } else if (window1.capacity !== info.capacity) {
+            throw new Error("Receiver changed message window capacity");
+        }
+        this.aliases.set(info.alias, info.owner);
+        if (info.default) this.defaultOwner = info.owner;
+        const waiting = this.unconfigured;
+        this.unconfigured = [];
+        for (const message of waiting){
+            const target = this.windowFor(message);
+            if (target) target.enqueue(message);
+            else this.unconfigured.push(message);
+        }
+        if (info.resume && this.connected) {
+            const wasPaused = !window1.connected;
+            if (wasPaused) window1.resume(info.received, info.released);
+            else window1.ack(info.received, info.released);
+            if (wasPaused && info.default) this.queryPaused();
+        } else if (this.connected && !window1.connected) {
+            this.query(info.owner);
+        }
+    }
+    queryPaused() {
+        for (const [owner, window1] of this.windows){
+            if (!window1.connected) this.query(owner);
+        }
+    }
+    open() {
+        this.connected = true;
+        for (const window1 of this.windows.values())window1.disconnect();
+        this.queryPaused();
+    }
+    disconnect() {
+        this.connected = false;
+        for (const window1 of this.windows.values())window1.disconnect();
+    }
+    credit(info) {
+        this.windows.get(info.owner)?.ack(info.received, info.released);
+    }
+    forget(owner) {
+        this.windows.delete(owner);
+        for (const [alias, target] of this.aliases){
+            if (target === owner) this.aliases.delete(alias);
+        }
+        if (this.defaultOwner === owner) this.defaultOwner = null;
+    }
+    windowFor(message) {
+        let owner = this.defaultOwner;
+        let longest = 0;
+        const id = message.id;
+        if (typeof id === "string") {
+            if (id.includes("/")) owner = null;
+            for (const [alias, target] of this.aliases){
+                if (alias.length > longest && (id === alias || id.startsWith(alias + "/"))) {
+                    owner = target;
+                    longest = alias.length;
+                }
+            }
+        }
+        return this.windows.get(owner);
+    }
+    enqueue(message) {
+        const window1 = this.windowFor(message);
+        if (window1) window1.enqueue(message);
+        else {
+            if (this.unconfigured.length >= 4096) throw new Error("Uninitialized message backlog capacity exceeded");
+            this.unconfigured.push(this.snapshot(message));
+        }
+    }
+}
 const UpdateObservable = "0";
 class UnpackContext {
     constructor(session_id, session_status){
@@ -3402,6 +3592,11 @@ const FusedMessage = "9";
 const CloseSession = "10";
 const PingPong = "11";
 const UpdateSession = "12";
+const JavascriptResult = "14";
+const MessageWindowInfo = "15";
+const MessageWindowQuery = "16";
+const MessageWindowCredit = "17";
+const MessageWindowClosed = "18";
 const PING_INTERVAL = 5000;
 function clean_stack(stack) {
     return stack.replaceAll(/(data:\w+\/\w+;base64,)[a-zA-Z0-9\+\/=]+:/g, "$1<<BASE64>>:");
@@ -3421,90 +3616,6 @@ const CONNECTION = {
     lastPing: Date.now(),
     indicator: null
 };
-function register_connection_indicator(indicator) {
-    CONNECTION.indicator = indicator;
-    notify_indicator_status();
-}
-function unregister_connection_indicator() {
-    CONNECTION.indicator = null;
-}
-function set_no_connection() {
-    CONNECTION.status = "no_connection";
-    notify_indicator_status();
-}
-function is_no_connection() {
-    return CONNECTION.status === "no_connection";
-}
-function notify_indicator_status() {
-    if (CONNECTION.indicator && typeof CONNECTION.indicator.onStatusChange === 'function') {
-        let status;
-        if (CONNECTION.status === "no_connection") {
-            status = ConnectionStatus.NO_CONNECTION;
-        } else if (CONNECTION.status === "expired") {
-            status = ConnectionStatus.EXPIRED;
-        } else if (CONNECTION.status === "open") {
-            status = ConnectionStatus.CONNECTED;
-        } else if (CONNECTION.status === "connecting") {
-            status = ConnectionStatus.CONNECTING;
-        } else {
-            status = ConnectionStatus.DISCONNECTED;
-        }
-        CONNECTION.indicator.onStatusChange(status);
-    }
-}
-function on_connection_connecting() {
-    CONNECTION.status = "connecting";
-    notify_indicator_status();
-}
-function on_connection_open(send_message_callback, compression_enabled, enable_pings = true) {
-    CONNECTION.send_message = send_message_callback;
-    CONNECTION.status = "open";
-    CONNECTION.compression_enabled = compression_enabled;
-    notify_indicator_status();
-    const pending = CONNECTION.queue;
-    CONNECTION.queue = [];
-    pending.forEach((message)=>send_to_julia(message));
-    if (enable_pings) {
-        send_pings();
-    }
-}
-function on_connection_close() {
-    CONNECTION.status = "closed";
-    notify_indicator_status();
-    arm_reconnect_triggers();
-}
-function on_connection_expired() {
-    CONNECTION.status = "expired";
-    notify_indicator_status();
-}
-let reconnect_triggers_armed = false;
-function arm_reconnect_triggers() {
-    if (reconnect_triggers_armed) {
-        return;
-    }
-    if (typeof window === "undefined" || !window.addEventListener) {
-        return;
-    }
-    reconnect_triggers_armed = true;
-    const try_revive = ()=>{
-        if (CONNECTION.status === "open" || CONNECTION.status === "connecting" || CONNECTION.status === "no_connection" || CONNECTION.status === "expired") {
-            return;
-        }
-        if (typeof window !== "undefined" && window.WEBSOCKET && typeof window.WEBSOCKET.retry_connection === "function") {
-            CONNECTION.status = "connecting";
-            notify_indicator_status();
-            window.WEBSOCKET.retry_connection();
-        }
-    };
-    window.addEventListener("online", try_revive);
-    window.addEventListener("focus", try_revive);
-}
-function can_send_to_julia() {
-    return CONNECTION.status === "open";
-}
-function is_julia_responsive() {
-    return Date.now() - CONNECTION.lastPing < 2 * 5000;
-}
 const EXTENSION_CODEC = new ExtensionCodec();
 window.EXTENSION_CODEC = EXTENSION_CODEC;
 function unpack(uint8array, context) {
@@ -3709,75 +3820,8 @@ function track_deleted_sessions() {
     }
 }
 const INITIALIZED_SESSIONS = new Set();
-function send_pingpong() {
-    send_to_julia({
-        msg_type: PingPong
-    });
-}
-let timeout = null;
-function send_pings() {
-    clearTimeout(timeout);
-    if (!can_send_to_julia()) {
-        return;
-    }
-    send_pingpong();
-    timeout = setTimeout(send_pings, PING_INTERVAL);
-}
-function send_error(message, exception) {
-    console.error(message);
-    console.error(exception);
-    send_to_julia({
-        msg_type: JavascriptError,
-        message: message,
-        exception: String(exception),
-        stacktrace: exception === null ? "" : clean_stack(exception.stack)
-    });
-}
-function send_done_loading(session, exception) {
-    send_to_julia({
-        msg_type: JSDoneLoading,
-        session,
-        message: "",
-        exception: exception === null ? "nothing" : String(exception),
-        stacktrace: exception === null ? "" : clean_stack(exception.stack)
-    });
-}
-function reannounce_initialized_sessions() {
-    INITIALIZED_SESSIONS.forEach((session_id)=>{
-        if (session_id in SESSIONS) {
-            send_done_loading(session_id, null);
-        } else {
-            INITIALIZED_SESSIONS.delete(session_id);
-        }
-    });
-}
-function done_initializing_session(session_id) {
-    if (!(session_id in SESSIONS)) {
-        console.warn(`Session ${session_id} got deleted before done initializing!`);
-        send_done_loading(session_id, new Error("Session deleted before initialization completed"));
-        return;
-    }
-    INITIALIZED_SESSIONS.add(session_id);
-    send_done_loading(session_id, null);
-    if (SESSIONS[session_id][1] != "root") {
-        SESSIONS[session_id][1] = "delete";
-    }
-}
-let PAGE_LEAVING = false;
-window.addEventListener("pagehide", ()=>{
-    PAGE_LEAVING = true;
-});
-window.addEventListener("pageshow", ()=>{
-    PAGE_LEAVING = false;
-});
-function init_session_from_msgs(session_id, messages) {
-    try {
-        messages.forEach(process_message);
-        done_initializing_session(session_id);
-    } catch (error) {
-        send_done_loading(session_id, error);
-        console.error(error.stack || error);
-    }
+function decode_binary(binary, compression_enabled) {
+    return unpack_binary(binary, compression_enabled);
 }
 register_ext(102, (uint_8_array, context)=>{
     const [interpolated_objects, source, julia_file] = unpack(uint_8_array, context);
@@ -3805,54 +3849,108 @@ register_ext(104, (uint_8_array, context)=>{
     const key = unpack(uint_8_array, context);
     return lookup_global_object(key);
 });
-function close_session(session_id) {
-    const session = SESSIONS[session_id];
-    if (!session) {
-        console.warn("double freeing session from JS!");
+let PAGE_LEAVING = false;
+window.addEventListener("pagehide", ()=>{
+    PAGE_LEAVING = true;
+});
+window.addEventListener("pageshow", ()=>{
+    PAGE_LEAVING = false;
+});
+function register_connection_indicator(indicator) {
+    CONNECTION.indicator = indicator;
+    notify_indicator_status();
+}
+function unregister_connection_indicator() {
+    CONNECTION.indicator = null;
+}
+function set_no_connection() {
+    CONNECTION.status = "no_connection";
+    notify_indicator_status();
+}
+function is_no_connection() {
+    return CONNECTION.status === "no_connection";
+}
+function notify_indicator_status() {
+    if (CONNECTION.indicator && typeof CONNECTION.indicator.onStatusChange === 'function') {
+        let status;
+        if (CONNECTION.status === "no_connection") {
+            status = ConnectionStatus.NO_CONNECTION;
+        } else if (CONNECTION.status === "expired") {
+            status = ConnectionStatus.EXPIRED;
+        } else if (CONNECTION.status === "open") {
+            status = ConnectionStatus.CONNECTED;
+        } else if (CONNECTION.status === "connecting") {
+            status = ConnectionStatus.CONNECTING;
+        } else {
+            status = ConnectionStatus.DISCONNECTED;
+        }
+        CONNECTION.indicator.onStatusChange(status);
+    }
+}
+function on_connection_connecting() {
+    CONNECTION.status = "connecting";
+    notify_indicator_status();
+}
+function on_connection_open(send_message_callback, compression_enabled, enable_pings = true) {
+    CONNECTION.send_message = send_message_callback;
+    CONNECTION.status = "open";
+    CONNECTION.compression_enabled = compression_enabled;
+    CONNECTION.windows.open();
+    notify_indicator_status();
+    const pending = CONNECTION.queue;
+    CONNECTION.queue = [];
+    pending.forEach((message)=>send_to_julia(message));
+    if (enable_pings) {
+        send_pings();
+    }
+}
+function on_connection_close() {
+    CONNECTION.status = "closed";
+    CONNECTION.windows.disconnect();
+    notify_indicator_status();
+    arm_reconnect_triggers();
+}
+function on_connection_expired() {
+    CONNECTION.status = "expired";
+    CONNECTION.windows.disconnect();
+    notify_indicator_status();
+}
+let reconnect_triggers_armed = false;
+function arm_reconnect_triggers() {
+    if (reconnect_triggers_armed) {
         return;
     }
-    const [session_objects, status] = session;
-    const root_node = document.getElementById(session_id);
-    if (root_node) {
-        root_node.style.display = "none";
-        root_node.parentNode.removeChild(root_node);
+    if (typeof window === "undefined" || !window.addEventListener) {
+        return;
     }
-    if (status === "delete") {
-        send_close_session(session_id, status);
-        SESSIONS[session_id] = [
-            session_objects,
-            false
-        ];
-    }
-    return;
-}
-function free_session(session_id) {
-    lock_loading(()=>{
-        tombstone_session(session_id);
-        const session = SESSIONS[session_id];
-        if (!session) {
-            console.debug(`freeing session ${session_id}, which was never initialized here`);
+    reconnect_triggers_armed = true;
+    const try_revive = ()=>{
+        if (CONNECTION.status === "open" || CONNECTION.status === "connecting" || CONNECTION.status === "no_connection" || CONNECTION.status === "expired") {
             return;
         }
-        const [tracked_objects, status] = session;
-        const teardowns = ON_FREE.get(session_id);
-        ON_FREE.delete(session_id);
-        teardowns?.forEach((f)=>{
-            try {
-                f();
-            } catch (e) {
-                send_error(`Error in an on_free callback of session ${session_id}`, e);
-            }
-        });
-        delete SESSIONS[session_id];
-        INITIALIZED_SESSIONS.delete(session_id);
-        tracked_objects.forEach(free_object);
-        tracked_objects.clear();
-    }, `freeing sub-page ${session_id}`);
+        if (typeof window !== "undefined" && window.WEBSOCKET && typeof window.WEBSOCKET.retry_connection === "function") {
+            CONNECTION.status = "connecting";
+            notify_indicator_status();
+            window.WEBSOCKET.retry_connection();
+        }
+    };
+    window.addEventListener("online", try_revive);
+    window.addEventListener("focus", try_revive);
 }
-const ON_FREE = new Map();
-function decode_binary(binary, compression_enabled) {
-    return unpack_binary(binary, compression_enabled);
+function can_send_to_julia() {
+    return CONNECTION.status === "open";
+}
+function is_julia_responsive() {
+    return Date.now() - CONNECTION.lastPing < 2 * 5000;
+}
+function init_session_from_msgs(session_id, messages) {
+    try {
+        messages.forEach(process_message);
+        done_initializing_session(session_id);
+    } catch (error) {
+        send_done_loading(session_id, error);
+        console.error(error.stack || error);
+    }
 }
 function init_session(session_id, message_promise, session_status, compression) {
     const payload = Promise.resolve(message_promise).then((binary)=>({
@@ -3896,6 +3994,234 @@ function init_session(session_id, message_promise, session_status, compression) 
         });
     }, `the content of sub-page ${session_id}`);
 }
+function send_done_loading(session, exception) {
+    send_to_julia({
+        msg_type: JSDoneLoading,
+        session,
+        message: "",
+        exception: exception === null ? "nothing" : String(exception),
+        stacktrace: exception === null ? "" : clean_stack(exception.stack)
+    });
+}
+function reannounce_initialized_sessions() {
+    INITIALIZED_SESSIONS.forEach((session_id)=>{
+        if (session_id in SESSIONS) {
+            send_done_loading(session_id, null);
+        } else {
+            INITIALIZED_SESSIONS.delete(session_id);
+        }
+    });
+}
+function done_initializing_session(session_id) {
+    if (!(session_id in SESSIONS)) {
+        console.warn(`Session ${session_id} got deleted before done initializing!`);
+        send_done_loading(session_id, new Error("Session deleted before initialization completed"));
+        return;
+    }
+    INITIALIZED_SESSIONS.add(session_id);
+    send_done_loading(session_id, null);
+    if (SESSIONS[session_id][1] != "root") {
+        SESSIONS[session_id][1] = "delete";
+    }
+}
+function close_session(session_id) {
+    const session = SESSIONS[session_id];
+    if (!session) {
+        console.warn("double freeing session from JS!");
+        return;
+    }
+    const [session_objects, status] = session;
+    const root_node = document.getElementById(session_id);
+    if (root_node) {
+        root_node.style.display = "none";
+        root_node.parentNode.removeChild(root_node);
+    }
+    if (status === "delete") {
+        send_close_session(session_id, status);
+        SESSIONS[session_id] = [
+            session_objects,
+            false
+        ];
+    }
+    return;
+}
+function encode_binary(data, compression_enabled) {
+    if (compression_enabled) {
+        return ml(pack(data));
+    } else {
+        return pack(data);
+    }
+}
+CONNECTION.windows = new MessageWindows({
+    snapshot: (message)=>decode_binary(encode_binary(message, false), false),
+    encode: (message)=>encode_binary(message, CONNECTION.compression_enabled),
+    send: (bytes)=>{
+        if (CONNECTION.status !== "open" || CONNECTION.send_message === undefined) return false;
+        const accepted = CONNECTION.send_message(bytes);
+        if (accepted !== true) on_connection_close();
+        return accepted;
+    },
+    query: (owner)=>send_to_julia({
+            msg_type: MessageWindowQuery,
+            id: owner
+        })
+});
+function send_to_julia(message) {
+    if (message.msg_type === UpdateObservable && CONNECTION.status !== "no_connection") {
+        CONNECTION.windows.enqueue(message);
+        return;
+    }
+    if (message.msg_type === JavascriptResult && CONNECTION.status !== "open") return;
+    const { send_message , status , compression_enabled  } = CONNECTION;
+    if (send_message !== undefined && status === "open") {
+        const sent = send_message(encode_binary(message, compression_enabled));
+        if (sent === false || sent === undefined) {
+            CONNECTION.queue.push(message);
+            if (CONNECTION.status === "open") {
+                CONNECTION.status = "closed";
+                notify_indicator_status();
+                arm_reconnect_triggers();
+            }
+        }
+    } else if (status === "no_connection") {
+        console.log("Trying to send messages while in no_connection (static) mode");
+    } else {
+        CONNECTION.queue.push(message);
+    }
+}
+function send_pingpong() {
+    send_to_julia({
+        msg_type: PingPong
+    });
+}
+function send_error(message, exception) {
+    console.error(message);
+    console.error(exception);
+    send_to_julia({
+        msg_type: JavascriptError,
+        message: message,
+        exception: String(exception),
+        stacktrace: exception === null ? "" : clean_stack(exception.stack)
+    });
+}
+let timeout = null;
+function send_pings() {
+    clearTimeout(timeout);
+    if (!can_send_to_julia()) {
+        return;
+    }
+    send_pingpong();
+    timeout = setTimeout(send_pings, PING_INTERVAL);
+}
+function send_warning(message) {
+    console.warn(message);
+    send_to_julia({
+        msg_type: JavascriptWarning,
+        message: message
+    });
+}
+function send_close_session(session, subsession) {
+    send_to_julia({
+        msg_type: CloseSession,
+        session,
+        subsession
+    });
+}
+function process_message(data) {
+    try {
+        switch(data.msg_type){
+            case MessageWindowInfo:
+                if (data.default) CONNECTION.compression_enabled = data.compression;
+                CONNECTION.windows.configure(data);
+                break;
+            case MessageWindowCredit:
+                CONNECTION.windows.credit(data);
+                break;
+            case MessageWindowClosed:
+                CONNECTION.windows.forget(data.owner);
+                break;
+            case UpdateObservable:
+                {
+                    const observable = lookup_global_object(data.id, false);
+                    observable && observable.notify(data.payload, true);
+                    break;
+                }
+            case OnjsCallback:
+                data.obs.on(data.payload());
+                break;
+            case EvalJavascript:
+                data.payload();
+                break;
+            case FusedMessage:
+                data.payload.forEach(process_message);
+                break;
+            case PingPong:
+                console.debug("ping");
+                CONNECTION.lastPing = Date.now();
+                break;
+            case UpdateSession:
+                update_session_dom(data);
+                break;
+            default:
+                throw new Error("Unrecognized message type: " + data.msg_type + ".");
+        }
+    } catch (e) {
+        send_error(`Error while processing message ${JSON.stringify(data)}`, e);
+    }
+}
+const mod = {
+    UpdateObservable: UpdateObservable,
+    OnjsCallback: OnjsCallback,
+    EvalJavascript: EvalJavascript,
+    JavascriptError: JavascriptError,
+    JavascriptWarning: JavascriptWarning,
+    RegisterObservable: RegisterObservable,
+    JSDoneLoading: JSDoneLoading,
+    FusedMessage: FusedMessage,
+    ConnectionStatus: ConnectionStatus,
+    register_connection_indicator: register_connection_indicator,
+    unregister_connection_indicator: unregister_connection_indicator,
+    set_no_connection: set_no_connection,
+    is_no_connection: is_no_connection,
+    on_connection_connecting: on_connection_connecting,
+    on_connection_open: on_connection_open,
+    on_connection_close: on_connection_close,
+    on_connection_expired: on_connection_expired,
+    can_send_to_julia: can_send_to_julia,
+    is_julia_responsive: is_julia_responsive,
+    send_to_julia: send_to_julia,
+    send_pingpong: send_pingpong,
+    send_error: send_error,
+    send_warning: send_warning,
+    send_done_loading: send_done_loading,
+    send_close_session: send_close_session,
+    process_message: process_message
+};
+function free_session(session_id) {
+    lock_loading(()=>{
+        tombstone_session(session_id);
+        const session = SESSIONS[session_id];
+        if (!session) {
+            console.debug(`freeing session ${session_id}, which was never initialized here`);
+            return;
+        }
+        const [tracked_objects, status] = session;
+        const teardowns = ON_FREE.get(session_id);
+        ON_FREE.delete(session_id);
+        teardowns?.forEach((f)=>{
+            try {
+                f();
+            } catch (e) {
+                send_error(`Error in an on_free callback of session ${session_id}`, e);
+            }
+        });
+        delete SESSIONS[session_id];
+        INITIALIZED_SESSIONS.delete(session_id);
+        tracked_objects.forEach(free_object);
+        tracked_objects.clear();
+    }, `freeing sub-page ${session_id}`);
+}
+const ON_FREE = new Map();
 function on_free(session_id, f) {
     if (!(session_id in SESSIONS)) {
         f();
@@ -4032,7 +4358,7 @@ function update_session_cache(session_id, new_jl_objects, session_status) {
         update_cache(tracked_items);
     }
 }
-const mod = {
+const mod1 = {
     SESSIONS: SESSIONS,
     GLOBAL_OBJECT_CACHE: GLOBAL_OBJECT_CACHE,
     OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK,
@@ -4058,60 +4384,6 @@ const mod = {
     register_in_session_cache: register_in_session_cache,
     update_session_cache: update_session_cache
 };
-register_ext(109, (uint_8_array, context)=>{
-    const key = unpack(uint_8_array, context);
-    track_in_session(context.session_id, key, context.session_status);
-    return lookup_global_object(key);
-});
-function create_tag(tag, attributes) {
-    if (attributes.juliasvgnode) {
-        return document.createElementNS("http://www.w3.org/2000/svg", tag);
-    } else {
-        return document.createElement(tag);
-    }
-}
-register_ext(105, (uint_8_array, context)=>{
-    const [tag, children, attributes] = unpack(uint_8_array, context);
-    const node = create_tag(tag, attributes);
-    Object.keys(attributes).forEach((key)=>{
-        if (key == "juliasvgnode") {
-            return;
-        }
-        if (key == "class") {
-            node.className = attributes[key];
-        } else {
-            node.setAttribute(key, attributes[key]);
-        }
-    });
-    children.forEach((child)=>node.append(child));
-    register_created_node(node);
-    return node;
-});
-function encode_binary(data, compression_enabled) {
-    if (compression_enabled) {
-        return ml(pack(data));
-    } else {
-        return pack(data);
-    }
-}
-function send_to_julia(message) {
-    const { send_message , status , compression_enabled  } = CONNECTION;
-    if (send_message !== undefined && status === "open") {
-        const sent = send_message(encode_binary(message, compression_enabled));
-        if (sent === false || sent === undefined) {
-            CONNECTION.queue.push(message);
-            if (CONNECTION.status === "open") {
-                CONNECTION.status = "closed";
-                notify_indicator_status();
-                arm_reconnect_triggers();
-            }
-        }
-    } else if (status === "no_connection") {
-        console.log("Trying to send messages while in no_connection (static) mode");
-    } else {
-        CONNECTION.queue.push(message);
-    }
-}
 class Observable {
     #callbacks = [];
     constructor(id, value){
@@ -4160,6 +4432,35 @@ register_ext(101, (uint_8_array, context)=>{
     const obs = existing instanceof Observable ? existing : new Observable(id, value);
     register_in_session_cache(context.session_id, id, obs, context.session_status);
     return obs;
+});
+register_ext(109, (uint_8_array, context)=>{
+    const key = unpack(uint_8_array, context);
+    track_in_session(context.session_id, key, context.session_status);
+    return lookup_global_object(key);
+});
+function create_tag(tag, attributes) {
+    if (attributes.juliasvgnode) {
+        return document.createElementNS("http://www.w3.org/2000/svg", tag);
+    } else {
+        return document.createElement(tag);
+    }
+}
+register_ext(105, (uint_8_array, context)=>{
+    const [tag, children, attributes] = unpack(uint_8_array, context);
+    const node = create_tag(tag, attributes);
+    Object.keys(attributes).forEach((key)=>{
+        if (key == "juliasvgnode") {
+            return;
+        }
+        if (key == "class") {
+            node.className = attributes[key];
+        } else {
+            node.setAttribute(key, attributes[key]);
+        }
+    });
+    children.forEach((child)=>node.append(child));
+    register_created_node(node);
+    return node;
 });
 register_ext(108, (uint_8_array, context)=>{
     const html = unpack(uint_8_array, context);
@@ -4229,7 +4530,7 @@ function unpack_binary(binary, compression_enabled) {
         return unpack(binary);
     }
 }
-const mod1 = {
+const mod2 = {
     base64encode: base64encode,
     base64decode: base64decode,
     decode_base64_message: decode_base64_message,
@@ -4237,89 +4538,15 @@ const mod1 = {
     unpack_binary: unpack_binary,
     encode_binary: encode_binary
 };
-function send_warning(message) {
-    console.warn(message);
-    send_to_julia({
-        msg_type: JavascriptWarning,
-        message: message
-    });
-}
-function send_close_session(session, subsession) {
-    send_to_julia({
-        msg_type: CloseSession,
-        session,
-        subsession
-    });
-}
-function process_message(data) {
-    try {
-        switch(data.msg_type){
-            case UpdateObservable:
-                {
-                    const observable = lookup_global_object(data.id, false);
-                    observable && observable.notify(data.payload, true);
-                    break;
-                }
-            case OnjsCallback:
-                data.obs.on(data.payload());
-                break;
-            case EvalJavascript:
-                data.payload();
-                break;
-            case FusedMessage:
-                data.payload.forEach(process_message);
-                break;
-            case PingPong:
-                console.debug("ping");
-                CONNECTION.lastPing = Date.now();
-                break;
-            case UpdateSession:
-                update_session_dom(data);
-                break;
-            default:
-                throw new Error("Unrecognized message type: " + data.msg_type + ".");
-        }
-    } catch (e) {
-        send_error(`Error while processing message ${JSON.stringify(data)}`, e);
-    }
-}
-const mod2 = {
-    UpdateObservable: UpdateObservable,
-    OnjsCallback: OnjsCallback,
-    EvalJavascript: EvalJavascript,
-    JavascriptError: JavascriptError,
-    JavascriptWarning: JavascriptWarning,
-    RegisterObservable: RegisterObservable,
-    JSDoneLoading: JSDoneLoading,
-    FusedMessage: FusedMessage,
-    ConnectionStatus: ConnectionStatus,
-    register_connection_indicator: register_connection_indicator,
-    unregister_connection_indicator: unregister_connection_indicator,
-    set_no_connection: set_no_connection,
-    is_no_connection: is_no_connection,
-    on_connection_connecting: on_connection_connecting,
-    on_connection_open: on_connection_open,
-    on_connection_close: on_connection_close,
-    on_connection_expired: on_connection_expired,
-    can_send_to_julia: can_send_to_julia,
-    is_julia_responsive: is_julia_responsive,
-    send_to_julia: send_to_julia,
-    send_pingpong: send_pingpong,
-    send_error: send_error,
-    send_warning: send_warning,
-    send_done_loading: send_done_loading,
-    send_close_session: send_close_session,
-    process_message: process_message
-};
 function onany(observables, f) {
     const callback = (x)=>f(observables.map((x)=>x.value));
     observables.forEach((obs)=>{
         obs.on(callback);
     });
 }
-const { send_error: send_error1 , send_warning: send_warning1 , process_message: process_message1 , on_connection_open: on_connection_open1 , on_connection_close: on_connection_close1 , on_connection_connecting: on_connection_connecting1 , on_connection_expired: on_connection_expired1 , send_close_session: send_close_session1 , send_pingpong: send_pingpong1 , can_send_to_julia: can_send_to_julia1 , send_to_julia: send_to_julia1 , register_connection_indicator: register_connection_indicator1 , unregister_connection_indicator: unregister_connection_indicator1 , set_no_connection: set_no_connection1 , is_no_connection: is_no_connection1 , ConnectionStatus: ConnectionStatus1  } = mod2;
-const { base64decode: base64decode1 , base64encode: base64encode1 , decode_binary: decode_binary1 , encode_binary: encode_binary1 , decode_base64_message: decode_base64_message1  } = mod1;
-const { init_session: init_session1 , free_session: free_session1 , lookup_global_object: lookup_global_object1 , update_or_replace: update_or_replace1 , lock_loading: lock_loading1 , OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK1 , free_object: free_object1 , force_free_object: force_free_object1 , move_dom_node: move_dom_node1 , lookup_node: lookup_node1  } = mod;
+const { send_error: send_error1 , send_warning: send_warning1 , process_message: process_message1 , on_connection_open: on_connection_open1 , on_connection_close: on_connection_close1 , on_connection_connecting: on_connection_connecting1 , on_connection_expired: on_connection_expired1 , send_close_session: send_close_session1 , send_pingpong: send_pingpong1 , can_send_to_julia: can_send_to_julia1 , send_to_julia: send_to_julia1 , register_connection_indicator: register_connection_indicator1 , unregister_connection_indicator: unregister_connection_indicator1 , set_no_connection: set_no_connection1 , is_no_connection: is_no_connection1 , ConnectionStatus: ConnectionStatus1  } = mod;
+const { base64decode: base64decode1 , base64encode: base64encode1 , decode_binary: decode_binary1 , encode_binary: encode_binary1 , decode_base64_message: decode_base64_message1  } = mod2;
+const { init_session: init_session1 , free_session: free_session1 , lookup_global_object: lookup_global_object1 , update_or_replace: update_or_replace1 , lock_loading: lock_loading1 , OBJECT_FREEING_LOCK: OBJECT_FREEING_LOCK1 , free_object: free_object1 , force_free_object: force_free_object1 , move_dom_node: move_dom_node1 , lookup_node: lookup_node1  } = mod1;
 function update_node_attribute(node, attribute, value) {
     if (node) {
         if (attribute === "class") {
@@ -4438,7 +4665,7 @@ function generate_state_key(v) {
     }
 }
 const Bonito = {
-    Protocol: mod1,
+    Protocol: mod2,
     base64decode: base64decode1,
     base64encode: base64encode1,
     decode_binary: decode_binary1,
@@ -4447,7 +4674,7 @@ const Bonito = {
     fetch_binary,
     on_refused,
     load_script,
-    Connection: mod2,
+    Connection: mod,
     send_error: send_error1,
     send_warning: send_warning1,
     process_message: process_message1,
@@ -4462,7 +4689,7 @@ const Bonito = {
     set_no_connection: set_no_connection1,
     is_no_connection: is_no_connection1,
     ConnectionStatus: ConnectionStatus1,
-    Sessions: mod,
+    Sessions: mod1,
     init_session: init_session1,
     free_session: free_session1,
     lock_loading: lock_loading1,
@@ -4482,6 +4709,6 @@ const Bonito = {
     generate_state_key
 };
 window.Bonito = Bonito;
-export { mod1 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, fetch_binary as fetch_binary, on_refused as on_refused, load_script as load_script, mod2 as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, on_connection_connecting1 as on_connection_connecting, on_connection_expired1 as on_connection_expired, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, register_connection_indicator1 as register_connection_indicator, unregister_connection_indicator1 as unregister_connection_indicator, set_no_connection1 as set_no_connection, is_no_connection1 as is_no_connection, ConnectionStatus1 as ConnectionStatus, mod as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, move_dom_node1 as move_dom_node, lookup_node1 as lookup_node, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany, OBJECT_FREEING_LOCK1 as OBJECT_FREEING_LOCK, can_send_to_julia1 as can_send_to_julia, free_object1 as free_object, send_to_julia1 as send_to_julia, throttle_function as throttle_function };
+export { mod2 as Protocol, base64decode1 as base64decode, base64encode1 as base64encode, decode_binary1 as decode_binary, encode_binary1 as encode_binary, decode_base64_message1 as decode_base64_message, fetch_binary as fetch_binary, on_refused as on_refused, load_script as load_script, mod as Connection, send_error1 as send_error, send_warning1 as send_warning, process_message1 as process_message, on_connection_open1 as on_connection_open, on_connection_close1 as on_connection_close, on_connection_connecting1 as on_connection_connecting, on_connection_expired1 as on_connection_expired, send_close_session1 as send_close_session, send_pingpong1 as send_pingpong, register_connection_indicator1 as register_connection_indicator, unregister_connection_indicator1 as unregister_connection_indicator, set_no_connection1 as set_no_connection, is_no_connection1 as is_no_connection, ConnectionStatus1 as ConnectionStatus, mod1 as Sessions, init_session1 as init_session, free_session1 as free_session, lock_loading1 as lock_loading, move_dom_node1 as move_dom_node, lookup_node1 as lookup_node, update_node_attribute as update_node_attribute, update_dom_node as update_dom_node, lookup_global_object1 as lookup_global_object, update_or_replace1 as update_or_replace, onany as onany, OBJECT_FREEING_LOCK1 as OBJECT_FREEING_LOCK, can_send_to_julia1 as can_send_to_julia, free_object1 as free_object, send_to_julia1 as send_to_julia, throttle_function as throttle_function };
 export { generate_state_key as generate_state_key };
 

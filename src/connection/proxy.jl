@@ -73,9 +73,11 @@ function proxied_session_id(parent::Session)
 end
 
 function Base.write(c::ProxyConnection, bytes::AbstractVector{UInt8})
-    c.open[] && proxy_send(c.driver, collect(bytes))
+    c.open[] || throw(InvalidStateException("Proxy connection closed", :closed))
+    proxy_send(c.driver, collect(bytes))
     return nothing
 end
+open!(c::ProxyConnection) = (c.open[] = true; nothing)
 Base.isopen(c::ProxyConnection) = c.open[]
 Base.close(c::ProxyConnection) = (c.open[] = false; nothing)
 
@@ -110,10 +112,10 @@ browser. `asset_server` is a `ProxyAssetServer` built over the same `driver` (so
 its 0→1 / 1→0 transitions dispatch `proxy_asset_add` / `proxy_asset_remove`).
 """
 function render_proxied(app::App, prefix::AbstractString;
-                        compression::Bool, driver, asset_server::ProxyAssetServer)
+                        compression::Bool, driver, asset_server::ProxyAssetServer, dispatcher=nothing)
     conn = ProxyConnection(prefix, driver)
     session = Session(conn;
-                      id = String(prefix),
+                      id = String(prefix), dispatcher,
                       asset_server = asset_server,
                       compression_enabled = compression)
     # init=false: render DOM + styles but DON'T inline the init script.
@@ -136,9 +138,9 @@ const REMOTE_ROUTES_KEY = :bonito_remote_routes
 
 # One registered proxied session on the host, keyed by the worker's namespace
 # prefix. Inbound browser frames for it are forwarded via `proxy_forward(driver,
-# data)` — in-process: straight into the worker's `process_message`; remote: the
-# decoded frame re-packed onto the worker's websocket, where its own inbox path
-# (decompress + unpack + dispatch) runs identically to a direct-WS session.
+# data)` — in-process: straight into the worker's `receive!`; remote: the
+# decoded frame re-packed onto the worker's websocket, where its own `receive!`
+# runs identically to a direct-WS session.
 #
 # Proxied roots use the same object-cache dedup as any root: one proxied root
 # per browser page, so §0 holds and `add_cached!` can ship each object once.
@@ -177,8 +179,8 @@ end
 # appears inbound.
 function remote_route_id(data::AbstractDict)
     typ = data["msg_type"]
-    typ == UpdateObservable && return get(data, "id", nothing)
-    (typ == JSDoneLoading || typ == CloseSession || typ == GetSessionDOM) &&
+    (typ == UpdateObservable || typ == JavascriptResult || typ == MessageWindowQuery) && return get(data, "id", nothing)
+    (typ == JSDoneLoading || typ == CloseSession || typ == GetSessionDOM || typ == ProxyConnectionState) &&
         return get(data, "session", nothing)
     return nothing
 end
@@ -215,6 +217,18 @@ function route_to_remote(session::Session, data::AbstractDict)
     target === nothing && return false
     proxy_forward(target, data)
     return true
+end
+
+function notify_remote_connection(session::Session, connected::Bool)
+    root = root_session(session)
+    targets = lock(root.deletion_lock) do
+        routes = get(metadata_dict(root), REMOTE_ROUTES_KEY, nothing)
+        routes === nothing ? RemoteSession[] : collect(values(routes))
+    end
+    for target in targets
+        proxy_forward(target.driver, Dict("msg_type"=>ProxyConnectionState, "session"=>target.id, "open"=>connected))
+    end
+    return nothing
 end
 
 # ── Host side: embed a worker app into a host session (in-process driver) ───
@@ -264,7 +278,7 @@ proxy_send(d::InProcessProxy, bytes) = (write(connection(d.host), bytes); nothin
 proxy_asset_add(d::InProcessProxy, key, mime, total, cached) =
     (register_proxy_asset!(d.host.asset_server, RemoteAsset(key, mime, total, cached, d)); nothing)
 proxy_asset_remove(d::InProcessProxy, key) = (release_proxy_asset!(d.host.asset_server, key); nothing)
-proxy_forward(d::InProcessProxy, data) = (process_message(d.worker_session, data); nothing)
+proxy_forward(d::InProcessProxy, data) = receive!(d.worker_session, data)
 proxy_fetch(d::InProcessProxy, key, start, stop) = read_proxy_asset(d.registry, key, start, stop)
 
 function embed_app(host::Session, app::App)
@@ -273,7 +287,7 @@ function embed_app(host::Session, app::App)
     asset_server = ProxyAssetServer(driver)
     driver.registry = asset_server.registry          # proxy_fetch reads it
     pr = render_proxied(app, prefix; compression = compression_enabled(host),
-                        driver = driver, asset_server = asset_server)
+                        driver = driver, asset_server = asset_server, dispatcher = root_data(host).dispatcher)
     driver.worker_session = pr.session                # proxy_forward routes browser→worker here
     register_remote!(host, RemoteSession(prefix, driver))
     on(host.on_close) do _
