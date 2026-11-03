@@ -394,6 +394,10 @@ function needs_bundling(asset::Asset)
     asset.es6module || return false
     path = get_path(asset)
     bundled = bundle_path(asset)
+    # Relocated install (app bundle, moved depot): the source recorded at precompile
+    # time is gone, so bundling can never succeed and would re-run deno on every
+    # `url(asset)`. The Asset constructor snapshotted `bundle_data` for this case.
+    !is_online(path) && !isfile(path) && !isempty(asset.bundle_data) && return false
     return needs_bundling(path, bundled)
 end
 
