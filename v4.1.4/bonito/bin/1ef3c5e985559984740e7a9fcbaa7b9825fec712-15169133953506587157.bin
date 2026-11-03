@@ -1,0 +1,109 @@
+’Ç,j“Ù$153bd31b-a383-4d7b-98a3-010afa8d878c€£sub˜ÈÄk’Ç9j“Ù$153bd31b-a383-4d7b-98a3-010afa8d878c£249Çe’£249£subƒ£obsÖh£249§payloadÈef“³6974211987395400070•¬space-evenly¦center£end­space-between¬space-aroundÚreturn  (idx) => {
+    const grids = [document.querySelector('[data-jscall-id="374"]'), document.querySelector('[data-jscall-id="375"]')]
+    const val = __lookup_interpolated('6974211987395400070')[idx-1]
+    grids.forEach(x=> x.style["justify-content"] = val)
+}°layouting.md:460¨msg_type¡1È¨k’Ç9j“Ù$153bd31b-a383-4d7b-98a3-010afa8d878c£252Çe’£252£subƒ£obsÖh£252§payloadÈIf“³6512101515035149028”§stretch¥start¦center£endÚreturn  (idx) => {
+    const grids = [document.querySelector('[data-jscall-id="374"]'), document.querySelector('[data-jscall-id="375"]')]
+    const val = __lookup_interpolated('6512101515035149028')[idx-1]
+    grids.forEach(x=> x.style["justify-items"] = val)
+}°layouting.md:467¨msg_type¡1ÈÂk’Ç9j“Ù$153bd31b-a383-4d7b-98a3-010afa8d878c£255Çe’£255£subƒ£obsÖh£255§payloadÈcf“³6974211987395400070•¬space-evenly¦center£end­space-between¬space-aroundÚreturn  (idx) => {
+    const grids = [document.querySelector('[data-jscall-id="374"]'), document.querySelector('[data-jscall-id="376"]')]
+    const val = __lookup_interpolated('6974211987395400070')[idx-1]
+    grids.forEach(x=> x.style["align-content"] = val)
+}°layouting.md:474¨msg_type¡1È¦k’Ç9j“Ù$153bd31b-a383-4d7b-98a3-010afa8d878c£258Çe’£258£subƒ£obsÖh£258§payloadÈGf“³6512101515035149028”§stretch¥start¦center£endÚreturn  (idx) => {
+    const grids = [document.querySelector('[data-jscall-id="374"]'), document.querySelector('[data-jscall-id="376"]')]
+    const val = __lookup_interpolated('6512101515035149028')[idx-1]
+    grids.forEach(x=> x.style["align-items"] = val)
+}°layouting.md:481¨msg_type¡1È k’Çlj“Ù$153bd31b-a383-4d7b-98a3-010afa8d878c£261Ç9e’£261•¬space-evenly¦center£end­space-between¬space-around£sub‚§payloadÈf“‚³6692120232117667086Öh£255³3444115402203015740Öh£261Ú¥(function onload(element) {
+    function onchange(e) {
+        if (element === e.srcElement) {
+            (__lookup_interpolated('6692120232117667086')).notify(element.selectedIndex + 1);
+        }
+    }
+    element.addEventListener("change", onchange);
+    element.selectedIndex = 0
+    function set_option_index(index) {
+        if (element.selectedIndex === index - 1) {
+            return
+        }
+        element.selectedIndex = index - 1;
+    }
+    __lookup_interpolated('6692120232117667086').on(set_option_index);
+    function set_options(opts) {
+        element.selectedIndex = 0;
+        // https://stackoverflow.com/questions/3364493/how-do-i-clear-all-options-in-a-dropdown-box
+        element.options.length = 0;
+        opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
+    }
+    __lookup_interpolated('3444115402203015740').on(set_options);
+}
+)(document.querySelector('[data-jscall-id="381"]'));Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:221¨msg_type¡2È k’Çlj“Ù$153bd31b-a383-4d7b-98a3-010afa8d878c£263Ç9e’£263•¬space-evenly¦center£end­space-between¬space-around£sub‚§payloadÈf“‚³2752466480405702127Öh£249³1738030602796414391Öh£263Ú¥(function onload(element) {
+    function onchange(e) {
+        if (element === e.srcElement) {
+            (__lookup_interpolated('2752466480405702127')).notify(element.selectedIndex + 1);
+        }
+    }
+    element.addEventListener("change", onchange);
+    element.selectedIndex = 0
+    function set_option_index(index) {
+        if (element.selectedIndex === index - 1) {
+            return
+        }
+        element.selectedIndex = index - 1;
+    }
+    __lookup_interpolated('2752466480405702127').on(set_option_index);
+    function set_options(opts) {
+        element.selectedIndex = 0;
+        // https://stackoverflow.com/questions/3364493/how-do-i-clear-all-options-in-a-dropdown-box
+        element.options.length = 0;
+        opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
+    }
+    __lookup_interpolated('1738030602796414391').on(set_options);
+}
+)(document.querySelector('[data-jscall-id="387"]'));Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:221¨msg_type¡2È‹k’ÇRj“Ù$153bd31b-a383-4d7b-98a3-010afa8d878c£265Çe’£265”§stretch¥start¦center£end£sub‚§payloadÈf“‚´16300344723851716621Öh£258´16323574290738511000Öh£265Ú¨(function onload(element) {
+    function onchange(e) {
+        if (element === e.srcElement) {
+            (__lookup_interpolated('16300344723851716621')).notify(element.selectedIndex + 1);
+        }
+    }
+    element.addEventListener("change", onchange);
+    element.selectedIndex = 0
+    function set_option_index(index) {
+        if (element.selectedIndex === index - 1) {
+            return
+        }
+        element.selectedIndex = index - 1;
+    }
+    __lookup_interpolated('16300344723851716621').on(set_option_index);
+    function set_options(opts) {
+        element.selectedIndex = 0;
+        // https://stackoverflow.com/questions/3364493/how-do-i-clear-all-options-in-a-dropdown-box
+        element.options.length = 0;
+        opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
+    }
+    __lookup_interpolated('16323574290738511000').on(set_options);
+}
+)(document.querySelector('[data-jscall-id="393"]'));Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:221¨msg_type¡2È†k’ÇRj“Ù$153bd31b-a383-4d7b-98a3-010afa8d878c£267Çe’£267”§stretch¥start¦center£end£sub‚§payloadÈf“‚³9619096708384960452Öh£267³4226893431788946119Öh£252Ú¥(function onload(element) {
+    function onchange(e) {
+        if (element === e.srcElement) {
+            (__lookup_interpolated('4226893431788946119')).notify(element.selectedIndex + 1);
+        }
+    }
+    element.addEventListener("change", onchange);
+    element.selectedIndex = 0
+    function set_option_index(index) {
+        if (element.selectedIndex === index - 1) {
+            return
+        }
+        element.selectedIndex = index - 1;
+    }
+    __lookup_interpolated('4226893431788946119').on(set_option_index);
+    function set_options(opts) {
+        element.selectedIndex = 0;
+        // https://stackoverflow.com/questions/3364493/how-do-i-clear-all-options-in-a-dropdown-box
+        element.options.length = 0;
+        opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
+    }
+    __lookup_interpolated('9619096708384960452').on(set_options);
+}
+)(document.querySelector('[data-jscall-id="398"]'));Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:221¨msg_type¡2

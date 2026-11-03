@@ -1,0 +1,44 @@
+’Ç,j“Ù$4f68ad12-8b7b-4036-8bc1-2aba00ee3bc3€£sub‚§payload’Èk’Ç;j“Ù$4f68ad12-8b7b-4036-8bc1-2aba00ee3bc3¤1426×e’¤1426¡1£subƒ£obsÇh¤1426§payloadÇ¡f“€ÙVreturn (val)=> {
+    document.querySelector('[data-jscall-id="21"]').innerText = val
+}ÙE/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/observables.jl:86¨msg_type¡1ÈUk’ÇTj“Ù$4f68ad12-8b7b-4036-8bc1-2aba00ee3bc3‚¤1425Çe’¤1425¤1424Çe’¤1424š	
+£sub‚§payloadÈåf“‚³6426220026335317952Çh¤1424´15000639907698338334Çh¤1425Új((container)=> {
+    const thumb = document.querySelector('[data-jscall-id="19"]');
+    const track_active = document.querySelector('[data-jscall-id="18"]');
+    const track = document.querySelector('[data-jscall-id="17"]');
+    let isDragging = false;
+    function set_thumb(e) {
+        const values = __lookup_interpolated('6426220026335317952').value;
+        const nsteps = values.length;
+        const thumb_width = thumb.offsetWidth / 2;
+        const width = track.offsetWidth;
+        const step_width = width / nsteps;
+        let new_left = e.clientX - container.getBoundingClientRect().left;
+        new_left = Math.max(new_left, 0);
+        new_left = Math.min(new_left, width);
+        new_left = Math.round(new_left / step_width) * step_width;
+        thumb.style.left = (new_left - thumb_width) + 'px';  // Update the left position of the thumb
+        track_active.style.width = new_left + 'px';  // Update the active track
+        const index = Math.round((new_left / width) * (nsteps - 1));
+        __lookup_interpolated('15000639907698338334').notify(values[index]);
+    }
+    const controller = new AbortController();
+    document.addEventListener('mousedown', function (e) {
+        if(e.target === thumb || e.target === track_active || e.target === track || e.targar === container){
+            isDragging = true;
+            set_thumb(e);
+            e.preventDefault();  // Prevent default behavior
+        }
+    }, { signal: controller.signal});
+    document.addEventListener('mouseup', function () {
+        if (!document.body.contains(container)) {
+            controller.abort();
+        }
+        isDragging = false;
+    }, { signal: controller.signal });
+    document.addEventListener('mousemove', function (e) {
+        if (isDragging) {
+            set_thumb(e);
+        }
+    }, { signal: controller.signal });
+}
+)(document.querySelector('[data-jscall-id="16"]'));Ù;/home/runner/work/Bonito.jl/Bonito.jl/src/components.jl:333¨msg_type¡2¨msg_type¡9

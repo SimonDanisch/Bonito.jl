@@ -1,0 +1,188 @@
+í«,jìŸ$2c62d7d6-e700-4d7f-9121-fc2b230bab8eê£subÉßpayloadì«ükí«-jìŸ$dc87a66a-4586-4aea-8819-35c50cbbd62cê§rootÉßpayloadë«Nkí«-jìŸ$dc87a66a-4586-4aea-8819-35c50cbbd62cê§rootÉßpayloadê®msg_type°9¶cachesê®msg_type°9¶cachesê»Ëkí«,jìŸ$2c62d7d6-e700-4d7f-9121-fc2b230bab8eê£subÉßpayloadï«Nkí«-jìŸ$dc87a66a-4586-4aea-8819-35c50cbbd62cê§rootÉßpayloadê®msg_type°9¶cachesê»Ykí«[jìŸ$2c62d7d6-e700-4d7f-9121-fc2b230bab8eìí£187«eí£187í£186«eí£186í£185«eí£185ï£subÉ£obs÷h£186ßpayload«ŸfìÇ£187÷h£187£185÷h£185Ÿáreturn (index) => {
+    const values = __lookup_interpolated('185').value
+    __lookup_interpolated('187').notify(values[index - 1])
+}
+Ÿ8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:272®msg_type°1»+kí«;jìŸ$2c62d7d6-e700-4d7f-9121-fc2b230bab8eëí£190«eí£190°5£subÉ£obs÷h£190ßpayload«ÀfìÄŸtreturn value => {
+    Bonito.update_node_attribute(document.querySelector('[data-jscall-id="73"]'), 'max', value);
+}ŸQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92®msg_type°1»-kí«;jìŸ$2c62d7d6-e700-4d7f-9121-fc2b230bab8eëí£191«eí£191°1£subÉ£obs÷h£191ßpayload«ÕfìÄŸvreturn value => {
+    Bonito.update_node_attribute(document.querySelector('[data-jscall-id="73"]'), 'value', value);
+}ŸQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92®msg_type°1»âkí«,jìŸ$2c62d7d6-e700-4d7f-9121-fc2b230bab8eê£subÇßpayload»AfìÅ£186÷h£186Ÿ˘(() => {
+    document.querySelector('[data-jscall-id="73"]')['oninput'] = (event)=> {
+    const idx = event.srcElement.valueAsNumber;
+    if (idx !== __lookup_interpolated('186').value) {
+        __lookup_interpolated('186').notify(idx)
+    }
+}
+})()Ÿ8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:287®msg_type°2®msg_type°9¶cachesê»%Ìkí«,jìŸ$2c62d7d6-e700-4d7f-9121-fc2b230bab8eê£subÇßpayload»%•fìÅ¥18296657625217036302Å£187Ö°4ë»5kí«,jìŸ$50b6b85a-2dd0-4213-8931-e2d5234c9478ê£subÜ™session_idŸ$50b6b85a-2dd0-4213-8931-e2d5234c9478®messagesÉßpayloadê®msg_type°9¶cachesêßreplace¬®msg_type¢12§html»ziì£diví»◊iì£diví»∆iì¶scriptë⁄ö    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/fde59a9ddd23a2a0234f0cf8beef43dd25f16f85-6647249621471836790.bin').then(binary=> {
+            const observables = Bonito.Protocol.unpack_binary(binary, false)
+            observables.forEach(([id, objects, status]) => {
+                Bonito.Sessions.update_session_cache(id, objects, status);
+            });
+        });
+    })
+ÇÆdata-jscall-id£123§type¶module»Ôiì•styleë⁄–.style_23 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 300px;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_24 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+ÅÆdata-jscall-id£124ÅÆdata-jscall-id£122»+iì£diví«ïiì¶scriptëŸjBonito.lock_loading(() => Bonito.init_session('50b6b85a-2dd0-4213-8931-e2d5234c9478', null, 'sub', false))ÇÆdata-jscall-id£126§type¶module»uiì£divî«Niì£divë«iì£divêÅÆdata-jscall-id£115É•class© style_24•style†Ædata-jscall-id£114«Niì£divë«iì£divêÅÆdata-jscall-id£117É•class© style_24•style†Ædata-jscall-id£116«Niì£divë«iì£divêÅÆdata-jscall-id£119É•class© style_24•style†Ædata-jscall-id£118«Niì£divë«iì£divêÅÆdata-jscall-id£121É•class© style_24•style†Ædata-jscall-id£120É•class© style_23•style†Ædata-jscall-id£113ÅÆdata-jscall-id£125É•classØbonito-fragment¢idŸ$50b6b85a-2dd0-4213-8931-e2d5234c9478Ædata-jscall-id∫subsession-application-dom±dom_node_selector¢77°1ë»:kí«,jìŸ$0c3f2988-26c8-41f1-9d38-f16fba502a87ê£subÜ™session_idŸ$0c3f2988-26c8-41f1-9d38-f16fba502a87®messagesÉßpayloadê®msg_type°9¶cachesêßreplace¬®msg_type¢12§html»iì£diví»’iì£diví»∆iì¶scriptë⁄õ    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/44becbbde3a3d5fc9a974561d3b66916cf6015a6-18014169051793985438.bin').then(binary=> {
+            const observables = Bonito.Protocol.unpack_binary(binary, false)
+            observables.forEach(([id, objects, status]) => {
+                Bonito.Sessions.update_session_cache(id, objects, status);
+            });
+        });
+    })
+ÇÆdata-jscall-id¢87§type¶module»Óiì•styleë⁄–.style_17 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 300px;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_18 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+ÅÆdata-jscall-id¢88ÅÆdata-jscall-id¢86»2iì£diví«îiì¶scriptëŸjBonito.lock_loading(() => Bonito.init_session('0c3f2988-26c8-41f1-9d38-f16fba502a87', null, 'sub', false))ÇÆdata-jscall-id¢90§type¶module«iì£divë«Liì£divë«iì£divêÅÆdata-jscall-id¢85É•class© style_18•style†Ædata-jscall-id¢84É•class© style_17•style†Ædata-jscall-id¢83ÅÆdata-jscall-id¢89É•classØbonito-fragment¢idŸ$0c3f2988-26c8-41f1-9d38-f16fba502a87Ædata-jscall-id∫subsession-application-dom±dom_node_selector¢77°5ë»Ökí«,jìŸ$95e8e393-7b79-4a8d-a25e-9785541f9900ê£subÜ™session_idŸ$95e8e393-7b79-4a8d-a25e-9785541f9900®messagesÉßpayloadê®msg_type°9¶cachesêßreplace¬®msg_type¢12§html» iì£diví»÷iì£diví»≈iì¶scriptë⁄ô    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/7b8878420ef1e2db33753bad3aae66365ab0b0e1-105571503466099163.bin').then(binary=> {
+            const observables = Bonito.Protocol.unpack_binary(binary, false)
+            observables.forEach(([id, objects, status]) => {
+                Bonito.Sessions.update_session_cache(id, objects, status);
+            });
+        });
+    })
+ÇÆdata-jscall-id£139§type¶module»Ôiì•styleë⁄–.style_25 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 300px;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_26 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+ÅÆdata-jscall-id£140ÅÆdata-jscall-id£138»|iì£diví«ïiì¶scriptëŸjBonito.lock_loading(() => Bonito.init_session('95e8e393-7b79-4a8d-a25e-9785541f9900', null, 'sub', false))ÇÆdata-jscall-id£142§type¶module»∆iì£divï«Niì£divë«iì£divêÅÆdata-jscall-id£129É•class© style_26•style†Ædata-jscall-id£128«Niì£divë«iì£divêÅÆdata-jscall-id£131É•class© style_26•style†Ædata-jscall-id£130«Niì£divë«iì£divêÅÆdata-jscall-id£133É•class© style_26•style†Ædata-jscall-id£132«Niì£divë«iì£divêÅÆdata-jscall-id£135É•class© style_26•style†Ædata-jscall-id£134«Niì£divë«iì£divêÅÆdata-jscall-id£137É•class© style_26•style†Ædata-jscall-id£136É•class© style_25•style†Ædata-jscall-id£127ÅÆdata-jscall-id£141É•classØbonito-fragment¢idŸ$95e8e393-7b79-4a8d-a25e-9785541f9900Ædata-jscall-id∫subsession-application-dom±dom_node_selector¢77°2ë»äkí«,jìŸ$1e8018f9-a541-4f06-a3ef-648e845de577ê£subÜ™session_idŸ$1e8018f9-a541-4f06-a3ef-648e845de577®messagesÉßpayloadê®msg_type°9¶cachesêßreplace¬®msg_type¢12§html»œiì£diví»’iì£diví»∆iì¶scriptë⁄õ    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/44414e733341f4953a1292815942d358c452797e-14191538942296827863.bin').then(binary=> {
+            const observables = Bonito.Protocol.unpack_binary(binary, false)
+            observables.forEach(([id, objects, status]) => {
+                Bonito.Sessions.update_session_cache(id, objects, status);
+            });
+        });
+    })
+ÇÆdata-jscall-id¢97§type¶module»Óiì•styleë⁄–.style_19 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 300px;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_20 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+ÅÆdata-jscall-id¢98ÅÆdata-jscall-id¢96»Çiì£diví«ïiì¶scriptëŸjBonito.lock_loading(() => Bonito.init_session('1e8018f9-a541-4f06-a3ef-648e845de577', null, 'sub', false))ÇÆdata-jscall-id£100§type¶module«Œiì£diví«Liì£divë«iì£divêÅÆdata-jscall-id¢93É•class© style_20•style†Ædata-jscall-id¢92«Liì£divë«iì£divêÅÆdata-jscall-id¢95É•class© style_20•style†Ædata-jscall-id¢94É•class© style_19•style†Ædata-jscall-id¢91ÅÆdata-jscall-id¢99É•classØbonito-fragment¢idŸ$1e8018f9-a541-4f06-a3ef-648e845de577Ædata-jscall-id∫subsession-application-dom±dom_node_selector¢77°3ë»Âkí«,jìŸ$5c27ce92-b296-4c58-ae6f-19631ab5b737ê£subÜ™session_idŸ$5c27ce92-b296-4c58-ae6f-19631ab5b737®messagesÉßpayloadê®msg_type°9¶cachesêßreplace¬®msg_type¢12§html»*iì£diví»ÿiì£diví»«iì¶scriptë⁄õ    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/3c6d542e7a433aa50e1f2e53332bcf6f11b98824-17029724018273162618.bin').then(binary=> {
+            const observables = Bonito.Protocol.unpack_binary(binary, false)
+            observables.forEach(([id, objects, status]) => {
+                Bonito.Sessions.update_session_cache(id, objects, status);
+            });
+        });
+    })
+ÇÆdata-jscall-id£109§type¶module»Ôiì•styleë⁄–.style_21 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 300px;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: none;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_22 {
+  height: auto;
+  padding: 12px;
+  background-color: silver;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: 300px;
+  border-radius: 2px;
+  margin: 2px;
+}
+ÅÆdata-jscall-id£110ÅÆdata-jscall-id£108»⁄iì£diví«ïiì¶scriptëŸjBonito.lock_loading(() => Bonito.init_session('5c27ce92-b296-4c58-ae6f-19631ab5b737', null, 'sub', false))ÇÆdata-jscall-id£112§type¶module»$iì£divì«Niì£divë«iì£divêÅÆdata-jscall-id£103É•class© style_22•style†Ædata-jscall-id£102«Niì£divë«iì£divêÅÆdata-jscall-id£105É•class© style_22•style†Ædata-jscall-id£104«Niì£divë«iì£divêÅÆdata-jscall-id£107É•class© style_22•style†Ædata-jscall-id£106É•class© style_21•style†Ædata-jscall-id£101ÅÆdata-jscall-id£111É•classØbonito-fragment¢idŸ$5c27ce92-b296-4c58-ae6f-19631ab5b737Ædata-jscall-id∫subsession-application-dom±dom_node_selector¢77⁄∆Bonito.fetch_binary('bonito/bin/894e664dd94a042684c692fec37d2b490315123e-1547674456427239410.bin').then(binary => {
+    const widget_statemaps = __lookup_interpolated('18296657625217036302')
+    console.log('Widget statemaps:', widget_statemaps)
+    const observables = Bonito.decode_binary(binary, false);
+    // Set up individual listeners for each observable
+    observables.forEach((obs, idx) => {
+        obs.on(value => {
+            const obs_states = widget_statemaps[obs.id]
+            const key = Bonito.generate_state_key(value);
+            const messages = obs_states[key];
+            if (messages){
+                messages.forEach(Bonito.process_message)
+            }
+        });
+    });
+
+})
+Ÿ7/home/runner/work/Bonito.jl/Bonito.jl/src/export.jl:222®msg_type°2®msg_type°9¶cachesê

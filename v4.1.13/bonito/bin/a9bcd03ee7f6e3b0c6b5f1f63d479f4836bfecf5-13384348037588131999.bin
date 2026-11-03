@@ -1,0 +1,35 @@
+È`k”Ù$3ddfd217-3288-4d29-a0a0-f899cb3e44c2£subÇ1Ç.j“Ù$3ddfd217-3288-4d29-a0a0-f899cb3e44c2£subÔÈý“Çyk”Ù$c29baecd-f60b-416f-947a-c093b1e11894¤rootÇ2Ç/j“Ù$c29baecd-f60b-416f-947a-c093b1e11894¤rootÔÇ‚§payload¨msg_type¡9Èßk”Ù$3ddfd217-3288-4d29-a0a0-f899cb3e44c2£subÇ1Ç.j“Ù$3ddfd217-3288-4d29-a0a0-f899cb3e44c2£subÔÈ|‚§payload”È»k”Ù$3ddfd217-3288-4d29-a0a0-f899cb3e44c2£subÇLÇIj“Ù$3ddfd217-3288-4d29-a0a0-f899cb3e44c2£subÇ“Çe’¢37×e’¢35“Çe’¢36È=ƒ£obsÇh¢36§payloadÈf“‚´14338025681250770009Çh¢35³1355160762224487832Çh¢37Ù¨return (index) => {
+    const values = __lookup_interpolated('14338025681250770009').value
+    __lookup_interpolated('1355160762224487832').notify(values[index - 1])
+}
+Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:284¨msg_type¡1ÈWk”Ù$3ddfd217-3288-4d29-a0a0-f899cb3e44c2£subÇ;Ç8j“Ù$3ddfd217-3288-4d29-a0a0-f899cb3e44c2£subÇ
+‘Çe’¢40¡3Çëƒ£obsÇh¢40§payloadÇÊf“€Ùsreturn value => {
+    Bonito.update_node_attribute(document.querySelector('[data-jscall-id="5"]'), 'max', value);
+}ÙQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92¨msg_type¡1ÈYk”Ù$3ddfd217-3288-4d29-a0a0-f899cb3e44c2£subÇ;Ç8j“Ù$3ddfd217-3288-4d29-a0a0-f899cb3e44c2£subÇ
+‘Çe’¢41¡1Çíƒ£obsÇh¢41§payloadÇÌf“€Ùureturn value => {
+    Bonito.update_node_attribute(document.querySelector('[data-jscall-id="5"]'), 'value', value);
+}ÙQ/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:92¨msg_type¡1Èìk”Ù$3ddfd217-3288-4d29-a0a0-f899cb3e44c2£subÇ1Ç.j“Ù$3ddfd217-3288-4d29-a0a0-f899cb3e44c2£subÔÈ‰‚§payloadÈqf“³7176490670086512123Çh¢36Ú(() => {
+    document.querySelector('[data-jscall-id="5"]')['oninput'] = (event)=> {
+    const idx = event.srcElement.valueAsNumber;
+    if (idx !== __lookup_interpolated('7176490670086512123').value) {
+        __lookup_interpolated('7176490670086512123').notify(idx)
+    }
+}
+})()Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:300¨msg_type¡2¨msg_type¡9È	™k”Ù$3ddfd217-3288-4d29-a0a0-f899cb3e44c2£subÇ1Ç.j“Ù$3ddfd217-3288-4d29-a0a0-f899cb3e44c2£subÔÈ	6‚§payloadÈ	f“³3307019052263501613¢37ƒ¡1‘ÈÚk”Ù$d1fda2b5-5619-4e44-9df0-939db0880368£subÇ1Ç.j“Ù$d1fda2b5-5619-4e44-9df0-939db0880368£subÔÈw‡ªsession_idÙ$d1fda2b5-5619-4e44-9df0-939db0880368¨messages§replaceÂ¨msg_type¢12®session_status£sub¤htmlÇ÷i“£div’Ç8i“£div‘Çi“¥style‘ ®data-jscall-id¢14®data-jscall-id¢13ÇIi“£div‘Ç-i“¢h1‘´hello from slider: 1®data-jscall-id¢12®data-jscall-id¢15ƒ¥class¯bonito-fragment¢idÙ$d1fda2b5-5619-4e44-9df0-939db0880368®data-jscall-idºsubsession-application-dom±dom_node_selector¡7¡2‘Èÿk”Ù$2f438c34-f942-4839-8dbe-e8e25e8d305c£subÇ1Ç.j“Ù$2f438c34-f942-4839-8dbe-e8e25e8d305c£subÔÈœ‡ªsession_idÙ$2f438c34-f942-4839-8dbe-e8e25e8d305c¨messages§replaceÂ¨msg_type¢12®session_status£sub¤htmlÈi“£div’Ç8i“£div‘Çi“¥style‘ ®data-jscall-id¢18®data-jscall-id¢17Çmi“£div‘ÇQi“£imgƒ®data-jscall-id¢16£srcÙ&https://docs.makie.org/stable/logo.svg¥width¥200px®data-jscall-id¢19ƒ¥class¯bonito-fragment¢idÙ$2f438c34-f942-4839-8dbe-e8e25e8d305c®data-jscall-idºsubsession-application-dom±dom_node_selector¡7¡3‘Èk”Ù$308d1acc-50f1-45ba-b5f7-434cb2f5294f£subÇ1Ç.j“Ù$308d1acc-50f1-45ba-b5f7-434cb2f5294f£subÔÈ±‡ªsession_idÙ$308d1acc-50f1-45ba-b5f7-434cb2f5294f¨messages§replaceÂ¨msg_type¢12®session_status£sub¤htmlÈ0i“£div’Ç8i“£div‘Çi“¥style‘ ®data-jscall-id¢22®data-jscall-id¢21Ç‚i“£div‘Çfi“¤span‘ÇIi“¤span‘¡9ƒ¥classªtext-plain¥styleµwhite-space: pre-wrap®data-jscall-id¢24®data-jscall-id¢20®data-jscall-id¢23ƒ¥class¯bonito-fragment¢idÙ$308d1acc-50f1-45ba-b5f7-434cb2f5294f®data-jscall-idºsubsession-application-dom±dom_node_selector¡7ÚÅBonito.fetch_binary('bonito/bin/49c8b0792c5cdeb82efa73464e366262b4660c8c-8198229181378561468.bin').then(binary => {
+    const widget_statemaps = __lookup_interpolated('3307019052263501613')
+    console.log('Widget statemaps:', widget_statemaps)
+    const observables = Bonito.decode_binary(binary, false);
+    // Set up individual listeners for each observable
+    observables.forEach((obs, idx) => {
+        obs.on(value => {
+            const obs_states = widget_statemaps[obs.id]
+            const key = Bonito.generate_state_key(value);
+            const messages = obs_states[key];
+            if (messages){
+                messages.forEach(Bonito.process_message)
+            }
+        });
+    });
+
+})
+Ù7/home/runner/work/Bonito.jl/Bonito.jl/src/export.jl:222¨msg_type¡2

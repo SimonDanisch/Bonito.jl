@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Widgets · Bonito</title><meta name="title" content="Widgets · Bonito"/><meta property="og:title" content="Widgets · Bonito"/><meta property="twitter:title" content="Widgets · Bonito"/><meta name="description" content="Documentation for Bonito."/><meta property="og:description" content="Documentation for Bonito."/><meta property="twitter:description" content="Documentation for Bonito."/><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="index.html">Bonito</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li><span class="tocitem">Components</span><ul><li><a class="tocitem" href="styling.html">Styling</a></li><li><a class="tocitem" href="components.html">Components</a></li><li><a class="tocitem" href="layouting.html">Layouting</a></li><li class="is-active"><a class="tocitem" href="widgets.html">Widgets</a><ul class="internal"><li><a class="tocitem" href="#All-Available-widgets"><span>All Available widgets</span></a></li><li><a class="tocitem" href="#Widgets-in-Layouts"><span>Widgets in Layouts</span></a></li><li><a class="tocitem" href="#Editor"><span>Editor</span></a></li><li><a class="tocitem" href="#Tailwinddashboard"><span>Tailwinddashboard</span></a></li></ul></li><li><a class="tocitem" href="interactions.html">Interactions</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="plotting.html">Plotting</a></li><li><a class="tocitem" href="javascript-libraries.html">Wrapping JS libraries</a></li><li><a class="tocitem" href="assets.html">Assets</a></li><li><a class="tocitem" href="extending.html">Extending</a></li></ul></li><li><a class="tocitem" href="deployment.html">Deployment</a></li><li><a class="tocitem" href="static.html">Static Sites</a></li><li><a class="tocitem" href="api.html">Api</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Components</a></li><li class="is-active"><a href="widgets.html">Widgets</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="widgets.html">Widgets</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/master/docs/src/widgets.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Widgets"><a class="docs-heading-anchor" href="#Widgets">Widgets</a><a id="Widgets-1"></a><a class="docs-heading-anchor-permalink" href="#Widgets" title="Permalink"></a></h1><h2 id="All-Available-widgets"><a class="docs-heading-anchor" href="#All-Available-widgets">All Available widgets</a><a id="All-Available-widgets-1"></a><a class="docs-heading-anchor-permalink" href="#All-Available-widgets" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="WidgetsBase.Button-widgets" href="#WidgetsBase.Button-widgets"><code>WidgetsBase.Button</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Button(name; style=Styles(), dom_attributes...)</code></pre><p>A simple button, which can be styled a <code>style::Styles</code>.</p><p><strong>Example</strong></p><pre><code class="language-julia hljs">App() do
+    style = Styles(
+        CSS(&quot;font-weight&quot; =&gt; &quot;500&quot;),
+        CSS(&quot;:hover&quot;, &quot;background-color&quot; =&gt; &quot;silver&quot;),
+        CSS(&quot;:focus&quot;, &quot;box-shadow&quot; =&gt; &quot;rgba(0, 0, 0, 0.5) 0px 0px 5px&quot;),
+    )
+    button = Button(&quot;Click me&quot;; style=style)
+    on(button.value) do click::Bool
+        @info &quot;Button clicked!&quot;
+    end
+    return button
+end
+</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/234ae9231973244ee1820b9cc188bb3e173414a3/src/widgets.jl#L48-L58">source</a></section></article><div>
+  <div class="bonito-fragment" id="377c6c9c-7236-441d-8ac4-d96b5972f0dc" data-jscall-id="root">
+    <div>
+      <script src="bonito/js/Bonito.bundled15432232505923397289.js" type="module"></script>
+      <style></style>
+    </div>
+    <div>
+      <script type="module">Bonito.lock_loading(() => Bonito.init_session('377c6c9c-7236-441d-8ac4-d96b5972f0dc', null, 'root', false))</script>
+      <span></span>
+    </div>
+  </div>
+  <div class="bonito-fragment" id="e0367831-51c0-4a81-8321-194cfde9b2fa" data-jscall-id="subsession-application-dom">
+    <div>
+      <style>.style_2:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 0px 5px;
+  outline: 1px solid transparent;
+}
+.style_3 {
+  min-width: 8rem;
+  font-weight: 500;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+}
+.style_4:hover {
+  background-color: silver;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+</style>
+    </div>
+    <div>
+      <script type="module">    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/d51b63fea2cf92a2a57d0303cd82e43d89d7795d-1220056174214587981.bin').then(msgs=> Bonito.init_session('e0367831-51c0-4a81-8321-194cfde9b2fa', msgs, 'sub', false));
+    })
+</script>
+      <button onclick="" class=" style_2 style_3 style_4" style="" data-jscall-id="1">Click me</button>
+    </div>
+  </div>
+</div><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="WidgetsBase.TextField-widgets" href="#WidgetsBase.TextField-widgets"><code>WidgetsBase.TextField</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">TextField(default_text; style=Styles(), dom_attributes...)</code></pre><p>A simple TextField, which can be styled via the <code>style::Styles</code> attribute.</p><p><strong>Example</strong></p><pre><code class="language-julia hljs">App() do
+    style = Styles(
+        CSS(&quot;font-weight&quot; =&gt; &quot;500&quot;),
+        CSS(&quot;:hover&quot;, &quot;background-color&quot; =&gt; &quot;silver&quot;),
+        CSS(&quot;:focus&quot;, &quot;box-shadow&quot; =&gt; &quot;rgba(0, 0, 0, 0.5) 0px 0px 5px&quot;),
+    )
+    textfield = TextField(&quot;write something&quot;; style=style)
+    on(textfield.value) do text::String
+        @info text
+    end
+    return textfield
+end
+</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/234ae9231973244ee1820b9cc188bb3e173414a3/src/widgets.jl#L89-L99">source</a></section></article><div class="bonito-fragment" id="88ecf4b4-f5b4-491b-bdca-297dc7d8b353" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_5:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 0px 5px;
+  outline: 1px solid transparent;
+}
+.style_6 {
+  min-width: 8rem;
+  font-weight: 500;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+}
+.style_7:hover {
+  background-color: silver;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/664d8226aa04409ec97bb9482b5f805082db886a-16478845729667825813.bin').then(msgs=> Bonito.init_session('88ecf4b4-f5b4-491b-bdca-297dc7d8b353', msgs, 'sub', false));
+    })
+</script>
+    <input class=" style_5 style_6 style_7" style="" data-jscall-id="2" value="write something" onchange="" type="textfield" />
+  </div>
+</div><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="WidgetsBase.NumberInput-widgets" href="#WidgetsBase.NumberInput-widgets"><code>WidgetsBase.NumberInput</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">NumberInput(default_value; style=Styles(), dom_attributes...)</code></pre><p>A simple NumberInput, which can be styled via the <code>style::Styles</code> attribute.</p><p><strong>Example</strong></p><pre><code class="language-julia hljs">App() do
+    style = Styles(
+        CSS(&quot;font-weight&quot; =&gt; &quot;500&quot;),
+        CSS(&quot;:hover&quot;, &quot;background-color&quot; =&gt; &quot;silver&quot;),
+        CSS(&quot;:focus&quot;, &quot;box-shadow&quot; =&gt; &quot;rgba(0, 0, 0, 0.5) 0px 0px 5px&quot;),
+    )
+    numberinput = NumberInput(0.0; style=style)
+    on(numberinput.value) do value::Float64
+        @info value
+    end
+    return numberinput
+end
+</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/234ae9231973244ee1820b9cc188bb3e173414a3/src/widgets.jl#L131-L141">source</a></section></article><div class="bonito-fragment" id="6af032c0-9fef-4a57-9688-7da80eecea06" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_8:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 0px 5px;
+  outline: 1px solid transparent;
+}
+.style_9 {
+  min-width: 8rem;
+  font-weight: 500;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+}
+.style_10:hover {
+  background-color: silver;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/894ac831edf479781b21293b8c9d03a661bb4f27-16744619692868510949.bin').then(msgs=> Bonito.init_session('6af032c0-9fef-4a57-9688-7da80eecea06', msgs, 'sub', false));
+    })
+</script>
+    <input class=" style_8 style_9 style_10" style="" data-jscall-id="3" value="0.0" onchange="" type="number" />
+  </div>
+</div><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Bonito.Dropdown-widgets" href="#Bonito.Dropdown-widgets"><code>Bonito.Dropdown</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Dropdown(options; index=1, option_to_string=string, style=Styles(), dom_attributes...)</code></pre><p>A simple Dropdown, which can be styled via the <code>style::Styles</code> attribute.</p><p><strong>Example</strong></p><pre><code class="language-julia hljs">App() do
+    style = Styles(
+        CSS(&quot;font-weight&quot; =&gt; &quot;500&quot;),
+        CSS(&quot;:hover&quot;, &quot;background-color&quot; =&gt; &quot;silver&quot;),
+        CSS(&quot;:focus&quot;, &quot;box-shadow&quot; =&gt; &quot;rgba(0, 0, 0, 0.5) 0px 0px 5px&quot;),
+    )
+    dropdown = Dropdown([&quot;a&quot;, &quot;b&quot;, &quot;c&quot;]; index=2, style=style)
+    on(dropdown.value) do value
+        @info value
+    end
+    return dropdown
+end
+</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/234ae9231973244ee1820b9cc188bb3e173414a3/src/widgets.jl#L178-L188">source</a></section></article><div class="bonito-fragment" id="3c612395-363e-4729-9799-b9c7bbf7ab3f" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_11:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 0px 5px;
+  outline: 1px solid transparent;
+}
+.style_12 {
+  min-width: 8rem;
+  font-weight: 500;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+}
+.style_13:hover {
+  background-color: silver;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/a7fb0beda592b9802017fcbf77bf9401eccad79f-13453823867223683787.bin').then(msgs=> Bonito.init_session('3c612395-363e-4729-9799-b9c7bbf7ab3f', msgs, 'sub', false));
+    })
+</script>
+    <select class=" style_11 style_12 style_13" style="" data-jscall-id="4">
+      <option data-jscall-id="5">a</option>
+      <option data-jscall-id="6">b</option>
+      <option data-jscall-id="7">c</option>
+    </select>
+  </div>
+</div><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Bonito.Card" href="#Bonito.Card"><code>Bonito.Card</code></a> — <span class="docstring-category">Function</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Card(
+    content;
+    style::Styles=Styles(),
+    backgroundcolor=RGBA(1, 1, 1, 0.2),
+    shadow_size=&quot;0 4px 8px&quot;,
+    padding=&quot;12px&quot;,
+    margin=&quot;2px&quot;,
+    shadow_color=RGBA(0, 0, 0.2, 0.2),
+    width=&quot;auto&quot;,
+    height=&quot;auto&quot;,
+    border_radius=&quot;10px&quot;,
+    div_attributes...,
+)</code></pre><p>A Card is a container with a shadow and rounded corners. It is a good way to group elements together and make them stand out from the background. One can easily style them via the above keyword arguments or via the <code>style</code> argument with any CSS attribute.</p><p><strong>Example</strong></p><pre><code class="language- hljs">    App() do
+        Card(
+            DOM.h1(&quot;This is a card&quot;);
+            width=&quot;200px&quot;,
+            height=&quot;200px&quot;,
+            backgroundcolor=&quot;white&quot;,
+            shadow_size=&quot;0 0 10px&quot;,
+            shadow_color=&quot;blue&quot;,
+            padding=&quot;20px&quot;,
+            margin=&quot;20px&quot;,
+            border_radius=&quot;20px&quot;,
+            style = Styles(
+                CSS(&quot;hover&quot;, &quot;background-color&quot; =&gt; &quot;lightgray&quot;)
+            )
+        )
+    end
+</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/234ae9231973244ee1820b9cc188bb3e173414a3/src/components.jl#L20-L44">source</a></section></article><div class="bonito-fragment" id="7925d36f-27b3-4fac-b332-75e51c879e85" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_14 {
+  height: 200px;
+  padding: 20px;
+  background-color: white;
+  box-shadow: 0 0 10px blue;
+  width: 200px;
+  border-radius: 20px;
+  margin: 20px;
+}
+.style_15hover {
+  background-color: lightgray;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">Bonito.lock_loading(() => Bonito.init_session('7925d36f-27b3-4fac-b332-75e51c879e85', null, 'sub', false))</script>
+    <div class=" style_14 style_15" style="" data-jscall-id="8">
+      <h1 data-jscall-id="9">This is a card</h1>
+    </div>
+  </div>
+</div><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Bonito.StylableSlider" href="#Bonito.StylableSlider"><code>Bonito.StylableSlider</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">StylableSlider(
+    range::AbstractVector;
+    value=first(range),
+    slider_height=15,
+    thumb_width=slider_height,
+    thumb_height=slider_height,
+    track_height=slider_height / 2,
+    track_active_height=track_height + 2,
+    backgroundcolor=&quot;transparent&quot;,
+    track_color=&quot;#eee&quot;,
+    track_active_color=&quot;#ddd&quot;,
+    thumb_color=&quot;#fff&quot;,
+    style::Styles=Styles(),
+    track_style::Styles=Styles(),
+    thumb_style::Styles=Styles(),
+    track_active_style::Styles=Styles(),
+)</code></pre><p>Creates a Stylable Slider, where the basic attributes are easily custimizable via keyword arguments, while the more advanced details can be styled via the <code>style</code>, <code>track_style</code>, <code>thumb_style</code> and <code>track_active_style</code> arguments with the whole might of CSS. This does not use <code>&lt;input type=&quot;range&quot;&gt;</code> but is a custom implementation using <code>&lt;div&gt;</code>s javascript, since it is not easily possible to style the native slider in a cross-browser way. For using pure HTML sliders, use <code>Bonito.Slider</code>.</p><p><strong>Example</strong></p><pre><code class="language- hljs">App() do
+    Bonito.StylableSlider(
+        1:10;
+        value=5,
+        slider_height=20,
+        track_color=&quot;lightblue&quot;,
+        track_active_color=&quot;#F0F8FF&quot;,
+        thumb_color=&quot;#fff&quot;,
+        style=Styles(
+            CSS(&quot;hover&quot;, &quot;background-color&quot; =&gt; &quot;lightgray&quot;),
+            CSS(&quot;border-radius&quot; =&gt; &quot;0px&quot;),
+        ),
+        track_style=Styles(
+            &quot;border-radius&quot; =&gt; &quot;3px&quot;,
+            &quot;border&quot; =&gt; &quot;1px solid black&quot;,
+        ),
+        thumb_style=Styles(
+            &quot;border-radius&quot; =&gt; &quot;3px&quot;,
+            &quot;border&quot; =&gt; &quot;1px solid black&quot;,
+        ),
+    )
+end
+</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/234ae9231973244ee1820b9cc188bb3e173414a3/src/components.jl#L199-L229">source</a></section></article><div class="bonito-fragment" id="58d8871b-3f99-416d-b0eb-5bd7d9d6601a" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_16 {
+  height: 12.0px;
+  border: 1px solid #ccc;
+  background-color: #F0F8FF;
+  position: absolute;
+  width: 0px;
+  border-radius: 3px;
+}
+.style_17 {
+  align-items: center;
+  display: grid;
+  background-color: transparent;
+  grid-template-columns: 1fr;
+  padding-right: 12.0px;
+  position: relative;
+  border-radius: 0px;
+  grid-template-rows: 20px;
+  margin: 6px;
+  padding-left: 12.0px;
+}
+.style_18 {
+  height: 10.0px;
+  border: 1px solid black;
+  background-color: lightblue;
+  position: absolute;
+  width: 100%;
+  border-radius: 3px;
+}
+.style_19 {
+  left: -10.0px;
+  height: 20px;
+  border: 1px solid black;
+  background-color: #fff;
+  position: absolute;
+  width: 20px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.style_20hover {
+  background-color: lightgray;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/ffa37845ff33198a4fd78444cc4a1a7476cabc5d-13137959073366546111.bin').then(msgs=> Bonito.init_session('58d8871b-3f99-416d-b0eb-5bd7d9d6601a', msgs, 'sub', false));
+    })
+</script>
+    <div class=" style_17 style_20" style="" data-jscall-id="10">
+      <div class=" style_18" style="" data-jscall-id="11"></div>
+      <div class=" style_16" style="" data-jscall-id="12"></div>
+      <div class=" style_19" style="" data-jscall-id="13"></div>
+    </div>
+  </div>
+</div><h2 id="Widgets-in-Layouts"><a class="docs-heading-anchor" href="#Widgets-in-Layouts">Widgets in Layouts</a><a id="Widgets-in-Layouts-1"></a><a class="docs-heading-anchor-permalink" href="#Widgets-in-Layouts" title="Permalink"></a></h2><p>There are a few helpers to e.g. put a label next to a widget:</p><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Bonito.Labeled" href="#Bonito.Labeled"><code>Bonito.Labeled</code></a> — <span class="docstring-category">Function</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Labeled(object, label; label_style=Styles(), attributes...)</code></pre><p>A Labeled container with a simople layout to put a label next to an object.</p><pre><code class="language- hljs">App() do
+    label_style = Styles(
+        &quot;color&quot; =&gt; &quot;white&quot;,
+        &quot;padding&quot; =&gt; &quot;3px&quot;,
+        &quot;font-size&quot; =&gt; &quot;1.5rem&quot;,
+        &quot;text-shadow&quot; =&gt; &quot;0px 0px 10px black, 1px 1px 3px black&quot;)
+    slider = StylableSlider(1:10)
+    Card(Labeled(slider, slider.value; label_style=label_style, width=&quot;auto&quot;); backgroundcolor=&quot;gray&quot;)
+end
+</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/SimonDanisch/Bonito.jl/blob/234ae9231973244ee1820b9cc188bb3e173414a3/src/components.jl#L428-L436">source</a></section></article><div class="bonito-fragment" id="fc282928-3b3d-43a5-9dca-f1006e790e33" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_21 {
+  align-items: center;
+  display: grid;
+  background-color: transparent;
+  grid-template-columns: 1fr;
+  padding-right: 9.5px;
+  position: relative;
+  margin: 5px;
+  grid-template-rows: 15px;
+  padding-left: 9.5px;
+}
+.style_22 {
+  justify-items: stretch;
+  align-items: center;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: 1fr;
+  justify-content: normal;
+  grid-template-columns: 1fr min-content;
+  width: auto;
+  grid-template-areas: none;
+}
+.style_23 {
+  left: -7.5px;
+  height: 15px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  position: absolute;
+  width: 15px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.style_24 {
+  height: 9.5px;
+  border: 1px solid #ccc;
+  background-color: #ddd;
+  position: absolute;
+  width: 0px;
+  border-radius: 3px;
+}
+.style_25 {
+  height: auto;
+  padding: 12px;
+  background-color: gray;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  width: auto;
+  border-radius: 10px;
+  margin: 2px;
+}
+.style_26 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  padding: 3px;
+  text-shadow: 0px 0px 10px black, 1px 1px 3px black;
+  color: white;
+}
+.style_27 {
+  height: 7.5px;
+  border: 1px solid #ccc;
+  background-color: #eee;
+  position: absolute;
+  width: 100%;
+  border-radius: 3px;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/89c1d5eb65906624a89122e0d3392b18be3e4165-428030531259103191.bin').then(msgs=> Bonito.init_session('fc282928-3b3d-43a5-9dca-f1006e790e33', msgs, 'sub', false));
+    })
+</script>
+    <div class=" style_25" style="" data-jscall-id="14">
+      <div class=" style_22" style="" data-jscall-id="15">
+        <div class=" style_21" style="" data-jscall-id="16">
+          <div class=" style_27" style="" data-jscall-id="17"></div>
+          <div class=" style_24" style="" data-jscall-id="18"></div>
+          <div class=" style_23" style="" data-jscall-id="19"></div>
+        </div>
+        <span class=" style_26" style="" data-jscall-id="20">
+          <span data-jscall-id="21">1</span>
+        </span>
+      </div>
+    </div>
+  </div>
+</div><p>To create more complex layouts, one should use e.g. <a href="layouting.html#Bonito.Grid"><code>Grid</code></a>, and visit the <a href="layouting.html#Layouting">Layouting</a> tutorial.</p><pre><code class="language-julia hljs">App() do session
+    s = Bonito.StylableSlider(0:10;)
+    d = Dropdown([&quot;a&quot;, &quot;b&quot;, &quot;c&quot;])
+    ni = NumberInput(10.0)
+    ti = Bonito.TextField(&quot;helo&quot;)
+    button = Button(&quot;click&quot;)
+    clicks = Observable(0)
+    on(session, button.value) do bool
+        clicks[] = clicks[] + 1
+    end
+    return Card(Grid(
+            button, Bonito.Label(clicks),
+            s, Bonito.Label(s.value),
+            d, Bonito.Label(d.value),
+            ni, Bonito.Label(ni.value),
+            ti, Bonito.Label(ti.value);
+            columns=&quot;1fr min-content&quot;,
+            justify_content=&quot;begin&quot;,
+            align_items=&quot;center&quot;,
+        ); width=&quot;300px&quot;,)
+end</code></pre><div class="bonito-fragment" id="2171eb6c-d8f8-4409-9d7d-9999b6bd5081" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_28 {
+  height: auto;
+  padding: 12px;
+  background-color: rgba(255.0, 255.0, 255.0, 0.2);
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  width: 300px;
+  border-radius: 10px;
+  margin: 2px;
+}
+.style_29 {
+  min-width: 8rem;
+  font-weight: 600;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+}
+.style_30 {
+  align-items: center;
+  display: grid;
+  background-color: transparent;
+  grid-template-columns: 1fr;
+  padding-right: 9.5px;
+  position: relative;
+  margin: 5px;
+  grid-template-rows: 15px;
+  padding-left: 9.5px;
+}
+.style_31 {
+  justify-items: legacy;
+  align-items: center;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: begin;
+  grid-template-columns: 1fr min-content;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_32 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.style_33 {
+  left: -7.5px;
+  height: 15px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  position: absolute;
+  width: 15px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.style_34 {
+  height: 9.5px;
+  border: 1px solid #ccc;
+  background-color: #ddd;
+  position: absolute;
+  width: 0px;
+  border-radius: 3px;
+}
+.style_35:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(66, 153, 225, 0.5) 0px 0px 0px 1px;
+  outline: 1px solid transparent;
+}
+.style_36 {
+  height: 7.5px;
+  border: 1px solid #ccc;
+  background-color: #eee;
+  position: absolute;
+  width: 100%;
+  border-radius: 3px;
+}
+.style_37:hover {
+  background-color: #F9FAFB;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/677be268f5682004330d85140076f7dda6f80d1b-4262914961054775352.bin').then(msgs=> Bonito.init_session('2171eb6c-d8f8-4409-9d7d-9999b6bd5081', msgs, 'sub', false));
+    })
+</script>
+    <div class=" style_28" style="" data-jscall-id="22">
+      <div class=" style_31" style="" data-jscall-id="23">
+        <button onclick="" class=" style_29 style_35 style_37" style="" data-jscall-id="24">click</button>
+        <span class=" style_32" style="" data-jscall-id="25">
+          <span data-jscall-id="26">0</span>
+        </span>
+        <div class=" style_30" style="" data-jscall-id="27">
+          <div class=" style_36" style="" data-jscall-id="28"></div>
+          <div class=" style_34" style="" data-jscall-id="29"></div>
+          <div class=" style_33" style="" data-jscall-id="30"></div>
+        </div>
+        <span class=" style_32" style="" data-jscall-id="31">
+          <span data-jscall-id="32">0</span>
+        </span>
+        <select class=" style_29 style_35 style_37" style="" data-jscall-id="33">
+          <option data-jscall-id="34">a</option>
+          <option data-jscall-id="35">b</option>
+          <option data-jscall-id="36">c</option>
+        </select>
+        <span class=" style_32" style="" data-jscall-id="37">
+          <div data-jscall-id="39">
+            <div class="bonito-fragment" id="973e191a-62a7-4c59-9f10-cb5667b51ec4" data-jscall-id="subsession-application-dom">
+              <div data-jscall-id="40">
+                <style data-jscall-id="41"></style>
+              </div>
+              <div data-jscall-id="42">
+                <script data-jscall-id="43" type="module">Bonito.lock_loading(() => Bonito.init_session('973e191a-62a7-4c59-9f10-cb5667b51ec4', null, 'sub', false))</script>
+                <span data-jscall-id="38">a</span>
+              </div>
+            </div>
+          </div>
+        </span>
+        <input class=" style_29 style_35 style_37" style="" data-jscall-id="44" value="10.0" onchange="" type="number" />
+        <span class=" style_32" style="" data-jscall-id="45">
+          <span data-jscall-id="46">10.0</span>
+        </span>
+        <input class=" style_29 style_35 style_37" style="" data-jscall-id="47" value="helo" onchange="" type="textfield" />
+        <span class=" style_32" style="" data-jscall-id="48">
+          <span data-jscall-id="49">helo</span>
+        </span>
+      </div>
+    </div>
+  </div>
+</div><h2 id="Editor"><a class="docs-heading-anchor" href="#Editor">Editor</a><a id="Editor-1"></a><a class="docs-heading-anchor-permalink" href="#Editor" title="Permalink"></a></h2><p>This editor works in pure Javascript, so feel free to try out editing the Javascript and clicking <code>eval</code> to see how the output changes. In <code>Bonito/examples/editor.jl</code>, you will find a version that works with Julia code, but that requires a running Julia server of course.</p><pre><code class="language-julia hljs">using Bonito, Observables
+src = &quot;&quot;&quot;
+(() =&gt; {
+    const canvas = document.createElement(&quot;canvas&quot;);
+    const context = canvas.getContext(&#39;2d&#39;);
+    const width = 500
+    const height = 400
+    canvas.width = width;
+    canvas.height = height;
+    const gradient = context.createRadialGradient(200, 200, 0, 200, 200, 200);
+    gradient.addColorStop(&quot;0&quot;, &quot;magenta&quot;);
+    gradient.addColorStop(&quot;.25&quot;, &quot;blue&quot;);
+    gradient.addColorStop(&quot;.50&quot;, &quot;green&quot;);
+    gradient.addColorStop(&quot;.75&quot;, &quot;yellow&quot;);
+    gradient.addColorStop(&quot;1.0&quot;, &quot;red&quot;);
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, height);
+    return canvas;
+})();
+&quot;&quot;&quot;
+App() do session::Session
+    editor = CodeEditor(&quot;javascript&quot;; initial_source=src, width=800, height=300)
+    eval_button = Button(&quot;eval&quot;)
+    output = DOM.div(DOM.span())
+    Bonito.onjs(session, eval_button.value, js&quot;&quot;&quot;function (click){
+        const js_src = $(editor.onchange).value;
+        const result = new Function(&quot;return &quot; + (js_src))()
+        let dom;
+        if (typeof result === &#39;object&#39; &amp;&amp; result.nodeName) {
+            dom = result
+        } else {
+            const span = document.createElement(&quot;span&quot;)
+            span.innerText = result;
+            dom = span
+        }
+        Bonito.update_or_replace($(output), dom, false);
+        return
+    }
+    &quot;&quot;&quot;)
+    notify(eval_button.value)
+    return DOM.div(editor, eval_button, output)
+end</code></pre><div class="bonito-fragment" id="86a2aed1-3335-4571-9568-203641fd6799" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_38 {
+  min-width: 8rem;
+  font-weight: 600;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+}
+.style_39 {
+  height: 300px;
+  position: relative;
+}
+.style_40:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(66, 153, 225, 0.5) 0px 0px 0px 1px;
+  outline: 1px solid transparent;
+}
+.style_41:hover {
+  background-color: #F9FAFB;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+</style>
+  </div>
+  <div>
+    <script type="module">    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/0dbb8b8abd2ef2b0df846a7e614c1647bb6ab5ea-10902244390123225988.bin').then(msgs=> Bonito.init_session('86a2aed1-3335-4571-9568-203641fd6799', msgs, 'sub', false));
+    })
+</script>
+    <div data-jscall-id="51">
+      <div data-jscall-id="52">
+        <script data-jscall-id="53"></script>
+        <div class=" style_39" style="" data-jscall-id="54"></div>
+      </div>
+      <button onclick="" class=" style_38 style_40 style_41" style="" data-jscall-id="55">eval</button>
+      <div data-jscall-id="50">
+        <span data-jscall-id="56"></span>
+      </div>
+    </div>
+  </div>
+</div><h2 id="Tailwinddashboard"><a class="docs-heading-anchor" href="#Tailwinddashboard">Tailwinddashboard</a><a id="Tailwinddashboard-1"></a><a class="docs-heading-anchor-permalink" href="#Tailwinddashboard" title="Permalink"></a></h2><p><a href="api.html#Bonito.Styles"><code>Styles</code></a> is preferred to style components, but Bonito also includes some <a href="https://tailwindcss.com/">Tailwind</a> based components. They&#39;re from before <code>Styles</code> and will likely get removed in the future.</p><pre><code class="language-julia hljs">using Bonito
+import Bonito.TailwindDashboard as D
+
+function range_slider(orientation)
+    range_slider = RangeSlider(1:100; value=[10, 80])
+    range_slider.tooltips[] = true
+    range_slider.ticks[] = Dict(
+        &quot;mode&quot; =&gt; &quot;range&quot;,
+        &quot;density&quot; =&gt; 3
+    )
+    range_slider.orientation[] = orientation
+    return range_slider
+end
+
+App() do
+
+    button = D.Button(&quot;click&quot;)
+    textfield = D.TextField(&quot;type in your text&quot;)
+    numberinput = D.NumberInput(0.0)
+    file_input = D.FileInput()
+    on(file_input.value) do file
+        @show file
+    end
+    slider = D.Slider(&quot;Test&quot;, 1:5)
+
+    checkbox = D.Checkbox(&quot;check this&quot;, true)
+    table = Bonito.Table([(a=22, b=33, c=44), (a=22, b=33, c=44)])
+
+    source = &quot;&quot;&quot;
+    function test(a, b)
+        return a + b
+    end
+    &quot;&quot;&quot;
+    editor = CodeEditor(&quot;julia&quot;; initial_source=source, width=250, height=200, scrollPastEnd=false)
+    dropdown = D.Dropdown(&quot;chose&quot;, [&quot;option 1&quot;, &quot;option 2&quot;, &quot;option 3&quot;])
+
+    vrange_slider = range_slider(Bonito.WidgetsBase.vertical)
+
+    hrange_slider = range_slider(Bonito.WidgetsBase.horizontal)
+
+
+    return DOM.div(
+        D.Card.([
+            D.FlexRow(
+                D.Card(D.FlexCol(
+                    button,
+                    textfield,
+                    numberinput,
+                    dropdown,
+                    file_input,
+                    slider,
+                    checkbox,
+                    class=&quot;items-start&quot;
+                )),
+                D.Card(D.FlexCol(
+                    D.Card(DOM.div(vrange_slider; style=&quot;height: 200px; padding: 1px 50px&quot;)),
+                    D.Card(DOM.div(hrange_slider; style=&quot;width: 200px; padding: 50px 1px&quot;),
+                    )),
+                )),
+            D.FlexRow(
+                D.Card.([
+
+                    D.Card(table; class=&quot;w-64&quot;)
+                    editor
+                ])
+            ),
+        ])...
+    )
+end</code></pre><div class="bonito-fragment" id="a31df14a-df66-48ce-9c5b-8d4598f1d67c" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_42 {
+  height: 200px;
+  position: relative;
+}
+.style_43 {
+  min-width: 8rem;
+  font-weight: 600;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+}
+.style_44:focus {
+  outline-offset: 1px;
+  box-shadow: rgba(66, 153, 225, 0.5) 0px 0px 0px 1px;
+  outline: 1px solid transparent;
+}
+.style_45 {
+  min-width: auto;
+  font-weight: 600;
+  padding-right: 0.75rem;
+  border-color: #9CA3AF;
+  padding-bottom: 0.25rem;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+  border-radius: 0.25rem;
+  font-size: 1rem;
+  background-color: white;
+  border-width: 1px;
+  padding-left: 0.75rem;
+  padding-top: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+  transform: scale(1.5);
+}
+.style_46:hover {
+  background-color: #F9FAFB;
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px;
+}
+</style>
+    <link href="bonito/css/tailwind.min8774971868340764599.css" rel="stylesheet" type="text/css" />
+    <link href="bonito/css/noUISlider17745511426356288094.css" rel="stylesheet" type="text/css" />
+    <link href="bonito/css/table7922069297999506933.css" rel="stylesheet" type="text/css" />
+  </div>
+  <div>
+    <script type="module">    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/2fbd1d773cc2fe906b40427dcc5e49dc06aea27b-8023941860894256702.bin').then(msgs=> Bonito.init_session('a31df14a-df66-48ce-9c5b-8d4598f1d67c', msgs, 'sub', false));
+    })
+</script>
+    <div data-jscall-id="57">
+      <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="58">
+        <div class="mx-2 flex flex-row " data-jscall-id="59">
+          <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="60">
+            <div class="my-2 flex flex-col items-start" data-jscall-id="61">
+              <button onclick="" class=" focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow style_43 style_44 style_46" style="" data-jscall-id="62">click</button>
+              <input class=" focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow style_43 style_44 style_46" style="" data-jscall-id="63" value="type in your text" onchange="" type="textfield" />
+              <input class=" focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow style_43 style_44 style_46" style="" data-jscall-id="64" value="0.0" onchange="" type="number" />
+              <div class="flex-row, mb-1 mt-1 " data-jscall-id="65">
+                <h2 class="font-semibold " data-jscall-id="66">chose</h2>
+                <select class=" focus:outline-none focus:shadow-outline focus:border-blue-300 bg-white bg-gray-100 hover:bg-white text-gray-800 font-semibold m-1 py-1 px-3 border border-gray-400 rounded shadow style_43 style_44 style_46" style="" data-jscall-id="67">
+                  <option data-jscall-id="68">option 1</option>
+                  <option data-jscall-id="69">option 2</option>
+                  <option data-jscall-id="70">option 3</option>
+                </select>
+              </div>
+              <input multiple="true" onchange="event =&#62; {&#10;    if (event.target.files) {&#10;        const files = [];&#10;        for (const file of event.target.files) {&#10;            files.push(URL.createObjectURL(file))&#10;        }&#10;        __lookup_interpolated('12742758997869105762').notify(files);&#10;    }&#10;}" type="file" />
+              <div class="flex-row, mb-1 mt-1 " data-jscall-id="71">
+                <h2 class="font-semibold " data-jscall-id="72">
+                  <div data-jscall-id="73">Test
+                    <div class="float-right text-right text w-32" data-jscall-id="74">
+                      <span data-jscall-id="75">1</span>
+                    </div>
+                  </div>
+                </h2>
+                <input step="1" max="5" min="1" style="width: 100%;" data-jscall-id="76" value="1" oninput="" type="range" />
+              </div>
+              <div class="flex-row, mb-1 mt-1 " data-jscall-id="77">
+                <h2 class="font-semibold " data-jscall-id="78">check this</h2>
+                <input checked="true" class=" style_44 style_45 style_46" style="" data-jscall-id="79" onchange="" type="checkbox" />
+              </div>
+            </div>
+          </div>
+          <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="80">
+            <div class="my-2 flex flex-col " data-jscall-id="81">
+              <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="82">
+                <div style="height: 200px; padding: 1px 50px" data-jscall-id="83">
+                  <div>
+                    <div data-jscall-id="84"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="85">
+                <div style="width: 200px; padding: 50px 1px" data-jscall-id="86">
+                  <div>
+                    <div data-jscall-id="87"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="88">
+        <div class="mx-2 flex flex-row " data-jscall-id="89">
+          <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="90">
+            <div class="rounded-md p-2 m-2 shadow w-64" style="width: fit-content; height: fit-content; " data-jscall-id="91">
+              <div>
+                <table class="">
+                  <thead>
+                    <tr>
+                      <th>a</th>
+                      <th>b</th>
+                      <th>c</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>22</td>
+                      <td>33</td>
+                      <td>44</td>
+                    </tr>
+                    <tr>
+                      <td>22</td>
+                      <td>33</td>
+                      <td>44</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="rounded-md p-2 m-2 shadow " style="width: fit-content; height: fit-content; " data-jscall-id="92">
+            <div data-jscall-id="93">
+              <script data-jscall-id="94"></script>
+              <div class=" style_42" style="" data-jscall-id="95"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="layouting.html">« Layouting</a><a class="docs-footer-nextpage" href="interactions.html">Interactions »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.13.0 on <span class="colophon-date" title="Thursday 26 June 2025 14:24">Thursday 26 June 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
