@@ -233,22 +233,23 @@ js\"\"\"
 
 ## Rebundling
 
-Bonito tracks the timestamp of the main module file and will automatically
-rebundle if it detects changes. However, changes to imported/included files
-(e.g., `Session.js` imported by `Bonito.js`) are not tracked.
+Bundling is automatic. Bonito writes a `<name>.bundled.js` next to the source and
+regenerates it whenever the bundle is missing or older than the *main* module file
+(see [`needs_bundling`](@ref)). With Deno + esbuild loaded and a writable source,
+it re-bundles from source; if a fresh bundle can't be produced (read-only
+filesystem, missing source, Deno/esbuild not loaded, or a `deno bundle` error) it
+serves the cached/shipped bundle instead of crashing (see [`bundle_inner!`](@ref)).
 
-To force a rebundle when you've modified an included file, delete the bundle file:
+The mtime check only watches the main module file, so editing an **imported** file
+(e.g. `Session.js` imported by `Bonito.js`) won't trigger a rebundle. Force one by
+deleting the bundle — it's regenerated on next use:
 
 ```julia
 mod = ES6Module("path/to/module.js")
-rm(mod.bundle_file)  # Bonito will rebundle on next use
+rm(String(mod.bundle_file))   # Bonito rebundles on next use
 ```
 
-For Bonito's internal JavaScript:
-
-```julia
-rm(Bonito.BonitoLib.bundle_file)
-```
+or, when you can't touch the filesystem, [`rebundle!`](@ref)`(mod)`.
 """
 function ES6Module(path)
     name = String(splitext(basename(path))[1])
@@ -377,6 +378,19 @@ function file_writeable(path::String)
     end
 end
 
+"""
+    needs_bundling(path, bundled) -> Bool
+    needs_bundling(asset::Asset) -> Bool
+
+Whether the bundle at `bundled` must be (re)generated from the source at `path`.
+True when the bundle is **missing**, or when it exists, is **writable**, and is
+**older than the source**. A non-es6 asset never needs bundling.
+
+A bundle we can't rewrite is treated as a trusted shipped bundle (see the
+read-only note below), so it never reports stale — that case is served as-is
+rather than looping on a re-bundle that can't be written. [`bundle_inner!`](@ref)
+does the actual (re)bundle, falling back to the cached bytes when it can't.
+"""
 function needs_bundling(path, bundled)
     is_online(path) && return !isfile(bundled)
     !isfile(bundled) && return true
@@ -412,6 +426,15 @@ function bundle_data_snapshot(asset::Asset)
     end
 end
 
+"""
+    bundle!(asset::Asset)
+
+(Re)bundle `asset` if [`needs_bundling`](@ref) says so, serialized per asset via
+its `bundle_lock`. Cheap and idempotent: a no-op when the on-disk bundle is
+already current, so it's safe to call on every render (it is — see
+`print_js_code` and `local_path`). The actual work — and the fall-back-to-cache
+behaviour when a fresh bundle can't be produced — lives in [`bundle_inner!`](@ref).
+"""
 function bundle!(asset::Asset)
     needs_bundling(asset) || return
     lock(asset.bundle_lock) do
@@ -423,35 +446,57 @@ function bundle!(asset::Asset)
     return
 end
 
+"""
+    bundle_inner!(asset::Asset)
+
+(Re)generate `asset`'s on-disk `*.bundled.js` and mirror it into the cached
+`asset.bundle_data`. Called under the asset's `bundle_lock` from [`bundle!`], only
+when [`needs_bundling`](@ref) said a (re)bundle is due.
+
+When Deno + esbuild are loaded and the source is present on a writable filesystem,
+the bundle is regenerated from source and the fresh bytes are served — so a
+removed `*.bundled.js` reliably re-bundles.
+
+When a fresh bundle *can't* be produced — read-only filesystem, missing/unreachable
+source, `Deno_jll`/`esbuild_jll` not loaded, or a `deno bundle` error — we serve
+the cached `bundle_data` (the snapshot taken at [`Asset`](@ref) construction, or
+the last successful bundle) rather than crash the app: **a stale bundle beats a
+dead page.** We only raise when there is genuinely *nothing* to serve — no bundle
+on disk *and* an empty `bundle_data` — which is what makes CI fail on a package
+that forgot to ship a bundle.
+"""
 function bundle_inner!(asset::Asset)
     bundle_file = String(bundle_path(asset))
     source = String(get_path(asset))
     has_been_bundled, err = deno_bundle(source, bundle_file)
-    if isfile(bundle_file)
+    if has_been_bundled || isfile(bundle_file)
+        # A bundle exists on disk: either the fresh one deno just wrote
+        # (`has_been_bundled`), or a pre-existing/shipped one we keep (best effort)
+        # when re-bundling failed. Mirror it into memory so HTTP serving and
+        # relocation use the same bytes.
         data = read(bundle_file)
         resize!(asset.bundle_data, length(data))
         copyto!(asset.bundle_data, data)
         asset.content_hash[] = hash_content(data)
-        # when shipping, we don't have the correct time stamps, so we can't accurately say if we need bundling :(
-        # So we need to rely on the package authors to bundle before creating a new release!
         return
     end
-    # if bundle_data is stored in the asset, we dont necessarily need to bundle
-    # But it's likely outdated - which is fine for e.g. relocatable packages
-    if !has_been_bundled && isempty(asset.bundle_data)
-        # Not bundling if bundling is needed is an error...
-        # In theory it could be a warning, but this way we make CI fail, so that
-        # PRs that forget to bundle JS dependencies will fail!
-        error("Asset $(asset) needs bundling.
-            If you've edited the asset, please load `Deno_jll` (e.g. `using Deno_jll, Bonito`),
-            which is an optional dependency needed for Developing Bonito Assets.
-            After that, assets should be bundled on precompile and whenever they're used after editing the asset.
-            If you're just using a package, please open an issue with the Package maintainers,
-            they must have forgotten bundling.
+    # No bundle on disk and deno produced none.
+    if isempty(asset.bundle_data)
+        # Nothing on disk, nothing cached, and we can't bundle -> fail loudly so a
+        # forgotten/broken bundle surfaces (e.g. CI) instead of serving an empty
+        # asset.
+        error("Asset $(asset) needs bundling, but no bundle could be produced and \
+            nothing is cached.
+            If you've edited the asset, make sure `Deno_jll` and `esbuild_jll` load
+            on this platform (optional dependencies that back `deno bundle`, only
+            needed for developing Bonito assets).
+            If you're just using a package, please open an issue with its
+            maintainers — they likely forgot to ship a bundle.
             Error: $err")
     end
-    if !isempty(asset.bundle_data) && !has_been_bundled && isfile(source)
-        @warn "Asset $(asset) being served from memory, but failed to bundle with error: $(err)."
-    end
+    # We have a cached bundle from a previous build / construction: serve it rather
+    # than crash. Covers a read-only filesystem, a missing/unreachable source,
+    # Deno/esbuild not loaded, or a `deno bundle` failure.
+    @warn "Asset $(asset) served from its cached bundle; could not (re)bundle from source: $err"
     return
 end
