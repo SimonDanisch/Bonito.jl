@@ -14,6 +14,7 @@ All notable changes to Bonito.jl are documented here. The format is based on [Ke
 
 ### Fixed
 
+- A message that can't be packed, such as an array of `N0f8`, now fails when it is sent. It used to count as a lost connection, so it stayed queued for the life of the page and the browser never received it, with nothing logged above debug level. A failed observable update is now logged as an error and shown by the connection indicator.
 - Proxied apps reuse the host's Bonito runtime, so a relative asset URL or hostname alias cannot load a second runtime and leave the host unready.
 - The precompile serving workload waits for session readiness instead of assuming initialization finishes within 200 ms.
 - Pin the browser queue dependency so rebuilding bundles does not pick up incompatible upstream releases.

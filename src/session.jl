@@ -540,12 +540,17 @@ function _send(session::Session, sm::SerializedMessage, large::Bool)
     # queue (where the page wrap's init bundle picks it up) rather than crash
     # the surrounding render. External waiters surface the error themselves.
     lock(deletion_lock(root_session(session))) do
+        # Packing is about the message, not the connection: a message that can't
+        # be packed never can, so it must fail here, for the caller to see, and
+        # not wait in the queue. A queued one would never reach the browser, and
+        # replaying it would take down the whole bundle around it.
+        bytes = serialize_binary(sm)
         if isready(session; throw=false)
             try
                 if large
-                    write_large(session.connection, serialize_binary(sm))
+                    write_large(session.connection, bytes)
                 else
-                    write(session.connection, sm)
+                    write(session.connection, bytes)
                 end
                 return
             catch e
