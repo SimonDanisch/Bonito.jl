@@ -492,5 +492,23 @@ Logging.with_logger(Logging.NullLogger()) do
         @test s2.init_error[] isa _ErrHandlingDemoErr
         @test s2.init_error[].msg == "inner"
     end
+
+    @testset "a message that can't be packed fails at the send and is never queued" begin
+        # It used to count as a lost connection: queued, logged at debug level, and
+        # never delivered, while the page looked connected.
+        s = Session(Bonito.NoConnection(); asset_server=Bonito.NoServer())
+        message(value) = Bonito.SerializedMessage(s, Dict{String,Any}(
+            "payload" => value, "id" => "x", "msg_type" => Bonito.UpdateObservable))
+        for unpackable in (Bonito.Colors.FixedPointNumbers.N0f8[0.5], _ErrHandlingUnpackable())
+            @test_throws r"MsgPack mapping" Bonito.send(s, message(unpackable))
+            @test isempty(s.message_queue)
+        end
+        # A message that can be packed still waits for the connection, and the queue
+        # still packs for its replay.
+        Bonito.send(s, message(UInt8[1]))
+        @test length(s.message_queue) == 1
+        @test Bonito.serialize_binary(Bonito.SerializedMessage(s, Bonito.fused_messages!(s))) isa Vector{UInt8}
+        close(s)
+    end
 end  # Logging.with_logger
 end  # @testset "error handling"

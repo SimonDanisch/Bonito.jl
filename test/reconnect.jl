@@ -414,6 +414,53 @@ end
         end
     end
 
+    # WGLMakie sent `N0f8` textures, which MsgPack has no mapping for. The failed
+    # pack counted as a lost connection: the figure's update stayed queued for the
+    # life of the page, and nothing above debug level said so.
+    @testset "an update that can't be packed is reported, and the page keeps working" begin
+        unpackable = Bonito.Colors.FixedPointNumbers.N0f8[0.5]
+        value = Observable{Any}(0)
+        app = App() do s
+            evaljs(s, js"window.__v = $(value); window.__ready = true;")
+            return DOM.div("page")
+        end
+        server = Bonito.Server(app, "127.0.0.1", 0; proxy_url = ".")
+        proxy = TunnelProxy(server.port)
+        win = ElectronCall.Window(get_test_app(), ElectronCall.URI("http://127.0.0.1:$(proxy.port)/"); show = false)
+        try
+            @test wait_for(() -> run(win, "window.__ready === true"); timeout = 30) == :success
+            root = root_session(app.session[])
+            # The page's script runs when the init bundle arrives, just before the
+            # server marks the session ready.
+            @test wait_for(() -> isready(root; throw = false); timeout = 10) == :success
+
+            # connected
+            @test_logs (:error, r"JSUpdateObservable") match_mode = :any (value[] = unpackable)
+            @test isempty(root.message_queue)
+            @test root.init_error[] isa Exception
+            @test isready(root; throw = false)
+            value[] = 1
+            @test wait_for(() -> run(win, "window.__v.value") == 1; timeout = 10) == :success
+
+            # disconnected: the bad update must not take down the replay of a good one
+            proxy.refuse[] = true
+            foreach(drop!, copy(proxy.legs))
+            @test wait_for(() -> !isopen(root); timeout = 10) == :success
+            @test_logs (:error, r"JSUpdateObservable") match_mode = :any (value[] = unpackable)
+            @test isempty(root.message_queue)
+            value[] = 2
+            @test length(root.message_queue) == 1
+            proxy.refuse[] = false
+            run(win, "window.WEBSOCKET.on_visible()")
+            @test wait_for(() -> run(win, "window.__v.value") == 2; timeout = 30) == :success
+            @test isempty(root.message_queue)
+        finally
+            close(win)
+            close(proxy)
+            close(server)
+        end
+    end
+
 end
 
 @testset "DualWebsocket replays after either socket reconnects" begin
