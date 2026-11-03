@@ -121,3 +121,22 @@ app = App() do session, request
     return dom
 end
 ```
+
+## Documentation site assets
+
+With the Bonito Documenter writer, list a favicon, extra CSS, or scripts in
+`assets`. Local paths are relative to `docs/src`; Documenter copies these files
+to the build directory. The writer adds them to the head of each page, including
+the landing page and blog posts.
+
+```julia
+makedocs(;
+    format = Bonito.DocumenterBonito(;
+        assets = ["assets/favicon.ico", "assets/custom.css", "assets/custom.js"],
+    ),
+)
+```
+
+Use `Documenter.asset("https://example.org/custom.css")` for a remote asset,
+or supply `class` and `attributes` through `Documenter.asset` as with
+`Documenter.HTML`.

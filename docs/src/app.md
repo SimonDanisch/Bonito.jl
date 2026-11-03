@@ -64,10 +64,15 @@ The `App` constructor accepts the following keyword arguments:
 ```julia
 App(handler;
     title="Bonito App",     # Browser tab title
+    favicon=nothing,        # Browser tab icon: Asset, local path, or URL
     indicator=nothing,       # Connection status indicator (nothing by default)
     loading_page=nothing     # Loading page shown while handler runs (nothing by default)
 )
 ```
+
+Set `favicon=Asset("logo.svg")` to show your app's icon in the browser tab.
+SVG, PNG and ICO images work with the usual asset serving and static exports.
+An app embedded in a notebook or another app leaves the containing page's icon unchanged.
 
 ## Loading Page
 
