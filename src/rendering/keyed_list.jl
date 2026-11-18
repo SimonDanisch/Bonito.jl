@@ -100,10 +100,10 @@ function jsrender(session::Session, list::KeyedList)
 
         ops = Any[]
         for k in d.removes
-            push!(ops, Dict("type" => "remove", "key" => k))
+            push!(ops, Dict{String,Any}("type" => "remove", "key" => k))
         end
         for (k, after_k) in d.moves
-            push!(ops, Dict("type" => "move", "key" => k, "after_key" => after_k))
+            push!(ops, Dict{String,Any}("type" => "move", "key" => k, "after_key" => after_k))
         end
         isempty(ops) || (ops_obs[] = ops)
 

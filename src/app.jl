@@ -201,7 +201,7 @@ DisplayHandler(session, server, route, current_app, previous_session) =
     DisplayHandler(session, server, route, current_app, previous_session, ReentrantLock())
 
 function Base.close(handler::DisplayHandler)
-    lock(handler.lock) do
+    @lock handler.lock begin
         if !isnothing(handler.previous_session)
             close(handler.previous_session)
             handler.previous_session = nothing
@@ -231,7 +231,7 @@ end
 function update_app!(handler::DisplayHandler, app::App)
     # Serialize with `apply_handler` — both read-then-replace
     # `session`/`previous_session`.
-    lock(handler.lock) do
+    @lock handler.lock let
         # the connection is open, so we can just use it to update the dom!
         old_session = handler.current_app.session[]
         handler.current_app = app
@@ -265,7 +265,7 @@ function HTTPServer.apply_handler(handler::DisplayHandler, context)
     # replace) is racy under two concurrent GETs — they'd close each other's
     # session mid-render and leak a replacement. Hold `handler.lock`
     # across the whole read-replace-render region.
-    lock(handler.lock) do
+    @lock handler.lock let
         parent = handler.session
         not_initialized = parent.status != UNINITIALIZED
         changed_compression = parent.compression_enabled != default_compression()

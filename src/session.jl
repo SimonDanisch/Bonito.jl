@@ -83,7 +83,7 @@ function init_session(session::Session)
             write(session.connection, fused)
         catch e
             @debug "init_session bundle write failed; re-queueing for replay" exception = (e, catch_backtrace())
-            lock(root.deletion_lock) do
+            @lock root.deletion_lock begin
                 isclosed(session) || push!(session.message_queue, fused)
             end
         end
@@ -123,7 +123,7 @@ Metadata is stored on the root session and shared across all child sessions.
 """
 function get_metadata(session::Session, key::Symbol, default=nothing)
     root = root_session(session)
-    return lock(root.deletion_lock) do
+    return @lock root.deletion_lock begin
         get(root.metadata, key, default)
     end
 end
@@ -136,7 +136,7 @@ Metadata is stored on the root session and shared across all child sessions.
 """
 function set_metadata!(session::Session, key::Symbol, value)
     root = root_session(session)
-    lock(root.deletion_lock) do
+    @lock root.deletion_lock begin
         root.metadata[key] = value
     end
     return value
@@ -347,7 +347,7 @@ function retain_loading_assets!(root::Session, session::Session; timeout = 300.0
         root.pending_asset_timer = Timer(min(timeout, 1.0); interval = min(timeout, 1.0)) do timer
             owner = weak_root.value
             owner === nothing && return close(timer)
-            lock(owner.deletion_lock) do
+            @lock owner.deletion_lock begin
                 expire_loading_assets!(owner; timeout)
             end
         end
@@ -459,7 +459,7 @@ const COLLECT_LOCK = Base.ReentrantLock()
 
 function collect_message!(message)
     COLLECT_MESSAGES[] || return
-    lock(COLLECT_LOCK) do
+    @lock COLLECT_LOCK let
         if message isa SerializedMessage
             msg = decode_extension_and_addbits(deserialize(message))
         else
@@ -570,7 +570,7 @@ end
 
 
 function _send(session::Session, message::Dict, large::Bool)
-    lock(deletion_lock(root_session(session))) do
+    @lock deletion_lock(root_session(session)) begin
         _send(session, SerializedMessage(session, message), large)
     end
 end
@@ -745,7 +745,7 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
     # (e.g. because of syntax error that isn't caught by the above try catch!)
     # TODO do this with channels, but we still dont have a way to timeout for wait(channel)... so...
     result = fetch(Threads.@spawn wait_for(timeout=timeout) do
-        lock(root.deletion_lock) do
+        @lock root.deletion_lock begin
             Bonito.isclosed(session) && return :closed
             return !isnothing(comm[])
         end
@@ -762,7 +762,7 @@ function evaljs_value(session::Session, js; error_on_closed=true, timeout=10.0)
     # sessions. Use the same key the registration used. `remove_js_updates!`
     # also matches by key (the JSUpdateObservable's `.id` is the cache key).
     key = cache_key(session, comm)
-    lock(root.deletion_lock) do
+    @lock root.deletion_lock begin
         remove_js_updates!(key, comm, root_session(session))
         delete!(session.session_objects, key)
         delete!(root.session_objects, key)
@@ -905,7 +905,7 @@ end
 setup_runtime(session::Session) = DOM.script(src=url(session, BonitoLib), type="module")
 
 function session_dom(session::Session, dom::Node; init=true, html_document=false, dom_id=isroot(session) ? "root" : "subsession-application-dom", favicon=nothing)
-    lock(root_session(session).deletion_lock) do
+    @lock root_session(session).deletion_lock let
         # the dom we can render may be anything between a
         # dom fragment or a full page with head & body etc.
         # If we have a head & body, we want to append our initialization

@@ -62,7 +62,7 @@ function Base.isopen(ws::WebSocketHandler)
 end
 
 function Base.write(ws::WebSocketHandler, binary::AbstractVector{UInt8})
-    lock(ws.lock) do
+    @lock ws.lock let
         socket = @atomic ws.socket
         if isnothing(socket)
             error("socket closed or not opened yet")

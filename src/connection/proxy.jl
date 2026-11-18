@@ -156,7 +156,7 @@ end
 
 function register_remote!(host::Session, rs::RemoteSession)
     root = root_session(host)
-    lock(root.deletion_lock) do
+    @lock root.deletion_lock begin
         remote_routes(root)[rs.id] = rs
     end
     return rs
@@ -164,7 +164,7 @@ end
 
 function unregister_remote!(host::Session, id::AbstractString)
     root = root_session(host)
-    lock(root.deletion_lock) do
+    @lock root.deletion_lock let
         routes = get(metadata_dict(root), REMOTE_ROUTES_KEY, nothing)
         routes === nothing || delete!(routes, id)
     end

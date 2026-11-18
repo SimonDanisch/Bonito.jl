@@ -162,7 +162,7 @@ function singleton_server(;
         listen_url = from_user # and we respect that!
     end
     create() = Server(listen_url, listen_port; verbose=verbose)
-    return lock(GLOBAL_SERVER_LOCK) do
+    return @lock GLOBAL_SERVER_LOCK let
         if isnothing(GLOBAL_SERVER[])
             @debug "singleton_server: creating new GLOBAL_SERVER at $(listen_url):$(listen_port)"
             GLOBAL_SERVER[] = create()

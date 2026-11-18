@@ -54,7 +54,7 @@ end
 function message_listeners(session::Session, data::AbstractDict)
     get(data, "msg_type", "") == UpdateObservable || return ""
     root = root_session(session)
-    entry = lock(root.deletion_lock) do
+    entry = @lock root.deletion_lock begin
         get(session.session_objects, data["id"], get(root.session_objects, data["id"], nothing))
     end
     obs = entry isa CachedEntry ? entry.object : entry
@@ -136,7 +136,7 @@ function process_message(session::Session, data::AbstractDict)
         # unlocked races those mutations. Snapshot the lookup under the lock,
         # with the `PendingAssetLoad` this report ends; fire `on_connection_ready`
         # outside it.
-        load, sub = lock(root.deletion_lock) do
+        load, sub = @lock root.deletion_lock let
             load = pop!(root.pending_asset_loads, id, nothing)
             expire_loading_assets!(root)
             load, get_session(session, id)
@@ -186,7 +186,7 @@ function process_message(session::Session, data::AbstractDict)
             # Same unlocked-recursion race as JSDoneLoading: take the
             # lock for the `get_session` walk over `session.children`.
             root = root_session(session)
-            sub = lock(root.deletion_lock) do
+            sub = @lock root.deletion_lock begin
                 get_session(session, data["session"])
             end
             if !isnothing(sub)

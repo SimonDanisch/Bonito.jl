@@ -487,7 +487,7 @@ function jsrender(session::Session, slider::RangeSlider)
     style = map(session, args...) do range, connect, orientation, tooltips, ticks
         value = slider.value[]
         return Dict(
-            "range" => Dict("min" => range[1], "max" => range[end]),
+            "range" => Dict{String,Any}("min" => range[1], "max" => range[end]),
             "step" => step(range),
             # Too strongly typed and we get a TypedArray in JS which doesn't work with noUiSlider
             "start" => Any[value...],

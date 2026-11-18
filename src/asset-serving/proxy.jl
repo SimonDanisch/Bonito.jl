@@ -67,7 +67,7 @@ setup_asset_server(::ProxyAssetServer) = nothing
 # seeks so a large media file (video being scrubbed) never materialises whole per
 # range request; in-memory / bundled assets just slice their bytes.
 function read_proxy_asset(reg::ProxyAssetRegistry, key::AbstractString, start::Integer=0, stop::Integer=-1)
-    asset = lock(reg.lock) do
+    asset = @lock reg.lock let
         e = get(reg.entries, key, nothing)
         e === nothing ? nothing : e[2]
     end
@@ -208,7 +208,7 @@ end
 # `RemoteAsset` (whose `unique_file_key` is `asset.key`).
 function register_proxy_asset!(child::ChildAssetServer, asset::RemoteAsset)
     parent = child.parent
-    lock(parent.lock) do
+    @lock parent.lock begin
         register!(parent, child, asset)
     end
     return

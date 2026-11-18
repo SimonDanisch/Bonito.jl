@@ -77,7 +77,7 @@ function Observables.on(f, session::Session, observable::Observable; update=fals
 end
 
 function Observables.onany(f, session::Session, observables::Observable...)
-    return lock(deletion_lock(session)) do
+    return @lock deletion_lock(session) let
         listeners = onany(f, observables...)
         isclosed(session) ? foreach(off, listeners) : append!(session.deregister_callbacks, listeners)
         return listeners

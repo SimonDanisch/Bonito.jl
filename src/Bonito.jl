@@ -121,7 +121,7 @@ On Julia 1.11+, this is called automatically via atexit (which runs before seria
 On Julia 1.10, this must be called manually after precompilation workloads.
 """
 function cleanup_globals()
-    servers = lock(SERVER_CLEANUP_LOCK) do
+    servers = @lock SERVER_CLEANUP_LOCK begin
         collect(keys(SERVER_CLEANUP_TASKS))
     end
     for server in servers

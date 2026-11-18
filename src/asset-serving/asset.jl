@@ -290,7 +290,7 @@ function rebundle!(asset::Asset)
     asset.es6module || return asset
     # Guard the in-memory drop with the same per-asset lock `bundle!` uses, so
     # a concurrent serve never sees a half-emptied vector.
-    lock(asset.bundle_lock) do
+    @lock asset.bundle_lock let
         isempty(String(asset.bundle_file)) || rm(String(asset.bundle_file); force = true)
         empty!(asset.bundle_data)
     end
@@ -407,7 +407,7 @@ bundle lock, so a concurrent `bundle!` can't tear the vector out from under a
 serving HTTP task. Callers serve the returned copy.
 """
 function bundle_data_snapshot(asset::Asset)
-    return lock(asset.bundle_lock) do
+    return @lock asset.bundle_lock begin
         copy(asset.bundle_data)
     end
 end

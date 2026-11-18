@@ -702,7 +702,7 @@ function Session(parent_session::Session{Connection};
                  on_connection_ready=init_session,
                  title=parent_session.title) where {Connection <: FrontendConnection}
     root = root_session(parent_session)
-    return lock(deletion_lock(root)) do
+    return @lock deletion_lock(root) let
         sub = Session{Connection}(
             parent_session,                                  # parent_or_root
             UNINITIALIZED,
