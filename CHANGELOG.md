@@ -14,7 +14,7 @@ All notable changes to Bonito.jl are documented here. The format is based on [Ke
 
 ### Changed
 
-- `DOM.div(...)` and every other `DOM`/`SVG` element, `DOM.m` and `DOM.m_unesc` build their node through one compiled method. Each call site with its own mix of children and attributes used to compile Hyperscript's node constructor again: in a large app thousands of copies (BonitoAgents' precompile drops from 4.7 to 4.3 GB of memory). The nodes are the same. `DOM.m` is now Bonito's own function with Hyperscript's signatures.
+- `DOM.div(...)` and every other `DOM`/`SVG` element, `DOM.m` and `DOM.m_unesc` build their node through one method that is compiled and inferred once, and `on(f, session, obs)` and `map!(f, session, ...)` are no longer compiled for each callback. Each call site with its own mix of children, attributes or callback used to be compiled and inferred again: in a large app thousands of copies. BonitoAgents' precompile goes from 54 to 43 s and from 4.6 to 4.0 GB of memory, Bonito's own from 18.0 to 16.8 s. The nodes are the same. `DOM.m` is now Bonito's own function with Hyperscript's signatures.
 
 ### Fixed
 

@@ -66,11 +66,13 @@ function update_nocycle!(obs::Observable, @nospecialize(value), session::Union{S
 end
 
 # on & map versions that deregister when session closes!
-function Observables.on(f, session::Session, observable::Observable; update=false)
-    to_deregister = lock(deletion_lock(session)) do
+# Not specialized on the callback or the observable: they only pass them on, and
+# a copy per callback type was compiled for every `on(session, obs) do ... end`.
+Base.@nospecializeinfer function Observables.on(@nospecialize(f), session::Session, @nospecialize(observable::Observable); update=false)
+    to_deregister = @lock deletion_lock(session) let
         listener = on(f, observable)
         isclosed(session) ? off(listener) : push!(session.deregister_callbacks, listener)
-        return listener
+        listener
     end
     update && f(observable[])
     return to_deregister
@@ -84,8 +86,7 @@ function Observables.onany(f, session::Session, observables::Observable...)
     end
 end
 
-@inline function Base.map!(@nospecialize(f), session::Session, result::AbstractObservable, os...; update::Bool=true)
-    # note: the @inline prevents de-specialization due to the splatting
+Base.@nospecializeinfer function Base.map!(@nospecialize(f), session::Session, @nospecialize(result::AbstractObservable), @nospecialize(os...); update::Bool=true)
     callback = Observables.MapCallback(f, result, os)
     for o in os
         o isa AbstractObservable && on(callback, session, o)

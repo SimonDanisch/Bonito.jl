@@ -831,9 +831,7 @@ function push_dependencies!(childs, session::Session)
         assets = session.imports
     else
         root = root_session(session)
-        assets = lock(root.deletion_lock) do
-            return setdiff(session.imports, root.imports)
-        end
+        assets = @lock root.deletion_lock setdiff(session.imports, root.imports)
     end
 
     assets_rendered = render_asset.(Ref(session), Ref(session.asset_server), assets)
@@ -934,17 +932,17 @@ function session_dom(session::Session, dom::Node; init=true, html_document=false
             if html_document
                 # emit a whole html document
                 body_dom = DOM.div(dom, id=session.id, dataJscallId=dom_id)
-                head = Hyperscript.m("head",
-                    Hyperscript.m(
+                head = DOM.m("head",
+                    DOM.m(
                         "meta";
                         name="viewport", content="width=device-width, initial-scale=1.0"
                     ),
-                    Hyperscript.m("meta"; charset="UTF-8"),
-                    Hyperscript.m("title", session.title),
+                    DOM.m("meta"; charset="UTF-8"),
+                    DOM.m("title", session.title),
                     session_style, global_styles...
                 )
-                body = Hyperscript.m("body", body_dom)
-                dom = Hyperscript.m("html", head, body; class="bonito-fragment")
+                body = DOM.m("body", body_dom)
+                dom = DOM.m("html", head, body; class="bonito-fragment")
             else
                 # Emit a "fragment". The wrapper divs are purely structural —
                 # they exist as DOM anchors for Bonito's reactive swap logic

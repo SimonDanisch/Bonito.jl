@@ -8,15 +8,19 @@ using Hyperscript
 # `processattrs` were compiled again for every combination (BonitoAgents'
 # precompile made ~2600 such copies, 9% of its compile time). Collected into a
 # `Vector{Any}` and a `Vector{Pair{Symbol,Any}}`, the same node comes out of one.
-function build_node(ctx::Hyperscript.Context, tag::String, @nospecialize(children), @nospecialize(attrs))
+# `@nospecialize` alone only stops native specialization: inference still ran
+# once per call site's argument types (354 times in BonitoAgents' precompile,
+# 13 s, plus Julia's compiler compiling its splat inference for each), so these
+# are `@nospecializeinfer` as well.
+Base.@nospecializeinfer function build_node(ctx::Hyperscript.Context, tag::String, @nospecialize(children), @nospecialize(attrs))
     return Hyperscript.Node(ctx, tag, Any[children...], Pair{Symbol,Any}[attrs...])
 end
 
 # `DOM.m` is Hyperscript's `m` (same signatures, same node) through that one path,
 # for every tag without a function of its own: markdown, WGLMakie's canvas.
-m(tag::AbstractString, @nospecialize(args...); @nospecialize(kw...)) =
+Base.@nospecializeinfer m(tag::AbstractString, @nospecialize(args...); @nospecialize(kw...)) =
     build_node(Hyperscript.DEFAULT_HTMLSVG_CONTEXT, String(tag), args, kw)
-m(ctx::Hyperscript.Context, tag::AbstractString, @nospecialize(args...); @nospecialize(kw...)) =
+Base.@nospecializeinfer m(ctx::Hyperscript.Context, tag::AbstractString, @nospecialize(args...); @nospecialize(kw...)) =
     build_node(ctx, String(tag), args, kw)
 
 for node in [:a, :abbr, :address, :area, :article, :aside, :audio, :b,
@@ -36,19 +40,19 @@ for node in [:a, :abbr, :address, :area, :article, :aside, :audio, :b,
 
     node_name = string(node)
     unesc = Symbol(node_name * "_unesc")
-    @eval $(node)(@nospecialize(args...); @nospecialize(kw...)) =
+    @eval Base.@nospecializeinfer $(node)(@nospecialize(args...); @nospecialize(kw...)) =
         build_node(Hyperscript.DEFAULT_HTMLSVG_CONTEXT, $(node_name), args, kw)
-    @eval $(unesc)(@nospecialize(args...); @nospecialize(kw...)) =
+    @eval Base.@nospecializeinfer $(unesc)(@nospecialize(args...); @nospecialize(kw...)) =
         build_node(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, $(node_name), args, kw)
 end
 
-style(@nospecialize(args...); @nospecialize(kw...)) =
+Base.@nospecializeinfer style(@nospecialize(args...); @nospecialize(kw...)) =
     build_node(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, "style", args, kw)
-script(@nospecialize(args...); @nospecialize(kw...)) =
+Base.@nospecializeinfer script(@nospecialize(args...); @nospecialize(kw...)) =
     build_node(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, "script", args, kw)
 Base.@deprecate um(tag, args...; kw...) m(tag, args...; kw...)
 
-function m_unesc(tag::AbstractString, @nospecialize(args...); @nospecialize(kw...))
+Base.@nospecializeinfer function m_unesc(tag::AbstractString, @nospecialize(args...); @nospecialize(kw...))
     build_node(Hyperscript.NOESCAPE_HTMLSVG_CONTEXT, String(tag), args, kw)
 end
 
@@ -83,15 +87,15 @@ const DEPRECATED_TAGS = [
 import ..DOM
 
 # One compiled path for every SVG node, as for DOM's (see `DOM.build_node`).
-svg_node(tag::String, @nospecialize(args), @nospecialize(kw)) =
+Base.@nospecializeinfer svg_node(tag::String, @nospecialize(args), @nospecialize(kw)) =
     DOM.build_node(Hyperscript.DEFAULT_HTMLSVG_CONTEXT, tag, args, Pair{Symbol,Any}[:juliasvgnode => true, kw...])
 
 for tag in SVG_TAGS
-    @eval $(tag)(@nospecialize(args...); @nospecialize(kw...)) = svg_node($(string(tag)), args, kw)
+    @eval Base.@nospecializeinfer $(tag)(@nospecialize(args...); @nospecialize(kw...)) = svg_node($(string(tag)), args, kw)
 end
 
 for tag in DEPRECATED_TAGS
-    @eval function $(tag)(@nospecialize(args...); @nospecialize(kw...))
+    @eval Base.@nospecializeinfer function $(tag)(@nospecialize(args...); @nospecialize(kw...))
         @warn($("tag $(tag) is deprecated by the SVG standard. It's highly recommend to avoid it."))
         return svg_node($(string(tag)), args, kw)
     end
