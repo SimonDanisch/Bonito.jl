@@ -155,7 +155,7 @@ end
 # One IO per in-flight message; a re-entrant/concurrent pack finds the pool empty
 # and makes a fresh one.
 function acquire_pack_io!(pool::PackIOPool)
-    return lock(pool.lock) do
+    return @lock pool.lock begin
         isempty(pool.free) ? SessionIO() : pop!(pool.free)
     end
 end
@@ -169,7 +169,7 @@ function release_pack_io!(pool::PackIOPool, s::SessionIO)
     for scratch in s.scratches        # reset the rest for reuse
         reset_for_reuse!(scratch)
     end
-    lock(pool.lock) do
+    @lock pool.lock begin
         push!(pool.free, s)
     end
     return nothing

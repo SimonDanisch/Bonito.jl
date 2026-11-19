@@ -76,7 +76,7 @@ function HTTPAssetServer(server::Server)
     # It's a bit of an abuse of the constructor,
     # but the API for Session is to just call the constructor of the desired assset server
     key = HTTP_ASSET_ROUTE_KEY
-    lock(server.routes.lock) do
+    @lock server.routes.lock let
         if has_route(server.routes, key)
             return ChildAssetServer(get_route(server.routes, key))
         else
@@ -93,7 +93,7 @@ Base.similar(s::ChildAssetServer) = ChildAssetServer(s.parent)
 function Base.close(server::HTTPAssetServer)
     @debug "Closing HTTPAssetServer"
     HTTPServer.delete_route!(server.server, HTTP_ASSET_ROUTE_KEY)
-    lock(server.lock) do
+    @lock server.lock begin
         empty!(server.files)
     end
 end
@@ -117,7 +117,7 @@ end
 # is a no-op (the child's own `files` is empty).
 function Base.close(server::ChildAssetServer)
     parent = server.parent
-    lock(parent.lock) do
+    @lock parent.lock begin
         for (path, registered) in server.files
             decref!(parent, path, registered)
         end
@@ -145,7 +145,7 @@ function url(server::HTTPAssetServer, asset::AbstractAsset)
     # Bare HTTPAssetServer (no child) — register a single ref under a synthetic
     # holder by inserting directly. Used by code paths that talk to the parent
     # without owning a child handle (e.g. `js_to_local_url`).
-    lock(server.lock) do
+    @lock server.lock let
         path = "/assets/" * unique_file_key(asset)
         if !haskey(server.files, path)
             server.files[path] = AssetEntry(asset)
@@ -159,7 +159,7 @@ end
 function url(child::ChildAssetServer, asset::AbstractAsset)
     is_online(asset) && return online_path(asset)
     parent = child.parent
-    lock(parent.lock) do
+    @lock parent.lock let
         _, path = register!(parent, child, asset)
         suffix = (asset isa Asset && asset.es6module) ?
             "?" * asset.content_hash[] : ""
@@ -302,7 +302,7 @@ function (server::HTTPAssetServer)(context)
     # mutates `files` (delete!) under the same lock; without this guard, a
     # concurrent close can corrupt the Dict mid-fetch (or delete the entry
     # between our haskey and getindex).
-    asset = lock(server.lock) do
+    asset = @lock server.lock let
         entry = get(server.files, path, nothing)
         entry === nothing ? nothing : served_asset(entry)
     end

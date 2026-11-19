@@ -4,7 +4,7 @@ include("caching.jl")
 include("protocol.jl")
 
 function SerializedMessage(session::Session, data)
-    return lock(root_session(session).deletion_lock) do
+    return @lock root_session(session).deletion_lock let
         ctx = SerializationContext(session)
         message_data = serialize_cached(ctx, data)
         return SerializedMessage(

@@ -12,6 +12,10 @@ All notable changes to Bonito.jl are documented here. The format is based on [Ke
 - `Server(...; handler = HTTPServer.delegate)` accepts existing Bonito handler wrappers, such as `ProtectedRoute`, around all routes, assets and WebSocket upgrades.
 - A message from a page that the server takes half a second or more to handle is logged with its type, the page and, for an observable update, where its listeners are defined. A page's messages are handled one after another, so such a message holds up everything after it, the page's pings included.
 
+### Changed
+
+- `DOM.div(...)` and every other `DOM`/`SVG` element, `DOM.m` and `DOM.m_unesc` build their node through one method that is compiled and inferred once, and `on(f, session, obs)` and `map!(f, session, ...)` are no longer compiled for each callback. Each call site with its own mix of children, attributes or callback used to be compiled and inferred again: in a large app thousands of copies. BonitoAgents' precompile goes from 54 to 43 s and from 4.6 to 4.0 GB of memory, Bonito's own from 18.0 to 16.8 s. The nodes are the same. `DOM.m` is now Bonito's own function with Hyperscript's signatures.
+
 ### Fixed
 
 - A message that can't be packed, such as an array of `N0f8`, now fails when it is sent. It used to count as a lost connection, so it stayed queued for the life of the page and the browser never received it, with nothing logged above debug level. A failed observable update is now logged as an error and shown by the connection indicator.

@@ -33,7 +33,7 @@ function IJuliaConnection()
 end
 
 _write(connection::WebSocketConnection, bytes) = Base.write(connection, bytes)
-_write(comm, bytes) = IJulia().send_comm(comm, Dict("data" => Base64.base64encode(bytes)))
+_write(comm, bytes) = IJulia().send_comm(comm, Dict{String,Any}("data" => Base64.base64encode(bytes)))
 
 function Base.write(connection::IJuliaConnection, bytes::AbstractVector{UInt8})
     return _write(connection.comm, bytes)

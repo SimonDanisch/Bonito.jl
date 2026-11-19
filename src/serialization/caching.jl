@@ -32,7 +32,7 @@ function register_observable!(session::Session, obs::Observable)
     # The updater lives until the last owner closes, not just the first sub.
     root = root_session(session)
     key = cache_key(session, obs)
-    lock(root.deletion_lock) do
+    @lock root.deletion_lock let
         if !haskey(root.session_objects, key)
             updater = JSUpdateObservable(root, key)
             # The last owner removes this updater through delete_cached!.
@@ -116,7 +116,7 @@ end
 
 function add_cached!(create_cached_object::Function, session::Session, send_to_js::AbstractDict{String, Any}, @nospecialize(object))::CacheKey
     root = root_session(session)
-    lock(root.deletion_lock) do
+    @lock root.deletion_lock let
         key = cache_key(session, object)::String
         result = CacheKey(key)
         # The root stores every entry, including ones it does not own itself.
@@ -177,7 +177,7 @@ end
 # Remove only the updater owned by this session tree.
 function remove_js_updates!(key::String, observable::Observable, session::Session)
     root = root_session(session)
-    lock(root.deletion_lock) do
+    @lock root.deletion_lock begin
         filter!(observable.listeners) do (prio, f)
             !(f isa JSUpdateObservable && f.id == key && f.session === root)
         end

@@ -352,7 +352,7 @@ end
 # True if the client is still under its failed-attempt limit (false = blocked).
 function check_rate_limit(protected::ProtectedRoute, client_ip::String)
     current_time = time()
-    return lock(protected.lock) do
+    return @lock protected.lock let
         # Get failed attempts for this IP
         if haskey(protected.failed_attempts, client_ip)
             attempts = protected.failed_attempts[client_ip]
@@ -379,7 +379,7 @@ end
 # Record a failed authentication attempt for rate limiting.
 function record_failed_attempt(protected::ProtectedRoute, client_ip::String)
     current_time = time()
-    lock(protected.lock) do
+    @lock protected.lock let
         # If we are at the tracking cap and this is a new IP, evict aged-out
         # buckets first so a flood of distinct (possibly spoofed-source) IPs
         # can't grow the Dict without bound.
@@ -407,7 +407,7 @@ end
 
 # Clear a client's failed attempts after a successful authentication.
 function clear_failed_attempts(protected::ProtectedRoute, client_ip::String)
-    lock(protected.lock) do
+    @lock protected.lock begin
         if haskey(protected.failed_attempts, client_ip)
             delete!(protected.failed_attempts, client_ip)
         end

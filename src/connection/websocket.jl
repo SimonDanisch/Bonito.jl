@@ -162,7 +162,7 @@ function cleanup_server(server::Server)
     # deadlock. Snapshot the to-close set under routes_lock, RELEASE it,
     # then close.
     remove = FrontendConnection[]
-    lock(server.websocket_routes.lock) do
+    @lock server.websocket_routes.lock let
         for (route, connection) in server.websocket_routes.table
             if connection isa FrontendConnection
                 session = connection.session
@@ -185,7 +185,7 @@ function cleanup_server(server::Server)
 end
 
 function add_cleanup_task!(server::Server)
-    lock(SERVER_CLEANUP_LOCK) do
+    @lock SERVER_CLEANUP_LOCK begin
         get!(SERVER_CLEANUP_TASKS, server) do
             # Own the timer so shutdown can close it, instead of leaving a
             # sleep(1) armed when a precompile workload finishes (#430).
@@ -223,7 +223,7 @@ created. `close(server)` should call this. Idempotent / safe to call on a
 server that never had a cleanup task.
 """
 function stop_cleanup_task!(server::Server)
-    entry = lock(SERVER_CLEANUP_LOCK) do
+    entry = @lock SERVER_CLEANUP_LOCK begin
         pop!(SERVER_CLEANUP_TASKS, server, nothing)
     end
     isnothing(entry) && return

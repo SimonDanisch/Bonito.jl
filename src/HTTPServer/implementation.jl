@@ -35,14 +35,14 @@ delete_route!(server::Server, pattern) = delete_route!(server.routes, pattern)
 delete_websocket_route!(server::Server, pattern) = delete_route!(server.websocket_routes, pattern)
 
 function delete_route!(routes::Routes, pattern)
-    lock(routes.lock) do
+    @lock routes.lock begin
         filter!(((key, f),) -> !(key == pattern), routes.table)
     end
     return
 end
 
 function get_route(routes::Routes, pattern)
-    lock(routes.lock) do
+    @lock routes.lock begin
         for (key, route) in routes.table
             key == pattern && return route
         end
@@ -51,14 +51,14 @@ function get_route(routes::Routes, pattern)
 end
 
 function has_route(routes::Routes, pattern)
-    lock(routes.lock) do
+    @lock routes.lock begin
         return any(x -> x[1] == pattern, routes.table)
     end
 end
 
 function route!(routes::Routes, pattern_func::Pair)
     pattern, func = pattern_func
-    return lock(routes.lock) do
+    return @lock routes.lock let
         idx = findfirst(pair-> pair[1] == pattern, routes.table)
         old = nothing
         if idx !== nothing
