@@ -1,0 +1,22 @@
+’Ç,j“Ù$9a191c16-2ed0-413e-bb52-95e5a443fcc7€£sub‚§payload‘‚§payloadÈ<f“€Ú+(    function (container){
+        import('https://cdn.esm.sh/v66/three@0.136/es2021/three.js').then(THREE=> {
+            var renderer = new THREE.WebGLRenderer({antialias: true});
+            renderer.setSize(500, 500);
+            renderer.setClearColor("#ffffff");
+            container.appendChild(renderer.domElement);
+            var scene = new THREE.Scene();
+            var camera = new THREE.PerspectiveCamera(75, 500 / 500, 0.1, 1000);
+            camera.position.z = 4;
+            var ambientLight = new THREE.AmbientLight(0xcccccc, 0.4);
+            scene.add(ambientLight);
+            var pointLight = new THREE.PointLight(0xffffff, 0.8);
+            camera.add(pointLight);
+            scene.add(camera);
+            var geometry = new THREE.SphereGeometry(1.0, 32, 32);
+            var material = new THREE.MeshPhongMaterial({color: 0xffff00});
+            var sphere = new THREE.Mesh(geometry, material);
+            scene.add(sphere);
+            renderer.render(scene, camera);
+        })
+    }
+)(document.querySelector('[data-jscall-id="7"]'));«assets.md:9¨msg_type¡2¨msg_type¡9

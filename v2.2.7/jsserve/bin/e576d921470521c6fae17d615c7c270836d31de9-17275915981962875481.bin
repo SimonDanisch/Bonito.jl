@@ -1,0 +1,24 @@
+í«,jìŸ$cc7dc8fe-90e6-4279-8761-524d8b9001d1Ä£subÇßpayloadì»ìkí«,jìŸ$cc7dc8fe-90e6-4279-8761-524d8b9001d1Ä£subÇßpayloadî»,kí«∏jìŸ$cc7dc8fe-90e6-4279-8761-524d8b9001d1É≥9688060828042056876«eí≥9688060828042056876¥13669704362515372769«eí¥13669704362515372769ì≥1577656584232162289«eí≥1577656584232162289£subÉ£obs«h≥1577656584232162289ßpayload»=fìÇ≥3004600379570828765«h¥13669704362515372769≥5987060944540321022«h≥9688060828042056876Ÿßreturn (index) => {
+    const values = __lookup_interpolated('3004600379570828765').value
+    __lookup_interpolated('5987060944540321022').notify(values[index - 1])
+}
+Ÿ9/home/runner/work/JSServe.jl/JSServe.jl/src/widgets.jl:55®msg_type°1»Skí«ZjìŸ$cc7dc8fe-90e6-4279-8761-524d8b9001d1Å≥3720931830978927143«eí≥3720931830978927143°3£subÉ£obs«h≥3720931830978927143ßpayload«√fìÄŸjreturn value=> JSServe.update_node_attribute(document.querySelector('[data-jscall-id="5"]'), 'max', value)ŸS/home/runner/work/JSServe.jl/JSServe.jl/src/rendering/hyperscript_integration.jl:91®msg_type°1»Okí«VjìŸ$cc7dc8fe-90e6-4279-8761-524d8b9001d1Å±91348494647025631«eí±91348494647025631°1£subÉ£obs«h±91348494647025631ßpayload«≈fìÄŸlreturn value=> JSServe.update_node_attribute(document.querySelector('[data-jscall-id="5"]'), 'value', value)ŸS/home/runner/work/JSServe.jl/JSServe.jl/src/rendering/hyperscript_integration.jl:91®msg_type°1»pkí«,jìŸ$cc7dc8fe-90e6-4279-8761-524d8b9001d1Ä£subÇßpayload»(fìÅ≥4981086068342057651«h≥1577656584232162289Ÿæ((node) => {
+    node['oninput'] = (event)=> {
+    __lookup_interpolated('4981086068342057651').notify(parseInt(event.srcElement.value))
+}
+})(document.querySelector('[data-jscall-id="5"]'));Ÿ9/home/runner/work/JSServe.jl/JSServe.jl/src/widgets.jl:66®msg_type°2®msg_type°9»	˙kí«,jìŸ$cc7dc8fe-90e6-4279-8761-524d8b9001d1Ä£subÇßpayload»	≤fìÅ≥8966335837911219042É°1ì»skí«,jìŸ$b28d1677-b623-46eb-87da-3ffaeb856869Ä£subÜ™session_idŸ$b28d1677-b623-46eb-87da-3ffaeb856869®messagesÇßpayloadê®msg_type°9ßreplace¬®msg_type¢12§html«¬iì£diví«5iì£divë«iì£divêÅÆdata-jscall-id¢16ÅÆdata-jscall-id¢15«-iì¢h1ë¥hello from slider: 1ÅÆdata-jscall-id¢14Ç¢idŸ$b28d1677-b623-46eb-87da-3ffaeb856869Ædata-jscall-id∫subsession-application-dom±dom_node_selector°7«]kí«-jìŸ$1dccccc1-0e71-4ba9-9b04-993c3bfb734dÄ§rootÉßpayload¢id≥9688060828042056876®msg_type°0«\kí«-jìŸ$1dccccc1-0e71-4ba9-9b04-993c3bfb734dÄ§rootÉßpayload°1¢id±91348494647025631®msg_type°0°2ì»∞kí«,jìŸ$67946236-018d-4dc2-833a-c0583bd5ef3eÄ£subÜ™session_idŸ$67946236-018d-4dc2-833a-c0583bd5ef3e®messagesÇßpayloadê®msg_type°9ßreplace¬®msg_type¢12§html«ˇiì£diví«5iì£divë«iì£divêÅÆdata-jscall-id¢22ÅÆdata-jscall-id¢21«jiì£imgêÉ£srcŸ?https://docs.makie.org/stable/assets/makie_logo_transparent.svgÆdata-jscall-id¢20•width•200pxÇ¢idŸ$67946236-018d-4dc2-833a-c0583bd5ef3eÆdata-jscall-id∫subsession-application-dom±dom_node_selector°7«]kí«-jìŸ$1dccccc1-0e71-4ba9-9b04-993c3bfb734dÄ§rootÉßpayload¢id≥9688060828042056876®msg_type°0«\kí«-jìŸ$1dccccc1-0e71-4ba9-9b04-993c3bfb734dÄ§rootÉßpayload°2¢id±91348494647025631®msg_type°0°3ì»bkí«,jìŸ$ab42f66f-8fce-4926-81a4-341ee1bbbe7eÄ£subÜ™session_idŸ$ab42f66f-8fce-4926-81a4-341ee1bbbe7e®messagesÇßpayloadê®msg_type°9ßreplace¬®msg_type¢12§html«±iì£diví«5iì£divë«iì£divêÅÆdata-jscall-id¢28ÅÆdata-jscall-id¢27«iì§spanë°9ÅÆdata-jscall-id¢26Ç¢idŸ$ab42f66f-8fce-4926-81a4-341ee1bbbe7eÆdata-jscall-id∫subsession-application-dom±dom_node_selector°7«]kí«-jìŸ$1dccccc1-0e71-4ba9-9b04-993c3bfb734dÄ§rootÉßpayload¢id≥9688060828042056876®msg_type°0«\kí«-jìŸ$1dccccc1-0e71-4ba9-9b04-993c3bfb734dÄ§rootÉßpayload°3¢id±91348494647025631®msg_type°0⁄ÜJSServe.fetch_binary('jsserve/bin/0cbcae24bd4042dcf09a626fb296897319ed9e67-1442379569721633749.bin').then(binary => {
+    const statemap = __lookup_interpolated('8966335837911219042')
+    console.log(statemap)
+    const observables = JSServe.decode_binary(binary, false);
+    JSServe.onany(observables, (states) => {
+        console.log(states)
+        // messages to send for this state of that observable
+        const messages = statemap[states]
+        // not all states trigger events
+        // so some states won't have any messages recorded
+        if (messages){
+            messages.forEach(JSServe.process_message)
+        }
+    })
+})
+Ÿ9/home/runner/work/JSServe.jl/JSServe.jl/src/export.jl:126®msg_type°2«Fkí«-jìŸ$1dccccc1-0e71-4ba9-9b04-993c3bfb734dÄ§rootÇßpayloadê®msg_type°9®msg_type°9

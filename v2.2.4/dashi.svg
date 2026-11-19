@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 16.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" id="Ebene_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 width="1619px" height="588px" viewBox="0 0 1619 588" enable-background="new 0 0 1619 588" xml:space="preserve">
+<linearGradient id="SVGID_1_" gradientUnits="userSpaceOnUse" x1="39" y1="288.5781" x2="565" y2="288.5781">
+	<stop  offset="0.0099" style="stop-color:#F6F6F6"/>
+	<stop  offset="1" style="stop-color:#FAFAFA"/>
+</linearGradient>
+<ellipse fill="url(#SVGID_1_)" cx="302" cy="288.578" rx="263" ry="269.5"/>
+<linearGradient id="SVGID_2_" gradientUnits="userSpaceOnUse" x1="177.6025" y1="73.1147" x2="426.3989" y2="504.0428">
+	<stop  offset="0.0099" style="stop-color:#CBBBA0"/>
+	<stop  offset="1" style="stop-color:#F6F6F6"/>
+</linearGradient>
+<ellipse fill="url(#SVGID_2_)" cx="302" cy="288.578" rx="246.5" ry="249.5"/>
+<linearGradient id="SVGID_3_" gradientUnits="userSpaceOnUse" x1="195.8584" y1="106.5332" x2="404.1431" y2="467.2928">
+	<stop  offset="0.0099" style="stop-color:#FCEA10"/>
+	<stop  offset="1" style="stop-color:#FFDE00"/>
+</linearGradient>
+<ellipse fill="url(#SVGID_3_)" cx="300" cy="286.912" rx="209" ry="208"/>
+<linearGradient id="SVGID_4_" gradientUnits="userSpaceOnUse" x1="197.8574" y1="108.1982" x2="406.1426" y2="468.9587">
+	<stop  offset="0.0099" style="stop-color:#E69C03"/>
+	<stop  offset="1" style="stop-color:#FFDE00"/>
+</linearGradient>
+<ellipse fill="url(#SVGID_4_)" cx="302" cy="288.578" rx="209" ry="208"/>
+<defs>
+	<filter id="Adobe_OpacityMaskFilter" filterUnits="userSpaceOnUse" x="106.667" y="93.156" width="399.333" height="397.422">
+
+			<feColorMatrix  type="matrix" values="-1 0 0 0 1  0 -1 0 0 1  0 0 -1 0 1  0 0 0 1 0" color-interpolation-filters="sRGB" result="source"/>
+		<feFlood  style="flood-color:white;flood-opacity:1" result="back"/>
+		<feBlend  in="source" in2="back" mode="normal"/>
+	</filter>
+</defs>
+<mask maskUnits="userSpaceOnUse" x="106.667" y="93.156" width="399.333" height="397.422" id="SVGID_5_">
+	<g filter="url(#Adobe_OpacityMaskFilter)">
+		<linearGradient id="SVGID_6_" gradientUnits="userSpaceOnUse" x1="126.3271" y1="40.8242" x2="377.2861" y2="475.498">
+			<stop  offset="0.0099" style="stop-color:#F9B233"/>
+			<stop  offset="1" style="stop-color:#EFEFEF"/>
+		</linearGradient>
+		<ellipse fill="url(#SVGID_6_)" cx="251.807" cy="258.161" rx="277.526" ry="241.417"/>
+	</g>
+</mask>
+<linearGradient id="SVGID_7_" gradientUnits="userSpaceOnUse" x1="206.8418" y1="119.543" x2="405.8252" y2="464.1924">
+	<stop  offset="0.0099" style="stop-color:#F9B233"/>
+	<stop  offset="1" style="stop-color:#EFEFEF"/>
+</linearGradient>
+<ellipse opacity="0.6" mask="url(#SVGID_5_)" fill="url(#SVGID_7_)" cx="306.333" cy="291.867" rx="199.667" ry="198.711"/>
+<linearGradient id="SVGID_8_" gradientUnits="userSpaceOnUse" x1="305.6357" y1="282.7998" x2="281.9926" y2="291.8755" gradientTransform="matrix(0.9898 -0.1423 0.1423 0.9898 -38.0328 47.0515)">
+	<stop  offset="0.0296" style="stop-color:#000000"/>
+	<stop  offset="1" style="stop-color:#3D2A14"/>
+</linearGradient>
+<polygon fill="url(#SVGID_8_)" points="146.062,39.245 423.413,547.941 446.803,537.885 152.765,34.588 "/>
+<linearGradient id="SVGID_9_" gradientUnits="userSpaceOnUse" x1="334.3125" y1="253.1284" x2="311.6358" y2="261.8332" gradientTransform="matrix(0.9843 -0.1766 0.1766 0.9843 -51.8185 82.5834)">
+	<stop  offset="0.0296" style="stop-color:#000000"/>
+	<stop  offset="1" style="stop-color:#3D2A14"/>
+</linearGradient>
+<polygon fill="url(#SVGID_9_)" points="153.984,34.055 451.854,534.365 472.489,521.548 161.496,31.775 "/>
+<text transform="matrix(1 0 0 1 596 413.7305)" font-family="'MyriadPro-Regular'" font-size="393.0683" letter-spacing="-24">JSServe</text>
+</svg>

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Components · Bonito</title><meta name="title" content="Components · Bonito"/><meta property="og:title" content="Components · Bonito"/><meta property="twitter:title" content="Components · Bonito"/><meta name="description" content="Documentation for Bonito."/><meta property="og:description" content="Documentation for Bonito."/><meta property="twitter:description" content="Documentation for Bonito."/><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="index.html">Bonito</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li><span class="tocitem">Components</span><ul><li><a class="tocitem" href="styling.html">Styling</a></li><li class="is-active"><a class="tocitem" href="components.html">Components</a></li><li><a class="tocitem" href="layouting.html">Layouting</a></li><li><a class="tocitem" href="widgets.html">Widgets</a></li><li><a class="tocitem" href="interactions.html">Interactions</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="plotting.html">Plotting</a></li><li><a class="tocitem" href="javascript-libraries.html">Wrapping JS libraries</a></li><li><a class="tocitem" href="assets.html">Assets</a></li><li><a class="tocitem" href="extending.html">Extending</a></li></ul></li><li><a class="tocitem" href="deployment.html">Deployment</a></li><li><a class="tocitem" href="static.html">Static Sites</a></li><li><a class="tocitem" href="api.html">Api</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Components</a></li><li class="is-active"><a href="components.html">Components</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="components.html">Components</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/master/docs/src/components.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Components"><a class="docs-heading-anchor" href="#Components">Components</a><a id="Components-1"></a><a class="docs-heading-anchor-permalink" href="#Components" title="Permalink"></a></h1><p>Components in Bonito are meant to be re-usable, easily shareable types and functions to create complex Bonito Apps. We invite everyone to share their Components by turning them into a Julia library.</p><p>There are two ways of defining components in Bonito:</p><ol><li>Write a function which returns <code>DOM</code> objects</li><li>Overload <code>jsrender</code> for a type</li></ol><p>The first is a very lightweight form of defining reusable components, which should be preferred if possible.</p><p>But, for e.g. widgets the second form is unavoidable, since you will want to return a type that the user can register interactions with. Also, the second form is great for integrating existing types into Bonito like plot objects. How to do the latter for Plotly is described in <a href="plotting.html#Plotting">Plotting</a>.</p><p>Let&#39;s start with the simple function based components that reuses existing Bonito components:</p><pre><code class="language-julia hljs">using Dates
+function CurrentMonth(date=now(); style=Styles(), div_attributes...)
+    current_day = Dates.day(date)
+    month = Dates.monthname(date)
+    ndays = Dates.daysinmonth(date)
+    current_day_style = Styles(style, &quot;background-color&quot; =&gt; &quot;gray&quot;, &quot;color&quot; =&gt; &quot;white&quot;)
+    days = map(1:ndays) do day
+        if day == current_day
+            return Card(Centered(day); style=current_day_style)
+        else
+            return Card(Centered(day); style=style)
+        end
+    end
+    grid = Grid(days...; columns=&quot;repeat(7, 1fr)&quot;)
+    return DOM.div(DOM.h2(month), grid; style=Styles(&quot;width&quot; =&gt; &quot;400px&quot;, &quot;margin&quot; =&gt; &quot;5px&quot;))
+end
+
+
+App(()-&gt; CurrentMonth())</code></pre><div>
+  <div class="bonito-fragment" id="3b84daf6-4d86-4378-b1f5-0dbf8a0179de" data-jscall-id="root">
+    <div>
+      <script src="bonito/js/Bonito.bundled.js" type="module"></script>
+      <style></style>
+      <div></div>
+    </div>
+    <div>
+      <script type="module">Bonito.lock_loading(() => Bonito.init_session('3b84daf6-4d86-4378-b1f5-0dbf8a0179de', null, 'root', false))</script>
+      <span></span>
+    </div>
+  </div>
+  <div class="bonito-fragment" id="734c8d4c-f69a-48a8-8ca1-24561a137b80" data-jscall-id="subsession-application-dom">
+    <div>
+      <style>.style_2 {
+  justify-items: center;
+  align-items: center;
+  height: 100%;
+  display: grid;
+  align-content: center;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: center;
+  grid-template-columns: 1fr;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_3 {
+  width: 400px;
+  margin: 5px;
+}
+.style_4 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: repeat(7, 1fr);
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_5 {
+  height: auto;
+  padding: 12px;
+  background-color: rgba(255.0, 255.0, 255.0, 0.2);
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  width: auto;
+  border-radius: 10px;
+  margin: 2px;
+}
+.style_6 {
+  height: auto;
+  padding: 12px;
+  background-color: gray;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: auto;
+  border-radius: 10px;
+  margin: 2px;
+}
+</style>
+      <div></div>
+    </div>
+    <div>
+      <script type="module">Bonito.lock_loading(() => Bonito.init_session('734c8d4c-f69a-48a8-8ca1-24561a137b80', null, 'sub', false))</script>
+      <div class=" style_3" style="" data-jscall-id="1">
+        <h2 data-jscall-id="2">January</h2>
+        <div class=" style_4" style="" data-jscall-id="3">
+          <div class=" style_5" style="" data-jscall-id="4">
+            <div class=" style_2" style="" data-jscall-id="5">1</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="6">
+            <div class=" style_2" style="" data-jscall-id="7">2</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="8">
+            <div class=" style_2" style="" data-jscall-id="9">3</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="10">
+            <div class=" style_2" style="" data-jscall-id="11">4</div>
+          </div>
+          <div class=" style_6" style="" data-jscall-id="12">
+            <div class=" style_2" style="" data-jscall-id="13">5</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="14">
+            <div class=" style_2" style="" data-jscall-id="15">6</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="16">
+            <div class=" style_2" style="" data-jscall-id="17">7</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="18">
+            <div class=" style_2" style="" data-jscall-id="19">8</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="20">
+            <div class=" style_2" style="" data-jscall-id="21">9</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="22">
+            <div class=" style_2" style="" data-jscall-id="23">10</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="24">
+            <div class=" style_2" style="" data-jscall-id="25">11</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="26">
+            <div class=" style_2" style="" data-jscall-id="27">12</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="28">
+            <div class=" style_2" style="" data-jscall-id="29">13</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="30">
+            <div class=" style_2" style="" data-jscall-id="31">14</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="32">
+            <div class=" style_2" style="" data-jscall-id="33">15</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="34">
+            <div class=" style_2" style="" data-jscall-id="35">16</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="36">
+            <div class=" style_2" style="" data-jscall-id="37">17</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="38">
+            <div class=" style_2" style="" data-jscall-id="39">18</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="40">
+            <div class=" style_2" style="" data-jscall-id="41">19</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="42">
+            <div class=" style_2" style="" data-jscall-id="43">20</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="44">
+            <div class=" style_2" style="" data-jscall-id="45">21</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="46">
+            <div class=" style_2" style="" data-jscall-id="47">22</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="48">
+            <div class=" style_2" style="" data-jscall-id="49">23</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="50">
+            <div class=" style_2" style="" data-jscall-id="51">24</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="52">
+            <div class=" style_2" style="" data-jscall-id="53">25</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="54">
+            <div class=" style_2" style="" data-jscall-id="55">26</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="56">
+            <div class=" style_2" style="" data-jscall-id="57">27</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="58">
+            <div class=" style_2" style="" data-jscall-id="59">28</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="60">
+            <div class=" style_2" style="" data-jscall-id="61">29</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="62">
+            <div class=" style_2" style="" data-jscall-id="63">30</div>
+          </div>
+          <div class=" style_5" style="" data-jscall-id="64">
+            <div class=" style_2" style="" data-jscall-id="65">31</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><p>Now, we could define the same kind of rendering via overloading <code>jsrender</code>, if a date is spliced into a DOM:</p><pre><code class="language-julia hljs">function Bonito.jsrender(session::Session, date::DateTime)
+    return Bonito.jsrender(session, CurrentMonth(date))
+end
+App() do
+    DOM.div(now())
+end</code></pre><div class="bonito-fragment" id="76059e40-d18f-4706-9fad-af1be1d392f6" data-jscall-id="subsession-application-dom">
+  <div>
+    <style>.style_7 {
+  justify-items: center;
+  align-items: center;
+  height: 100%;
+  display: grid;
+  align-content: center;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: center;
+  grid-template-columns: 1fr;
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_8 {
+  width: 400px;
+  margin: 5px;
+}
+.style_9 {
+  justify-items: legacy;
+  align-items: legacy;
+  height: 100%;
+  display: grid;
+  align-content: normal;
+  grid-gap: 10px;
+  grid-template-rows: none;
+  justify-content: normal;
+  grid-template-columns: repeat(7, 1fr);
+  width: 100%;
+  grid-template-areas: none;
+}
+.style_10 {
+  height: auto;
+  padding: 12px;
+  background-color: rgba(255.0, 255.0, 255.0, 0.2);
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  width: auto;
+  border-radius: 10px;
+  margin: 2px;
+}
+.style_11 {
+  height: auto;
+  padding: 12px;
+  background-color: gray;
+  box-shadow: 0 4px 8px rgba(0.0, 0.0, 51.0, 0.2);
+  color: white;
+  width: auto;
+  border-radius: 10px;
+  margin: 2px;
+}
+</style>
+    <div></div>
+  </div>
+  <div>
+    <script type="module">Bonito.lock_loading(() => Bonito.init_session('76059e40-d18f-4706-9fad-af1be1d392f6', null, 'sub', false))</script>
+    <div data-jscall-id="66">
+      <div class=" style_8" style="" data-jscall-id="67">
+        <h2 data-jscall-id="68">January</h2>
+        <div class=" style_9" style="" data-jscall-id="69">
+          <div class=" style_10" style="" data-jscall-id="70">
+            <div class=" style_7" style="" data-jscall-id="71">1</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="72">
+            <div class=" style_7" style="" data-jscall-id="73">2</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="74">
+            <div class=" style_7" style="" data-jscall-id="75">3</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="76">
+            <div class=" style_7" style="" data-jscall-id="77">4</div>
+          </div>
+          <div class=" style_11" style="" data-jscall-id="78">
+            <div class=" style_7" style="" data-jscall-id="79">5</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="80">
+            <div class=" style_7" style="" data-jscall-id="81">6</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="82">
+            <div class=" style_7" style="" data-jscall-id="83">7</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="84">
+            <div class=" style_7" style="" data-jscall-id="85">8</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="86">
+            <div class=" style_7" style="" data-jscall-id="87">9</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="88">
+            <div class=" style_7" style="" data-jscall-id="89">10</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="90">
+            <div class=" style_7" style="" data-jscall-id="91">11</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="92">
+            <div class=" style_7" style="" data-jscall-id="93">12</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="94">
+            <div class=" style_7" style="" data-jscall-id="95">13</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="96">
+            <div class=" style_7" style="" data-jscall-id="97">14</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="98">
+            <div class=" style_7" style="" data-jscall-id="99">15</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="100">
+            <div class=" style_7" style="" data-jscall-id="101">16</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="102">
+            <div class=" style_7" style="" data-jscall-id="103">17</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="104">
+            <div class=" style_7" style="" data-jscall-id="105">18</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="106">
+            <div class=" style_7" style="" data-jscall-id="107">19</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="108">
+            <div class=" style_7" style="" data-jscall-id="109">20</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="110">
+            <div class=" style_7" style="" data-jscall-id="111">21</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="112">
+            <div class=" style_7" style="" data-jscall-id="113">22</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="114">
+            <div class=" style_7" style="" data-jscall-id="115">23</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="116">
+            <div class=" style_7" style="" data-jscall-id="117">24</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="118">
+            <div class=" style_7" style="" data-jscall-id="119">25</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="120">
+            <div class=" style_7" style="" data-jscall-id="121">26</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="122">
+            <div class=" style_7" style="" data-jscall-id="123">27</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="124">
+            <div class=" style_7" style="" data-jscall-id="125">28</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="126">
+            <div class=" style_7" style="" data-jscall-id="127">29</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="128">
+            <div class=" style_7" style="" data-jscall-id="129">30</div>
+          </div>
+          <div class=" style_10" style="" data-jscall-id="130">
+            <div class=" style_7" style="" data-jscall-id="131">31</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><p>Please note, that <code>jsrender</code> is not applied recursively on its own, so one needs to apply it manually on the return value. It&#39;s not needed for simple divs and other Hyperscript elements, but e.g. <code>Styles</code> requires a pass through <code>jsrender</code> to do the deduplication etc.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="styling.html">« Styling</a><a class="docs-footer-nextpage" href="layouting.html">Layouting »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.0 on <span class="colophon-date" title="Sunday 5 January 2025 18:39">Sunday 5 January 2025</span>. Using Julia version 1.11.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

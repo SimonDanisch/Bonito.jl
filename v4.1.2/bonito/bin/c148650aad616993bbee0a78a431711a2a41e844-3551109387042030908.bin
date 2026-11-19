@@ -1,0 +1,27 @@
+’Ç,j“Ù$f849de6d-76bb-43e5-8558-2ee372c615fa€£sub’Èsk’Ç9j“Ù$f849de6d-76bb-43e5-8558-2ee372c615fa£230Çe’£230£subƒ£obsÖh£230§payloadÈf“´10865314609589633331–¬space-evenly¦center£end­space-between¬space-around¬space-evenlyÙ©return  (idx) => {
+    grid = document.querySelector('[data-jscall-id="376"]')
+    grid.style["justify-content"] = __lookup_interpolated('10865314609589633331')[idx-1]
+}°layouting.md:393¨msg_type¡1È²k’Çyj“Ù$f849de6d-76bb-43e5-8558-2ee372c615fa£233ÇFe’£233–¬space-evenly¦center£end­space-between¬space-around¬space-evenly£sub‚§payloadÈf“‚´11629740615250871305Öh£230´16603320358616828376Öh£233Ú¨(function onload(element) {
+    function onchange(e) {
+        if (element === e.srcElement) {
+            (__lookup_interpolated('11629740615250871305')).notify(element.selectedIndex + 1);
+        }
+    }
+    element.addEventListener("change", onchange);
+    element.selectedIndex = 0
+    function set_option_index(index) {
+        if (element.selectedIndex === index - 1) {
+            return
+        }
+        element.selectedIndex = index - 1;
+    }
+    __lookup_interpolated('11629740615250871305').on(set_option_index);
+    function set_options(opts) {
+        element.selectedIndex = 0;
+        // https://stackoverflow.com/questions/3364493/how-do-i-clear-all-options-in-a-dropdown-box
+        element.options.length = 0;
+        opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
+    }
+    __lookup_interpolated('16603320358616828376').on(set_options);
+}
+)(document.querySelector('[data-jscall-id="378"]'));Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:214¨msg_type¡2

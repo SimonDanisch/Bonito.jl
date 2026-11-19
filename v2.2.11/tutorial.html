@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Tutorial · JSServe</title><meta name="title" content="Tutorial · JSServe"/><meta property="og:title" content="Tutorial · JSServe"/><meta property="twitter:title" content="Tutorial · JSServe"/><meta name="description" content="Documentation for JSServe."/><meta property="og:description" content="Documentation for JSServe."/><meta property="twitter:description" content="Documentation for JSServe."/><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="index.html">JSServe</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li><a class="tocitem" href="plotting.html">Plotting</a></li><li><a class="tocitem" href="widgets.html">Widgets</a></li><li><a class="tocitem" href="animation.html">Animation</a></li><li><a class="tocitem" href="deployment.html">Deployment</a></li><li><a class="tocitem" href="assets.html">Assets</a></li><li><a class="tocitem" href="extending.html">Extending</a></li><li><a class="tocitem" href="api.html">Api</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href="tutorial.html">Tutorial</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="tutorial.html">Tutorial</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SimonDanisch/JSServe.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SimonDanisch/JSServe.jl/blob/master/docs/src/tutorial.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Tutorial"><a class="docs-heading-anchor" href="#Tutorial">Tutorial</a><a id="Tutorial-1"></a><a class="docs-heading-anchor-permalink" href="#Tutorial" title="Permalink"></a></h1><pre><code class="language-julia hljs">leafletjs = JSServe.ES6Module(&quot;https://esm.sh/v111/leaflet@1.9.3/es2022/leaflet.js&quot;)
+leafletcss = JSServe.Asset(&quot;https://unpkg.com/leaflet@1.9.3/dist/leaflet.css&quot;)
+struct LeafletMap
+    position::NTuple{2,Float64}
+    zoom::Int
+end
+
+function JSServe.jsrender(session::Session, map::LeafletMap)
+
+    map_div = DOM.div(id=&quot;map&quot;; style=&quot;height: 500px;&quot;)
+
+    return JSServe.jsrender(session, DOM.div(
+        leafletcss,
+        leafletjs,
+        map_div,
+        js&quot;&quot;&quot;
+            $(leafletjs).then(L=&gt; {
+                const map = L.map(&#39;map&#39;).setView($(map.position), $(map.zoom));
+                L.tileLayer(
+                    &#39;https://tile.openstreetmap.org/{z}/{x}/{y}.png&#39;, {
+                    maxZoom: 19,
+                    attribution: &#39;&amp;copy; &lt;a href=&quot;http://www.openstreetmap.org/copyright&quot;&gt;OpenStreetMap&lt;/a&gt;&#39;
+                }).addTo(map);
+            })
+
+        &quot;&quot;&quot;
+    ))
+end
+
+
+App() do
+    return LeafletMap((51.505, -0.09), 13)
+end</code></pre><div>
+  <div id="d3786357-8297-40f5-9719-e1d2225b0db3" data-jscall-id="root">
+    <div>
+      <script src="jsserve/js/JSServe.bundled.js" type="module"></script>
+      <div></div>
+    </div>
+    <span>
+      <script type="module">JSServe.lock_loading(() => JSServe.init_session('d3786357-8297-40f5-9719-e1d2225b0db3', null, 'root'))</script>
+    </span>
+  </div>
+  <div id="20915ef2-8e1f-4167-801b-14a37c301220" data-jscall-id="subsession-application-dom">
+    <div>
+      <div>
+        <script src="https://esm.sh/v111/leaflet@1.9.3/es2022/leaflet.js" type="module"></script>
+        <link href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" rel="stylesheet" type="text/css" />
+      </div>
+    </div>
+    <div data-jscall-id="1">
+      <script type="module">JSServe.lock_loading(() => JSServe.init_session('20915ef2-8e1f-4167-801b-14a37c301220', null, 'sub'))</script>
+      <div id="map" style="height: 500px;" data-jscall-id="2"></div>
+      <script type="module">    // JSCode from tutorial.md:24
+    JSServe.fetch_binary('jsserve/bin/52baec45fc57a353365673278f6092c1880c5a60-6524478842279689058.bin').then(bin_messages=>{
+        const objects = JSServe.decode_binary(bin_messages, false);
+        const __lookup_interpolated = (id) => objects[id]
+            import('https://esm.sh/v111/leaflet@1.9.3/es2022/leaflet.js').then(L=> {
+        const map = L.map('map').setView(__lookup_interpolated('1931559942742559920'), 13);
+        L.tileLayer(
+            'https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+    })
+
+
+    })
+</script>
+    </div>
+  </div>
+</div></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.0 on <span class="colophon-date" title="Tuesday 10 October 2023 19:47">Tuesday 10 October 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

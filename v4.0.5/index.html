@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Home · Bonito</title><meta name="title" content="Home · Bonito"/><meta property="og:title" content="Home · Bonito"/><meta property="twitter:title" content="Home · Bonito"/><meta name="description" content="Documentation for Bonito."/><meta property="og:description" content="Documentation for Bonito."/><meta property="twitter:description" content="Documentation for Bonito."/><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="index.html">Bonito</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li class="is-active"><a class="tocitem" href="index.html">Home</a><ul class="internal"><li><a class="tocitem" href="#Quickstart"><span>Quickstart</span></a></li><li><a class="tocitem" href="#Easy-integration-with-existing-JS-CSS-libraries"><span>Easy integration with existing JS + CSS libraries</span></a></li><li><a class="tocitem" href="#Deploying"><span>Deploying</span></a></li></ul></li><li><span class="tocitem">Components</span><ul><li><a class="tocitem" href="styling.html">Styling</a></li><li><a class="tocitem" href="components.html">Components</a></li><li><a class="tocitem" href="layouting.html">Layouting</a></li><li><a class="tocitem" href="widgets.html">Widgets</a></li><li><a class="tocitem" href="interactions.html">Interactions</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="plotting.html">Plotting</a></li><li><a class="tocitem" href="javascript-libraries.html">Wrapping JS libraries</a></li><li><a class="tocitem" href="assets.html">Assets</a></li><li><a class="tocitem" href="extending.html">Extending</a></li></ul></li><li><a class="tocitem" href="deployment.html">Deployment</a></li><li><a class="tocitem" href="static.html">Static Sites</a></li><li><a class="tocitem" href="api.html">Api</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href="index.html">Home</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="index.html">Home</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/SimonDanisch/Bonito.jl/blob/master/docs/src/index.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><p><code>Bonito.jl</code> is a pretty simple package allowing you to render HTML and serve it from within Julia and build up a communication bridge with the Browser. This allows to combine any of your Julia applications with libraries like <a href="https://docs.makie.org/dev/documentation/backends/wglmakie/index.html#export">WGLMakie</a> and create interactive Dashboards like this:</p><p><img src="https://user-images.githubusercontent.com/1010467/214651671-2f8174b6-48ab-4627-b15f-e19c35042faf.gif" alt="dashboard"/></p><p>Bonito is tightly integrated with WGLMakie, which makes them a great pair for high performance, interactive visualizations. If performance is not a high priority, many other plotting/visualization libraries which overload the Julia display system should work with <code>Bonito.jl</code> as well.</p><p><code>Bonito.jl</code> itself tries to stay out of major choices like the HTML/CSS/Javascript framework to use for creating UIs and Dashboards. Instead, it allows to create modular components and makes it easy to use any CSS/Javascript library.</p><p>It uses plain HTML widgets for UI elements where it can, and there are a few styleable components like <code>Card</code>, <code>Grid</code>, <code>Row</code>, <code>Col</code> to make it easy to create some more complex dashboards out of the box.</p><p>If you look at the source of those components, one will see that they&#39;re very simple and easy to create, which should help to create a rich ecosystem of extensions around <code>Bonito.jl</code>. Read more about it in <a href="components.html#Components">Components</a>.</p><h2 id="Quickstart"><a class="docs-heading-anchor" href="#Quickstart">Quickstart</a><a id="Quickstart-1"></a><a class="docs-heading-anchor-permalink" href="#Quickstart" title="Permalink"></a></h2><p>At the core of Bonito you have <code>DOM</code> to create any HTML tag, <code>js&quot;...&quot;</code> to run Javascript, and <code>App</code> to wrap your creation and serve it anywhere:</p><pre><code class="language-julia hljs">using Bonito
+app = App() do
+    return DOM.div(DOM.h1(&quot;hello world&quot;), js&quot;&quot;&quot;console.log(&#39;hello world&#39;)&quot;&quot;&quot;)
+end</code></pre><div>
+  <div class="bonito-fragment" id="10d6fcb5-5730-4ec6-8d96-fc083627fd2f" data-jscall-id="root">
+    <div>
+      <script src="bonito/js/Bonito.bundled15432232505923397289.js" type="module"></script>
+      <style></style>
+    </div>
+    <div>
+      <script type="module">Bonito.lock_loading(() => Bonito.init_session('10d6fcb5-5730-4ec6-8d96-fc083627fd2f', null, 'root', false))</script>
+      <span></span>
+    </div>
+  </div>
+  <div class="bonito-fragment" id="92acf86c-6ba4-4fd3-9074-fc8d1132fe2f" data-jscall-id="subsession-application-dom">
+    <div>
+      <style></style>
+    </div>
+    <div>
+      <script type="module">Bonito.lock_loading(() => Bonito.init_session('92acf86c-6ba4-4fd3-9074-fc8d1132fe2f', null, 'sub', false))</script>
+      <div data-jscall-id="1">
+        <h1 data-jscall-id="2">hello world</h1>
+        <script type="module">console.log('hello world')</script>
+      </div>
+    </div>
+  </div>
+</div><p>App has three main signatures:</p><pre><code class="language-julia hljs"># The main signatures, all other signatures will end up calling:
+App((session, request) -&gt; DOM.div(...))
+# Convenience constructors:
+App((session::Session) -&gt; DOM.div(...))
+App((request::HTTP.Request) -&gt; DOM.div(...))
+App(() -&gt; DOM.div(...))
+App(DOM.div(...))</code></pre><p>The app will be displayed by e.g. the VSCode plot pane, Jupyter/Pluto or any other framework that overloads the Julia display system for HTML display. In the REPL or an environment without an HTML ready display, a browser should open to display it (enabled explicitly via <code>Bonito.browser_display()</code>), but one can also serve the App very easily:</p><pre><code class="language-julia hljs">server = Server(app, &quot;0.0.0.0&quot;, 8080)
+# This is the same as:
+server = Server(&quot;0.0.0.0&quot;, 8080)
+route!(server, &quot;/&quot; =&gt; app)
+# So you can add many apps to one server, and even regexes are supported:
+route!(server, r&quot;.*&quot; =&gt; App(DOM.div(&quot;404, no content for this route&quot;)))
+route!(server, &quot;/some-app&quot; =&gt; App(DOM.div(&quot;app&quot;)))</code></pre><h2 id="Easy-integration-with-existing-JS-CSS-libraries"><a class="docs-heading-anchor" href="#Easy-integration-with-existing-JS-CSS-libraries">Easy integration with existing JS + CSS libraries</a><a id="Easy-integration-with-existing-JS-CSS-libraries-1"></a><a class="docs-heading-anchor-permalink" href="#Easy-integration-with-existing-JS-CSS-libraries" title="Permalink"></a></h2><p>It&#39;s quite easy to integrate existing Libraries into your Bonito App:</p><pre><code class="language-julia hljs">App() do
+    js = ES6Module(&quot;https://esm.sh/v133/leaflet@1.9.4/es2022/leaflet.mjs&quot;)
+    css = Asset(&quot;https://unpkg.com/leaflet@1.9.4/dist/leaflet.css&quot;)
+    map_div = DOM.div(id=&quot;map&quot;; style=&quot;height: 300px; width: 100%&quot;)
+    return DOM.div(
+        css, map_div,
+        js&quot;&quot;&quot;
+        $(js).then(L=&gt; {
+            const map = L.map(&#39;map&#39;).setView([51.505, -0.09], 13);
+            L.tileLayer(&#39;https://tile.openstreetmap.org/{z}/{x}/{y}.png&#39;).addTo(map);
+        })
+        &quot;&quot;&quot;
+    )
+end</code></pre><div class="bonito-fragment" id="8e85ae7c-52fd-41f9-a2bd-9c78b721d74b" data-jscall-id="subsession-application-dom">
+  <div>
+    <style></style>
+    <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet" type="text/css" />
+  </div>
+  <div>
+    <script type="module">Bonito.lock_loading(() => Bonito.init_session('8e85ae7c-52fd-41f9-a2bd-9c78b721d74b', null, 'sub', false))</script>
+    <div data-jscall-id="3">
+      <div id="map" data-jscall-id="4" style="height: 300px; width: 100%"></div>
+      <script type="module">import('https://esm.sh/v133/leaflet@1.9.4/es2022/leaflet.mjs').then(L=> {
+    const map = L.map('map').setView([51.505, -0.09], 13);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+})
+</script>
+    </div>
+  </div>
+</div><p>Read more about wrapping libraries in <a href="javascript-libraries.html#Javascript">Javascript</a>.</p><h2 id="Deploying"><a class="docs-heading-anchor" href="#Deploying">Deploying</a><a id="Deploying-1"></a><a class="docs-heading-anchor-permalink" href="#Deploying" title="Permalink"></a></h2><p><code>Bonito.jl</code> wants to run everywhere, from Notebooks, IDEs, Electron, to being directly inserted into existing web pages.</p><p><img src="https://user-images.githubusercontent.com/1010467/214662497-a1a1c8e7-5f4d-4e57-b129-fdcc227253ca.gif" alt="Bonito-wales"/></p><p>Find out more about the different ways to serve your apps in <a href="deployment.html#Deployment">Deployment</a>.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="styling.html">Styling »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.11.4 on <span class="colophon-date" title="Friday 23 May 2025 12:31">Friday 23 May 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

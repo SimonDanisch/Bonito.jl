@@ -1,0 +1,9 @@
+í«,jìŸ$bb8bec2b-03f0-4a94-b49d-e649d9b7a281ê£subÉßpayloadë»√kí«,jìŸ$b6f4ce21-1ae3-47e1-976c-397a81b264c9ê£subÜ™session_idŸ$b6f4ce21-1ae3-47e1-976c-397a81b264c9®messagesÉßpayloadê®msg_type°9¶cachesêßreplace¬®msg_type¢12§html»iì£diví»iì£diví»«iì¶scriptë⁄õ    Bonito.lock_loading(() => {
+        return Bonito.fetch_binary('bonito/bin/98f2c0d57c581a5d83ffaa520cdcfc4330c4fa01-17295459209061016078.bin').then(binary=> {
+            const observables = Bonito.Protocol.unpack_binary(binary, false)
+            observables.forEach(([id, objects, status]) => {
+                Bonito.Sessions.update_session_cache(id, objects, status);
+            });
+        });
+    })
+ÇÆdata-jscall-id£132§type¶module«iì•styleë†ÅÆdata-jscall-id£133ÅÆdata-jscall-id£131»ãiì£diví«ïiì¶scriptëŸjBonito.lock_loading(() => Bonito.init_session('b6f4ce21-1ae3-47e1-976c-397a81b264c9', null, 'sub', false))ÇÆdata-jscall-id£135§type¶module«÷iì£divì« iì£divë•falseÅÆdata-jscall-id£128«iì£divë°3ÅÆdata-jscall-id£129«]iì£divë«@iì°pëŸ&sin (generic function with 14 methods)ÅÆdata-jscall-id£136ÅÆdata-jscall-id£130Ç•class≥my-2 flex flex-col Ædata-jscall-id£127ÅÆdata-jscall-id£134É•classØbonito-fragment¢idŸ$b6f4ce21-1ae3-47e1-976c-397a81b264c9Ædata-jscall-id∫subsession-application-dom±dom_node_selector¢69®msg_type°9¶cachesê

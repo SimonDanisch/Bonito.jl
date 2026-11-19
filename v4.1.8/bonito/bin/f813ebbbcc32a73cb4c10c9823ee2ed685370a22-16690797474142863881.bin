@@ -1,0 +1,5 @@
+’Ç,j“Ù$830aed2f-c5fe-49b4-bbb6-72ed90bbce22€£sub‘È-k’Ç,j“Ù$830aed2f-c5fe-49b4-bbb6-72ed90bbce22€£sub‚§payloadÇæf“€ÙÖimport('https://esm.sh/v133/leaflet@1.9.4/es2022/leaflet.mjs').then(L=> {
+    const map = L.map('map').setView([51.505, -0.09], 13);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+})
+«index.md:66¨msg_type¡2
