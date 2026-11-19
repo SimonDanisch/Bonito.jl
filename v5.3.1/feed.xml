@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+<title>Bonito Blog</title>
+<link>https://github.com/SimonDanisch/Bonito.jl</link>
+<description>Bonito blog</description>
+<item>
+<title>Bonito 5.0</title>
+<link>v5-release.html</link>
+<guid isPermaLink="false">v5-release</guid>
+<description>The biggest release since JSServe: much faster Julia/browser communication, a Bonito-powered documentation system, the BonitoWidgets package, remote apps and dark-mode-aware widgets.</description>
+<pubDate>Thu, 18 Jun 2026 12:00:00 +0000</pubDate>
+</item>
+</channel></rss>
