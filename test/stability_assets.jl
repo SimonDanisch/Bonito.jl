@@ -122,6 +122,34 @@ end
     end
 end
 
+# An app bundle or moved depot: the paths recorded at precompile time are gone,
+# but `bundle_data` still holds the bytes. Re-bundling can never succeed there, so
+# it must not run on every `url(asset)`, and the bytes must still reach the page.
+@testset "relocated es6 modules serve their embedded bundle" begin
+    code = "export const x = 1; // bundled"
+    function es6module_in(dir)
+        source = joinpath(dir, "module.js")
+        write(source, "export const x = 1;")
+        sleep(0.01)
+        write(joinpath(dir, "module.bundled.js"), code)
+        return Bonito.ES6Module(source)
+    end
+
+    relocated = mktempdir(es6module_in)
+    @test !isfile(relocated.local_path)
+    @test !isfile(relocated.bundle_file)
+    @test !Bonito.needs_bundling(relocated)
+    mime = Bonito.file_mimetype(relocated.bundle_file)
+    @test Bonito.url(NoServer(), relocated) == Bonito.to_data_url(Vector{UInt8}(code), mime)
+
+    # With the source still there, a missing bundle remains a request to bundle.
+    mktempdir() do dir
+        asset = es6module_in(dir)
+        rm(asset.bundle_file)
+        @test Bonito.needs_bundling(asset)
+    end
+end
+
 @testset "B12 force_connection / force_asset_server call force_type! (no MethodError)" begin
     ran = Ref(false)
     # Previously these threw MethodError(force_connection!, (conn, ref)).

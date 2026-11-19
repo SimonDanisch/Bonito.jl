@@ -45,7 +45,13 @@ setup_asset_server(::NoServer) = nothing
 
 function url(::NoServer, asset::Asset)
     !isempty(asset.online_path) && return asset.online_path
-    return to_data_url(local_path(asset))
+    path = local_path(asset)
+    # Relocated install: the bundle file is gone, but its bytes live on in
+    # `bundle_data`. Same fallback as the HTTP asset server.
+    if asset.es6module && !isfile(path) && !isempty(asset.bundle_data)
+        return to_data_url(bundle_data_snapshot(asset), file_mimetype(path))
+    end
+    return to_data_url(path)
 end
 
 function url(::NoServer, asset::BinaryAsset)
