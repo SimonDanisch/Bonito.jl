@@ -1,0 +1,34 @@
+Èk”Ù$97f6ec9b-5a1d-4001-b9db-08e76f012d78£subÇ1Ç.j“Ù$97f6ec9b-5a1d-4001-b9db-08e76f012d78£subÔÈ¹’È‹k”Ù$97f6ec9b-5a1d-4001-b9db-08e76f012d78£subÇ;Ç8j“Ù$97f6ec9b-5a1d-4001-b9db-08e76f012d78£subÇ
+‘Çe’£252Èƒ¨msg_type¡1§payloadÇýf“´12207734832269535094–¬space-evenly¦center£end­space-between¬space-around¬space-evenlyÙ’return  (idx) => {
+    grid = Bonito.lookup_node("350")
+    grid.style["justify-content"] = __lookup_interpolated('12207734832269535094')[idx-1]
+}°layouting.md:393£obsÖh£252È%k”Ù$97f6ec9b-5a1d-4001-b9db-08e76f012d78£subÇ{Çxj“Ù$97f6ec9b-5a1d-4001-b9db-08e76f012d78£subÇJ‘ÇFe’£255–¬space-evenly¦center£end­space-between¬space-around¬space-evenlyÈx‚¨msg_type¡2§payloadÈ`f“‚³8377504385199619540Öh£255³3154915077857566945Öh£252Úí(function onload(element) {
+    function onchange(e) {
+        if (element === e.srcElement) {
+            (__lookup_interpolated('3154915077857566945')).notify(element.selectedIndex + 1);
+        }
+    }
+    element.addEventListener("change", onchange);
+    element.selectedIndex = 0
+    function set_option_index(index) {
+        if (element.selectedIndex === index - 1) {
+            return
+        }
+        element.selectedIndex = index - 1;
+    }
+    __lookup_interpolated('3154915077857566945').on(set_option_index);
+    function set_options(opts) {
+        element.selectedIndex = 0;
+        // https://stackoverflow.com/questions/3364493/how-do-i-clear-all-options-in-a-dropdown-box
+        element.options.length = 0;
+        opts.forEach((opt, i) => element.options.add(new Option(opts[i], i)));
+        // Resetting selectedIndex to 0 here silently desynced Julia,
+        // which still believed the old `option_index`. Notify it (1-based)
+        // so both sides agree on the new selection.
+        if (__lookup_interpolated('3154915077857566945').value !== 1) {
+            (__lookup_interpolated('3154915077857566945')).notify(1);
+        }
+    }
+    __lookup_interpolated('8377504385199619540').on(set_options);
+}
+)(Bonito.lookup_node("352"));Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:295

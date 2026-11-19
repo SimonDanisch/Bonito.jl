@@ -1,0 +1,42 @@
+»mkîŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub«1«.jìŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub‘ê»
+ù»kîŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub«<«9jìŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub«ë«eí§1303¿»°Ç®msg_type°2ßpayload»âfìÅ¥15027481128509826858«h§1303⁄,{const e=Bonito.lookup_node("10");if(e){e["onclick"]=event => {
+            event.stopPropagation();
+            __lookup_interpolated('15027481128509826858').notify("home");
+        }}else{console.warn('Bonito: skip '+"onclick"+' from '+"/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093")}}Ÿ9/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093»—kîŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub«1«.jìŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub‘ê»nÇ®msg_type°2ßpayload»VfìÄ⁄{const e=Bonito.lookup_node("14");if(e){e["onclick"]=event => {
+    event.stopPropagation();
+    event.currentTarget.parentElement.classList.toggle("expanded");
+}}else{console.warn('Bonito: skip '+"onclick"+' from '+"/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1113")}}Ÿ9/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1113»kîŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub«1«.jìŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub‘ê»•Ç®msg_type°2ßpayload»çfìÅ¥15027481128509826858«h§1303⁄0{const e=Bonito.lookup_node("19");if(e){e["onclick"]=event => {
+            event.stopPropagation();
+            __lookup_interpolated('15027481128509826858').notify("file_new");
+        }}else{console.warn('Bonito: skip '+"onclick"+' from '+"/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093")}}Ÿ9/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093»	kîŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub«1«.jìŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub‘ê»¶Ç®msg_type°2ßpayload»éfìÅ¥15027481128509826858«h§1303⁄1{const e=Bonito.lookup_node("22");if(e){e["onclick"]=event => {
+            event.stopPropagation();
+            __lookup_interpolated('15027481128509826858').notify("file_open");
+        }}else{console.warn('Bonito: skip '+"onclick"+' from '+"/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093")}}Ÿ9/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093»	kîŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub«1«.jìŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub‘ê»¶Ç®msg_type°2ßpayload»éfìÅ¥15027481128509826858«h§1303⁄1{const e=Bonito.lookup_node("25");if(e){e["onclick"]=event => {
+            event.stopPropagation();
+            __lookup_interpolated('15027481128509826858').notify("file_save");
+        }}else{console.warn('Bonito: skip '+"onclick"+' from '+"/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093")}}Ÿ9/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093»—kîŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub«1«.jìŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub‘ê»nÇ®msg_type°2ßpayload»VfìÄ⁄{const e=Bonito.lookup_node("29");if(e){e["onclick"]=event => {
+    event.stopPropagation();
+    event.currentTarget.parentElement.classList.toggle("expanded");
+}}else{console.warn('Bonito: skip '+"onclick"+' from '+"/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1113")}}Ÿ9/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1113»kîŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub«1«.jìŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub‘ê»®Ç®msg_type°2ßpayload»êfìÅ¥15027481128509826858«h§1303⁄3{const e=Bonito.lookup_node("34");if(e){e["onclick"]=event => {
+            event.stopPropagation();
+            __lookup_interpolated('15027481128509826858').notify("recent_doc1");
+        }}else{console.warn('Bonito: skip '+"onclick"+' from '+"/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093")}}Ÿ9/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093»kîŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub«1«.jìŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub‘ê»®Ç®msg_type°2ßpayload»êfìÅ¥15027481128509826858«h§1303⁄3{const e=Bonito.lookup_node("37");if(e){e["onclick"]=event => {
+            event.stopPropagation();
+            __lookup_interpolated('15027481128509826858').notify("recent_doc2");
+        }}else{console.warn('Bonito: skip '+"onclick"+' from '+"/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093")}}Ÿ9/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093»—kîŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub«1«.jìŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub‘ê»nÇ®msg_type°2ßpayload»VfìÄ⁄{const e=Bonito.lookup_node("41");if(e){e["onclick"]=event => {
+    event.stopPropagation();
+    event.currentTarget.parentElement.classList.toggle("expanded");
+}}else{console.warn('Bonito: skip '+"onclick"+' from '+"/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1113")}}Ÿ9/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1113»kîŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub«1«.jìŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub‘ê»•Ç®msg_type°2ßpayload»çfìÅ¥15027481128509826858«h§1303⁄0{const e=Bonito.lookup_node("46");if(e){e["onclick"]=event => {
+            event.stopPropagation();
+            __lookup_interpolated('15027481128509826858').notify("edit_cut");
+        }}else{console.warn('Bonito: skip '+"onclick"+' from '+"/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093")}}Ÿ9/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093»	kîŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub«1«.jìŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub‘ê»¶Ç®msg_type°2ßpayload»éfìÅ¥15027481128509826858«h§1303⁄1{const e=Bonito.lookup_node("49");if(e){e["onclick"]=event => {
+            event.stopPropagation();
+            __lookup_interpolated('15027481128509826858').notify("edit_copy");
+        }}else{console.warn('Bonito: skip '+"onclick"+' from '+"/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093")}}Ÿ9/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093»
+kîŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub«1«.jìŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub‘ê»ßÇ®msg_type°2ßpayload»èfìÅ¥15027481128509826858«h§1303⁄2{const e=Bonito.lookup_node("52");if(e){e["onclick"]=event => {
+            event.stopPropagation();
+            __lookup_interpolated('15027481128509826858').notify("edit_paste");
+        }}else{console.warn('Bonito: skip '+"onclick"+' from '+"/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093")}}Ÿ9/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093»kîŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub«1«.jìŸ$d688e749-2582-4904-a72a-0d94b14df3ff£sub‘ê»•Ç®msg_type°2ßpayload»çfìÅ¥15027481128509826858«h§1303⁄0{const e=Bonito.lookup_node("55");if(e){e["onclick"]=event => {
+            event.stopPropagation();
+            __lookup_interpolated('15027481128509826858').notify("settings");
+        }}else{console.warn('Bonito: skip '+"onclick"+' from '+"/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093")}}Ÿ9/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:1093

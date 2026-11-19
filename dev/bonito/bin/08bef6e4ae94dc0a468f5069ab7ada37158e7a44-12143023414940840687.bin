@@ -1,0 +1,36 @@
+Èk”Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ1Ç.j“Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÔÈ ’È’k”Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ1Ç.j“Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÔÈ/‚¨msg_type¡9§payload”ÈAk”Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ;Ç8j“Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ
+‘Çe’¢34¡3ÇÕƒ¨msg_type¡1§payloadÇ´f“€Ù\return value => {
+    Bonito.update_node_attribute(Bonito.lookup_node("2"), "max", value);
+}ÙR/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:121£obsÇh¢34Èok”Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇLÇIj“Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ“×e’¢29“Çe’¢30Çe’¢31Èñ‚¨msg_type¡2§payloadÈÙf“ƒ³4308571841556294609Çh¢29´17010116778457261664Çh¢30´15844131534515080720Çh¢31ÚJ{const e=Bonito.lookup_node("2");if(e){e["oninput"]=(event)=> {
+    const idx = event.srcElement.valueAsNumber;
+    if (idx !== __lookup_interpolated('17010116778457261664').value) {
+        __lookup_interpolated('17010116778457261664').notify(idx)
+        if (Bonito.is_no_connection()) {
+            const vals = __lookup_interpolated('4308571841556294609').value;
+            __lookup_interpolated('15844131534515080720').notify(vals[idx - 1], true);
+        }
+    }
+}}else{console.warn('Bonito: skip '+"oninput"+' from '+"/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:405")}}Ù8/home/runner/work/Bonito.jl/Bonito.jl/src/widgets.jl:405ÈCk”Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ;Ç8j“Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ
+‘Çe’¢35¡1Ç×ƒ¨msg_type¡1§payloadÇ¶f“€Ù^return value => {
+    Bonito.update_node_attribute(Bonito.lookup_node("2"), "value", value);
+}ÙR/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/hyperscript_integration.jl:121£obsÇh¢35Èk”Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ;Ç8j“Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ
+‘Çe’¢36¡1Ç«ƒ¨msg_type¡1§payloadÇŠf“€Ù>return (val)=> {
+    Bonito.lookup_node("3").innerText = val
+}ÙF/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/observables.jl:166£obsÇh¢36Èk”Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ1Ç.j“Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÔÈ¢‚¨msg_type¡2§payloadÈŠf“³9642332970714898043¢31ƒ¡3’Ç¹k”Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇlÇij“Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ;‘Ç7j“Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ	‘Çe’¢36ÀÇƒ¨msg_type¡0§payload¡9¢id¢36Ç¸k”Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇlÇij“Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ;‘Ç7j“Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ	‘Çe’¢31ÀÇƒ¨msg_type¡0§payload¢id¢31¡1’Ç¹k”Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇlÇij“Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ;‘Ç7j“Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ	‘Çe’¢36ÀÇƒ¨msg_type¡0§payload¡1¢id¢36Ç¸k”Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇlÇij“Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ;‘Ç7j“Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ	‘Çe’¢31ÀÇƒ¨msg_type¡0§payload¢id¢31¡2’Ç¹k”Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇlÇij“Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ;‘Ç7j“Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ	‘Çe’¢36ÀÇƒ¨msg_type¡0§payload¡4¢id¢36Ç¸k”Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇlÇij“Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ;‘Ç7j“Ù$f121463b-3252-4b46-8d9f-cf7ead46c3af£subÇ	‘Çe’¢31ÀÇƒ¨msg_type¡0§payload¢id¢31ÚÅBonito.fetch_binary('bonito/bin/d44ef837e359327fe25dab79cf01b8c7163d5f92-7673327247256168881.bin').then(binary => {
+    const widget_statemaps = __lookup_interpolated('9642332970714898043')
+    console.log('Widget statemaps:', widget_statemaps)
+    const observables = Bonito.decode_binary(binary, false);
+    // Set up individual listeners for each observable
+    observables.forEach((obs, idx) => {
+        obs.on(value => {
+            const obs_states = widget_statemaps[obs.id]
+            const key = Bonito.generate_state_key(value);
+            const messages = obs_states[key];
+            if (messages){
+                messages.forEach(Bonito.process_message)
+            }
+        });
+    });
+
+})
+Ù7/home/runner/work/Bonito.jl/Bonito.jl/src/export.jl:236

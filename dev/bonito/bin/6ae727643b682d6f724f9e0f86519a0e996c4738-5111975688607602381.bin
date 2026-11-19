@@ -1,0 +1,67 @@
+»-kîŸ$c17f8c51-3ebe-4fed-b8ee-c0a096ee95e1£sub«1«.jìŸ$c17f8c51-3ebe-4fed-b8ee-c0a096ee95e1£sub‘ê» í»kîŸ$c17f8c51-3ebe-4fed-b8ee-c0a096ee95e1£sub«<«9jìŸ$c17f8c51-3ebe-4fed-b8ee-c0a096ee95e1£sub«ë◊eí§1331°1«ØÉ®msg_type°1ßpayload«åfìÄŸ@return (val)=> {
+    Bonito.lookup_node("221").innerText = val
+}ŸF/home/runner/work/Bonito.jl/Bonito.jl/src/rendering/observables.jl:166£obs«h§1331»•kîŸ$c17f8c51-3ebe-4fed-b8ee-c0a096ee95e1£sub«F«CjìŸ$c17f8c51-3ebe-4fed-b8ee-c0a096ee95e1£sub«í«eí§1330
+«eí§1328»-Ç®msg_type°2ßpayload»fìÇ¥11100565768855164990«h§1330≥2810151468886786618«h§1328⁄ö((container)=> {
+    const thumb = Bonito.lookup_node("219");
+    const track_active = Bonito.lookup_node("218");
+    const track = Bonito.lookup_node("217");
+    let isDragging = false;
+    const nsteps_obs = __lookup_interpolated('11100565768855164990')
+    let last_index = -1;
+    function set_thumb_index(index) {
+        if (index === last_index) {
+            return
+        }
+        last_index = index;
+        const thumb_width = thumb.offsetWidth / 2;
+        const nsteps = nsteps_obs.value;
+        const step_width = track.offsetWidth / (nsteps-1);
+        const new_left = (index - 1) * step_width;
+        thumb.style.left = (new_left - thumb_width) + 'px';  // Update the left position of the thumb
+        track_active.style.width = new_left + 'px';  // Update the active track
+    }
+    __lookup_interpolated('2810151468886786618').on(idx=> set_thumb_index(idx));
+    function set_thumb(e) {
+        const nsteps = nsteps_obs.value;
+        const thumb_width = thumb.offsetWidth / 2;
+        const width = track.offsetWidth;
+        const step_width = width / (nsteps - 1);
+        let new_left = e.clientX - container.getBoundingClientRect().left;
+        new_left = Math.max(new_left, 0);
+        new_left = Math.min(new_left, width);
+        new_left = Math.round(new_left / step_width) * step_width;
+        thumb.style.left = (new_left - thumb_width) + 'px';  // Update the left position of the thumb
+        track_active.style.width = new_left + 'px';  // Update the active track
+        // `index` is 0-based here; `slider.index` is 1-based. The previous
+        // comparison `index !== value` mixed the two bases, so the
+        // echo-dedup guard never matched and every drag re-notified.
+        const index = Math.round((new_left / width) * (nsteps - 1));
+        const index_1based = index + 1;
+        last_index = index_1based;
+        if (index_1based !== __lookup_interpolated('2810151468886786618').value) {
+            __lookup_interpolated('2810151468886786618').notify(index_1based);
+        }
+    }
+    const set_thumb_throttled = Bonito.throttle_function(set_thumb, 100);
+    const controller = new AbortController();
+    document.addEventListener('mousedown', function (e) {
+        if(e.target === thumb || e.target === track_active || e.target === track || e.target === container){
+            isDragging = true;
+            set_thumb(e);
+            e.preventDefault();  // Prevent default behavior
+        }
+    }, { signal: controller.signal});
+    document.addEventListener('mouseup', function () {
+        if (!document.body.contains(container)) {
+            controller.abort();
+        }
+        isDragging = false;
+    }, { signal: controller.signal });
+    document.addEventListener('mousemove', function (e) {
+        if (isDragging) {
+            set_thumb(e);
+        }
+    }, { signal: controller.signal });
+    set_thumb_index(__lookup_interpolated('2810151468886786618').value)
+}
+)(Bonito.lookup_node("216"));Ÿ;/home/runner/work/Bonito.jl/Bonito.jl/src/components.jl:346
