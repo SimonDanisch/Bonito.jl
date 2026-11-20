@@ -135,6 +135,10 @@ function Base.hash(a::Asset, h::UInt)
 end
 
 
+struct Folder
+    path::String
+end
+
 struct Link <: AbstractAsset
     target::String
 end
