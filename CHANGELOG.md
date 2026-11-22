@@ -44,6 +44,7 @@ All notable changes to Bonito.jl are documented here. The format is based on [Ke
 - A payload request the server turned away no longer hands the login page it was redirected to to the decoder ("Extra N byte(s) found at buffer[1]"). It fails with "turned away by the server", or waits for `on_refused`.
 - Generated CSS classes are named by the rule they carry, so two sessions on one page (a proxied worker app, several apps in a notebook) no longer give one class name two different rules.
 - `CSS` keeps its declarations in the order given, and so does `merge` (the second rule's declarations come last). A `Dict` wrote them in hash order, so a rule like `"border" => ..., "border-top-color" => ...` could come out with the shorthand last, and a spinner built that way showed a still grey ring. Nested rules keep their order too. A `CSS` built from a plain `Dict` is taken in sorted order.
+- `evaljs_value` no longer deadlocks ("Timed out") when invoked from within a message handler (e.g. an `Observable` listener fired by a frontend update). Its reply is now delivered out-of-band from the receive task instead of the sequential inbox reader that is blocked running the handler, so backends that perform a blocking round-trip while handling a browser message (e.g. WGLMakie's `insert_scene!`/`insert_plot!` when SpecApi creates new blocks) no longer hang.
 
 ## [5.0.0]
 

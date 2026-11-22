@@ -69,7 +69,7 @@ function setup_connection(session::Session, ::Nothing)
             comm.on_msg = function (msg)
                 data_b64 = msg.content["data"]
                 bytes = $(Base64).base64decode(data_b64)
-                put!(session.inbox, bytes)
+                $(route_incoming!)(session, bytes)
             end
             comm.on_close = (args...) -> close(session)
         end
