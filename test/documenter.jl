@@ -49,3 +49,47 @@ end
         @test !occursin("href=\"\"", html)
     end
 end
+
+function example_docs_fixture(root)
+    src = joinpath(root, "src")
+    mkpath(src)
+    write(joinpath(src, "index.md"), """
+    # Examples
+
+    ```@setup demo
+    label = "from setup"
+    ```
+
+    ```@example demo
+    using Bonito
+    App() do
+        target = DOM.div(label)
+        DOM.div(target, js"\$(target).dataset.found = true")
+    end
+    ```
+
+    ```@example demo; continued = true
+    total = 1 +
+    ```
+
+    ```@example demo
+    2
+    ```
+    """)
+    Documenter.makedocs(;
+        root, sitename = "Example test", remotes = nothing, doctest = false,
+        format = Bonito.DocumenterBonito(), pages = ["Home" => "index.md"],
+    )
+    return read(joinpath(root, "build", "index.html"), String)
+end
+
+@testset "Documenter example blocks" begin
+    html = mktempdir(example_docs_fixture)
+    # An example's App renders through the page's session. Documenter's own
+    # `@example` expander would embed it as a second root session, whose node
+    # ids restart at 1 and collide with the page's, so `$(target)` finds a
+    # node of the page instead.
+    @test count("Bonito.init_session(", html) == 1
+    @test occursin(">from setup<", html)
+    @test occursin(">3<", html)
+end
