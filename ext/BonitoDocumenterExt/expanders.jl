@@ -25,12 +25,20 @@ end
 is_bonito_build(doc) = any(f -> f isa BonitoFormat, doc.user.format)
 share_default(page) = get(page.globals.meta, :ShareDefaultModule, false)
 
+# The language Documenter dispatches a block on: its info string up to the first
+# whitespace or `;` (`@example name; continued = true` is an `@example`). Matched
+# here instead of through Documenter's internal helper, which changed in 1.20
+# (`iscode` lost its Regex method) and silently handed these blocks back to
+# Documenter's own expanders.
+block_language(block::MA.CodeBlock) = first(split(block.info, r"[\s;]"; limit = 2))
+block_language(element) = nothing
+
 # ---- @example --------------------------------------------------------------
 
 abstract type BonitoExampleBlocks <: Documenter.Expanders.ExpanderPipeline end
 Documenter.Selectors.order(::Type{BonitoExampleBlocks}) = 7.5  # before Documenter's ExampleBlocks (8.0)
 Documenter.Selectors.matcher(::Type{BonitoExampleBlocks}, node, page, doc) =
-    is_bonito_build(doc) && Documenter.iscode(node, r"^@example")
+    is_bonito_build(doc) && block_language(node.element) == "@example"
 
 function Documenter.Selectors.runner(::Type{BonitoExampleBlocks}, node, page, doc)
     x = node.element
@@ -98,7 +106,7 @@ end
 abstract type BonitoSetupBlocks <: Documenter.Expanders.ExpanderPipeline end
 Documenter.Selectors.order(::Type{BonitoSetupBlocks}) = 7.5
 Documenter.Selectors.matcher(::Type{BonitoSetupBlocks}, node, page, doc) =
-    is_bonito_build(doc) && Documenter.iscode(node, r"^@setup")
+    is_bonito_build(doc) && block_language(node.element) == "@setup"
 
 function Documenter.Selectors.runner(::Type{BonitoSetupBlocks}, node, page, doc)
     x = node.element
