@@ -45,7 +45,14 @@ using Bonito, Test, Logging
             Bonito.DOM.div(slider)
         end
         try
-            @test_logs min_level=Logging.Warn Bonito.serve_workload(app)
+            # The workload is the first page of this process, so each handler
+            # compiles on its first message and can cross the 0.5 s slow-message
+            # threshold (JSDoneLoading took 0.69 s on 1.11 CI). That is compile
+            # time, not a slow handler; any other warning still fails.
+            logs, _ = Test.collect_test_logs(min_level = Logging.Warn) do
+                Bonito.serve_workload(app)
+            end
+            @test isempty(filter(l -> !startswith(string(l.message), "slow message from a page"), logs))
             entries = collect(values(Bonito.SERVER_CLEANUP_TASKS))
             @test !isempty(entries)
             Bonito.cleanup_globals()
